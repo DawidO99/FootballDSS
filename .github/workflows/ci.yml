@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+    # Documentation-only changes do not need a build.
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
 
 permissions:
   contents: read

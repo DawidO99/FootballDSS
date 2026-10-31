@@ -32,19 +32,34 @@ FootballDSS is a desktop decision-support system for football coaches (engineeri
 | Database | SQLite via QtSql |
 | JSON | QJsonDocument / QJsonObject (data layer only) |
 | Excel | QXlsx (data layer only) |
+| PIN hashing | `QPasswordDigestor` PBKDF2-SHA256 from Qt Network, linked into `fdss_services` only; no sockets (ADR-007) |
 | Tests | GoogleTest via FetchContent; QML smoke test offscreen |
 | Build | CMake + CMakePresets.json. NO qmake |
-| Python | none |
+| Python | none in app code, CMake build or shipped package; CI-only tooling (e.g. aqtinstall) is allowed |
 
 ## 3. Build and verify (run ALL before saying "done")
 
 ```bash
 cmake --preset dev
 cmake --build --preset dev
-ctest --preset dev --output-on-failure
+ctest --preset dev --output-on-failure            # unit tests + qml_smoke
 cmake --build --preset dev --target all_qmllint
-QT_QPA_PLATFORM=offscreen ./build/dev/tests/qml_smoke   # loads every view, fails on QML warnings
+clang-format-18 --dry-run --Werror $(git ls-files 'src/*.cpp' 'src/*.hpp' 'tests/*.cpp' 'tests/*.hpp')
 ```
+
+On the human's machine use the gitignored preset `dev-local` instead of `dev` (it sets the Qt
+path and GCC 14; build directory is still `build/dev`).
+
+**No display (agent sandboxes, CI).** Qt Graphs needs OpenGL even offscreen (ADR-006), so on Linux
+without `$DISPLAY` run the unit tests with `ctest --preset dev -E qml_smoke` and the smoke test with:
+
+```bash
+xvfb-run -a -s '-screen 0 1920x1080x24' env QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 \
+    ./build/dev/tests/qml_smoke
+```
+
+If `xvfb-run` is not available, say so in the report and let the human or CI run `qml_smoke`.
+Never "fix" `QRhiGles2: Failed to create context` in code; it means "no display", not a bug.
 
 If any step fails, fix it or report exactly what fails. Never claim success without running these.
 
@@ -81,11 +96,18 @@ CMake targets:
 
 ## 5. C++ rules
 
-- Errors: core/data/services return `std::expected<T, Error>`. No exceptions across layer
-  boundaries. `Error` = { code enum, translatable message key, technical detail }.
+- Errors: core/data/services return `fdss::core::Result<T>` = `std::expected<T, Error>`
+  (`core/util/Error.hpp`). No exceptions across layer boundaries. `Error` =
+  { `ErrorCode code`, `std::string detail` (technical, English, for logs),
+  `std::string field` (optional: which input/column is wrong) }. Core, data and services never
+  produce user-visible text; viewmodels turn `code` + `field` into a `qsTr()` message through
+  `ErrorPresenter`. Never show `detail` to the user.
+- Composition root: `main.cpp` (and `qml_smoke`) builds the `DatabaseManager`, repositories and
+  services once and installs them in `fdss::viewmodels::ServiceRegistry`. Viewmodels obtain
+  services from the registry in their constructor or `create()` factory. No other global state.
 - Prefer `std::ranges` / views over raw loops when it stays readable. Use `std::format`.
   `std::mdspan` / `std::print` only if CI is green on all three platforms; otherwise `Grid2D`.
-- - Ownership: `std::unique_ptr` / values. Raw `new` only for QObjects with a parent, or in a
+- Ownership: `std::unique_ptr` / values. Raw `new` only for QObjects with a parent, or in a
   QML singleton `create()` factory (the QML engine takes ownership).
 - Every QObject subclass has `Q_OBJECT`. QML types use `QML_ELEMENT` / `QML_SINGLETON` /
   `QML_UNCREATABLE` with `qt_add_qml_module`. `qmlRegisterType` is FORBIDDEN.
@@ -97,11 +119,27 @@ CMake targets:
 - `fdss_core` compiles with warnings as errors. Code formatted with the repo `.clang-format`.
 - Files live in `QStandardPaths::AppDataLocation` (db, logs, backups). Never next to the exe.
 
+- Tests: `fdss_tests` uses our own gtest `main` that creates a `QCoreApplication` and calls
+  `QStandardPaths::setTestModeEnabled(true)`; tests never touch the real AppData folder.
+  Viewmodel tests live in `fdss_vm_tests` (links `fdss_ui`).
+- Repositories never store `QSqlDatabase` copies; they ask `DatabaseManager` on each call.
+
 ## 6. QML rules
 
 - No business logic in QML. Bindings, simple UI state and calls to ViewModel methods only.
 - Every user-visible string goes through `qsTr()`. Source strings in English; Polish lives in
-  `i18n/FootballDSS_pl.ts`. Update `.ts` files when you add strings.
+  `i18n/FootballDSS_pl.ts`. Update `.ts` files when you add strings
+  (`cmake --build --preset dev --target update_translations`, then fill every `unfinished` entry).
+- `.ts` merge conflicts (parallel branches always touch them): never hand-merge XML. Take the
+  `main` version, re-run `update_translations`, then translate the entries that came back
+  `unfinished`.
+- Keyboard shortcuts inside a view use `enabled: root.visible` (all views stay loaded; only the
+  current one is visible), otherwise identical shortcuts in two views block each other.
+- Dates between viewmodels and QML are ISO strings `yyyy-MM-dd` (times `HH:mm`), never JS `Date`
+  (time-zone shifts). Formatting for display uses the app language, not the system locale.
+- Build UI from `ui/components/` (DataTable, form fields, dialogs, toast…). Do not restyle raw
+  Controls inside views; if a component is missing, add it to `ui/components/` and to the
+  component gallery.
 - Colors, fonts, spacing, radii and sizes come ONLY from the `Theme` singleton. No hex literals
   or magic numbers in views/components. Allowed keywords: "transparent".
 - Hit targets: min 32 px; min 44 px on Match Day and the tactics board.
@@ -149,24 +187,34 @@ CMake targets:
 - [ ] All commands from section 3 pass.
 - [ ] New logic in core/data/services has tests.
 - [ ] New strings are in `qsTr()` and added to both `.ts` files.
-- [ ] No new dependency, no new top-level folder, no stack change without an ADR in `docs/adr/`.
+- [ ] No new dependency, no new top-level source folder, no stack change without an ADR in
+      `docs/adr/`. Tooling folders required by their tools (`.github/`, `.vscode/`, `scripts/`)
+      are allowed.
+- [ ] Portability fixes outside the packet scope (missing include, compiler-specific flag or
+      warning) are allowed and listed in the report; behaviour changes outside scope are not.
 - [ ] Short summary: what changed, how to test it manually, known limitations.
 
 ## 11. How to work
 
-1. Read this file, the task packet (`docs/tasks/Pxx.md`) and the relevant sections of `docs/SPEC.md`.
+1. Read this file, the task packet (`docs/tasks/Pxx.md`, including its `Decisions` section) and
+   the relevant sections of `docs/SPEC.md`. Decisions in the packet override the packet text.
 2. Propose a short plan (files, classes, interfaces) and WAIT for approval.
 3. Implement in small steps; build often.
 4. Run section 3. Fix what fails.
-5. Report per section 10. Do not start the next packet on your own.
+5. Commit locally with a descriptive message. Report per section 10. Do not start the next
+   packet on your own.
+
+The human pushes, opens PRs and reads CI. Agents do not `git push`, create PRs, poll CI, run
+`sudo`, write credential or authentication helpers, or work around a blocked command. If you need
+any of that, ask.
 
 When parallel agents work, the ViewModel header (properties, signals, invokables) is agreed
 first; UI and backend are then built against it independently. Stay inside your directories.
 
 ## 12. Forbidden
 
-Qt Widgets, `.ui` files, Qt Charts, `qmlRegisterType`, qmake, Python, network access from the
-app, string-built SQL, hex colors in views, hardcoded user-visible strings, editing existing
+Qt Widgets, `.ui` files, Qt Charts, `qmlRegisterType`, qmake, Python in app code, CMake build or
+the shipped package, network access from the app (sockets, HTTP, telemetry), string-built SQL, hex colors in views, hardcoded user-visible strings, editing existing
 migrations, silently swallowing errors, deleting or rewriting tests to make them pass.
 
 ## 13. Glossary (PL <-> EN)
