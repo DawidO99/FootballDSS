@@ -85,7 +85,8 @@ CMake targets:
   boundaries. `Error` = { code enum, translatable message key, technical detail }.
 - Prefer `std::ranges` / views over raw loops when it stays readable. Use `std::format`.
   `std::mdspan` / `std::print` only if CI is green on all three platforms; otherwise `Grid2D`.
-- Ownership: `std::unique_ptr` / values. Raw `new` only for QObjects with a parent.
+- - Ownership: `std::unique_ptr` / values. Raw `new` only for QObjects with a parent, or in a
+  QML singleton `create()` factory (the QML engine takes ownership).
 - Every QObject subclass has `Q_OBJECT`. QML types use `QML_ELEMENT` / `QML_SINGLETON` /
   `QML_UNCREATABLE` with `qt_add_qml_module`. `qmlRegisterType` is FORBIDDEN.
 - List data for QML: `QAbstractListModel` with named roles, or `QRangeModel` for simple cases.
@@ -101,14 +102,16 @@ CMake targets:
 - No business logic in QML. Bindings, simple UI state and calls to ViewModel methods only.
 - Every user-visible string goes through `qsTr()`. Source strings in English; Polish lives in
   `i18n/FootballDSS_pl.ts`. Update `.ts` files when you add strings.
-- Colors, fonts, spacing, radii come ONLY from the `Theme` singleton. No hex literals in views.
+- Colors, fonts, spacing, radii and sizes come ONLY from the `Theme` singleton. No hex literals
+  or magic numbers in views/components. Allowed keywords: "transparent".
 - Hit targets: min 32 px; min 44 px on Match Day and the tactics board.
 - Keyboard: every form and grid is fully usable with Tab/Enter; shortcuts per the spec.
 - Empty states always tell the user what to do next, with a button.
 - Destructive actions execute immediately with a 10 s "Undo" toast (confirm dialog only for bulk).
 - Status is never color-only: color + icon + word.
 - Reusable pieces go to `ui/components/`. One view per file in `ui/views/`.
-- Use `required property` for delegates; no unqualified access to outer ids from delegates.
+- Use `required property` for delegates and `pragma ComponentBehavior: Bound` in files whose
+  delegates reference outer ids.
 
 ## 7. Database rules
 
