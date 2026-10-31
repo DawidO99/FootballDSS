@@ -21,6 +21,22 @@ QtObject {
         readonly property int l: 12
     }
 
+    // Charts. Series colors are assigned in this fixed order and never cycled; they are checked
+    // with the protanopia/deuteranopia simulation and kept apart from the status colors (ADR-006).
+    component ChartStyle: QtObject {
+        required property bool dark
+
+        readonly property color series1: dark ? "#0280F7" : "#1387FE" // blue
+        readonly property color series2: dark ? "#C0149A" : "#880278" // magenta
+        readonly property color series3: dark ? "#836D03" : "#AE931D" // olive
+        readonly property color series4: dark ? "#C659FC" : "#6E337B" // purple
+        readonly property color series5: dark ? "#049886" : "#10A49E" // teal
+        readonly property list<color> series: [series1, series2, series3, series4, series5]
+
+        readonly property int lineWidth: 2
+        readonly property int markerSize: 8
+    }
+
     component FontSizeScale: QtObject {
         readonly property int caption: 12
         readonly property int body: 14
@@ -49,6 +65,9 @@ QtObject {
     readonly property SpacingScale spacing: SpacingScale {}
     readonly property RadiusScale radius: RadiusScale {}
     readonly property FontSizeScale fontSize: FontSizeScale {}
+    readonly property ChartStyle chart: ChartStyle {
+        dark: theme.dark
+    }
 
     // Minimum hit targets: mouse + keyboard screens / touch screens (Match Day, tactics board).
     readonly property int hitMin: 32

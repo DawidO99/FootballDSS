@@ -84,7 +84,7 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../ui/Main.qml" line="33"/>
+        <location filename="../ui/Main.qml" line="36"/>
         <source>FootballDSS</source>
         <translation>FootballDSS</translation>
     </message>
@@ -159,6 +159,86 @@
         <location filename="../ui/components/Sidebar.qml" line="76"/>
         <source>Collapse sidebar</source>
         <translation>Zwiń panel boczny</translation>
+    </message>
+</context>
+<context>
+    <name>SpikeChartsView</name>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="80"/>
+        <source>Charts spike (Qt Graphs)</source>
+        <translation>Test wykresów (Qt Graphs)</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="85"/>
+        <source>Hidden test view with sample data. Press Ctrl+Shift+G to close it.</source>
+        <translation>Ukryty widok testowy z przykładowymi danymi. Naciśnij Ctrl+Shift+G, aby go zamknąć.</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="93"/>
+        <source>Team load, last 14 days (AU)</source>
+        <translation>Obciążenie zespołu, ostatnie 14 dni (AU)</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="110"/>
+        <source>MM/dd</source>
+        <extracomment>Date format of the chart axis (Qt date format: d = day, M = month).</extracomment>
+        <translation>dd.MM</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="125"/>
+        <source>Team load</source>
+        <translation>Obciążenie zespołu</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="142"/>
+        <location filename="../ui/views/SpikeChartsView.qml" line="243"/>
+        <source>%1: %2 AU</source>
+        <translation>%1: %2 AU</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="156"/>
+        <source>Average session load by position (AU)</source>
+        <translation>Średnie obciążenie treningowe wg formacji (AU)</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="201"/>
+        <source>Mon</source>
+        <translation>Pn</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="201"/>
+        <source>Tue</source>
+        <translation>Wt</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="201"/>
+        <source>Wed</source>
+        <translation>Śr</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="201"/>
+        <source>Thu</source>
+        <translation>Cz</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="201"/>
+        <source>Fri</source>
+        <translation>Pt</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="218"/>
+        <source>Defenders</source>
+        <translation>Obrońcy</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="222"/>
+        <source>Midfielders</source>
+        <translation>Pomocnicy</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/SpikeChartsView.qml" line="226"/>
+        <source>Forwards</source>
+        <translation>Napastnicy</translation>
     </message>
 </context>
 <context>

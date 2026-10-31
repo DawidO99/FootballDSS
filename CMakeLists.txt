@@ -46,6 +46,7 @@ qt_add_qml_module(fdss_ui
         ui/views/MatchDayView.qml
         ui/views/PreMatchView.qml
         ui/views/SettingsView.qml
+        ui/views/SpikeChartsView.qml
         ui/views/SquadView.qml
         ui/views/TrainingView.qml
     SOURCES
@@ -57,7 +58,7 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/NavigationModel.cpp
 )
 
-target_link_libraries(fdss_ui PUBLIC fdss_services Qt6::Quick Qt6::QuickControls2)
+target_link_libraries(fdss_ui PUBLIC fdss_services Qt6::Quick Qt6::QuickControls2 Qt6::Graphs)
 # The generated type registration includes viewmodel headers by file name.
 target_include_directories(fdss_ui PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/viewmodels")
 

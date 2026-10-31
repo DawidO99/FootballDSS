@@ -17,9 +17,19 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(fdss_tests
     core/VersionTest.cpp
+    data/XlsxSpikeTest.cpp
 )
-target_link_libraries(fdss_tests PRIVATE fdss_core GTest::gtest_main)
-target_compile_definitions(fdss_tests PRIVATE FDSS_EXPECTED_VERSION="${PROJECT_VERSION}")
+# QXlsx is linked here only to prove the library itself (P03 spike); app code reaches it
+# through fdss_data.
+target_link_libraries(fdss_tests PRIVATE fdss_core Qt6::Core QXlsx::QXlsx GTest::gtest_main)
+target_compile_definitions(fdss_tests PRIVATE
+    FDSS_EXPECTED_VERSION="${PROJECT_VERSION}"
+    FDSS_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
+)
+# Test sources contain Polish string literals.
+if(MSVC)
+    target_compile_options(fdss_tests PRIVATE /utf-8)
+endif()
 gtest_discover_tests(fdss_tests DISCOVERY_MODE PRE_TEST)
 
 qt_add_executable(qml_smoke
