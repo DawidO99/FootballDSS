@@ -1,5 +1,5 @@
-   build/
-   dist/
-   *.sqlite
-   *.user
-   .DS_Store
+build/
+dist/
+*.sqlite
+*.user
+.DS_Store
