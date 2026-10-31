@@ -1,0 +1,99 @@
+name: Package (Windows)
+
+# Portable Windows ZIP (ADR-006, Q3). Run manually from the Actions tab; PRs run it only when the
+# packaging inputs change.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/package-windows.ps1
+      - .github/workflows/package-windows.yml
+      - CMakeLists.txt
+      - src/data/CMakeLists.txt
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Qt setup identical to ci.yml (same version, modules, aqt and Qt cache).
+  QT_VERSION: '6.12.0'
+  # Graphs requires Quick3D, whose runtime renderer requires ShaderTools.
+  QT_MODULES: qtgraphs qtquick3d qtshadertools
+  # PyPI 3.3.0 predates the Windows repository split in Qt 6.11+; this upstream
+  # commit handles qt6_6120/qt6_6120_msvc2022_64 without changing the Qt version.
+  AQT_WINDOWS_VERSION: '@git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7'
+  CMAKE_BUILD_PARALLEL_LEVEL: '2'
+
+jobs:
+  package:
+    name: Portable ZIP (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      CC: cl
+      CXX: cl
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The packaging script sees cl.exe on PATH and skips its own vswhere lookup.
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+
+      - name: Install Qt 6.12
+        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: ${{ env.QT_MODULES }}
+          aqtversion: ${{ env.AQT_WINDOWS_VERSION }}
+          cache: true
+          cache-key-prefix: fdss-qt-v1-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Verify build tools and Qt version
+        shell: bash
+        run: |
+          cmake --version
+          ninja --version
+          # Native Windows tools may write CRLF even when invoked from bash.
+          installed_qt_version=$(qtpaths --qt-version | tr -d '\r')
+          echo "Qt $installed_qt_version"
+          test "$installed_qt_version" = "$QT_VERSION"
+
+      # Windows PowerShell 5.1, invoked the same way as on a developer machine (ADR-006).
+      - name: Build and package
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1 -QtDir "$env:QT_ROOT_DIR"
+
+      - name: Upload ZIP
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: dist/FootballDSS-*-win64.zip
+          # Uploaded as-is: the artifact is the ZIP itself, named after the file.
+          archive: false
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload failure logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-package-windows
+          path: |
+            build/release/CMakeCache.txt
+            build/release/CMakeFiles/CMakeConfigureLog.yaml
+            aqtinstall.log
+          if-no-files-found: warn
+          retention-days: 7

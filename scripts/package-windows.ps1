@@ -22,7 +22,10 @@
     Package the existing build/release/FootballDSS.exe without configuring or building.
 
 .EXAMPLE
-    .\scripts\package-windows.ps1 -QtDir C:\Qt\6.12.0\msvc2022_64
+    powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1 -QtDir C:\Qt\6.12.0\msvc2022_64
+
+    The default execution policy on Windows blocks .\scripts\package-windows.ps1; -File with
+    -ExecutionPolicy Bypass runs it without changing the machine's policy.
 #>
 [CmdletBinding()]
 param(

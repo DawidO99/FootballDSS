@@ -9,7 +9,7 @@ Packet P03 answers each with YES / NO / YES-WITH-WORKAROUND, backed by minimal c
 
 | # | Question | Answer |
 | --- | --- | --- |
-| 1 | QXlsx builds with Qt 6.12 and reads a cell | **YES-WITH-WORKAROUND** on Linux (GCC 14.2). Windows (MSVC): pending the packaging run. macOS: pending CI. |
+| 1 | QXlsx builds with Qt 6.12 and reads a cell | **YES-WITH-WORKAROUND** on Linux (GCC 14.2). Windows (MSVC): pending the first CI run (`ci.yml` Windows job and `package-windows.yml`). macOS: pending a manual `ci.yml` run (macOS runs only on `workflow_dispatch`). |
 | 2 | Qt Graphs covers our charts | **YES-WITH-WORKAROUND**: legend and tooltips are our own components; date axis needs two rules. |
 | 3 | Portable Windows ZIP runs on a clean machine | **PENDING**: `scripts/package-windows.ps1` is ready; human test on Windows without Qt. |
 
@@ -131,7 +131,9 @@ simulation, severity 1.0), against `Theme.surface`:
 
 ## Q3 — Portable Windows ZIP
 
-**Script.** `scripts/package-windows.ps1 -QtDir C:\Qt\6.12.0\msvc2022_64` does the following:
+**Script.** Run it locally with
+`powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1 -QtDir C:\Qt\6.12.0\msvc2022_64`
+(Windows blocks `.\script.ps1` under its default execution policy). It does the following:
 1. Enters the MSVC x64 environment via `vswhere` + `Enter-VsDevShell`.
 2. Runs `cmake --preset release` and builds `FootballDSS`.
 3. Copies the exe to `dist/FootballDSS-<version>-win64/`.
@@ -141,8 +143,36 @@ simulation, severity 1.0), against `Theme.surface`:
 6. Fails if key files are missing (Qt core DLLs, `platforms\qwindows.dll`, QtQuick Controls/Layouts,
    `qml\QtGraphs`, `vcruntime140*.dll`, `msvcp140.dll`), then zips.
 
-The script runs in Windows PowerShell 5.1 and PowerShell 7. It was **not executed**: the dev machine is
-Linux without PowerShell. The same run answers Q1 for MSVC.
+The script runs in Windows PowerShell 5.1 and PowerShell 7. It was **not executed locally**: the dev
+machine is Linux without PowerShell. Its first run is the CI workflow below, which also answers Q1 for MSVC.
+
+**CI workflow.** `.github/workflows/package-windows.yml` runs the script on `windows-latest`:
+- MSVC set up by `ilammy/msvc-dev-cmd`;
+- Qt 6.12 installed exactly as in `ci.yml` (same modules, aqt commit, pinned action SHAs and Qt cache);
+- Release build and packaging in Windows PowerShell 5.1 with `-ExecutionPolicy Bypass`;
+- the ZIP uploaded as-is (`archive: false`) and kept for 7 days.
+
+It runs on manual `workflow_dispatch` and on pull requests to `main` that change the script, the
+workflow, `CMakeLists.txt` or `src/data/CMakeLists.txt`. A newer run on the same ref cancels the older
+one. `ci.yml` is not changed.
+
+**How to run the workflow and download the ZIP.**
+1. On GitHub, open the repository → **Actions** tab → **Package (Windows)** in the list of workflows
+   on the left.
+2. Click **Run workflow** (on the right, above the list of runs), pick the branch under
+   **Use workflow from** and confirm with the green **Run workflow** button. The new run shows up in
+   the list after a few seconds.
+   GitHub offers **Run workflow** only for workflows that already exist on the default branch. Until
+   P03 is merged into `main`, use the run that the P03 pull request starts automatically:
+   pull request → **Checks** tab → **Package (Windows)**.
+3. Wait for the green check. The first run without the Qt cache takes noticeably longer than later runs.
+4. Open the run → **Summary** → **Artifacts** section at the bottom → click
+   **`FootballDSS-<version>-win64.zip`**. The browser downloads the ZIP itself, not a ZIP wrapped
+   in another ZIP. Downloading requires being signed in. The artifact expires after 7 days; after that,
+   start a new run.
+5. If the run fails, the log of the **Build and package** step shows the script output step by step.
+   The `logs-package-windows` artifact holds `CMakeCache.txt`, the CMake configure log and
+   `aqtinstall.log`.
 
 **Known gaps.** `qsqlite.dll` is not deployed yet because nothing links `Qt6::Sql`; check again after the
 database packet. The Universal CRT is part of Windows 10/11.
@@ -155,10 +185,6 @@ database packet. The Universal CRT is part of Windows 10/11.
 - [ ] `Ctrl+Shift+G`: both charts drawn with grid lines; tooltip on hover over a point and a bar.
 - [ ] If it does not start: name of the missing DLL from the error dialog; run once with `set QT_DEBUG_PLUGINS=1` from `cmd` and note missing plugins.
 - [ ] Result: YES / NO / YES-WITH-WORKAROUND, and what was added to the script.
-
-**Follow-up (after P02 is merged).** `.github/workflows/package-windows.yml`: `workflow_dispatch`,
-`windows-latest`, Qt 6.12 as in `ci.yml`, Release build, `package-windows.ps1`, ZIP uploaded as an
-artifact. `ci.yml` itself is not changed. macOS: QXlsx build pending CI.
 
 ## Alternatives
 - Raise the system requirement instead of patching (`libxkbcommon-dev` on every Linux machine and CI
