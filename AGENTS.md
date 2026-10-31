@@ -4,6 +4,13 @@ Single source of truth for every AI agent working in this repo (Claude, Codex, G
 `CLAUDE.md` and `GEMINI.md` only say: "Read and follow AGENTS.md."
 If a task packet contradicts this file, stop and ask the human.
 
+Document map:
+- `AGENTS.md` — HOW we build (rules, stack, conventions). Always read.
+- `docs/SPEC.md` — WHAT we build (scope, screens, roles, data model, algorithms, import). Read the
+  sections relevant to your packet; never invent tables, columns, thresholds or screens it already defines.
+- `docs/tasks/Pxx-*.md` — WHAT NOW (the current packet).
+- `docs/adr/` — WHY (architecture decisions).
+
 ## 1. Project
 
 FootballDSS is a desktop decision-support system for football coaches (engineering thesis).
@@ -136,7 +143,7 @@ CMake targets: `fdss_core` (static, no Qt), `fdss_data` (static), `fdss_services
 
 ## 11. How to work
 
-1. Read this file and the task packet (`docs/tasks/Pxx.md`).
+1. Read this file, the task packet (`docs/tasks/Pxx.md`) and the relevant sections of `docs/SPEC.md`.
 2. Propose a short plan (files, classes, interfaces) and WAIT for approval.
 3. Implement in small steps; build often.
 4. Run section 3. Fix what fails.
