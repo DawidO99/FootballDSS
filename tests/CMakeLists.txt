@@ -1,0 +1,30 @@
+include(FetchContent)
+include(GoogleTest)
+
+# Third-party code is not Qt code: keep the Qt code generators away from it.
+set(CMAKE_AUTOMOC OFF)
+set(CMAKE_AUTOUIC OFF)
+set(CMAKE_AUTORCC OFF)
+
+FetchContent_Declare(googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.17.0
+    GIT_SHALLOW TRUE
+)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+add_executable(fdss_tests
+    core/VersionTest.cpp
+)
+target_link_libraries(fdss_tests PRIVATE fdss_core GTest::gtest_main)
+target_compile_definitions(fdss_tests PRIVATE FDSS_EXPECTED_VERSION="${PROJECT_VERSION}")
+gtest_discover_tests(fdss_tests DISCOVERY_MODE PRE_TEST)
+
+qt_add_executable(qml_smoke
+    qml_smoke/main.cpp
+)
+target_link_libraries(qml_smoke PRIVATE fdss_ui fdss_uiplugin)
+add_test(NAME qml_smoke COMMAND qml_smoke)
+set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
