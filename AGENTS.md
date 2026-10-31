@@ -52,14 +52,22 @@ If any step fails, fix it or report exactly what fails. Never claim success with
 
 ```
 ui/ (QML)            -> viewmodels only
-src/viewmodels/      -> services, core types
+src/viewmodels/      -> services, core types (built into fdss_ui)
 src/services/        -> data, core
 src/data/            -> core
 src/core/            -> C++ standard library ONLY (no Qt headers, ever)
 ```
 
-CMake targets: `fdss_core` (static, no Qt), `fdss_data` (static), `fdss_services` (static),
-`FootballDSS` (app + QML module), `fdss_tests`.
+CMake targets:
+- `fdss_core` (static, no Qt) — domain, algorithms, pure parsing.
+- `fdss_data` (static) — links `fdss_core`.
+- `fdss_services` (static) — links `fdss_data`.
+- `fdss_ui` (static, backing target of the QML module `FootballDSS`) — viewmodels, QML, theme,
+  translations; links `fdss_services`.
+- `FootballDSS` (thin executable) — `main.cpp` only; links `fdss_uiplugin`.
+- `fdss_tests` (GoogleTest) — unit tests for core, data, services.
+- `qml_smoke` (test executable) — loads `Main.qml` and every view offscreen, fails on any QML
+  warning; links `fdss_uiplugin`; registered in CTest.
 
 - `core/`: domain types (`domain/`), DSS algorithms (`algorithms/`), pure parsing
   helpers (`parsing/`: CSV tokenizer, CP1250 decoder, header matching), `util/`.

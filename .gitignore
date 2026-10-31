@@ -3,3 +3,5 @@ dist/
 *.sqlite
 *.user
 .DS_Store
+.qmlls.ini
+CMakeUserPresets.json
