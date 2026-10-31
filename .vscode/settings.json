@@ -2,5 +2,6 @@
   "cmake.configureEnvironment": {
     "CMAKE_PREFIX_PATH": "${env:HOME}/Qt_new/6.12.0/gcc_64"
   },
-  "cmake.cmakePath": "${env:HOME}/Qt_new/Tools/CMake/bin/cmake"
+  "cmake.cmakePath": "${env:HOME}/Qt_new/Tools/CMake/bin/cmake",
+  "qt-core.qtInstallationRoot": "${env:HOME}/Qt_new"
 }

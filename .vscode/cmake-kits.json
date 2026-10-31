@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Qt_new-6.12.0-gcc_64-x86_64",
+    "isTrusted": true,
+    "preferredGenerator": {
+      "name": "Ninja"
+    },
+    "cmakeSettings": {
+      "QT_QML_GENERATE_QMLLS_INI": "ON",
+      "CMAKE_CXX_FLAGS_DEBUG_INIT": "-DQT_QML_DEBUG -DQT_DECLARATIVE_DEBUG",
+      "CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT": "-DQT_QML_DEBUG -DQT_DECLARATIVE_DEBUG"
+    },
+    "environmentVariables": {
+      "VSCODE_QT_INSTALLATION": "/home/dawid/Qt_new/6.12.0/gcc_64"
+    },
+    "toolchainFile": "/home/dawid/Qt_new/6.12.0/gcc_64/lib/cmake/Qt6/qt.toolchain.cmake"
+  }
+]
