@@ -11,6 +11,9 @@ ApplicationWindow {
     // Exposed for tests (qml_smoke drives navigation through it).
     readonly property NavigationModel navigation: navigationModel
     property alias sidebarCollapsed: sidebar.collapsed
+    // P03 spike: Ctrl+Shift+G shows the Qt Graphs spike view instead of the shell. Not part of
+    // NavigationModel; goes away together with SpikeChartsView.qml.
+    property bool spikeChartsOpen: false
 
     // Section key -> view. Keys come from NavigationModel.
     readonly property var viewComponents: ({
@@ -60,6 +63,7 @@ ApplicationWindow {
 
     RowLayout {
         anchors.fill: parent
+        visible: !window.spikeChartsOpen
         spacing: 0
 
         Sidebar {
@@ -94,6 +98,17 @@ ApplicationWindow {
                 }
             }
         }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+G"
+        onActivated: window.spikeChartsOpen = !window.spikeChartsOpen
+    }
+
+    Loader {
+        anchors.fill: parent
+        active: window.spikeChartsOpen
+        sourceComponent: spikeChartsView
     }
 
     Component {
@@ -166,5 +181,11 @@ ApplicationWindow {
         SettingsView {
             onNavigateRequested: key => navigationModel.activate(key)
         }
+    }
+
+    Component {
+        id: spikeChartsView
+
+        SpikeChartsView {}
     }
 }

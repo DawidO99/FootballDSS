@@ -163,15 +163,25 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
                     settle();
                 }
             }
+            const QString theme = dark ? QStringLiteral("dark") : QStringLiteral("light");
             if (!screenshotDirectory.isEmpty()) {
                 window->setProperty("sidebarCollapsed", false);
                 navigation->setCurrentIndex(0);
                 settle();
-                saveScreenshot(
-                    window, screenshotDirectory,
-                    QStringLiteral("shell-%1-%2.png")
-                        .arg(language, dark ? QStringLiteral("dark") : QStringLiteral("light")));
+                saveScreenshot(window, screenshotDirectory,
+                               QStringLiteral("shell-%1-%2.png").arg(language, theme));
             }
+            // P03 spike: the Qt Graphs view is reachable only through Ctrl+Shift+G. Grab it
+            // even without a screenshot directory, so the charts are actually rendered.
+            window->setProperty("spikeChartsOpen", true);
+            settle();
+            if (screenshotDirectory.isEmpty()) {
+                window->grabWindow();
+            } else {
+                saveScreenshot(window, screenshotDirectory,
+                               QStringLiteral("spike-charts-%1-%2.png").arg(language, theme));
+            }
+            window->setProperty("spikeChartsOpen", false);
         }
     }
 
