@@ -22,6 +22,9 @@ env:
   # Graphs requires Quick3D, whose runtime renderer requires ShaderTools.
   QT_MODULES: qtgraphs qtquick3d qtshadertools
   AQT_VERSION: '==3.3.0'
+  # PyPI 3.3.0 predates the Windows repository split in Qt 6.11+; this upstream
+  # commit handles qt6_6120/qt6_6120_msvc2022_64 without changing the Qt version.
+  AQT_WINDOWS_VERSION: '@git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7'
   QT_QPA_PLATFORM: offscreen
   CMAKE_BUILD_PARALLEL_LEVEL: '2'
 
@@ -73,7 +76,7 @@ jobs:
           target: desktop
           arch: ${{ runner.os == 'Windows' && 'win64_msvc2022_64' || runner.os == 'macOS' && 'clang_64' || 'linux_gcc_64' }}
           modules: ${{ env.QT_MODULES }}
-          aqtversion: ${{ env.AQT_VERSION }}
+          aqtversion: ${{ runner.os == 'Windows' && env.AQT_WINDOWS_VERSION || env.AQT_VERSION }}
           cache: true
           cache-key-prefix: fdss-qt-v1-${{ runner.os }}-${{ runner.arch }}
 

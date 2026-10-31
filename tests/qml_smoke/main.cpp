@@ -33,7 +33,14 @@ namespace {
 constexpr auto kViewsDirectory = ":/qt/qml/FootballDSS/ui/views";
 
 // Platform noise that is not a QML problem. Every entry needs a comment explaining why.
+#if defined(Q_OS_MACOS)
+constexpr std::array<const char*, 1> kAllowedMessages{
+    // Qt's macOS font backend reports the one-time cost of resolving the generic Sans Serif
+    // alias. Font fallback succeeds; this is a performance notice, not a failed QML binding.
+    "Replace uses of missing font family \"Sans Serif\" with one that exists to avoid this cost."};
+#else
 constexpr std::array<const char*, 0> kAllowedMessages{};
+#endif
 
 QtMessageHandler g_defaultHandler = nullptr;
 int g_problemCount = 0;
@@ -44,9 +51,13 @@ void countingMessageHandler(QtMsgType type, const QMessageLogContext& context,
     if (type == QtDebugMsg || type == QtInfoMsg) {
         return;
     }
-    for (const char* allowed : kAllowedMessages) {
-        if (message.contains(QLatin1StringView(allowed))) {
-            return;
+    // Never apply platform exceptions to warnings from our QML or to critical/fatal messages.
+    if (type == QtWarningMsg && qstrcmp(context.category, "qt.qpa.fonts") == 0 &&
+        message.startsWith(QLatin1StringView("Populating font family aliases took "))) {
+        for (const char* allowed : kAllowedMessages) {
+            if (message.contains(QLatin1StringView(allowed))) {
+                return;
+            }
         }
     }
     ++g_problemCount;
