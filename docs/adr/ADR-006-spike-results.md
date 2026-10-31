@@ -1,6 +1,6 @@
 # ADR-006: Technology risk spike — QXlsx, Qt Graphs, Windows package
 
-**Status:** accepted for Q1 (Linux, Windows) and Q2 · Q1 on macOS and the Q3 clean-machine test pending · 2026-10-31
+**Status:** accepted for Q1 (Linux, Windows), Q2 and Q3 · Q1 on macOS pending · 2026-10-31
 
 ## Context
 Three risks could force a change of course late in the project: Excel import (QXlsx with Qt 6.12),
@@ -11,7 +11,7 @@ Packet P03 answers each with YES / NO / YES-WITH-WORKAROUND, backed by minimal c
 | --- | --- | --- |
 | 1 | QXlsx builds with Qt 6.12 and reads a cell | **YES-WITH-WORKAROUND**: Linux (GCC 14.2) and Windows (MSVC on `windows-latest`, green in `ci.yml` and `package-windows.yml`), with the same CMake patch and no Windows-specific workaround. macOS: pending a manual `ci.yml` run (macOS runs only on `workflow_dispatch`). |
 | 2 | Qt Graphs covers our charts | **YES-WITH-WORKAROUND**: legend and tooltips are our own components; date axis needs two rules; headless Linux test runs need OpenGL (Mesa + Xvfb). |
-| 3 | Portable Windows ZIP runs on a clean machine | **PENDING**: the ZIP builds in CI (`package-windows.yml` green); human test on Windows without Qt still to do. |
+| 3 | Portable Windows ZIP runs on a clean machine | **YES**: on a clean Windows 10 without Qt the ZIP (50 MB, 130 MB unpacked) starts immediately with no missing DLLs; only SmartScreen asks for confirmation, because the exe is unsigned. |
 
 ## Q1 — QXlsx
 
@@ -212,14 +212,25 @@ one. `ci.yml` is not changed.
 **Known gaps.** `qsqlite.dll` is not deployed yet because nothing links `Qt6::Sql`; check again after the
 database packet. The Universal CRT is part of Windows 10/11.
 
-**Checklist for the human test (fill in):**
-- [ ] Machine: Windows 10/11 x64 without Qt, Visual Studio or "Microsoft Visual C++ 2015-2022 Redistributable" (VM is fine).
-- [ ] Script output: ZIP size ___ MB; Windows build of QXlsx OK / failed with `C2061` in `<iterator>` (→ pin `4e82d6c`, see Q1).
-- [ ] Unzip to a path with spaces and Polish letters (e.g. `C:\Users\Test\Pulpit\Próba FootballDSS`).
-- [ ] App starts; switching PL/EN and the dark/light theme works.
-- [ ] `Ctrl+Shift+G`: both charts drawn with grid lines; tooltip on hover over a point and a bar.
-- [ ] If it does not start: name of the missing DLL from the error dialog; run once with `set QT_DEBUG_PLUGINS=1` from `cmd` and note missing plugins.
-- [ ] Result: YES / NO / YES-WITH-WORKAROUND, and what was added to the script.
+**Human test on a clean machine (2026-10-31): YES.**
+- [x] Machine: clean Windows 10 without Qt.
+- [x] Package: ZIP 50 MB, 130 MB unpacked. QXlsx built with MSVC without a workaround (see Q1).
+- [x] SmartScreen ("Windows protected your PC") appeared because the exe is unsigned. The app started
+      after "Run anyway" ("Uruchom mimo to").
+- [x] Started immediately, with no missing-DLL error, so nothing had to be added to the script.
+- [x] All 9 views navigate. PL/EN switching and the dark/light theme work, and both survive a restart.
+- [x] `Ctrl+Shift+G`: both charts drawn with grid lines and axes. This confirms that only the Software
+      renderer of `qml_smoke` drops them (Q2).
+- [x] Result: **YES**, with no workaround.
+
+Not recorded in this test, to check during the first real-data test:
+- whether a VC++ Redistributable was installed (the ZIP carries the runtime DLLs either way);
+- unzipping to a path with spaces and Polish letters;
+- tooltips on hover.
+
+**Distribution note.** SmartScreen warns about every unsigned exe until it builds up reputation. The
+user guide must show the "More info → Run anyway" step. Authenticode code signing would remove the
+warning, but it costs money and is a later decision.
 
 ## Alternatives
 - Raise the system requirement instead of patching (`libxkbcommon-dev` on every Linux machine and CI
@@ -234,6 +245,8 @@ database packet. The Universal CRT is part of Windows 10/11.
 - Charts use Qt Graphs, with our own `ChartLegend` and `ChartTooltip` components and the two date-axis
   rules above. Radar, pitch and heatmaps stay custom `Shape` (as planned).
 - `Theme` gains a validated `chart` group (5 series colors, line width, marker size).
+- Windows ships as a portable ZIP built by `package-windows.yml` (50 MB, 130 MB unpacked, no installer,
+  MSVC runtime DLLs included). The exe is unsigned, so the user guide covers the SmartScreen prompt.
 - `qml_smoke` renders the spike view in every language × theme. The spike view and `Ctrl+Shift+G` are
   removed when the real load chart exists.
 - On Linux CI `qml_smoke` runs under Xvfb with Mesa llvmpipe and the xcb platform, because Qt Graphs
