@@ -4,7 +4,8 @@
 - **IDE + agenci (Claude / Codex / Gemini):** piszą kod według pakietów z `docs/tasks/`.
 - **Rozmowa z promotorem-architektem (czat):** wracasz tam, gdy kończysz weekend, gdy agent proponuje
   zmianę architektury albo stacku, gdy coś blokuje Cię dłużej niż ~30 minut, oraz po kolejne pakiety
-  (P05–P21 rozpisujemy przed każdym weekendem, na podstawie tego, co faktycznie powstało).
+  (pakiety rozpisujemy przed każdym weekendem, na podstawie tego, co faktycznie powstało).
+  Plan bieżącego tygodnia: `docs/tasks/W1-plan.md` (i kolejne).
 
 ## Kolejność W0 (31.10–1.11)
 1. **P04** — Ty, ręcznie: repo, Qt 6.12, kompilator, VS Code. Ok. 20–40 minut.
@@ -31,12 +32,26 @@ Poczekaj na moją akceptację.
 Po akceptacji:
 ```
 Akceptuję plan [z poprawkami: ...]. Implementuj małymi krokami, buduj po każdym kroku.
-Na końcu uruchom wszystkie komendy z sekcji 3 AGENTS.md i raportuj według sekcji 10.
+Na końcu uruchom wszystkie komendy z sekcji 3 AGENTS.md, zrób lokalny commit i raportuj
+według sekcji 10. Nie pushuj.
 ```
+Zanim wkleisz akceptację agentowi, wklej ją też do sekcji `## Decisions (accepted plan)` w pliku
+pakietu. Recenzent przeczyta ją stamtąd.
+
+## Cykl pakietu (bez gh, przez przeglądarkę)
+1. `git worktree add ../FootballDSS-Pxx -b feature/Pxx-nazwa` (z aktualnego main), skopiuj
+   `CMakeUserPresets.json` do nowego folderu, otwórz go w osobnym oknie VS Code.
+2. Plan → akceptacja (+ Decisions) → implementacja → lokalny commit agenta.
+3. Ty: `git push -u origin feature/Pxx-nazwa`, na GitHubie „Compare & pull request”.
+4. CI (format, Linux, Windows) — zielone? Review innym modelem, poprawki, push.
+5. „Squash and merge”, „Delete branch”; lokalnie `git checkout main && git pull`,
+   `git worktree remove ../FootballDSS-Pxx`.
+6. Inne otwarte gałęzie: `git fetch && git rebase origin/main` (konflikty w `.ts` → AGENTS.md §6).
 
 ## Prompt do krzyżowego review (inny model niż autor)
 ```
-Jesteś recenzentem. Przeczytaj AGENTS.md i docs/tasks/Pxx-*.md, potem przejrzyj diff gałęzi
+Jesteś recenzentem. Przeczytaj AGENTS.md i docs/tasks/Pxx-*.md (łącznie z sekcją Decisions —
+decyzje tam zapisane są zaakceptowane, nie zgłaszaj ich jako naruszeń), potem przejrzyj diff gałęzi
 względem main (git diff main...HEAD). Nie poprawiaj kodu. Wypisz:
 - naruszenia AGENTS.md (z plikiem i linią),
 - błędy logiczne i przypadki brzegowe bez obsługi,

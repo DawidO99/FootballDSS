@@ -28,3 +28,7 @@ One or two sentences: what exists after this packet that did not exist before.
 
 ## Notes for the thesis
 What to screenshot or record for the written part.
+
+## Decisions (accepted plan)
+<!-- The human pastes the plan acceptance and later decisions here. They override the text above.
+     Reviewers read this section too. -->

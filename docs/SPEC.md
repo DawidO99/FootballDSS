@@ -55,12 +55,23 @@ whole-club export/import.
 ## 4. Screens
 
 Window: left collapsible sidebar, top bar (team switcher, search Ctrl+K, days to next match, user,
-language, theme), content area. Minimum 1366×768, scales to 4K.
+language, theme), content area. Minimum window 1280×720 (fits a 1366×768 laptop screen with
+taskbar); design target 1366×768, scales to 4K.
+
+App start: no database → first-run wizard; database present → profile picker (staff tiles + PIN);
+after login → main shell. Logout from the user chip in the top bar returns to the profile picker.
+
+Shared UI kit (`ui/components/`, visible in the hidden component gallery, Ctrl+Shift+K):
+`DataTable`, `FormField`, `TextInputField`, `NumberField`, `DateField`, `SelectField`,
+`SearchField`, `AppDialog`, `ToastHost` (undo toast), `Card`, `AppTabs`, `IconButton`,
+`SecondaryButton`, `DangerButton`, `SegmentedControl`, plus the existing `PrimaryButton`,
+`EmptyState`, `StatusBadge`, `PageHeader`, `Icon`. Charts (W2+): `ChartLegend`, `ChartTooltip`
+(tooltips identify a series by index, never by value).
 
 | Screen | Purpose | Priority |
 | --- | --- | --- |
 | Profile picker | Staff tiles + PIN | MUST |
-| First-run wizard | 4 steps: club, team, coach, demo or empty | MUST |
+| First-run wizard | 4 steps: welcome + language, club and team, coach account, summary (start empty or load demo data; demo keeps the typed club/team names) | MUST |
 | Dashboard | Next match, unavailable players, load alerts, last-5 form | MUST |
 | Squad | Filterable/sortable table, column chooser; player card tabs Overview / Load / Matches / Notes | MUST |
 | Calendar | List + week view of matches and sessions | MUST |
@@ -80,30 +91,64 @@ Checked in ViewModels (hide/disable action) AND in services (reject).
 
 | Permission | Coach | Assistant | Physio | Analyst |
 | --- | --- | --- | --- | --- |
-| Manage staff and settings | yes | no | no | no |
-| Edit squad | yes | yes | no | no |
-| Injury details | yes | status only | yes | status only |
-| Training and RPE | yes | yes | yes | no |
-| Lineup and Match Day | yes | yes | no | no |
-| Import and custom metrics | yes | yes | no | yes |
-| View analyses | yes | yes | yes | yes |
+| Manage staff and settings (`ManageStaff`, `ManageSettings`) | yes | no | no | no |
+| Edit squad (`EditSquad`) | yes | yes | no | no |
+| Add/edit availability entries (`EditAvailability`) | yes | yes | yes | no |
+| Read availability description (`ViewAvailabilityDetails`) | yes | no (type + dates only) | yes | no (type + dates only) |
+| Calendar: matches and sessions (`EditCalendar`) | yes | yes | no | no |
+| Training attendance and RPE (`EditTraining`) | yes | yes | yes | no |
+| Lineup and Match Day (`EditLineup`, `RunMatchDay`) | yes | yes | no | no |
+| Import and custom metrics (`Import`, `ManageMetrics`) | yes | yes | no | yes |
+| View analyses (`ViewAnalysis`) | yes | yes | yes | yes |
 
-PIN hashing: PBKDF2-SHA256 with per-user salt (`QPasswordDigestor`), iterations stored per user.
+The matrix lives in core (`core/domain/Permissions.hpp`, `isAllowed(Role, Permission)`) and is
+unit-tested row by row against this table.
+
+**Staff access (ADR-007).** Each staff user has a PIN of 4–8 digits, stored as
+PBKDF2-SHA256 (`QPasswordDigestor`), 16-byte random salt, 120 000 iterations, all stored per user.
+5 wrong PINs in a row lock that user for 30 seconds. The PIN separates staff members sharing one
+laptop; it is not protection against someone who copies the database file (the file is not
+encrypted, see RODO decision). Staff users are deactivated, never deleted (history keeps their
+name). The last active Coach cannot be deactivated or demoted.
 
 ## 6. Data model (SQLite, one file per club)
+
+Location: `QStandardPaths::AppDataLocation`/`club.sqlite`; backups in `…/backups/`
+(`club-<yyyyMMdd-HHmmss>-<reason>.sqlite`, 10 newest kept). Schema = numbered migrations; the
+first migration creates every table below at once so later packets do not reshape it. The table
+below lists key columns; P05 writes the exact column names and types into this section in the same
+commit as `0001_initial.sql`.
+
+Enumerations (stored as lowercase text with a `CHECK` constraint; C++ enums in `core/domain`):
+- Team category: `senior`, `u19`, `u17`, `u15`, `u13`, `u11`, `other`. Season text `2026/27`.
+- Role: `coach`, `assistant`, `physio`, `analyst`.
+- Position (14): `gk`, `rb`, `cb`, `lb`, `rwb`, `lwb`, `dm`, `cm`, `am`, `rm`, `lm`, `rw`, `lw`,
+  `st`; groups: goalkeeper `gk`; defender `rb cb lb rwb lwb`; midfielder `dm cm am rm lm`;
+  forward `rw lw st`.
+- Preferred foot: `left`, `right`, `both`, `unknown`.
+- Availability type: `injury`, `illness`, `suspension`, `absence`.
+- Match status: `planned`, `live`, `finished`; venue: `home`, `away`, `neutral`.
+- Session type: `training`, `match_prep`, `recovery`, `gym`, `other`.
+- Attendance status: `present`, `absent`, `excused`, `injured`.
+
+Rules: players are archived (`archived_at`), never deleted; shirt number 1–99, unique among
+non-archived players of a team; birth year between 1950 and current year − 4; names 1–50
+characters after trimming; dates stored as ISO text (`YYYY-MM-DD`, local, no time zone),
+times of day as `HH:MM`, lockout timestamps as UTC ISO datetime; every foreign key indexed; `ON DELETE` restricted except for pure
+child rows (attendance → session, appearance/match_event → match: cascade).
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `club`, `team` | name, category (senior / U-19 / …), season | Many teams per club |
-| `staff_user` | name, role, pin_hash, salt, iterations, language | |
-| `player` | first/last name, shirt number, birth_year, primary + secondary positions, foot, status | No PESEL, no contact data |
+| `staff_user` | name, role, pin_hash, salt, iterations, failed_attempts, locked_until, active | |
+| `player` | team, first/last name, shirt number, birth_year, primary position, secondary positions (comma list), foot, notes, archived_at | No PESEL, no contact data; "status" is derived from `availability` |
 | `availability` | player, type, from, expected_to, actual_to, description | Description: Coach + Physio only |
-| `opponent` | name, notes | |
-| `match` | team, opponent, date, home/away, competition, goals_for, goals_against, status (planned/live/finished), formation | |
+| `opponent` | name, name_key (case-folded name, UNIQUE), notes | `name_key` = `QString::toCaseFolded()`, because SQLite `NOCASE` folds ASCII only |
+| `match` | team, opponent, date, kickoff_time (nullable), venue, competition, goals_for, goals_against, status (planned/live/finished), formation | |
 | `appearance` | match, player, started, minute_on, minute_off, position, rating 1–10, rpe | Minutes from Match Day |
 | `match_event` | match, minute, type (goal/assist/yellow/red/sub/opponent_goal), player, related_player | |
-| `training_session` | team, date, duration_min, type | |
-| `attendance` | session, player, status, rpe 0–10, minutes_override | session load = rpe × minutes |
+| `training_session` | team, date, start_time (nullable), duration_min (15–240), type, note (nullable) | |
+| `attendance` | session, player, status, rpe 0–10, minutes_override (0–240) | session load = rpe × minutes; rpe and minutes empty unless `present` |
 | `wellness` | player, date, sleep, fatigue, soreness, stress, mood | SHOULD |
 | `metric_definition` | key, name_pl, name_en, value_type, unit, min, max, aggregation, scope (match/training/player), higher_is_better | |
 | `metric_value` | metric, player, match or session, date, value, import_id | |
