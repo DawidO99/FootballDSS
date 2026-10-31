@@ -223,6 +223,16 @@ int main(int argc, char* argv[]) {
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
     g_defaultHandler = qInstallMessageHandler(countingMessageHandler);
 
+#if defined(Q_OS_WIN)
+    // Offscreen needs an explicit font directory because the Qt installation has no bundled fonts.
+    if (!qEnvironmentVariableIsSet("QT_QPA_FONTDIR")) {
+        const QByteArray windowsDirectory = qgetenv("WINDIR");
+        qputenv("QT_QPA_FONTDIR",
+                (windowsDirectory.isEmpty() ? QByteArray("C:/Windows") : windowsDirectory) +
+                    "/Fonts");
+    }
+#endif
+
     int viewCount = 0;
     {
         QGuiApplication app(argc, argv);
