@@ -59,6 +59,13 @@ jobs:
           {
             sudo apt-get update
             sudo apt-get install --no-install-recommends -y g++-14 ninja-build libgl1-mesa-dev libvulkan-dev
+            # qml_smoke: Qt Graphs creates an OpenGL QRhi on Linux whatever the scene graph backend
+            # (ADR-006), so it runs on Xvfb with Mesa llvmpipe and the xcb platform plugin.
+            # Mesa is only a recommendation of xvfb, hence listed explicitly.
+            sudo apt-get install --no-install-recommends -y xvfb libgl1-mesa-dri libglx-mesa0 libegl-mesa0 \
+              libx11-xcb1 libxcb1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+              libxcb-render0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-util1 \
+              libxcb-xfixes0 libxcb-xkb1 libxkbcommon-x11-0
             # QStandardPaths requires a private runtime directory even with offscreen rendering.
             install -d -m 700 "$RUNNER_TEMP/fdss-runtime"
             echo "XDG_RUNTIME_DIR=$RUNNER_TEMP/fdss-runtime" >> "$GITHUB_ENV"
@@ -103,7 +110,18 @@ jobs:
 
       - name: Run tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: ctest --preset dev --output-on-failure --no-tests=error 2>&1 | tee build/ci-logs/ctest.log
+        # On Linux qml_smoke runs in the next step; CTest would force the offscreen platform.
+        run: >-
+          ctest --preset dev --output-on-failure --no-tests=error
+          ${{ runner.os == 'Linux' && '-E qml_smoke' || '' }}
+          2>&1 | tee build/ci-logs/ctest.log
+
+      - name: Run qml_smoke (Linux, Xvfb + Mesa llvmpipe)
+        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          xvfb-run -a -s '-screen 0 1920x1080x24' \
+            env QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 ./build/dev/tests/qml_smoke \
+            2>&1 | tee build/ci-logs/qml-smoke-linux.log
 
       - name: Lint QML
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}

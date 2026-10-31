@@ -1,6 +1,6 @@
 # ADR-006: Technology risk spike — QXlsx, Qt Graphs, Windows package
 
-**Status:** accepted for Q1 (Linux) and Q2 · Q1 on Windows/macOS and Q3 pending verification · 2026-10-31
+**Status:** accepted for Q1 (Linux, Windows) and Q2 · Q1 on macOS and the Q3 clean-machine test pending · 2026-10-31
 
 ## Context
 Three risks could force a change of course late in the project: Excel import (QXlsx with Qt 6.12),
@@ -9,9 +9,9 @@ Packet P03 answers each with YES / NO / YES-WITH-WORKAROUND, backed by minimal c
 
 | # | Question | Answer |
 | --- | --- | --- |
-| 1 | QXlsx builds with Qt 6.12 and reads a cell | **YES-WITH-WORKAROUND** on Linux (GCC 14.2). Windows (MSVC): pending the first CI run (`ci.yml` Windows job and `package-windows.yml`). macOS: pending a manual `ci.yml` run (macOS runs only on `workflow_dispatch`). |
-| 2 | Qt Graphs covers our charts | **YES-WITH-WORKAROUND**: legend and tooltips are our own components; date axis needs two rules. |
-| 3 | Portable Windows ZIP runs on a clean machine | **PENDING**: `scripts/package-windows.ps1` is ready; human test on Windows without Qt. |
+| 1 | QXlsx builds with Qt 6.12 and reads a cell | **YES-WITH-WORKAROUND**: Linux (GCC 14.2) and Windows (MSVC on `windows-latest`, green in `ci.yml` and `package-windows.yml`), with the same CMake patch and no Windows-specific workaround. macOS: pending a manual `ci.yml` run (macOS runs only on `workflow_dispatch`). |
+| 2 | Qt Graphs covers our charts | **YES-WITH-WORKAROUND**: legend and tooltips are our own components; date axis needs two rules; headless Linux test runs need OpenGL (Mesa + Xvfb). |
+| 3 | Portable Windows ZIP runs on a clean machine | **PENDING**: the ZIP builds in CI (`package-windows.yml` green); human test on Windows without Qt still to do. |
 
 ## Q1 — QXlsx
 
@@ -63,14 +63,15 @@ QXlsx reads a file from a real spreadsheet application, not its own output. The 
 - A non-ZIP file makes Qt print `qWarning("QZip: not a zip file!")`. Harmless, but test harnesses that
   fail on warnings (like `qml_smoke`) must not open corrupted files.
 
-**Open risk — Windows (MSVC).** `v1.5.1.1` still contains `#define stdext ::std` in `xlsxglobal.h`.
-Upstream removed it in master (`4e82d6c`, 2 commits after the tag, not released yet) because it breaks MSVC
-STL versions that still declare `namespace stdext` in `<iterator>` (errors `C2061`/`C2143`/`C2447` in
-`<iterator>`). Following the "fallback only if the build fails" rule, the tag stays. If the Windows build
-fails like that, set `GIT_TAG 4e82d6c0726dcc39020cc5491d0de77f787c18ef` and keep the patch, because master
-still asks for `GuiPrivate`.
+**Windows (MSVC): no extra workaround.** `v1.5.1.1` still contains `#define stdext ::std` in
+`xlsxglobal.h`. Upstream removed it in master (`4e82d6c`, 2 commits after the tag, not released yet)
+because it breaks MSVC STL versions that still declare `namespace stdext` in `<iterator>`. The toolset
+on `windows-latest` builds the tag without errors: the `ci.yml` Windows job and `package-windows.yml` were
+both green on 2026-10-31. The tag therefore stays. If another Visual Studio version fails with
+`C2061`/`C2143`/`C2447` in `<iterator>`, set `GIT_TAG 4e82d6c0726dcc39020cc5491d0de77f787c18ef` and keep
+the patch, because master still asks for `GuiPrivate`.
 
-**Plan B (only if Windows or macOS end up NO).** CSV import only, plus in-app help
+**Plan B (only if macOS ends up NO).** CSV import only, plus in-app help
 "File → Save As → CSV UTF-8" with screenshots for Excel and LibreOffice. The import pipeline already
 handles CSV encodings and delimiters (SPEC §8).
 
@@ -110,6 +111,39 @@ the view in both languages and both themes and renders it, and `--screenshots <d
 
 `GraphsView.useCanvasPainter` exists in the 6.12 type info but is not documented. Not used.
 
+**Headless Linux needs OpenGL (affects every chart).**
+- *Symptom.* After P03 was rebased on P02, `qml_smoke` failed in the CI Linux job with two warnings,
+  `QRhiGles2: Failed to create temporary context` and `QRhiGles2: Failed to create context`. Windows was
+  green, and the test passed on the dev machine.
+- *Reproduction.* The same binary without a display, `env -u DISPLAY -u WAYLAND_DISPLAY
+  QT_QPA_PLATFORM=offscreen qml_smoke`, prints exactly these two warnings. On a desktop session the
+  `offscreen` platform borrows GLX from `$DISPLAY`, which hid the problem locally.
+- *Cause: Qt Graphs, not our code.* A backtrace taken with `QT_FATAL_WARNINGS=1` in gdb gives this chain:
+  `QGraphsView` constructor → default `QGraphsTheme` → `setColorScheme` → `createGradient` →
+  `CommonUtils::maxTextureSize()` (`qtgraphs/src/common/utils/commonutils.cpp`).
+  - Once per process it creates a throwaway `QRhi` only to read the maximum texture size: OpenGL ES2 on
+    Linux, D3D12 on Windows, Metal on macOS.
+  - This ignores the Qt Quick scene graph backend: `QSGRendererInterface::Software` does not prevent it,
+    and no setting skips it.
+  - It happens while the object is created, before any rendering or `grabWindow()`.
+  - Without OpenGL Qt prints the two warnings and falls back to a default gradient width; the charts
+    still work.
+- *Fix (CI).* The Linux `build-test` job in `ci.yml`:
+  1. Installs Mesa (llvmpipe), Xvfb and the libraries of the xcb platform plugin. Mesa is listed
+     explicitly because it is only a recommendation of `xvfb` and the job uses `--no-install-recommends`.
+  2. Skips `qml_smoke` in CTest (`-E qml_smoke`), because its CTest registration forces `offscreen`.
+  3. Runs it in a separate step:
+     `xvfb-run -a -s '-screen 0 1920x1080x24' env QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 qml_smoke`.
+  - The 1920×1080 screen holds the 1600×900 main window; the `xvfb-run` default is 1280×1024.
+  - Verified on the dev machine with the desktop display hidden, using Xvfb 21.1.12 and Mesa 25.2.8:
+    0 problems, and Qt reported `RENDERER: llvmpipe`.
+  - The sanitizers job is unchanged: it builds only `fdss_tests` and has excluded `qml_smoke` since P02.
+- *Rejected.* Allowing the two messages in `qml_smoke` would also hide a real OpenGL failure. Skipping
+  charts in `qml_smoke` would leave every future chart untested.
+- *Consequence.* Every `GraphsView` triggers the query, so any headless Linux run of `qml_smoke` (CI, a
+  server, a container) needs a display with OpenGL: `xvfb-run` plus Mesa. On Windows and macOS the query
+  uses D3D12 / Metal; it is green on `windows-latest`, and macOS has not run yet.
+
 **Charts that become custom QML `Shape` components.** None beyond those AGENTS.md already plans: the
 radar, the pitch / shot map and the heatmaps. Line and bar charts (load per player, goals by 15-minute
 bins, form) stay on Qt Graphs with our `ChartLegend` and `ChartTooltip`. Not tested here: colored
@@ -144,7 +178,8 @@ simulation, severity 1.0), against `Theme.surface`:
    `qml\QtGraphs`, `vcruntime140*.dll`, `msvcp140.dll`), then zips.
 
 The script runs in Windows PowerShell 5.1 and PowerShell 7. It was **not executed locally**: the dev
-machine is Linux without PowerShell. Its first run is the CI workflow below, which also answers Q1 for MSVC.
+machine is Linux without PowerShell. It runs green in the CI workflow below (2026-10-31); that run also
+built QXlsx with MSVC (Q1).
 
 **CI workflow.** `.github/workflows/package-windows.yml` runs the script on `windows-latest`:
 - MSVC set up by `ilammy/msvc-dev-cmd`;
@@ -201,3 +236,5 @@ database packet. The Universal CRT is part of Windows 10/11.
 - `Theme` gains a validated `chart` group (5 series colors, line width, marker size).
 - `qml_smoke` renders the spike view in every language × theme. The spike view and `Ctrl+Shift+G` are
   removed when the real load chart exists.
+- On Linux CI `qml_smoke` runs under Xvfb with Mesa llvmpipe and the xcb platform, because Qt Graphs
+  needs OpenGL even with the Software renderer. Any other headless Linux runner needs the same setup.
