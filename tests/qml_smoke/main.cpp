@@ -4,12 +4,15 @@
 
 #include "../services/FakeClock.hpp"
 #include "core/domain/Club.hpp"
+#include "core/domain/Player.hpp"
 #include "core/domain/StaffUser.hpp"
 #include "core/domain/Team.hpp"
+#include "core/domain/Validation.hpp"
 #include "core/util/Error.hpp"
 #include "data/db/DatabaseManager.hpp"
 #include "services/AuthService.hpp"
 #include "services/SetupService.hpp"
+#include "services/SquadService.hpp"
 #include "viewmodels/AppSettings.hpp"
 #include "viewmodels/AppState.hpp"
 #include "viewmodels/AvailabilityViewModel.hpp"
@@ -44,6 +47,8 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
@@ -391,6 +396,153 @@ void expectFlag(const QObject* object, const char* property, bool expected, cons
     }
 }
 
+// The first item of that object name, also in a dialog: the visual tree holds the overlay too.
+QQuickItem* findByObjectName(QQuickItem* item, const QString& name) {
+    if (item->objectName() == name) {
+        return item;
+    }
+    const QList<QQuickItem*> children = item->childItems();
+    for (QQuickItem* child : children) {
+        if (QQuickItem* found = findByObjectName(child, name)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+// The label wraps inside its width, a word too long for a line included.
+void expectWrapsInside(QQuickItem* label, const char* reason) {
+    if (label == nullptr || label->property("contentWidth").toReal() > label->width()) {
+        fail(reason);
+    }
+}
+
+// The worst the squad screens get at the minimum window: a card with very long notes and a long
+// word must scroll, and a form with every error must keep its buttons in the window. Then New Year.
+void exerciseMinimumWindow(QQuickWindow* window, NavigationModel* navigation, QQuickItem* view,
+                           QQuickItem* card, SquadViewModel* squad,
+                           const QString& screenshotDirectory) {
+    constexpr int kMinimumWidth = 1280;
+    constexpr int kMinimumHeight = 720;
+    constexpr int kNoteLines = 80;
+    constexpr qsizetype kLongWordLength = 500;
+    const QSize originalSize = window->size();
+    window->resize(kMinimumWidth, kMinimumHeight);
+    settle();
+    const auto capture = [&](const char* name) {
+        settle();
+        grabOrSave(window, screenshotDirectory, QString::fromLatin1(name) + QStringLiteral(".png"));
+    };
+
+    QStringList lines;
+    for (int line = 1; line <= kNoteLines; ++line) {
+        lines.append(QStringLiteral("Wiersz %1").arg(line));
+    }
+    lines.append(QString(kLongWordLength, u'x'));
+    fdss::core::PlayerDraft draft;
+    draft.firstName = "Dlugie";
+    draft.lastName = "Notatki";
+    draft.notes = lines.join(u'\n').toStdString();
+    const auto added =
+        ServiceRegistry::instance().squad().addPlayer(fdss::core::TeamId{squad->teamId()}, draft);
+    if (!added) {
+        fail("the player with long notes was not added");
+        window->resize(originalSize);
+        return;
+    }
+
+    navigation->activate(QStringLiteral("squad"),
+                         QVariantMap{{QStringLiteral("playerId"), qint64{added->value}}});
+    capture("squad-card-long-notes");
+    auto* page = findByObjectName(card, QStringLiteral("overviewPage"));
+    auto* notes = findByObjectName(card, QStringLiteral("playerData_notes"));
+    if (page == nullptr || notes == nullptr) {
+        fail("the overview page of the card is not all there");
+        window->resize(originalSize);
+        return;
+    }
+    if (page->property("contentHeight").toReal() <= page->height() || page->height() <= 0) {
+        fail("very long notes do not make the card scroll");
+    }
+    expectWrapsInside(notes, "a long word in the notes leaves the card");
+    if (notes->mapToItem(page, QPointF(notes->width(), 0)).x() > page->width()) {
+        fail("the notes are wider than the card");
+    }
+
+    // The keyboard gets to the end of the notes from the Back button, which has the focus.
+    pressKey(window, Qt::Key_PageDown);
+    if (page->property("contentY").toReal() <= 0) {
+        fail("PageDown does not scroll the card");
+    }
+    page->setProperty("contentY", page->property("contentHeight").toReal() - page->height());
+    capture("squad-card-long-notes-end");
+    const qreal notesBottom =
+        notes->mapToItem(window->contentItem(), QPointF(0, notes->height())).y();
+    if (notesBottom > kMinimumHeight) {
+        fail("the end of the notes cannot be scrolled into the window");
+    }
+
+    // A long description can be read to its end under the table.
+    auto* availability = card->property("availabilityModel").value<AvailabilityViewModel*>();
+    if (!availability->add(QStringLiteral("injury"), QStringLiteral("2026-10-01"), {},
+                           QString(kLongWordLength, u'y'))) {
+        fail("the entry with a long description was not added");
+    }
+    card->findChild<QObject*>(QStringLiteral("entriesTable"))->setProperty("currentIndex", 0);
+    page->setProperty("contentY", 0);
+    capture("squad-card-long-description");
+    expectWrapsInside(findByObjectName(card, QStringLiteral("selectedDescription")),
+                      "a long word in the description leaves the card");
+
+    QMetaObject::invokeMethod(view, "closeCard");
+    settle();
+
+    // Every error of the form at once.
+    QObject* const dialogObject = view->property("playerEditor").value<QObject*>();
+    auto* editor = dialogObject->property("viewModel").value<PlayerEditorViewModel*>();
+    QMetaObject::invokeMethod(view, "openAddDialog");
+    settle();
+    editor->setShirtNumber(fdss::core::kMaxShirtNumber + 1);
+    editor->setBirthYear(fdss::core::kMinBirthYear - 1);
+    editor->setSecondaryPositions({editor->primaryPosition()});
+    if (editor->save()) {
+        fail("a form with every error was saved");
+    }
+    if (editor->firstNameError().isEmpty() || editor->lastNameError().isEmpty() ||
+        editor->shirtNumberError().isEmpty() || editor->birthYearError().isEmpty() ||
+        editor->secondaryPositionsError().isEmpty()) {
+        fail("the form does not show every error");
+    }
+    capture("squad-editor-all-errors");
+    const qreal dialogTop = dialogObject->property("y").toReal();
+    const qreal dialogHeight = dialogObject->property("height").toReal();
+    if (dialogTop < 0 || dialogTop + dialogHeight > kMinimumHeight) {
+        fail("the form with every error leaves the minimum window");
+    }
+    auto* body = findByObjectName(window->contentItem(), QStringLiteral("dialogBody"));
+    if (body == nullptr || body->height() <= 0) {
+        fail("the form with every error has no room left");
+    }
+    pressKey(window, Qt::Key_Escape);
+    settle();
+
+    // The limit of the birth year follows New Year in a form opened again in the same session.
+    constexpr auto kToNextYear = std::chrono::days{61};
+    g_clock->advance(kToNextYear);
+    QMetaObject::invokeMethod(view, "openAddDialog");
+    settle();
+    auto* birthYear = findByObjectName(window->contentItem(), QStringLiteral("birthYearInput"));
+    if (birthYear == nullptr || birthYear->property("to").toInt() != editor->maxBirthYear() ||
+        editor->maxBirthYear() != 2027 - fdss::core::kYoungestPlayerAge) {
+        fail("the birth year field did not follow New Year");
+    }
+    pressKey(window, Qt::Key_Escape);
+    settle();
+
+    window->resize(originalSize);
+    settle();
+}
+
 // The way of the squad on a live window: an empty table, players added from the keyboard, a taken
 // shirt number, archiving with undo, a card opened by navigation arguments, and the dialogs of the
 // card. A real Ctrl+N would need Qt Test or private API here, so the shortcut is activated directly
@@ -628,6 +780,8 @@ void exerciseSquad(QQmlApplicationEngine& engine, const QString& screenshotDirec
     if (playersTable->property("currentIndex").toInt() != squad->rowOf(playerId)) {
         fail("coming back from the card lost the selected player");
     }
+
+    exerciseMinimumWindow(window, navigation, view, card, squad, screenshotDirectory);
 
     navigation->setCurrentIndex(0);
     settle();
@@ -1376,6 +1530,119 @@ void exerciseDatabaseErrorView(QQmlEngine& engine, const QString& screenshotDire
     settle();
 }
 
+// Every item under `item` whose text holds the markup. Each one that can render markup must have
+// Text.PlainText; a TextInput has no textFormat and never renders it.
+int countPlainMarkup(QQuickItem* item, const QString& markup, const char* where) {
+    int found = 0;
+    if (item->property("text").toString().contains(markup)) {
+        const QVariant format = item->property("textFormat");
+        if (format.isValid() && format.toInt() != Qt::PlainText) {
+            std::fprintf(stderr, "qml_smoke: %s: rich text in %s\n", where,
+                         item->metaObject()->className());
+            fail("markup in user data is not shown as plain text");
+        }
+        ++found;
+    }
+    const QList<QQuickItem*> children = item->childItems();
+    for (QQuickItem* child : children) {
+        found += countPlainMarkup(child, markup, where);
+    }
+    return found;
+}
+
+// User data with markup, from the wizard to the profile picker. Not one piece may render as rich
+// text: that would show something else than what was typed, and <img> would go to the network
+// (AGENTS sections 1 and 6). Expects an empty database and a loaded Main.qml.
+void exerciseUserMarkup(QQmlApplicationEngine& engine) {
+    const QString markup = QStringLiteral("<b>x</b><img src=\"http://example.invalid/a.png\">");
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* toasts =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Toasts"));
+    const auto expectShown = [&](const char* where) {
+        settle();
+        window->grabWindow();
+        if (countPlainMarkup(window->contentItem(), markup, where) == 0) {
+            std::fprintf(stderr, "qml_smoke: %s\n", where);
+            fail("the markup is not on the screen where it should be");
+        }
+    };
+
+    auto* wizard = wizardOf(window);
+    if (wizard == nullptr) {
+        fail("the wizard is not there for the markup test");
+        return;
+    }
+    wizard->next();
+    wizard->setClubName(markup);
+    wizard->setTeamName(markup);
+    wizard->next();
+    wizard->setCoachName(markup);
+    wizard->setPin(QStringLiteral("1234"));
+    wizard->setPinRepeat(QStringLiteral("1234"));
+    wizard->next();
+    expectShown("wizard summary");
+    if (!wizard->create()) {
+        fail("the wizard did not take names with markup");
+        return;
+    }
+    expectShown("top bar");
+
+    fdss::core::PlayerDraft draft;
+    draft.firstName = markup.toStdString();
+    draft.lastName = "Nowak";
+    draft.notes = markup.toStdString();
+    auto& squadService = ServiceRegistry::instance().squad();
+    const auto playerId = squadService.addPlayer(
+        fdss::core::TeamId{static_cast<std::int64_t>(appState->teamId())}, draft);
+    if (!playerId) {
+        fail("the player with markup was not added");
+        return;
+    }
+    navigation->activate(QStringLiteral("squad"));
+    expectShown("squad table");
+
+    auto* view = findQmlItem(window->contentItem(), "SquadView");
+    auto* card = findQmlItem(window->contentItem(), "PlayerCardView");
+    view->findChild<QObject*>(QStringLiteral("playersTable"))->setProperty("currentIndex", 0);
+    settle();
+    QMetaObject::invokeMethod(view, "archiveSelected");
+    expectShown("undo toast");
+    QMetaObject::invokeMethod(toasts, "undo");
+    settle();
+
+    navigation->activate(QStringLiteral("squad"),
+                         QVariantMap{{QStringLiteral("playerId"), qint64{playerId->value}}});
+    auto* availability = card->property("availabilityModel").value<AvailabilityViewModel*>();
+    if (!availability->add(QStringLiteral("injury"), QStringLiteral("2026-10-01"), {}, markup)) {
+        fail("the description with markup was not added");
+    }
+    card->findChild<QObject*>(QStringLiteral("entriesTable"))->setProperty("currentIndex", 0);
+    expectShown("player card");
+    if (const auto* notes = findByObjectName(card, QStringLiteral("playerData_notes"));
+        notes == nullptr || notes->property("text").toString() != markup) {
+        fail("the notes do not show what was typed");
+    }
+    QMetaObject::invokeMethod(card, "openEditAvailability");
+    expectShown("availability dialog");
+    pressKey(window, Qt::Key_Escape);
+    QMetaObject::invokeMethod(view, "closeCard");
+    settle();
+
+    navigation->activate(QStringLiteral("settings"));
+    expectShown("staff table");
+    auto* settingsView = findQmlItem(window->contentItem(), "SettingsView");
+    auto* staffSection = settingsView->property("staffSection").value<QQuickItem*>();
+    QMetaObject::invokeMethod(staffSection, "openResetPinDialog");
+    expectShown("reset PIN dialog");
+    pressKey(window, Qt::Key_Escape);
+
+    appState->logout();
+    expectShown("profile picker");
+}
+
 // Instantiates every file in ui/views/ on its own, so new views are covered automatically.
 int instantiateEveryView(QQmlEngine& engine) {
     int viewCount = 0;
@@ -1453,6 +1720,18 @@ int main(int argc, char* argv[]) {
                     exerciseLoginOverSession(engine);
                     exerciseLogoutOnUnreadableDatabase(engine, *database);
                 }
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+                settle();
+                exerciseUserMarkup(engine);
             }
             settle();
             ServiceRegistry::reset();

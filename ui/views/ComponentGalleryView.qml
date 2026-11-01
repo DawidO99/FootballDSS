@@ -409,6 +409,47 @@ Item {
                                 }
                             }
 
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacing.m
+
+                                Repeater {
+                                    model: [
+                                        {
+                                            "key": "available",
+                                            "text": qsTr("Available")
+                                        },
+                                        {
+                                            "key": "injured",
+                                            "text": qsTr("Injured")
+                                        },
+                                        {
+                                            "key": "ill",
+                                            "text": qsTr("Ill")
+                                        },
+                                        {
+                                            "key": "suspended",
+                                            "text": qsTr("Suspended")
+                                        },
+                                        {
+                                            "key": "absent",
+                                            "text": qsTr("Absent")
+                                        },
+                                        {
+                                            "key": "archived",
+                                            "text": qsTr("Archived")
+                                        }
+                                    ]
+
+                                    delegate: PlayerStatusBadge {
+                                        required property var modelData
+
+                                        statusKey: modelData.key
+                                        text: modelData.text
+                                    }
+                                }
+                            }
+
                             Label {
                                 Layout.fillWidth: true
                                 text: qsTr("Last gallery interaction: %1").arg(root.lastActionText)
@@ -570,6 +611,32 @@ Item {
                         CheckBoxField {
                             text: qsTr("Show archived")
                             checked: true
+                        }
+
+                        FocusFlickable {
+                            id: sampleFocusFlickable
+
+                            Layout.fillWidth: true
+                            implicitHeight: 2 * Theme.controlHeight
+                            contentHeight: sampleFocusColumn.implicitHeight
+
+                            Column {
+                                id: sampleFocusColumn
+
+                                width: sampleFocusFlickable.width
+                                spacing: Theme.spacing.s
+
+                                Repeater {
+                                    model: 4
+
+                                    delegate: TextInputField {
+                                        required property int index
+
+                                        width: sampleFocusColumn.width
+                                        placeholderText: qsTr("Tab keeps field %1 in view").arg(index + 1)
+                                    }
+                                }
+                            }
                         }
 
                         Item {

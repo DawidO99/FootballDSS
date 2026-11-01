@@ -285,6 +285,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Ill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Suspended</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Archived</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Last gallery interaction: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -350,6 +362,10 @@
     </message>
     <message>
         <source>Show archived</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tab keeps field %1 in view</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -864,7 +880,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Expected return</source>
+        <source>Expected</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

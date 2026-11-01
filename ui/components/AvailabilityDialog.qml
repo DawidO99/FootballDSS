@@ -60,6 +60,12 @@ AppDialog {
         const done = root.adding ? root.viewModel.add(root.typeKey, fromInput.currentDate, expectedInput.currentDate, descriptionInput.text) : root.viewModel.update(root.entryId, root.typeKey, fromInput.currentDate, expectedInput.currentDate, actualInput.currentDate, descriptionInput.text);
         if (done)
             root.close();
+        else if (root.viewModel.fromDateError.length > 0)
+            fromInput.forceActiveFocus(Qt.TabFocusReason);
+        else if (root.viewModel.expectedToError.length > 0)
+            expectedInput.forceActiveFocus(Qt.TabFocusReason);
+        else if (root.viewModel.actualToError.length > 0)
+            actualInput.forceActiveFocus(Qt.TabFocusReason);
     }
 
     FormField {

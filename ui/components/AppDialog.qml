@@ -5,6 +5,7 @@ import QtQuick.Layouts
 // Modal dialog with a header, body slot and footer buttons (optional danger on the left,
 // secondary + primary on the right). Enter triggers the primary button (which does NOT close
 // the dialog automatically so the caller can validate first); Esc and Cancel reject the dialog.
+// A body too high for the window scrolls; the header and the footer stay in view.
 // API:
 //   title: string           (inherited from Dialog)
 //   size: int               AppDialog.Small / Medium / Large
@@ -41,6 +42,8 @@ Dialog {
     parent: Overlay.overlay
     anchors.centerIn: parent
     width: size === AppDialog.Small ? Theme.dialogWidthS : size === AppDialog.Large ? Theme.dialogWidthL : Theme.dialogWidthM
+    // What does not fit the window scrolls between the header and the footer, so the buttons stay.
+    height: parent ? Math.min(implicitHeight, parent.height - 2 * Theme.spacing.m) : implicitHeight
     padding: Theme.spacing.xl
     modal: true
     focus: true
@@ -74,6 +77,7 @@ Dialog {
             Label {
                 Layout.fillWidth: true
                 text: root.title
+                textFormat: Text.PlainText
                 color: Theme.text
                 font.pixelSize: Theme.fontSize.title
                 font.weight: Font.DemiBold
@@ -96,11 +100,19 @@ Dialog {
         Keys.onReturnPressed: root.triggerPrimary()
         Keys.onEnterPressed: root.triggerPrimary()
 
-        ColumnLayout {
-            id: bodyColumn
+        FocusFlickable {
+            id: bodyArea
 
+            objectName: "dialogBody"
             anchors.fill: parent
-            spacing: Theme.spacing.m
+            contentHeight: bodyColumn.implicitHeight
+
+            ColumnLayout {
+                id: bodyColumn
+
+                width: bodyArea.width
+                spacing: Theme.spacing.m
+            }
         }
     }
 

@@ -285,6 +285,18 @@
         <translation>Dzień wolny</translation>
     </message>
     <message>
+        <source>Ill</source>
+        <translation>Chory</translation>
+    </message>
+    <message>
+        <source>Suspended</source>
+        <translation>Zawieszony</translation>
+    </message>
+    <message>
+        <source>Archived</source>
+        <translation>Zarchiwizowany</translation>
+    </message>
+    <message>
         <source>Last gallery interaction: %1</source>
         <translation>Ostatnia akcja w galerii: %1</translation>
     </message>
@@ -351,6 +363,10 @@
     <message>
         <source>Show archived</source>
         <translation>Pokaż zarchiwizowanych</translation>
+    </message>
+    <message>
+        <source>Tab keeps field %1 in view</source>
+        <translation>Tab utrzymuje pole %1 w widoku</translation>
     </message>
     <message>
         <source>Error state</source>
@@ -864,8 +880,8 @@
         <translation>Od</translation>
     </message>
     <message>
-        <source>Expected return</source>
-        <translation>Planowany powrót</translation>
+        <source>Expected</source>
+        <translation>Planowany</translation>
     </message>
     <message>
         <source>Returned</source>

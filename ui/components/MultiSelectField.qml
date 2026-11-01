@@ -92,6 +92,7 @@ FocusScope {
 
         contentItem: Label {
             text: root.displayText.length > 0 ? root.displayText : root.placeholderText
+            textFormat: Text.PlainText
             font.pixelSize: Theme.fontSize.body
             color: root.displayText.length > 0 ? Theme.text : Theme.textMuted
             verticalAlignment: Text.AlignVCenter

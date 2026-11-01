@@ -164,6 +164,8 @@ CMake targets:
 - Empty states always tell the user what to do next, with a button.
 - Destructive actions execute immediately with a 10 s "Undo" toast (confirm dialog only for bulk).
 - Status is never color-only: color + icon + word.
+- Text that comes from user data is always shown with `textFormat: Text.PlainText` (no rich text, no
+  network requests from markup).
 - Reusable pieces go to `ui/components/`. One view per file in `ui/views/`.
 - Use `required property` for delegates and `pragma ComponentBehavior: Bound` in files whose
   delegates reference outer ids.

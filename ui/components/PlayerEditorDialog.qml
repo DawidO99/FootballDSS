@@ -23,6 +23,20 @@ AppDialog {
         firstNameInput.forceActiveFocus(Qt.TabFocusReason);
     }
 
+    // Enter may come from the notes, with the first error scrolled out of sight above.
+    function focusFirstError() {
+        if (editor.firstNameError.length > 0)
+            firstNameInput.forceActiveFocus(Qt.TabFocusReason);
+        else if (editor.lastNameError.length > 0)
+            lastNameInput.forceActiveFocus(Qt.TabFocusReason);
+        else if (editor.shirtNumberError.length > 0)
+            shirtNumberInput.forceActiveFocus(Qt.TabFocusReason);
+        else if (editor.birthYearError.length > 0)
+            birthYearInput.forceActiveFocus(Qt.TabFocusReason);
+        else if (editor.secondaryPositionsError.length > 0)
+            secondaryPositionsInput.forceActiveFocus(Qt.TabFocusReason);
+    }
+
     function openForAdding() {
         editor.startAdding();
         root.showForm();
@@ -38,6 +52,8 @@ AppDialog {
     onPrimaryClicked: {
         if (editor.save())
             root.close();
+        else
+            root.focusFirstError();
     }
 
     PlayerEditorViewModel {
@@ -68,7 +84,6 @@ AppDialog {
                 id: firstNameInput
 
                 Layout.fillWidth: true
-                objectName: "firstNameInput"
                 text: editor.firstName
                 error: editor.firstNameError
                 Accessible.name: firstNameField.label
@@ -132,6 +147,7 @@ AppDialog {
             NumberField {
                 id: birthYearInput
 
+                objectName: "birthYearInput"
                 Layout.fillWidth: true
                 from: editor.minBirthYear
                 to: editor.maxBirthYear

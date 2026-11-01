@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <optional>
 #include <string_view>
+#include <utility>
 
 namespace fdss::viewmodels {
 
@@ -54,6 +55,7 @@ PlayerEditorViewModel::PlayerEditorViewModel(QObject* parent)
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
+    refreshLimits();
 }
 
 qint64 PlayerEditorViewModel::teamId() const { return m_teamId; }
@@ -197,9 +199,7 @@ int PlayerEditorViewModel::maxShirtNumber() const { return core::kMaxShirtNumber
 
 int PlayerEditorViewModel::minBirthYear() const { return core::kMinBirthYear; }
 
-int PlayerEditorViewModel::maxBirthYear() const {
-    return static_cast<int>(m_clock.today().year()) - core::kYoungestPlayerAge;
-}
+int PlayerEditorViewModel::maxBirthYear() const { return m_maxBirthYear; }
 
 QString PlayerEditorViewModel::firstNameError() const { return errorText(std::string(kFirstName)); }
 
@@ -271,7 +271,17 @@ bool PlayerEditorViewModel::eventFilter(QObject* watched, QEvent* event) {
     return QObject::eventFilter(watched, event);
 }
 
+void PlayerEditorViewModel::refreshLimits() {
+    const int maxBirthYear = static_cast<int>(m_clock.today().year()) - core::kYoungestPlayerAge;
+    if (maxBirthYear != m_maxBirthYear) {
+        m_maxBirthYear = maxBirthYear;
+        emit maxBirthYearChanged();
+    }
+}
+
 void PlayerEditorViewModel::load(const core::PlayerDraft& draft, qint64 playerId) {
+    // Before the values, so a field checks a new value against the new limit.
+    refreshLimits();
     m_playerId = playerId;
     m_firstName = QString::fromStdString(draft.firstName);
     m_lastName = QString::fromStdString(draft.lastName);

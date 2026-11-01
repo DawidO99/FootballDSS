@@ -58,6 +58,7 @@ AbstractButton {
             Label {
                 anchors.centerIn: parent
                 text: root.initials
+                textFormat: Text.PlainText
                 color: Theme.accentText
                 font.pixelSize: Theme.fontSize.title
                 font.weight: Font.DemiBold
@@ -67,6 +68,7 @@ AbstractButton {
         Label {
             Layout.fillWidth: true
             text: root.name
+            textFormat: Text.PlainText
             color: Theme.text
             font.pixelSize: Theme.fontSize.body
             font.weight: Font.DemiBold

@@ -54,7 +54,8 @@ class PlayerEditorViewModel : public QObject {
     Q_PROPERTY(int minShirtNumber READ minShirtNumber CONSTANT FINAL)
     Q_PROPERTY(int maxShirtNumber READ maxShirtNumber CONSTANT FINAL)
     Q_PROPERTY(int minBirthYear READ minBirthYear CONSTANT FINAL)
-    Q_PROPERTY(int maxBirthYear READ maxBirthYear CONSTANT FINAL)
+    // Follows the year: read anew whenever the form starts, as the app may stay open over New Year.
+    Q_PROPERTY(int maxBirthYear READ maxBirthYear NOTIFY maxBirthYearChanged FINAL)
     Q_PROPERTY(QString firstNameError READ firstNameError NOTIFY errorsChanged FINAL)
     Q_PROPERTY(QString lastNameError READ lastNameError NOTIFY errorsChanged FINAL)
     Q_PROPERTY(QString shirtNumberError READ shirtNumberError NOTIFY errorsChanged FINAL)
@@ -109,6 +110,7 @@ signals:
     void fieldsChanged();
     void shirtNumberChanged();
     void birthYearChanged();
+    void maxBirthYearChanged();
     void optionsChanged();
     void secondaryOptionsChanged();
     void errorsChanged();
@@ -120,6 +122,7 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    void refreshLimits();
     void load(const core::PlayerDraft& draft, qint64 playerId);
     [[nodiscard]] core::PlayerDraft draft() const;
     void clearError(const std::string& field);
@@ -131,6 +134,7 @@ private:
     const services::Clock& m_clock;
 
     qint64 m_teamId = 0;
+    int m_maxBirthYear = 0;
     qint64 m_playerId = 0; // 0: adding
     QString m_firstName;
     QString m_lastName;

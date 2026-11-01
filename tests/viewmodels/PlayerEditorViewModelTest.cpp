@@ -9,6 +9,7 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <optional>
 
 using namespace fdss::core;
@@ -203,6 +204,42 @@ TEST_F(PlayerEditorViewModelTest, LimitsComeFromTheCore) {
     EXPECT_EQ(editor.maxShirtNumber(), 99);
     EXPECT_EQ(editor.minBirthYear(), 1950);
     EXPECT_EQ(editor.maxBirthYear(), 2026 - 4);
+}
+
+TEST_F(PlayerEditorViewModelTest, TheBirthYearLimitFollowsNewYearWhenTheFormStarts) {
+    const PlayerId id = addPlayer(7);
+    PlayerEditorViewModel editor;
+    fillValid(editor);
+    ASSERT_EQ(editor.maxBirthYear(), 2022);
+    SignalCount changed(&editor, &PlayerEditorViewModel::maxBirthYearChanged);
+
+    // A form that started last year keeps its limit, and the next start in that year changes
+    // nothing.
+    editor.startAdding();
+    EXPECT_EQ(changed.count(), 0);
+
+    // From 2026-11-01 12:00 to 2027-01-01 12:00.
+    m_clock->advance(std::chrono::days{61});
+    EXPECT_EQ(editor.maxBirthYear(), 2022);
+
+    editor.startAdding();
+    EXPECT_EQ(editor.maxBirthYear(), 2023);
+    EXPECT_EQ(changed.count(), 1);
+
+    // The new limit is the one the core checks, in a form opened for editing as well.
+    ASSERT_TRUE(editor.startEditing(id.value));
+    EXPECT_EQ(changed.count(), 1);
+    editor.setBirthYear(2023);
+    EXPECT_TRUE(editor.save());
+    EXPECT_EQ(registry().squad().player(id)->player.birthYear, 2023);
+}
+
+TEST_F(PlayerEditorViewModelTest, EditingAfterNewYearReadsTheLimitToo) {
+    const PlayerId id = addPlayer(7);
+    PlayerEditorViewModel editor;
+    m_clock->advance(std::chrono::days{61});
+    ASSERT_TRUE(editor.startEditing(id.value));
+    EXPECT_EQ(editor.maxBirthYear(), 2023);
 }
 
 TEST_F(PlayerEditorViewModelTest, RoleWithoutEditSquadIsRefused) {

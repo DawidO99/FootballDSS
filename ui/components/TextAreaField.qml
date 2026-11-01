@@ -34,6 +34,7 @@ ScrollView {
 
         focus: true
         activeFocusOnTab: true
+        textFormat: TextEdit.PlainText
         wrapMode: TextEdit.Wrap
         leftPadding: Theme.spacing.m
         rightPadding: Theme.spacing.m

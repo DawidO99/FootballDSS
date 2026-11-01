@@ -13,6 +13,7 @@ RowLayout {
     Label {
         Layout.fillWidth: true
         text: root.title
+        textFormat: Text.PlainText
         color: Theme.text
         font.pixelSize: Theme.fontSize.h1
         font.weight: Font.DemiBold

@@ -48,6 +48,7 @@ Rectangle {
 
         Label {
             text: AppState.teamName
+            textFormat: Text.PlainText
             color: Theme.text
             font.pixelSize: Theme.fontSize.title
             font.weight: Font.DemiBold
@@ -133,6 +134,7 @@ Rectangle {
                     Label {
                         anchors.verticalCenter: parent.verticalCenter
                         text: AppState.userName
+                        textFormat: Text.PlainText
                         color: Theme.text
                         font.pixelSize: Theme.fontSize.body
                     }

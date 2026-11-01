@@ -32,6 +32,7 @@ Item {
     }
 
     function focusFirst() {
+        overviewPage.scrollTo(0);
         backButton.forceActiveFocus(Qt.TabFocusReason);
     }
 
@@ -59,6 +60,14 @@ Item {
         returnInput.showDate();
         returnDialog.open();
         returnInput.forceActiveFocus(Qt.TabFocusReason);
+    }
+
+    // The table keeps these for itself while it has the focus.
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) {
+            overviewPage.scrollByPage(event.key === Qt.Key_PageDown ? 1 : -1);
+            event.accepted = true;
+        }
     }
 
     PlayerCardViewModel {
@@ -127,6 +136,7 @@ Item {
                 Label {
                     Layout.fillWidth: true
                     text: card.name
+                    textFormat: Text.PlainText
                     color: Theme.text
                     font.pixelSize: Theme.fontSize.h1
                     font.weight: Font.DemiBold
@@ -172,175 +182,209 @@ Item {
             visible: card.loadError.length === 0
             titles: [qsTr("Overview"), qsTr("Load"), qsTr("Matches"), qsTr("Notes")]
 
-            RowLayout {
-                spacing: Theme.spacing.l
+            // Long notes and descriptions scroll the page. The cards fill it at least, and stay at the
+            // top of a higher one, so the table and its buttons do not move away from the tabs.
+            FocusFlickable {
+                id: overviewPage
 
-                Card {
-                    Layout.fillHeight: true
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    title: qsTr("Player data")
+                objectName: "overviewPage"
+                contentHeight: Math.max(height, overviewRow.implicitHeight)
 
-                    ColumnLayout {
+                RowLayout {
+                    id: overviewRow
+
+                    width: overviewPage.width
+                    spacing: Theme.spacing.l
+
+                    Card {
+                        Layout.alignment: Qt.AlignTop
+                        Layout.preferredHeight: Math.max(overviewPage.height, implicitHeight)
                         Layout.fillWidth: true
-                        spacing: Theme.spacing.s
+                        Layout.preferredWidth: 1
+                        title: qsTr("Player data")
 
-                        Repeater {
-                            model: [
-                                {
-                                    "label": qsTr("Position"),
-                                    "value": card.positionCode.length > 0 ? card.positionCode + " - " + card.positionName : ""
-                                },
-                                {
-                                    "label": qsTr("Secondary positions"),
-                                    "value": card.secondaryPositions
-                                },
-                                {
-                                    "label": qsTr("Birth year"),
-                                    "value": String(card.birthYear ?? "")
-                                },
-                                {
-                                    "label": qsTr("Preferred foot"),
-                                    "value": card.footName
-                                },
-                                {
-                                    "label": qsTr("Notes"),
-                                    "value": card.notes
-                                }
-                            ]
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacing.s
 
-                            delegate: RowLayout {
-                                id: dataRow
+                            Repeater {
+                                model: [
+                                    {
+                                        "key": "position",
+                                        "label": qsTr("Position"),
+                                        "value": card.positionCode.length > 0 ? card.positionCode + " - " + card.positionName : ""
+                                    },
+                                    {
+                                        "key": "secondaryPositions",
+                                        "label": qsTr("Secondary positions"),
+                                        "value": card.secondaryPositions
+                                    },
+                                    {
+                                        "key": "birthYear",
+                                        "label": qsTr("Birth year"),
+                                        "value": String(card.birthYear ?? "")
+                                    },
+                                    {
+                                        "key": "foot",
+                                        "label": qsTr("Preferred foot"),
+                                        "value": card.footName
+                                    },
+                                    {
+                                        "key": "notes",
+                                        "label": qsTr("Notes"),
+                                        "value": card.notes
+                                    }
+                                ]
 
-                                required property var modelData
+                                delegate: RowLayout {
+                                    id: dataRow
 
-                                Layout.fillWidth: true
-                                spacing: Theme.spacing.m
+                                    required property var modelData
 
-                                Label {
-                                    Layout.preferredWidth: Theme.fieldWidth / 2
-                                    Layout.alignment: Qt.AlignTop
-                                    text: dataRow.modelData.label
-                                    color: Theme.textMuted
-                                    font.pixelSize: Theme.fontSize.body
-                                    wrapMode: Text.WordWrap
-                                }
-
-                                // Long notes wrap inside the card instead of widening it.
-                                Label {
                                     Layout.fillWidth: true
-                                    Layout.preferredWidth: 0
-                                    text: dataRow.modelData.value.length > 0 ? dataRow.modelData.value : qsTr("Not set")
-                                    color: Theme.text
-                                    font.pixelSize: Theme.fontSize.body
-                                    wrapMode: Text.WordWrap
+                                    spacing: Theme.spacing.m
+
+                                    Label {
+                                        Layout.preferredWidth: Theme.fieldWidth / 2
+                                        Layout.alignment: Qt.AlignTop
+                                        text: dataRow.modelData.label
+                                        color: Theme.textMuted
+                                        font.pixelSize: Theme.fontSize.body
+                                        wrapMode: Text.WordWrap
+                                    }
+
+                                    // Long notes wrap inside the card, in the middle of a long word too.
+                                    Label {
+                                        objectName: "playerData_" + dataRow.modelData.key
+                                        Layout.fillWidth: true
+                                        Layout.preferredWidth: 0
+                                        text: dataRow.modelData.value.length > 0 ? dataRow.modelData.value : qsTr("Not set")
+                                        textFormat: Text.PlainText
+                                        color: Theme.text
+                                        font.pixelSize: Theme.fontSize.body
+                                        wrapMode: Text.Wrap
+                                    }
                                 }
                             }
-                        }
-                    }
-
-                    Item {
-                        Layout.fillHeight: true
-                    }
-                }
-
-                Card {
-                    Layout.fillHeight: true
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 2
-                    title: qsTr("Availability")
-
-                    DataTable {
-                        id: entriesTable
-
-                        objectName: "entriesTable"
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Accessible.name: qsTr("Availability")
-                        model: availability.entries
-                        columns: {
-                            const columns = [
-                                {
-                                    "role": "typeName",
-                                    "title": qsTr("Type"),
-                                    "width": 0.2,
-                                    "sortable": false
-                                },
-                                {
-                                    "role": "fromText",
-                                    "title": qsTr("From"),
-                                    "width": 0.2,
-                                    "sortable": false
-                                },
-                                {
-                                    "role": "expectedText",
-                                    "title": qsTr("Expected return"),
-                                    "width": 0.2,
-                                    "sortable": false
-                                },
-                                {
-                                    "role": "actualText",
-                                    "title": qsTr("Returned"),
-                                    "width": 0.2,
-                                    "sortable": false
-                                }
-                            ];
-                            if (availability.canViewDetails)
-                                columns.push({
-                                    "role": "description",
-                                    "title": qsTr("Description"),
-                                    "width": 0.4,
-                                    "sortable": false
-                                });
-                            return columns;
-                        }
-                        emptyState: entriesEmptyState
-                        onCurrentIndexChanged: root.syncSelection()
-                        onActivated: root.openEditAvailability()
-                    }
-
-                    Component {
-                        id: entriesEmptyState
-
-                        EmptyState {
-                            iconName: "calendar"
-                            title: availability.loadError.length > 0 ? qsTr("The availability could not be read") : qsTr("No availability entries")
-                            description: availability.loadError.length > 0 ? availability.loadError : qsTr("Injuries, illnesses, suspensions and absences of this player will appear here.")
-                            actionText: availability.loadError.length > 0 ? qsTr("Try again") : availability.canEdit && !card.archived ? qsTr("Add availability") : ""
-                            onActionTriggered: {
-                                if (availability.loadError.length > 0)
-                                    availability.reload();
-                                else
-                                    root.openAddAvailability();
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: availability.canEdit
-                        spacing: Theme.spacing.m
-
-                        PrimaryButton {
-                            visible: !card.archived
-                            text: qsTr("Add availability")
-                            onClicked: root.openAddAvailability()
-                        }
-
-                        SecondaryButton {
-                            enabled: root.hasSelection
-                            text: qsTr("Edit")
-                            onClicked: root.openEditAvailability()
-                        }
-
-                        SecondaryButton {
-                            enabled: root.hasSelection && root.selectedEntry.open
-                            text: qsTr("Mark as returned")
-                            onClicked: root.openMarkReturned()
                         }
 
                         Item {
+                            Layout.fillHeight: true
+                        }
+                    }
+
+                    Card {
+                        Layout.alignment: Qt.AlignTop
+                        Layout.preferredHeight: Math.max(overviewPage.height, implicitHeight)
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 2
+                        title: qsTr("Availability")
+
+                        DataTable {
+                            id: entriesTable
+
+                            objectName: "entriesTable"
                             Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            Accessible.name: qsTr("Availability")
+                            model: availability.entries
+                            columns: {
+                                const columns = [
+                                    {
+                                        "role": "typeName",
+                                        "title": qsTr("Type"),
+                                        "width": 0.2,
+                                        "sortable": false
+                                    },
+                                    {
+                                        "role": "fromText",
+                                        "title": qsTr("From"),
+                                        "width": 0.2,
+                                        "sortable": false
+                                    },
+                                    {
+                                        "role": "expectedText",
+                                        "title": qsTr("Expected"),
+                                        "width": 0.2,
+                                        "sortable": false
+                                    },
+                                    {
+                                        "role": "actualText",
+                                        "title": qsTr("Returned"),
+                                        "width": 0.2,
+                                        "sortable": false
+                                    }
+                                ];
+                                if (availability.canViewDetails)
+                                    columns.push({
+                                        "role": "description",
+                                        "title": qsTr("Description"),
+                                        "width": 0.4,
+                                        "sortable": false
+                                    });
+                                return columns;
+                            }
+                            emptyState: entriesEmptyState
+                            onCurrentIndexChanged: root.syncSelection()
+                            onActivated: root.openEditAvailability()
+                        }
+
+                        // The table shows one line of a description; here it can be read to the end.
+                        Label {
+                            objectName: "selectedDescription"
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 0
+                            visible: availability.canViewDetails && text.length > 0
+                            text: root.selectedEntry.description ?? ""
+                            textFormat: Text.PlainText
+                            color: Theme.text
+                            font.pixelSize: Theme.fontSize.body
+                            wrapMode: Text.Wrap
+                        }
+
+                        Component {
+                            id: entriesEmptyState
+
+                            EmptyState {
+                                iconName: "calendar"
+                                title: availability.loadError.length > 0 ? qsTr("The availability could not be read") : qsTr("No availability entries")
+                                description: availability.loadError.length > 0 ? availability.loadError : qsTr("Injuries, illnesses, suspensions and absences of this player will appear here.")
+                                actionText: availability.loadError.length > 0 ? qsTr("Try again") : availability.canEdit && !card.archived ? qsTr("Add availability") : ""
+                                onActionTriggered: {
+                                    if (availability.loadError.length > 0)
+                                        availability.reload();
+                                    else
+                                        root.openAddAvailability();
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: availability.canEdit
+                            spacing: Theme.spacing.m
+
+                            PrimaryButton {
+                                visible: !card.archived
+                                text: qsTr("Add availability")
+                                onClicked: root.openAddAvailability()
+                            }
+
+                            SecondaryButton {
+                                enabled: root.hasSelection
+                                text: qsTr("Edit")
+                                onClicked: root.openEditAvailability()
+                            }
+
+                            SecondaryButton {
+                                enabled: root.hasSelection && root.selectedEntry.open
+                                text: qsTr("Mark as returned")
+                                onClicked: root.openMarkReturned()
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                            }
                         }
                     }
                 }

@@ -37,6 +37,7 @@ Rectangle {
                 Layout.fillWidth: true
                 visible: root.title.length > 0
                 text: root.title
+                textFormat: Text.PlainText
                 color: Theme.text
                 font.pixelSize: Theme.fontSize.title
                 font.weight: Font.DemiBold

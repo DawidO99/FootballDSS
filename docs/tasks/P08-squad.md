@@ -103,6 +103,24 @@ Accepted by the human on 2026-11-01. These override the packet text above (AGENT
 - `AvailabilityViewModel::defaultReturnDate()` and `clearErrors()`, so the default of decision 7 is not
   logic in QML.
 
+**Decisions after the review.**
+- **User data is plain text.** Markup in a name or a note must stay text: `Label` guesses rich text by
+  default, and `<img>` would go to the network (AGENTS §1, §12). The rule is in AGENTS §6; it also covers
+  what was already on `main`: `DataTable`, `ProfileTile`, `TopBar`, `PageHeader`, `Card`, `AppDialog`,
+  `ToastHost`, `SelectField` and the wizard summary.
+- **The Overview tab scrolls.** Long notes and descriptions wrap in the middle of a long word too. The
+  description of the selected entry shows in full under the table, which has one line for it. PageUp and
+  PageDown scroll the page, except from the table, which keeps those keys.
+- **`AppDialog` scrolls its body**, for every dialog of the app: the header and the footer stay in the
+  window. A failed save moves the focus to the first error, which may be scrolled out of sight.
+- **`maxBirthYear` is read anew when the form starts**, with a notify signal.
+- **`ui/components/FocusFlickable.qml`:** the scrolling area of both, new in the kit and in the gallery.
+  Tab never leaves the focus out of sight. `PlayerStatusBadge` is in the gallery with every status.
+
+**Scope extension of the review:** `AGENTS.md`, `ui/components/DataTable.qml`, `ProfileTile.qml`,
+`TopBar.qml`, `PageHeader.qml`, `Card.qml`, `AppDialog.qml`, `ToastHost.qml`, `SelectField.qml`,
+`ui/views/SetupWizardView.qml`.
+
 **Known limitations.**
 - The status is computed when the list is read. `SquadView` reads it again whenever it becomes visible,
   but a screen left open over midnight keeps yesterday's status until then.

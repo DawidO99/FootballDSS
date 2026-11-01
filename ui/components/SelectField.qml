@@ -84,6 +84,7 @@ ComboBox {
 
     contentItem: Label {
         text: control.displayText
+        textFormat: Text.PlainText
         font: control.font
         color: control.currentIndex < 0 ? Theme.textMuted : Theme.text
         verticalAlignment: Text.AlignVCenter
@@ -117,6 +118,7 @@ ComboBox {
 
         contentItem: Label {
             text: option.text
+            textFormat: Text.PlainText
             font.pixelSize: Theme.fontSize.body
             font.weight: control.currentIndex === option.index ? Font.DemiBold : Font.Normal
             color: Theme.text

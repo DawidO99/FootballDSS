@@ -342,6 +342,7 @@ FocusScope {
                                         anchors.rightMargin: Theme.spacing.m
                                         visible: !cell.hasCustomDelegate
                                         text: cell.cellValue !== undefined && cell.cellValue !== null ? String(cell.cellValue) : ""
+                                        textFormat: Text.PlainText
                                         color: Theme.text
                                         font.pixelSize: Theme.fontSize.body
                                         horizontalAlignment: cell.columnData.align ?? Text.AlignLeft

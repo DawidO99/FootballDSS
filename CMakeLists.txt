@@ -46,6 +46,7 @@ qt_add_qml_module(fdss_ui
         ui/components/DateField.qml
         ui/components/EmptyState.qml
         ui/components/FieldBackground.qml
+        ui/components/FocusFlickable.qml
         ui/components/FormField.qml
         ui/components/Icon.qml
         ui/components/IconButton.qml
