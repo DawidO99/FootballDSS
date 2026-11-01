@@ -199,6 +199,7 @@ TEST_F(StaffViewModelTest, RoleOptionsOfferEveryRole) {
 
     const QVariantList options = staff.roleOptions();
 
+    EXPECT_TRUE(staff.loadError().isEmpty());
     ASSERT_EQ(options.size(), 4);
     EXPECT_EQ(options.front().toMap().value(QStringLiteral("value")), QStringLiteral("coach"));
     EXPECT_EQ(options.front().toMap().value(QStringLiteral("text")), QStringLiteral("Coach"));
@@ -207,11 +208,13 @@ TEST_F(StaffViewModelTest, RoleOptionsOfferEveryRole) {
 TEST_F(StaffViewModelTest, RoleOptionsFollowTheLanguage) {
     const StaffViewModel staff;
     const SignalCount changed(&staff, &StaffViewModel::roleOptionsChanged);
+    const SignalCount loadError(&staff, &StaffViewModel::loadErrorChanged);
 
     QEvent event(QEvent::LanguageChange);
     QCoreApplication::sendEvent(QCoreApplication::instance(), &event);
 
     EXPECT_EQ(changed.count(), 1);
+    EXPECT_EQ(loadError.count(), 1);
 }
 
 TEST_F(StaffViewModelTest, AddPutsTheUserInTheListWithThatPin) {

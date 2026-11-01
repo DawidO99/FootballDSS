@@ -4,6 +4,9 @@
 #include "services/Session.hpp"
 #include "viewmodels/AppState.hpp"
 
+#include <QCoreApplication>
+#include <QEvent>
+
 #include <gtest/gtest.h>
 
 #include <chrono>
@@ -182,6 +185,33 @@ TEST_F(SetupWizardViewModelTest, BackKeepsTheValuesAndClearsTheErrors) {
     EXPECT_EQ(wizard.pin(), QStringLiteral("12"));
     EXPECT_TRUE(wizard.pinError().isEmpty());
     EXPECT_TRUE(wizard.coachNameError().isEmpty());
+}
+
+TEST_F(SetupWizardViewModelTest, ErrorsAreMadeAnewForANewLanguage) {
+    SetupWizardViewModel wizard;
+    ASSERT_TRUE(wizard.next());
+    ASSERT_FALSE(wizard.next());
+    wizard.setClubName(QStringLiteral("KS Łączna"));
+    const SignalCount errors(&wizard, &SetupWizardViewModel::errorsChanged);
+
+    QEvent event(QEvent::LanguageChange);
+    QCoreApplication::sendEvent(QCoreApplication::instance(), &event);
+
+    EXPECT_EQ(errors.count(), 1);
+    EXPECT_TRUE(wizard.clubNameError().isEmpty()) << "what the user fixed stays fixed";
+    EXPECT_FALSE(wizard.teamNameError().isEmpty());
+    EXPECT_EQ(wizard.currentStep(), kClubStep);
+}
+
+TEST_F(SetupWizardViewModelTest, ALanguageChangeDoesNotBringUpErrorsOnAFreshStep) {
+    SetupWizardViewModel wizard;
+    ASSERT_TRUE(wizard.next());
+
+    QEvent event(QEvent::LanguageChange);
+    QCoreApplication::sendEvent(QCoreApplication::instance(), &event);
+
+    EXPECT_TRUE(wizard.clubNameError().isEmpty());
+    EXPECT_TRUE(wizard.teamNameError().isEmpty());
 }
 
 TEST_F(SetupWizardViewModelTest, BackOnTheFirstStepStaysThere) {

@@ -1,26 +1,23 @@
 #include "viewmodels/ProfilePickerViewModel.hpp"
 
-#include "services/AuthService.hpp"
-#include "services/Clock.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 
-#include <algorithm>
+#include <QCoreApplication>
+#include <QEvent>
+
 #include <utility>
 
 namespace fdss::viewmodels {
 
-namespace {
-
-constexpr std::chrono::seconds kLockTick{1};
-
-} // namespace
-
 ProfilePickerViewModel::ProfilePickerViewModel(QObject* parent)
     : QObject(parent), m_auth(ServiceRegistry::instance().auth()),
-      m_clock(ServiceRegistry::instance().clock()), m_staff(new StaffListModel(this)) {
-    m_lockTimer.setInterval(kLockTick);
-    connect(&m_lockTimer, &QTimer::timeout, this, &ProfilePickerViewModel::tickLock);
+      m_lock(ServiceRegistry::instance().clock()), m_staff(new StaffListModel(this)) {
+    connect(&m_lock, &LockCountdown::changed, this, &ProfilePickerViewModel::messageChanged);
+    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    if (QCoreApplication* app = QCoreApplication::instance()) {
+        app->installEventFilter(this);
+    }
     reload();
 }
 
@@ -33,25 +30,33 @@ QString ProfilePickerViewModel::selectedName() const {
     return user != nullptr ? QString::fromStdString(user->name) : QString{};
 }
 
-QString ProfilePickerViewModel::message() const { return m_message; }
+QString ProfilePickerViewModel::message() const {
+    if (m_lock.locked()) {
+        return m_lock.message();
+    }
+    if (m_malformedPin) {
+        return ErrorPresenter::invalidInputMessage("pin");
+    }
+    return m_wrongPin ? ErrorPresenter::pinCheckMessage(*m_wrongPin) : QString{};
+}
 
-bool ProfilePickerViewModel::locked() const { return m_lockSeconds > 0; }
+bool ProfilePickerViewModel::locked() const { return m_lock.locked(); }
 
-QString ProfilePickerViewModel::loadError() const { return m_loadError; }
+QString ProfilePickerViewModel::loadError() const {
+    return m_loadFailure ? ErrorPresenter::message(*m_loadFailure) : QString{};
+}
 
 void ProfilePickerViewModel::reload() {
     auto staff = m_auth.listActiveStaff();
-    const QString loadError = staff ? QString{} : ErrorPresenter::message(staff.error());
     if (staff) {
         m_staff->setStaff(std::move(*staff));
+        m_loadFailure.reset();
     } else {
         qCritical("ProfilePickerViewModel: %s", staff.error().detail.c_str());
         m_staff->setStaff({});
+        m_loadFailure = staff.error();
     }
-    if (m_loadError != loadError) {
-        m_loadError = loadError;
-        emit loadErrorChanged();
-    }
+    emit loadErrorChanged();
 
     const auto& users = m_staff->staff();
     if (users.size() == 1) {
@@ -70,9 +75,9 @@ void ProfilePickerViewModel::select(qint64 id) {
     }
     if (m_selectedId != id) {
         m_selectedId = id;
-        m_lockSeconds = 0;
-        m_lockTimer.stop();
-        setMessage({});
+        m_lock.cancel();
+        forgetAttempt();
+        emit messageChanged();
         emit selectionChanged();
     }
     readLock();
@@ -85,7 +90,9 @@ void ProfilePickerViewModel::login(const QString& pin) {
     const auto check = m_auth.login(core::StaffUserId{m_selectedId}, pin.toStdString());
     if (!check) {
         if (check.error().code == core::ErrorCode::InvalidInput) {
-            setMessage(ErrorPresenter::message(check.error()));
+            forgetAttempt();
+            m_malformedPin = true;
+            emit messageChanged();
             return;
         }
         // Deactivated or gone since the list was read: show the list as it is now.
@@ -93,29 +100,31 @@ void ProfilePickerViewModel::login(const QString& pin) {
         reload();
         return;
     }
+    forgetAttempt();
     switch (check->status) {
     case services::PinCheckStatus::Accepted:
-        setMessage({});
+        emit messageChanged();
         emit loggedIn();
         return;
     case services::PinCheckStatus::WrongPin:
-        setMessage(ErrorPresenter::pinCheckMessage(*check));
+        m_wrongPin = *check;
+        emit messageChanged();
         break;
     case services::PinCheckStatus::LockedOut:
-        startLock(check->lockedFor);
+        m_lock.start(check->lockedFor);
         break;
     }
     emit pinRejected();
 }
 
-void ProfilePickerViewModel::tickLock() {
-    if (m_lockSeconds <= 0) {
-        return;
+void ProfilePickerViewModel::tickLock() { m_lock.tick(); }
+
+bool ProfilePickerViewModel::eventFilter(QObject* watched, QEvent* event) {
+    if (event->type() == QEvent::LanguageChange) {
+        emit messageChanged();
+        emit loadErrorChanged();
     }
-    const std::chrono::seconds left = m_lockEnd - m_clock.now();
-    // More than a whole lockout left means the clock was moved back; the service treats that as
-    // expired too (P07a decision 8).
-    showLock(left > services::kLockoutDuration ? 0 : std::max<qint64>(left.count(), 0));
+    return QObject::eventFilter(watched, event);
 }
 
 void ProfilePickerViewModel::readLock() {
@@ -128,38 +137,12 @@ void ProfilePickerViewModel::readLock() {
         report(left.error());
         return;
     }
-    startLock(*left);
+    m_lock.start(*left);
 }
 
-void ProfilePickerViewModel::startLock(std::chrono::seconds left) {
-    m_lockEnd = m_clock.now() + left;
-    showLock(left.count());
-}
-
-void ProfilePickerViewModel::showLock(qint64 seconds) {
-    const bool wasLocked = m_lockSeconds > 0;
-    m_lockSeconds = seconds;
-    if (m_lockSeconds > 0) {
-        services::PinCheck check;
-        check.status = services::PinCheckStatus::LockedOut;
-        check.lockedFor = std::chrono::seconds{m_lockSeconds};
-        m_message = ErrorPresenter::pinCheckMessage(check);
-        if (!m_lockTimer.isActive()) {
-            m_lockTimer.start();
-        }
-        emit messageChanged();
-    } else if (wasLocked) {
-        m_lockTimer.stop();
-        m_message.clear();
-        emit messageChanged();
-    }
-}
-
-void ProfilePickerViewModel::setMessage(const QString& message) {
-    if (m_message != message) {
-        m_message = message;
-        emit messageChanged();
-    }
+void ProfilePickerViewModel::forgetAttempt() {
+    m_wrongPin.reset();
+    m_malformedPin = false;
 }
 
 void ProfilePickerViewModel::report(const core::Error& error) {

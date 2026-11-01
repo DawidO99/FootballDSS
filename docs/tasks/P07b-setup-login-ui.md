@@ -95,6 +95,20 @@ and the screenshots), `TopBar` (`AppState.teamName` instead of "My team"), the p
   and does not call the service otherwise (AGENTS §4). The tests tell the two refusals apart by the log.
 - Rejected: driving saves through the dialogs and the toast in `qml_smoke`. The manual test covers it.
 
+**Manual test decisions.**
+- A new PIN equal to the current one is an error on the new PIN field (`pin_same`), with no call to the
+  service, so it costs no attempt.
+- The Change PIN dialog counts a lockout down like the picker: `LockCountdown` holds the end time and the
+  tick for both. The current PIN field and the button are disabled until it ends. Closing the dialog does
+  not end it. It is not read from the database when the dialog opens: a user locked out cannot log in, so
+  the lockout always comes from an answer in this session.
+- `LanguageThemeSwitch` holds the controls of the top bar, also in the corner of the picker and of the
+  wizard after its first step, which has a language control of its own. A click leaves the focus where it
+  was, so a PIN being typed goes on.
+- The language can now change on the picker and on any step of the wizard, so the texts made in C++ follow
+  it: the wizard checks the step anew when it shows errors, and the picker makes its texts when they are
+  read. `StaffViewModel::loadError` does the same; it was already reachable through the top bar.
+
 **Removed tests.** `AppStateTest` loses `TestClubButtonGoesFromSetupToReady`,
 `TestClubButtonLogsTheCoachBackIn` and `TestClubButtonReportsACoachWithAnotherPin`: they test the
 temporary API this packet removes. The wizard and picker viewmodel tests take over what they covered.
@@ -104,5 +118,3 @@ temporary API this packet removes. The wizard and picker viewmodel tests take ov
   failed read, and the toast from its constructor reaches nobody. An existing club is safe because
   "Create" ends in `Conflict`, but the user walks through the wizard for nothing.
 - L2: the season `2026/28` passes validation, because `validate()` checks only the format.
-- L3: there is no language switch on the profile picker, only in the wizard and the top bar. The choice
-  is remembered.

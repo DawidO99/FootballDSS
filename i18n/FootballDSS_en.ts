@@ -354,6 +354,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>LanguageThemeSwitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>ProfileTile</source>
         <translation type="unfinished"></translation>
     </message>
@@ -633,6 +637,21 @@
     </message>
     <message>
         <source>Back to the dashboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LanguageThemeSwitch</name>
+    <message>
+        <source>Interface language: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to light theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to dark theme</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1148,18 +1167,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Interface language: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Switch to light theme</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Switch to dark theme</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>%1, %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1266,6 +1273,10 @@
     </message>
     <message>
         <source>The PINs do not match. Enter the same PIN twice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The new PIN must differ from the current one.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

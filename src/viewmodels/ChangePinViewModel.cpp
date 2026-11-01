@@ -7,22 +7,38 @@
 namespace fdss::viewmodels {
 
 ChangePinViewModel::ChangePinViewModel(QObject* parent)
-    : QObject(parent), m_auth(ServiceRegistry::instance().auth()) {}
+    : QObject(parent), m_auth(ServiceRegistry::instance().auth()),
+      m_lock(ServiceRegistry::instance().clock()) {
+    connect(&m_lock, &LockCountdown::changed, this, &ChangePinViewModel::errorsChanged);
+    connect(&m_lock, &LockCountdown::lockedChanged, this, &ChangePinViewModel::lockedChanged);
+}
 
-QString ChangePinViewModel::currentPinError() const { return m_currentPinError; }
+QString ChangePinViewModel::currentPinError() const {
+    return m_lock.locked() ? m_lock.message() : m_currentPinError;
+}
 
 QString ChangePinViewModel::newPinError() const { return m_newPinError; }
 
 QString ChangePinViewModel::pinRepeatError() const { return m_pinRepeatError; }
 
+bool ChangePinViewModel::locked() const { return m_lock.locked(); }
+
 bool ChangePinViewModel::change(const QString& currentPin, const QString& newPin,
                                 const QString& pinRepeat) {
     clearErrors();
+    if (m_lock.locked()) {
+        return false;
+    }
     const bool newPinValid = services::AuthService::isValidPin(newPin.toStdString());
     if (!newPinValid || newPin != pinRepeat) {
         m_newPinError = newPinValid ? QString{} : ErrorPresenter::invalidInputMessage("pin");
         m_pinRepeatError =
             newPin == pinRepeat ? QString{} : ErrorPresenter::invalidInputMessage("pin_repeat");
+        emit errorsChanged();
+        return false;
+    }
+    if (newPin == currentPin) {
+        m_newPinError = ErrorPresenter::invalidInputMessage("pin_same");
         emit errorsChanged();
         return false;
     }
@@ -39,12 +55,18 @@ bool ChangePinViewModel::change(const QString& currentPin, const QString& newPin
         }
         return false;
     }
-    if (check->status != services::PinCheckStatus::Accepted) {
+    switch (check->status) {
+    case services::PinCheckStatus::Accepted:
+        return true;
+    case services::PinCheckStatus::WrongPin:
         m_currentPinError = ErrorPresenter::pinCheckMessage(*check);
         emit errorsChanged();
-        return false;
+        break;
+    case services::PinCheckStatus::LockedOut:
+        m_lock.start(check->lockedFor);
+        break;
     }
-    return true;
+    return false;
 }
 
 void ChangePinViewModel::clearErrors() {
@@ -53,5 +75,7 @@ void ChangePinViewModel::clearErrors() {
     m_pinRepeatError.clear();
     emit errorsChanged();
 }
+
+void ChangePinViewModel::tickLock() { m_lock.tick(); }
 
 } // namespace fdss::viewmodels

@@ -63,8 +63,7 @@ public:
 
     // Checks the current step and moves on. Stays there and shows why when it is not valid.
     Q_INVOKABLE bool next();
-    // Keeps what was entered and clears the errors: the language can change only on the first step,
-    // so no text stays behind in the old language.
+    // Keeps what was entered and clears the errors.
     Q_INVOKABLE void back();
     // Checks every step, going to the first one that is not valid, then creates the club and logs
     // the Coach in. Emits completed().
@@ -81,6 +80,9 @@ signals:
     void completed();
     // A translated text for the user; the view shows it in a toast.
     void errorOccurred(const QString& message);
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     [[nodiscard]] bool validateStep(int step);

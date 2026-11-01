@@ -43,6 +43,9 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     if (field == "pin_repeat") {
         return tr("The PINs do not match. Enter the same PIN twice.");
     }
+    if (field == "pin_same") {
+        return tr("The new PIN must differ from the current one.");
+    }
     if (field == "club_name") {
         return tr("Enter the club name, up to 100 characters.");
     }

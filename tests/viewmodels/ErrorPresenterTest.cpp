@@ -45,8 +45,8 @@ TEST(ErrorPresenterTest, EveryCodeHasAStartupText) {
 
 TEST(ErrorPresenterTest, EveryFieldOfAuthAndSetupHasItsOwnText) {
     const QString generic = message(ErrorCode::InvalidInput);
-    for (const char* field :
-         {"pin", "pin_repeat", "club_name", "team_name", "coach_name", "name", "season"}) {
+    for (const char* field : {"pin", "pin_repeat", "pin_same", "club_name", "team_name",
+                              "coach_name", "name", "season"}) {
         EXPECT_NE(message(ErrorCode::InvalidInput, field), generic) << field;
     }
 }

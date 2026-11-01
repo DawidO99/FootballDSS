@@ -94,76 +94,7 @@ Rectangle {
             Layout.fillWidth: true
         }
 
-        Row {
-            spacing: Theme.spacing.xs
-
-            Repeater {
-                model: LanguageManager.availableLanguages
-
-                delegate: AbstractButton {
-                    id: languageButton
-
-                    required property string modelData
-                    readonly property bool selected: LanguageManager.language === modelData
-
-                    implicitWidth: Math.max(Theme.hitMin + Theme.spacing.s, implicitContentWidth)
-                    implicitHeight: Theme.hitMin
-                    text: modelData.toUpperCase()
-                    hoverEnabled: true
-                    Accessible.name: qsTr("Interface language: %1").arg(Qt.locale(modelData).nativeLanguageName)
-                    Keys.onReturnPressed: click()
-                    Keys.onEnterPressed: click()
-                    onClicked: LanguageManager.setLanguage(modelData)
-
-                    background: Rectangle {
-                        radius: Theme.radius.s
-                        color: languageButton.selected ? Theme.accent : languageButton.hovered ? Theme.surfaceAlt : "transparent"
-                        border.width: languageButton.visualFocus ? 2 : 1
-                        border.color: languageButton.visualFocus ? Theme.text : languageButton.selected ? Theme.accent : Theme.border
-                    }
-
-                    contentItem: Label {
-                        text: languageButton.text
-                        color: languageButton.selected ? Theme.accentText : Theme.textMuted
-                        font.pixelSize: Theme.fontSize.caption
-                        font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                }
-            }
-        }
-
-        AbstractButton {
-            id: themeToggle
-
-            implicitWidth: Theme.hitMin + Theme.spacing.xs
-            implicitHeight: Theme.hitMin + Theme.spacing.xs
-            hoverEnabled: true
-            text: AppSettings.darkTheme ? qsTr("Switch to light theme") : qsTr("Switch to dark theme")
-            Accessible.name: text
-            ToolTip.visible: hovered
-            ToolTip.text: text
-            ToolTip.delay: 400
-            Keys.onReturnPressed: click()
-            Keys.onEnterPressed: click()
-            onClicked: AppSettings.darkTheme = !AppSettings.darkTheme
-
-            background: Rectangle {
-                radius: Theme.radius.m
-                color: themeToggle.hovered ? Theme.surfaceAlt : "transparent"
-                border.width: themeToggle.visualFocus ? 2 : 0
-                border.color: Theme.accent
-            }
-
-            contentItem: Item {
-                Icon {
-                    anchors.centerIn: parent
-                    name: AppSettings.darkTheme ? "sun" : "moon"
-                    color: Theme.text
-                }
-            }
-        }
+        LanguageThemeSwitch {}
 
         AbstractButton {
             id: userChip
@@ -245,10 +176,18 @@ Rectangle {
         id: changePin
 
         onErrorOccurred: message => Toasts.error(message)
+        onLockedChanged: {
+            if (changePin.locked)
+                currentPinInput.clear();
+            else if (changePinDialog.visible)
+                currentPinInput.forceActiveFocus(Qt.TabFocusReason);
+        }
     }
 
     AppDialog {
         id: changePinDialog
+
+        objectName: "changePinDialog"
 
         function openEmpty() {
             changePin.clearErrors();
@@ -262,6 +201,7 @@ Rectangle {
         size: AppDialog.Small
         title: qsTr("Change PIN")
         primaryText: qsTr("Change PIN")
+        primaryEnabled: !changePin.locked
         onPrimaryClicked: {
             if (changePin.change(currentPinInput.text, newPinInput.text, pinRepeatInput.text)) {
                 changePinDialog.close();
@@ -280,7 +220,9 @@ Rectangle {
             PinField {
                 id: currentPinInput
 
+                objectName: "currentPinInput"
                 Layout.fillWidth: true
+                enabled: !changePin.locked
                 error: changePin.currentPinError
                 Accessible.name: currentPinFormField.label
             }

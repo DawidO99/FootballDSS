@@ -354,6 +354,10 @@
         <translation>Tylko cyfry, ukryte.</translation>
     </message>
     <message>
+        <source>LanguageThemeSwitch</source>
+        <translation>LanguageThemeSwitch</translation>
+    </message>
+    <message>
         <source>ProfileTile</source>
         <translation>ProfileTile</translation>
     </message>
@@ -634,6 +638,21 @@
     <message>
         <source>Back to the dashboard</source>
         <translation>Wróć do pulpitu</translation>
+    </message>
+</context>
+<context>
+    <name>LanguageThemeSwitch</name>
+    <message>
+        <source>Interface language: %1</source>
+        <translation>Język interfejsu: %1</translation>
+    </message>
+    <message>
+        <source>Switch to light theme</source>
+        <translation>Przełącz na jasny motyw</translation>
+    </message>
+    <message>
+        <source>Switch to dark theme</source>
+        <translation>Przełącz na ciemny motyw</translation>
     </message>
 </context>
 <context>
@@ -1148,18 +1167,6 @@
         <translation>Szukaj</translation>
     </message>
     <message>
-        <source>Interface language: %1</source>
-        <translation>Język interfejsu: %1</translation>
-    </message>
-    <message>
-        <source>Switch to light theme</source>
-        <translation>Przełącz na jasny motyw</translation>
-    </message>
-    <message>
-        <source>Switch to dark theme</source>
-        <translation>Przełącz na ciemny motyw</translation>
-    </message>
-    <message>
         <source>%1, %2</source>
         <translation>%1, %2</translation>
     </message>
@@ -1267,6 +1274,10 @@
     <message>
         <source>The PINs do not match. Enter the same PIN twice.</source>
         <translation>PIN-y się różnią. Wpisz dwa razy ten sam PIN.</translation>
+    </message>
+    <message>
+        <source>The new PIN must differ from the current one.</source>
+        <translation>Nowy PIN musi różnić się od obecnego.</translation>
     </message>
     <message>
         <source>Enter the club name, up to 100 characters.</source>

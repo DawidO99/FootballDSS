@@ -739,6 +739,13 @@ Item {
 
                     Card {
                         Layout.fillWidth: true
+                        title: qsTr("LanguageThemeSwitch")
+
+                        LanguageThemeSwitch {}
+                    }
+
+                    Card {
+                        Layout.fillWidth: true
                         title: qsTr("ProfileTile")
 
                         Row {

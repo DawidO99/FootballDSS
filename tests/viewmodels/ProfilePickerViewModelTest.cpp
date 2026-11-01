@@ -4,6 +4,8 @@
 #include "services/Session.hpp"
 #include "viewmodels/AppState.hpp"
 
+#include <QCoreApplication>
+#include <QEvent>
 #include <QEventLoop>
 #include <QStringList>
 #include <QTimer>
@@ -140,6 +142,21 @@ TEST_F(ProfilePickerViewModelTest, AMalformedPinIsNotCounted) {
     EXPECT_EQ(rejected.count(), 0);
 
     failLogin(picker, 1);
+    EXPECT_EQ(picker.message(), QStringLiteral("Wrong PIN. Attempts left: 4."));
+}
+
+TEST_F(ProfilePickerViewModelTest, ALanguageChangeAsksForTheTextsAgain) {
+    ProfilePickerViewModel picker;
+    picker.select(m_coach.value);
+    failLogin(picker, 1);
+    const SignalCount message(&picker, &ProfilePickerViewModel::messageChanged);
+    const SignalCount loadError(&picker, &ProfilePickerViewModel::loadErrorChanged);
+
+    QEvent event(QEvent::LanguageChange);
+    QCoreApplication::sendEvent(QCoreApplication::instance(), &event);
+
+    EXPECT_EQ(message.count(), 1);
+    EXPECT_EQ(loadError.count(), 1);
     EXPECT_EQ(picker.message(), QStringLiteral("Wrong PIN. Attempts left: 4."));
 }
 

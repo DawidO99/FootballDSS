@@ -1,25 +1,21 @@
 #pragma once
 
-#include "core/domain/DateTypes.hpp"
 #include "core/util/Error.hpp"
+#include "services/AuthService.hpp"
+#include "viewmodels/LockCountdown.hpp"
 #include "viewmodels/StaffListModel.hpp"
 
 #include <QObject>
 #include <QString>
-#include <QTimer>
 #include <QtQmlIntegration/qqmlintegration.h>
 
-#include <chrono>
-
-namespace fdss::services {
-class AuthService;
-class Clock;
-} // namespace fdss::services
+#include <optional>
 
 namespace fdss::viewmodels {
 
 // Who is logging in: the tiles of the active staff and the check of the PIN. Main.qml builds the
-// view anew for every logout, so nothing of the last attempt stays behind.
+// view anew for every logout, so nothing of the last attempt stays behind. The language can change
+// here, so the texts are made when they are read.
 class ProfilePickerViewModel : public QObject {
     Q_OBJECT
     QML_ELEMENT
@@ -49,9 +45,7 @@ public:
     Q_INVOKABLE void select(qint64 id);
     Q_INVOKABLE void login(const QString& pin);
 
-    // The time left until the stored end of the lockout, with no database: a read that fails must
-    // not leave the field locked after the time is up. Follows the clock, so the first tick after
-    // the computer sleeps shows the true time. The timer calls it every second; public for tests.
+    // One tick of the lockout countdown; public for tests.
     void tickLock();
 
 signals:
@@ -65,24 +59,23 @@ signals:
     // A translated text for the user; the view shows it in a toast.
     void errorOccurred(const QString& message);
 
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
     // The time left as the database has it, when a profile is selected.
     void readLock();
-    void startLock(std::chrono::seconds left);
-    void showLock(qint64 seconds);
-    void setMessage(const QString& message);
+    void forgetAttempt();
     void report(const core::Error& error);
 
     services::AuthService& m_auth;
-    const services::Clock& m_clock;
+    LockCountdown m_lock;
     StaffListModel* m_staff;
-    QTimer m_lockTimer;
 
     qint64 m_selectedId = 0;
-    QString m_message;
-    core::Timestamp m_lockEnd;
-    qint64 m_lockSeconds = 0;
-    QString m_loadError;
+    std::optional<services::PinCheck> m_wrongPin;
+    bool m_malformedPin = false;
+    std::optional<core::Error> m_loadFailure;
 };
 
 } // namespace fdss::viewmodels

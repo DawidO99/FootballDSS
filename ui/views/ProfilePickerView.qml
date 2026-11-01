@@ -50,6 +50,16 @@ FocusScope {
         onErrorOccurred: message => Toasts.error(message)
     }
 
+    LanguageThemeSwitch {
+        id: cornerSwitch
+
+        objectName: "cornerSwitch"
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: Theme.spacing.m
+        z: 1
+    }
+
     EmptyState {
         anchors.fill: parent
         visible: picker.loadError.length > 0
@@ -71,6 +81,8 @@ FocusScope {
 
         PageHeader {
             Layout.fillWidth: true
+            // A long club name stops before the corner on a narrow window.
+            Layout.rightMargin: cornerSwitch.width + Theme.spacing.xl
             title: AppState.clubName
         }
 

@@ -44,7 +44,9 @@ QVariantList StaffViewModel::roleOptions() const {
 
 qint64 StaffViewModel::currentUserId() const { return m_currentUserId; }
 
-QString StaffViewModel::loadError() const { return m_loadError; }
+QString StaffViewModel::loadError() const {
+    return m_loadFailure ? ErrorPresenter::message(*m_loadFailure) : QString{};
+}
 
 QString StaffViewModel::nameError() const { return m_nameError; }
 
@@ -57,17 +59,15 @@ void StaffViewModel::reload() {
         return;
     }
     auto staff = m_auth.listAllStaff();
-    const QString loadError = staff ? QString{} : ErrorPresenter::message(staff.error());
     if (staff) {
         m_staff->setStaff(std::move(*staff));
+        m_loadFailure.reset();
     } else {
         qCritical("StaffViewModel: %s", staff.error().detail.c_str());
         m_staff->setStaff({});
+        m_loadFailure = staff.error();
     }
-    if (m_loadError != loadError) {
-        m_loadError = loadError;
-        emit loadErrorChanged();
-    }
+    emit loadErrorChanged();
 }
 
 bool StaffViewModel::add(const QString& name, const QString& role, const QString& pin,
@@ -140,6 +140,7 @@ void StaffViewModel::clearErrors() {
 bool StaffViewModel::eventFilter(QObject* watched, QEvent* event) {
     if (event->type() == QEvent::LanguageChange) {
         emit roleOptionsChanged();
+        emit loadErrorChanged();
     }
     return QObject::eventFilter(watched, event);
 }

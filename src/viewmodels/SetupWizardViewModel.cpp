@@ -11,10 +11,14 @@
 #include "viewmodels/ErrorPresenter.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 
+#include <QCoreApplication>
+#include <QEvent>
+
 #include <algorithm>
 #include <chrono>
 #include <string>
 #include <string_view>
+#include <tuple>
 
 namespace fdss::viewmodels {
 
@@ -55,7 +59,12 @@ core::TeamDraft teamDraft(const QString& name, const QString& season) {
 SetupWizardViewModel::SetupWizardViewModel(QObject* parent)
     : QObject(parent), m_setup(ServiceRegistry::instance().setup()),
       m_category(QString::fromUtf8(core::toDbText(core::TeamCategory::Senior))),
-      m_season(defaultSeason(ServiceRegistry::instance().clock().today())) {}
+      m_season(defaultSeason(ServiceRegistry::instance().clock().today())) {
+    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    if (QCoreApplication* app = QCoreApplication::instance()) {
+        app->installEventFilter(this);
+    }
+}
 
 int SetupWizardViewModel::currentStep() const { return m_currentStep; }
 
@@ -170,6 +179,16 @@ QString SetupWizardViewModel::defaultSeason(core::Date today) {
     const int year = static_cast<int>(today.year());
     const int start = today.month() >= std::chrono::July ? year : year - 1;
     return QStringLiteral("%1/%2").arg(start).arg((start + 1) % 100, 2, 10, QLatin1Char('0'));
+}
+
+bool SetupWizardViewModel::eventFilter(QObject* watched, QEvent* event) {
+    // The errors are texts made by the check, so the check makes them anew in the new language.
+    if (event->type() == QEvent::LanguageChange &&
+        !(m_clubNameError.isEmpty() && m_teamNameError.isEmpty() && m_seasonError.isEmpty() &&
+          m_coachNameError.isEmpty() && m_pinError.isEmpty() && m_pinRepeatError.isEmpty())) {
+        std::ignore = validateStep(m_currentStep);
+    }
+    return QObject::eventFilter(watched, event);
 }
 
 bool SetupWizardViewModel::validateStep(int step) {

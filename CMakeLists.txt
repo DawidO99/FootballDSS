@@ -47,6 +47,7 @@ qt_add_qml_module(fdss_ui
         ui/components/FormField.qml
         ui/components/Icon.qml
         ui/components/IconButton.qml
+        ui/components/LanguageThemeSwitch.qml
         ui/components/NumberField.qml
         ui/components/PageHeader.qml
         ui/components/PinField.qml
@@ -89,6 +90,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/ErrorPresenter.cpp
         src/viewmodels/LanguageManager.hpp
         src/viewmodels/LanguageManager.cpp
+        src/viewmodels/LockCountdown.hpp
+        src/viewmodels/LockCountdown.cpp
         src/viewmodels/NavigationModel.hpp
         src/viewmodels/NavigationModel.cpp
         src/viewmodels/ProfilePickerViewModel.hpp

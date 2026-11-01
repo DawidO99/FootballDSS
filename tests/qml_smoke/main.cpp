@@ -12,6 +12,7 @@
 #include "services/SetupService.hpp"
 #include "viewmodels/AppSettings.hpp"
 #include "viewmodels/AppState.hpp"
+#include "viewmodels/ChangePinViewModel.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/NavigationModel.hpp"
 #include "viewmodels/ProfilePickerViewModel.hpp"
@@ -51,6 +52,7 @@ Q_IMPORT_QML_PLUGIN(FootballDSSPlugin)
 
 using fdss::viewmodels::AppSettings;
 using fdss::viewmodels::AppState;
+using fdss::viewmodels::ChangePinViewModel;
 using fdss::viewmodels::LanguageManager;
 using fdss::viewmodels::NavigationModel;
 using fdss::viewmodels::ProfilePickerViewModel;
@@ -324,6 +326,21 @@ void exerciseNavigationArguments(QQuickWindow* window, NavigationModel* navigati
     }
 }
 
+// Switches to the other language and back. True when the text changed on the way and came back.
+template <class Read> bool expectFollowsLanguage(QQmlApplicationEngine& engine, Read read) {
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    const QString first = languages->language();
+    const QString text = read();
+    languages->setLanguage(first == QLatin1StringView("pl") ? QStringLiteral("en")
+                                                            : QStringLiteral("pl"));
+    settle();
+    const bool changed = read() != text;
+    languages->setLanguage(first);
+    settle();
+    return changed && read() == text;
+}
+
 // A key press and release at whatever has the focus in the window.
 void pressKey(QQuickWindow* window, Qt::Key key, const QString& text = {}) {
     QKeyEvent press(QEvent::KeyPress, key, Qt::NoModifier, text);
@@ -560,7 +577,19 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
     if (wizard->currentStep() != 1 || wizard->clubNameError().isEmpty()) {
         fail("Enter did not stop at the club step with empty names");
     }
+    if (!expectFollowsLanguage(engine, [wizard] { return wizard->clubNameError(); })) {
+        fail("an error of the wizard stayed in the old language");
+    }
+    auto* wizardView = window->property("setupWizard").value<QQuickItem*>();
+    auto* wizardCorner = wizardView->findChild<QQuickItem*>(QStringLiteral("cornerSwitch"));
+    if (wizardCorner == nullptr || !wizardCorner->isVisible()) {
+        fail("the language and theme switch is not there after the first step");
+    }
     wizard->back();
+    settle();
+    if (wizardCorner != nullptr && wizardCorner->isVisible()) {
+        fail("the first step of the wizard shows two language controls");
+    }
     settle();
     wizard->setClubName(QStringLiteral("KS Smoke"));
     wizard->setTeamName(QStringLiteral("Seniorzy"));
@@ -635,6 +664,34 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
         pressKey(window, Qt::Key_Escape);
     }
 
+    // In the Change PIN dialog the controls follow the lockout, and come back when its time is up.
+    auto* changePin = topBar->findChild<ChangePinViewModel*>();
+    auto* changePinDialog = topBar->findChild<QObject*>(QStringLiteral("changePinDialog"));
+    auto* currentPinInput = topBar->findChild<QQuickItem*>(QStringLiteral("currentPinInput"));
+    if (changePin == nullptr || changePinDialog == nullptr || currentPinInput == nullptr) {
+        fail("the Change PIN dialog is not all there");
+        return;
+    }
+    QMetaObject::invokeMethod(topBar, "openChangePinDialog");
+    settle();
+    for (int attempt = 0; attempt < 5; ++attempt) {
+        changePin->change(QStringLiteral("9999"), QStringLiteral("5678"), QStringLiteral("5678"));
+    }
+    settle();
+    window->grabWindow();
+    if (!changePin->locked() || currentPinInput->isEnabled() ||
+        changePinDialog->property("primaryEnabled").toBool()) {
+        fail("the Change PIN dialog can still be used during a lockout");
+    }
+    g_clock->advance(fdss::services::kLockoutDuration);
+    changePin->tickLock();
+    settle();
+    if (changePin->locked() || !currentPinInput->isEnabled() ||
+        !changePinDialog->property("primaryEnabled").toBool()) {
+        fail("the Change PIN dialog did not come back after the lockout");
+    }
+    pressKey(window, Qt::Key_Escape);
+
     // Renaming yourself reaches the top bar through AppState.
     if (!staff->update(staff->currentUserId(), QStringLiteral("Jan Nowy"),
                        QStringLiteral("coach"))) {
@@ -689,6 +746,14 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
     const QString afterWrongPin = picker->message();
     if (afterWrongPin.isEmpty()) {
         fail("a wrong PIN says nothing");
+    }
+    if (!expectFollowsLanguage(engine, [picker] { return picker->message(); })) {
+        fail("the message of the picker stayed in the old language");
+    }
+    if (window->property("profilePicker")
+            .value<QQuickItem*>()
+            ->findChild<QQuickItem*>(QStringLiteral("cornerSwitch")) == nullptr) {
+        fail("the picker has no language and theme switch");
     }
     window->grabWindow();
     for (int attempt = 0; attempt < 4; ++attempt) {

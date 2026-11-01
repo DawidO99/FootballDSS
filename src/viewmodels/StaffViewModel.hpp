@@ -8,6 +8,8 @@
 #include <QVariantList>
 #include <QtQmlIntegration/qqmlintegration.h>
 
+#include <optional>
+
 namespace fdss::services {
 class AuthService;
 class Session;
@@ -80,7 +82,7 @@ private:
     StaffListModel* m_staff;
     qint64 m_currentUserId = 0;
 
-    QString m_loadError;
+    std::optional<core::Error> m_loadFailure;
     QString m_nameError;
     QString m_pinError;
     QString m_pinRepeatError;

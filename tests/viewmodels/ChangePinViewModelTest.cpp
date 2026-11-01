@@ -3,7 +3,12 @@
 #include "ViewModelFixture.hpp"
 #include "services/Session.hpp"
 
+#include <QEventLoop>
+#include <QTimer>
+
 #include <gtest/gtest.h>
+
+#include <chrono>
 
 using namespace fdss::core;
 using namespace fdss::tests;
@@ -21,6 +26,12 @@ protected:
     void SetUp() override {
         ViewModelTest::SetUp();
         m_coach = completeSetup().id;
+    }
+
+    static void lockOut(ChangePinViewModel& change) {
+        for (int i = 0; i < 5; ++i) {
+            EXPECT_FALSE(change.change(kWrongPin, kNewPin, kNewPin));
+        }
     }
 
     StaffUserId m_coach;
@@ -98,6 +109,100 @@ TEST_F(ChangePinViewModelTest, AMalformedCurrentPinIsShownOnThatField) {
 
     EXPECT_FALSE(change.currentPinError().isEmpty());
     EXPECT_TRUE(change.newPinError().isEmpty());
+}
+
+TEST_F(ChangePinViewModelTest, ANewPinEqualToTheCurrentOneIsShownOnThatField) {
+    ChangePinViewModel change;
+
+    EXPECT_FALSE(change.change(kCurrent, kCurrent, kCurrent));
+
+    EXPECT_EQ(change.newPinError(),
+              QStringLiteral("The new PIN must differ from the current one."));
+    EXPECT_TRUE(change.currentPinError().isEmpty());
+    EXPECT_TRUE(change.pinRepeatError().isEmpty());
+}
+
+TEST_F(ChangePinViewModelTest, ANewPinEqualToTheCurrentOneDoesNotCallTheService) {
+    ChangePinViewModel change;
+
+    // Through the service this would be a wrong current PIN, and would count as an attempt.
+    EXPECT_FALSE(change.change(kWrongPin, kWrongPin, kWrongPin));
+    EXPECT_TRUE(change.currentPinError().isEmpty());
+
+    EXPECT_FALSE(change.change(kWrongPin, kNewPin, kNewPin));
+    EXPECT_EQ(change.currentPinError(), QStringLiteral("Wrong PIN. Attempts left: 4."));
+}
+
+TEST_F(ChangePinViewModelTest, TheLockoutCountsDownAndEnds) {
+    ChangePinViewModel change;
+    int lockedChanges = 0;
+    QObject::connect(&change, &ChangePinViewModel::lockedChanged, &change,
+                     [&] { ++lockedChanges; });
+    lockOut(change);
+    ASSERT_TRUE(change.locked());
+    EXPECT_EQ(lockedChanges, 1);
+
+    const SignalCount errors(&change, &ChangePinViewModel::errorsChanged);
+    m_clock->advance(std::chrono::seconds{12});
+    change.tickLock();
+    EXPECT_TRUE(change.locked());
+    EXPECT_EQ(change.currentPinError(), QStringLiteral("Too many wrong PINs. Try again in 18 s."));
+    EXPECT_EQ(errors.count(), 1);
+
+    m_clock->advance(std::chrono::seconds{18});
+    change.tickLock();
+    EXPECT_FALSE(change.locked());
+    EXPECT_TRUE(change.currentPinError().isEmpty());
+    EXPECT_EQ(lockedChanges, 2);
+
+    EXPECT_TRUE(change.change(kCurrent, kNewPin, kNewPin));
+}
+
+TEST_F(ChangePinViewModelTest, OneTickAfterASleepLongerThanTheLockoutUnlocks) {
+    ChangePinViewModel change;
+    lockOut(change);
+
+    m_clock->advance(std::chrono::seconds{31});
+    change.tickLock();
+
+    EXPECT_FALSE(change.locked());
+    EXPECT_TRUE(change.currentPinError().isEmpty());
+}
+
+TEST_F(ChangePinViewModelTest, DuringALockoutTheServiceIsNotCalled) {
+    ChangePinViewModel change;
+    lockOut(change);
+    m_clock->advance(std::chrono::seconds{10});
+
+    // The right PIN: the service would answer with the time left, and the clock of the view has
+    // not ticked yet, so the text stays as it was.
+    EXPECT_FALSE(change.change(kCurrent, kNewPin, kNewPin));
+
+    EXPECT_TRUE(change.locked());
+    EXPECT_EQ(change.currentPinError(), QStringLiteral("Too many wrong PINs. Try again in 30 s."));
+}
+
+TEST_F(ChangePinViewModelTest, ClosingTheDialogDoesNotEndTheLockout) {
+    ChangePinViewModel change;
+    lockOut(change);
+
+    change.clearErrors();
+
+    EXPECT_TRUE(change.locked());
+    EXPECT_EQ(change.currentPinError(), QStringLiteral("Too many wrong PINs. Try again in 30 s."));
+}
+
+TEST_F(ChangePinViewModelTest, TheTimerRunsTheCountdown) {
+    ChangePinViewModel change;
+    lockOut(change);
+    m_clock->advance(std::chrono::seconds{1});
+
+    QEventLoop loop;
+    QObject::connect(&change, &ChangePinViewModel::errorsChanged, &loop, &QEventLoop::quit);
+    QTimer::singleShot(std::chrono::seconds{5}, &loop, &QEventLoop::quit);
+    loop.exec();
+
+    EXPECT_EQ(change.currentPinError(), QStringLiteral("Too many wrong PINs. Try again in 29 s."));
 }
 
 TEST_F(ChangePinViewModelTest, ClearErrorsClearsThemAll) {
