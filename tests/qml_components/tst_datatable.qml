@@ -30,6 +30,34 @@ TestCase {
         }
     }
 
+    Component {
+        id: boundTableComponent
+
+        Item {
+            property string sourceRole: "a"
+            property bool sourceAscending: true
+            property alias table: boundTable
+
+            width: 800
+            height: 300
+
+            DataTable {
+                id: boundTable
+
+                anchors.fill: parent
+                model: [
+                    { "a": 1, "b": 2 }
+                ]
+                columns: [
+                    { "role": "a", "title": "A", "width": 0.5 },
+                    { "role": "b", "title": "B", "width": 0.5 }
+                ]
+                sortRole: parent.sourceRole
+                sortAscending: parent.sourceAscending
+            }
+        }
+    }
+
     SignalSpy {
         id: sortSpy
 
@@ -153,6 +181,85 @@ TestCase {
         compare(header.background.border.width, 0);
         header.forceActiveFocus(Qt.TabFocusReason);
         compare(header.background.border.width, Theme.focusRingWidth);
+    }
+
+    // Regression for review item 13: a sort request does not cut the bindings on the sort inputs.
+
+    function createBoundHost() {
+        const host = createTemporaryObject(boundTableComponent, testCase);
+        verify(host);
+        sortSpy.clear();
+        sortSpy.target = host.table;
+        return host;
+    }
+
+    function clickHeader(table, role) {
+        const header = findChild(table, "header_" + role);
+        verify(header);
+        // Pointer events reach the header only once the scene has been laid out and rendered.
+        waitForRendering(table);
+        mouseClick(header);
+        return header;
+    }
+
+    function test_sort_request_does_not_assign_inputs() {
+        const host = createBoundHost();
+        const header = clickHeader(host.table, "b");
+        compare(host.table.sortRole, "a");
+        compare(host.table.sortAscending, true);
+        compare(host.table.currentSortRole, "b");
+        compare(host.table.currentSortAscending, true);
+        verify(header.sortedHere);
+        compare(sortSpy.count, 1);
+        compare(sortSpy.signalArguments[0][0], "b");
+        compare(sortSpy.signalArguments[0][1], true);
+    }
+
+    function test_source_updates_header_after_sort_request() {
+        const host = createBoundHost();
+        clickHeader(host.table, "b");
+        host.sourceRole = "x";
+        compare(host.table.sortRole, "x");
+        compare(host.table.currentSortRole, "x");
+        host.sourceRole = "a";
+        compare(host.table.currentSortRole, "a");
+        verify(findChild(host.table, "header_a").sortedHere);
+        verify(!findChild(host.table, "header_b").sortedHere);
+    }
+
+    function test_source_updates_direction_after_sort_request() {
+        const host = createBoundHost();
+        clickHeader(host.table, "a");
+        compare(host.table.currentSortAscending, false);
+        compare(host.table.sortAscending, true);
+        host.sourceAscending = false;
+        compare(host.table.sortAscending, false);
+        host.sourceAscending = true;
+        compare(host.table.sortAscending, true);
+        compare(host.table.currentSortAscending, true);
+    }
+
+    function test_repeated_requests_toggle_direction_without_echo() {
+        const host = createBoundHost();
+        clickHeader(host.table, "b");
+        clickHeader(host.table, "b");
+        clickHeader(host.table, "b");
+        compare(sortSpy.count, 3);
+        compare(sortSpy.signalArguments[1][1], false);
+        compare(sortSpy.signalArguments[2][1], true);
+    }
+
+    function test_viewmodel_echo_keeps_bindings() {
+        const host = createBoundHost();
+        host.table.sortRequested.connect((role, ascending) => {
+            host.sourceRole = role;
+            host.sourceAscending = ascending;
+        });
+        clickHeader(host.table, "b");
+        compare(host.table.sortRole, "b");
+        clickHeader(host.table, "b");
+        compare(host.table.sortAscending, false);
+        compare(host.table.currentSortAscending, false);
     }
 
     // Regression for review item 6.

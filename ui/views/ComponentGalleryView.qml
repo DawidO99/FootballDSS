@@ -15,6 +15,8 @@ Item {
     property int undoCount: 0
     property string lastActionText: qsTr("None")
     property string tableFilterValue: "all"
+    property string tableSortRole: "number"
+    property bool tableSortAscending: true
     readonly property bool dialogOpen: sampleDialog.visible
 
     signal navigateRequested(string key)
@@ -143,8 +145,8 @@ Item {
         if (filter === "empty")
             return [];
         const query = tableSearch.text.trim().toLowerCase();
-        const role = squadTable.sortRole;
-        const asc = squadTable.sortAscending;
+        const role = root.tableSortRole;
+        const asc = root.tableSortAscending;
         const rows = [];
         for (let i = 0; i < root.rawPlayers.length; ++i) {
             const p = root.rawPlayers[i];
@@ -795,8 +797,12 @@ Item {
                     Layout.fillHeight: true
                     Accessible.name: qsTr("Sample squad table")
                     model: root.filteredPlayers
-                    sortRole: "number"
-                    sortAscending: true
+                    sortRole: root.tableSortRole
+                    sortAscending: root.tableSortAscending
+                    onSortRequested: (role, ascending) => {
+                        root.tableSortRole = role;
+                        root.tableSortAscending = ascending;
+                    }
                     currentIndex: 0
                     emptyState: tableEmptyComponent
                     columns: [

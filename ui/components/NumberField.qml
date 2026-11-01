@@ -32,7 +32,19 @@ FocusScope {
     property bool touch: false
     readonly property var currentValue: internal.currentValue
     readonly property string displayText: input.text
-    readonly property string validationError: internal.validationError
+    // Computed from the error kind, so the message follows the language and the limits.
+    readonly property string validationError: {
+        switch (internal.errorKind) {
+        case "required":
+            return qsTr("Enter a number.");
+        case "notInteger":
+            return qsTr("Enter a whole number.");
+        case "range":
+            return qsTr("Enter a number from %1 to %2.").arg(root.from).arg(root.to);
+        default:
+            return "";
+        }
+    }
     readonly property string effectiveError: validationError.length > 0 ? validationError : error
     readonly property int buttonSide: touch ? Theme.controlHeightTouch : Theme.controlHeight
 
@@ -67,32 +79,32 @@ FocusScope {
         const current = internal.currentValue;
         const next = root.isEmpty(current) ? Math.min(Math.max(0, root.from), root.to) : Math.min(Math.max(current + delta, root.from), root.to);
         input.text = root.textFor(next);
-        internal.validationError = "";
+        internal.errorKind = "";
         root.setValue(next);
     }
 
-    // Error message for non-empty text, empty when it is a valid number in range.
-    function errorFor(text) {
+    // Error kind for non-empty text, empty when it is a valid number in range.
+    function errorKindFor(text) {
         const number = Number(text);
         if (!Number.isInteger(number))
-            return qsTr("Enter a whole number.");
+            return "notInteger";
         if (number < root.from || number > root.to)
-            return qsTr("Enter a number from %1 to %2.").arg(root.from).arg(root.to);
+            return "range";
         return "";
     }
 
     function commit(text) {
         if (text.length === 0) {
             if (root.optional) {
-                internal.validationError = "";
+                internal.errorKind = "";
                 root.setValue(null);
             } else {
-                internal.validationError = qsTr("Enter a number.");
+                internal.errorKind = "required";
             }
             return;
         }
-        internal.validationError = root.errorFor(text);
-        if (internal.validationError.length === 0)
+        internal.errorKind = root.errorKindFor(text);
+        if (internal.errorKind.length === 0)
             root.setValue(Number(text));
     }
 
@@ -102,7 +114,7 @@ FocusScope {
         internal.currentValue = root.value;
         if (input.text.length === 0 || Number(input.text) !== root.value)
             input.text = root.textFor(root.value);
-        internal.validationError = input.text.length > 0 ? root.errorFor(input.text) : "";
+        internal.errorKind = input.text.length > 0 ? root.errorKindFor(input.text) : "";
     }
 
     // The limits changed. An untouched empty field stays valid; text that was out of range and now
@@ -133,7 +145,7 @@ FocusScope {
 
         property bool completed: false
         property var currentValue: null
-        property string validationError
+        property string errorKind
     }
 
     RowLayout {

@@ -39,7 +39,21 @@ FocusScope {
     readonly property bool polish: LanguageManager.language === "pl"
     readonly property string displayFormat: polish ? "dd.MM.yyyy" : "dd/MM/yyyy"
     readonly property string localeName: polish ? "pl_PL" : "en_GB"
-    readonly property string validationError: internal.validationError
+    // Computed from the error kind, so the message follows the language and the limits.
+    readonly property string validationError: {
+        switch (internal.errorKind) {
+        case "required":
+            return qsTr("Enter a date (%1).").arg(root.displayFormat);
+        case "format":
+            return qsTr("Use format %1.").arg(root.displayFormat);
+        case "tooEarly":
+            return qsTr("Enter a date on or after %1.").arg(root.formatIso(internal.lowerBound));
+        case "tooLate":
+            return qsTr("Enter a date on or before %1.").arg(root.formatIso(internal.upperBound));
+        default:
+            return "";
+        }
+    }
     readonly property string effectiveError: validationError.length > 0 ? validationError : error
 
     signal dateEdited(string date)
@@ -125,11 +139,11 @@ FocusScope {
         return iso < internal.lowerBound ? internal.lowerBound : iso > internal.upperBound ? internal.upperBound : iso;
     }
 
-    function rangeErrorFor(iso) {
+    function rangeErrorKind(iso) {
         if (iso < internal.lowerBound)
-            return qsTr("Enter a date on or after %1.").arg(root.formatIso(internal.lowerBound));
+            return "tooEarly";
         if (iso > internal.upperBound)
-            return qsTr("Enter a date on or before %1.").arg(root.formatIso(internal.upperBound));
+            return "tooLate";
         return "";
     }
 
@@ -146,7 +160,7 @@ FocusScope {
         const formatted = root.formatIso(root.date);
         if (input.text !== formatted)
             input.text = formatted;
-        internal.validationError = formatted.length > 0 ? root.rangeErrorFor(root.date) : "";
+        internal.errorKind = formatted.length > 0 ? root.rangeErrorKind(root.date) : "";
     }
 
     // The limits changed. An untouched empty field stays valid; text that was out of range and now
@@ -160,25 +174,21 @@ FocusScope {
         const trimmed = text.trim();
         if (trimmed.length === 0) {
             if (root.optional) {
-                internal.validationError = "";
+                internal.errorKind = "";
                 root.applyIso("");
             } else {
-                internal.validationError = qsTr("Enter a date (%1).").arg(root.displayFormat);
+                internal.errorKind = "required";
             }
             return;
         }
         const iso = root.parseDisplay(trimmed);
         if (iso === null) {
-            internal.validationError = qsTr("Use format %1.").arg(root.displayFormat);
+            internal.errorKind = "format";
             return;
         }
-        const rangeError = root.rangeErrorFor(iso);
-        if (rangeError.length > 0) {
-            internal.validationError = rangeError;
-            return;
-        }
-        internal.validationError = "";
-        root.applyIso(iso);
+        internal.errorKind = root.rangeErrorKind(iso);
+        if (internal.errorKind.length === 0)
+            root.applyIso(iso);
     }
 
     // Year and 0-based month `delta` months after the calendar's current month.
@@ -242,7 +252,7 @@ FocusScope {
     function pickIso(iso) {
         if (root.isOutOfRange(iso))
             return;
-        internal.validationError = "";
+        internal.errorKind = "";
         input.text = root.formatIso(iso);
         root.applyIso(iso);
         calendarPopup.close();
@@ -259,10 +269,13 @@ FocusScope {
             root.showDate();
     }
     onDisplayFormatChanged: {
-        if (internal.validationError.length === 0)
+        if (internal.errorKind.length === 0) {
             input.text = root.formatIso(internal.currentDate);
-        else
-            root.commitText(input.text);
+            return;
+        }
+        // Rejected text stays, written the new way, so a range error is not reported as a format one.
+        input.text = input.text.replace(/[.\/]/g, root.polish ? "." : "/");
+        root.commitText(input.text);
     }
     Component.onCompleted: {
         internal.completed = true;
@@ -278,7 +291,7 @@ FocusScope {
         readonly property string upperBound: root.maximumDate.length > 0 && root.maximumDate < supportedMaximum ? root.maximumDate : supportedMaximum
         property bool completed: false
         property string currentDate
-        property string validationError
+        property string errorKind
         property int viewYear: 2026
         property int viewMonth: 10
         property string cursorIso: "2026-11-01"

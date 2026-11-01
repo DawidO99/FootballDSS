@@ -16,14 +16,18 @@ import QtQuick.Layouts
 //   model: var              QAbstractListModel, ListModel or JS array of row objects
 //   columns: var            [{ role, title, width (<=1 fraction or >1 px), align?, delegate?, sortable? }]
 //   currentIndex: int       selected row index (-1 = none)
-//   sortRole: string        currently sorted column role
-//   sortAscending: bool     sort direction indicator in the header
+//   sortRole: string        input: sorted column role; never assigned by the table
+//   sortAscending: bool     input: sort direction; never assigned by the table
+//   currentSortRole, currentSortAscending   read-only: what the header shows, the inputs or the
+//                           user's last request since they changed
 //   emptyState: Component   empty state shown when count === 0
 //   touch: bool             44 px header and row height
 //   count: int              read-only row count
 //   columnWidths: var       read-only width of each column in px
 //   sortRequested(string role, bool ascending)
 //   activated(int index)    Enter or double-click on a row
+// A sort request stays inside the table, so bindings on sortRole and sortAscending survive it. The
+// viewmodel sorts in sortRequested and updates them; whenever they change the header shows them.
 FocusScope {
     id: root
 
@@ -35,6 +39,8 @@ FocusScope {
     property Component emptyState
     property bool touch: false
     readonly property int count: listView.count
+    readonly property string currentSortRole: internal.sortRole
+    readonly property bool currentSortAscending: internal.sortAscending
     readonly property int effectiveRowHeight: touch ? Theme.controlHeightTouch : Theme.rowHeight
     readonly property int effectiveHeaderHeight: touch ? Math.max(Theme.tableHeaderHeight, Theme.hitTouch) : Theme.tableHeaderHeight
     readonly property var columnWidths: computeColumnWidths(columns, width - 2 * Theme.borderWidth)
@@ -96,6 +102,20 @@ FocusScope {
     implicitHeight: effectiveHeaderHeight + 6 * effectiveRowHeight
     opacity: enabled ? 1.0 : Theme.disabledOpacity
 
+    onSortRoleChanged: internal.sortRole = root.sortRole
+    onSortAscendingChanged: internal.sortAscending = root.sortAscending
+    Component.onCompleted: {
+        internal.sortRole = root.sortRole;
+        internal.sortAscending = root.sortAscending;
+    }
+
+    QtObject {
+        id: internal
+
+        property string sortRole
+        property bool sortAscending: true
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius.m
@@ -129,12 +149,12 @@ FocusScope {
                             required property int index
                             readonly property var column: root.columns[index] ?? ({})
                             readonly property bool sortable: column.sortable !== false
-                            readonly property bool sortedHere: root.sortRole === column.role
+                            readonly property bool sortedHere: internal.sortRole === column.role
 
                             function requestSort() {
-                                const nextAsc = sortedHere ? !root.sortAscending : true;
-                                root.sortRole = column.role;
-                                root.sortAscending = nextAsc;
+                                const nextAsc = sortedHere ? !internal.sortAscending : true;
+                                internal.sortRole = column.role;
+                                internal.sortAscending = nextAsc;
                                 root.sortRequested(column.role, nextAsc);
                             }
 
@@ -177,7 +197,7 @@ FocusScope {
 
                                 Icon {
                                     visible: headerButton.sortedHere
-                                    name: root.sortAscending ? "chevronUp" : "chevronDown"
+                                    name: internal.sortAscending ? "chevronUp" : "chevronDown"
                                     size: Theme.iconSize.s
                                     color: Theme.accent
                                 }

@@ -33,7 +33,7 @@ FootballDSS is a desktop decision-support system for football coaches (engineeri
 | JSON | QJsonDocument / QJsonObject (data layer only) |
 | Excel | QXlsx (data layer only) |
 | PIN hashing | `QPasswordDigestor` PBKDF2-SHA256 from Qt Network, linked into `fdss_services` only; no sockets (ADR-007) |
-| Tests | GoogleTest via FetchContent; QML smoke test offscreen |
+| Tests | GoogleTest via FetchContent; QML smoke test offscreen; Qt Quick Test for QML components (ADR-008) |
 | Build | CMake + CMakePresets.json. NO qmake |
 | Python | none in app code, CMake build or shipped package; CI-only tooling (e.g. aqtinstall) is allowed |
 
@@ -42,7 +42,7 @@ FootballDSS is a desktop decision-support system for football coaches (engineeri
 ```bash
 cmake --preset dev
 cmake --build --preset dev
-ctest --preset dev --output-on-failure            # unit tests + qml_smoke
+ctest --preset dev --output-on-failure            # unit tests + qml_smoke + qml_components
 cmake --build --preset dev --target all_qmllint
 clang-format-18 --dry-run --Werror $(git ls-files 'src/*.cpp' 'src/*.hpp' 'tests/*.cpp' 'tests/*.hpp')
 ```
@@ -83,6 +83,8 @@ CMake targets:
 - `fdss_tests` (GoogleTest) — unit tests for core, data, services.
 - `qml_smoke` (test executable) — loads `Main.qml` and every view offscreen, fails on any QML
   warning; links `fdss_uiplugin`; registered in CTest.
+- `qml_components` (Qt Quick Test executable, `tests/qml_components/tst_*.qml`) — behaviour of the
+  `ui/components/` kit that `qml_smoke` cannot see; links `fdss_uiplugin`; registered in CTest (ADR-008).
 
 - `core/`: domain types (`domain/`), DSS algorithms (`algorithms/`), pure parsing
   helpers (`parsing/`: CSV tokenizer, CP1250 decoder, header matching), `util/`.
