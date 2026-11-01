@@ -5,7 +5,10 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    signal navigateRequested(string key)
+    // What the section was opened with, see NavigationModel::activate().
+    property var navigationArgs: ({})
+
+    signal navigateRequested(string key, var args)
 
     ColumnLayout {
         anchors.fill: parent
@@ -23,7 +26,7 @@ Item {
             iconName: "matchday"
             description: qsTr("Run the match clock, substitutions and events live during the game.")
             actionText: qsTr("Prepare the lineup")
-            onActionTriggered: root.navigateRequested("prematch")
+            onActionTriggered: root.navigateRequested("prematch", {})
         }
     }
 }

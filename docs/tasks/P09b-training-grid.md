@@ -10,7 +10,7 @@ Attendance and RPE for the whole squad in about a minute, keyboard only.
 
 ## Scope — files you may create or change
 - `src/services/TrainingService.hpp/.cpp` (+ one member and one construction line in
-  `ServiceRegistry`, `main.cpp`, `qml_smoke`)
+  `ServiceRegistry`)
 - `src/viewmodels/TrainingSessionViewModel` (the grid model), `SessionPickerModel`
 - `ui/views/TrainingView.qml`, grid cell components in `ui/components/`
 - `tests/services/*`, `tests/viewmodels/*`, CMake lists, `i18n/*.ts`

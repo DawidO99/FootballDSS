@@ -5,7 +5,10 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    signal navigateRequested(string key)
+    // What the section was opened with, see NavigationModel::activate().
+    property var navigationArgs: ({})
+
+    signal navigateRequested(string key, var args)
 
     ColumnLayout {
         anchors.fill: parent
@@ -23,7 +26,7 @@ Item {
             iconName: "dashboard"
             description: qsTr("The next match, unavailable players, load signals and recent form will appear here once your squad is set up.")
             actionText: qsTr("Set up the squad")
-            onActionTriggered: root.navigateRequested("squad")
+            onActionTriggered: root.navigateRequested("squad", {})
         }
     }
 }

@@ -5,7 +5,10 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    signal navigateRequested(string key)
+    // What the section was opened with, see NavigationModel::activate().
+    property var navigationArgs: ({})
+
+    signal navigateRequested(string key, var args)
 
     ColumnLayout {
         anchors.fill: parent
@@ -23,7 +26,7 @@ Item {
             iconName: "squad"
             description: qsTr("Add your players by hand or import them from a CSV or XLSX file.")
             actionText: qsTr("Import players")
-            onActionTriggered: root.navigateRequested("import")
+            onActionTriggered: root.navigateRequested("import", {})
         }
     }
 }

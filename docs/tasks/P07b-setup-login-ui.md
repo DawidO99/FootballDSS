@@ -14,6 +14,10 @@ start shows the profile picker with PIN, and the Coach manages staff in Settings
   `ui/views/SettingsView.qml` (Staff section only), `ui/components/TopBar.qml` (user chip menu),
   new components `PinPad`, `ProfileTile` (+ gallery entries)
 - `ui/Main.qml` (replace the P07a placeholders with the real views)
+- `src/viewmodels/AppState.hpp/.cpp` (only: remove the temporary `debugBuild` and
+  `createTestClubAndLogin`), `tests/qml_smoke/main.cpp` (only: `exerciseStateChanges` goes through the
+  real viewmodels instead)
+- If a service turns out to be needed: one member and one construction line in `ServiceRegistry`
 - root `CMakeLists.txt`, `tests/viewmodels/*`, `i18n/*.ts`
 
 ## Out of scope

@@ -42,10 +42,15 @@ add_executable(fdss_tests
     data/TrainingRepositoryTest.cpp
     data/TransactionTest.cpp
     data/XlsxSpikeTest.cpp
+    services/AuthServiceTest.cpp
+    services/FakeClock.hpp
+    services/ServiceFixture.hpp
+    services/SessionTest.cpp
+    services/SetupServiceTest.cpp
 )
 # QXlsx is linked here only to prove the library itself (P03 spike); app code reaches it
 # through fdss_data.
-target_link_libraries(fdss_tests PRIVATE fdss_data QXlsx::QXlsx GTest::gtest)
+target_link_libraries(fdss_tests PRIVATE fdss_services QXlsx::QXlsx GTest::gtest)
 target_compile_definitions(fdss_tests PRIVATE
     FDSS_EXPECTED_VERSION="${PROJECT_VERSION}"
     FDSS_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
@@ -56,12 +61,33 @@ if(MSVC)
 endif()
 gtest_discover_tests(fdss_tests DISCOVERY_MODE PRE_TEST)
 
+add_executable(fdss_vm_tests
+    test_main.cpp
+    services/FakeClock.hpp
+    viewmodels/AppStateTest.cpp
+    viewmodels/ErrorPresenterTest.cpp
+    viewmodels/NavigationModelTest.cpp
+    viewmodels/ServiceRegistryTest.cpp
+    viewmodels/ViewModelFixture.hpp
+)
+target_link_libraries(fdss_vm_tests PRIVATE fdss_ui GTest::gtest)
+# Test sources contain Polish string literals.
+if(MSVC)
+    target_compile_options(fdss_vm_tests PRIVATE /utf-8)
+endif()
+# Everything that links fdss_ui has the CTest label "ui"; the sanitizer job builds fdss_tests only and
+# runs `ctest -LE ui`. A plain add_test on purpose: for a target that was not built,
+# gtest_discover_tests registers a <target>_NOT_BUILT test without any properties, which -LE would
+# then run and fail.
+add_test(NAME fdss_vm_tests COMMAND fdss_vm_tests)
+set_tests_properties(fdss_vm_tests PROPERTIES LABELS ui)
+
 qt_add_executable(qml_smoke
     qml_smoke/main.cpp
 )
 target_link_libraries(qml_smoke PRIVATE fdss_ui fdss_uiplugin)
 add_test(NAME qml_smoke COMMAND qml_smoke)
-set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" LABELS ui)
 
 find_package(Qt6 REQUIRED COMPONENTS QuickTest)
 qt_add_executable(qml_components
@@ -72,4 +98,4 @@ target_compile_definitions(qml_components PRIVATE
     FDSS_QML_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml_components"
 )
 add_test(NAME qml_components COMMAND qml_components)
-set_tests_properties(qml_components PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+set_tests_properties(qml_components PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" LABELS ui)

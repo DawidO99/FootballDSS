@@ -252,7 +252,7 @@ jobs:
 
       - name: Run tests with sanitizers
         run: |
-          ctest --test-dir build/ci-sanitizers --output-on-failure --no-tests=error -E 'qml_smoke|qml_components' \
+          ctest --test-dir build/ci-sanitizers --output-on-failure --no-tests=error -LE ui \
             2>&1 | tee build/ci-logs/ctest-sanitizers.log
 
       - name: Upload failure logs

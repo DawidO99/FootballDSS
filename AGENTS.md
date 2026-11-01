@@ -42,7 +42,7 @@ FootballDSS is a desktop decision-support system for football coaches (engineeri
 ```bash
 cmake --preset dev
 cmake --build --preset dev
-ctest --preset dev --output-on-failure            # unit tests + qml_smoke + qml_components
+ctest --preset dev --output-on-failure            # unit + viewmodel tests + qml_smoke + qml_components
 cmake --build --preset dev --target all_qmllint
 clang-format-18 --dry-run --Werror $(git ls-files 'src/*.cpp' 'src/*.hpp' 'tests/*.cpp' 'tests/*.hpp')
 ```
@@ -81,10 +81,13 @@ CMake targets:
   translations; links `fdss_services`.
 - `FootballDSS` (thin executable) — `main.cpp` only; links `fdss_uiplugin`.
 - `fdss_tests` (GoogleTest) — unit tests for core, data, services.
+- `fdss_vm_tests` (GoogleTest) — viewmodel tests; links `fdss_ui`; registered in CTest.
 - `qml_smoke` (test executable) — loads `Main.qml` and every view offscreen, fails on any QML
   warning; links `fdss_uiplugin`; registered in CTest.
 - `qml_components` (Qt Quick Test executable, `tests/qml_components/tst_*.qml`) — behaviour of the
   `ui/components/` kit that `qml_smoke` cannot see; links `fdss_uiplugin`; registered in CTest (ADR-008).
+- A test that links `fdss_ui` has the CTest label `ui` and uses a plain `add_test`: the sanitizer job
+  builds only `fdss_tests` and runs `ctest -LE ui`.
 
 - `core/`: domain types (`domain/`), DSS algorithms (`algorithms/`), pure parsing
   helpers (`parsing/`: CSV tokenizer, CP1250 decoder, header matching), `util/`.
@@ -104,9 +107,11 @@ CMake targets:
   `std::string field` (optional: which input/column is wrong) }. Core, data and services never
   produce user-visible text; viewmodels turn `code` + `field` into a `qsTr()` message through
   `ErrorPresenter`. Never show `detail` to the user.
-- Composition root: `main.cpp` (and `qml_smoke`) builds the `DatabaseManager`, repositories and
-  services once and installs them in `fdss::viewmodels::ServiceRegistry`. Viewmodels obtain
-  services from the registry in their constructor or `create()` factory. No other global state.
+- Composition root: `fdss::viewmodels::ServiceRegistry::create()` builds the repositories and
+  services once. `main.cpp` and `qml_smoke` only open the `DatabaseManager`, call `create()` and
+  `install()` the result. A new service is added only in `ServiceRegistry` (one member, one accessor,
+  one construction line), never in `main.cpp` or `qml_smoke`. Viewmodels obtain services from the
+  registry in their constructor or `create()` factory. No other global state.
 - Prefer `std::ranges` / views over raw loops when it stays readable. Use `std::format`.
   `std::mdspan` / `std::print` only if CI is green on all three platforms; otherwise `Grid2D`.
 - Ownership: `std::unique_ptr` / values. Raw `new` only for QObjects with a parent, or in a
@@ -137,6 +142,8 @@ CMake targets:
 - `.ts` merge conflicts (parallel branches always touch them): never hand-merge XML. Take the
   `main` version, re-run `update_translations`, then translate the entries that came back
   `unfinished`.
+- `AppState.can()` is evaluated when a view is created. Section views are recreated at every login
+  (a `Loader` on state `Ready` in `Main.qml`), so `visible: AppState.can("...")` is correct.
 - Keyboard shortcuts inside a view use `enabled: root.visible` (all views stay loaded; only the
   current one is visible), otherwise identical shortcuts in two views block each other.
 - Every user-facing shortcut is only an accelerator for a visible control (button, menu item,

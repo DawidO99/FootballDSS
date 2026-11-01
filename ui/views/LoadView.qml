@@ -5,7 +5,10 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    signal navigateRequested(string key)
+    // What the section was opened with, see NavigationModel::activate().
+    property var navigationArgs: ({})
+
+    signal navigateRequested(string key, var args)
 
     ColumnLayout {
         anchors.fill: parent
@@ -23,7 +26,7 @@ Item {
             iconName: "load"
             description: qsTr("Signals to talk to the player appear after a few weeks of RPE entries.")
             actionText: qsTr("Record a training session")
-            onActionTriggered: root.navigateRequested("training")
+            onActionTriggered: root.navigateRequested("training", {})
         }
     }
 }

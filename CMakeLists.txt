@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Qt6 6.12 REQUIRED COMPONENTS
-    Core Gui Qml Quick QuickControls2 Sql Concurrent Graphs LinguistTools
+    Core Gui Network Qml Quick QuickControls2 Sql Concurrent Graphs LinguistTools
 )
 qt_standard_project_setup(REQUIRES 6.12)
 
@@ -76,10 +76,16 @@ qt_add_qml_module(fdss_ui
     SOURCES
         src/viewmodels/AppSettings.hpp
         src/viewmodels/AppSettings.cpp
+        src/viewmodels/AppState.hpp
+        src/viewmodels/AppState.cpp
+        src/viewmodels/ErrorPresenter.hpp
+        src/viewmodels/ErrorPresenter.cpp
         src/viewmodels/LanguageManager.hpp
         src/viewmodels/LanguageManager.cpp
         src/viewmodels/NavigationModel.hpp
         src/viewmodels/NavigationModel.cpp
+        src/viewmodels/ServiceRegistry.hpp
+        src/viewmodels/ServiceRegistry.cpp
         src/viewmodels/StartupViewModel.hpp
         src/viewmodels/StartupViewModel.cpp
 )
@@ -88,10 +94,14 @@ target_link_libraries(fdss_ui PUBLIC fdss_services Qt6::Quick Qt6::QuickControls
 # The generated type registration includes viewmodel headers by file name.
 target_include_directories(fdss_ui PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/viewmodels")
 
+# No line numbers in the .ts files: every moved line would otherwise show up there, and parallel
+# packets would conflict over them.
 qt_add_translations(fdss_ui
     TS_FILES
         i18n/FootballDSS_pl.ts
         i18n/FootballDSS_en.ts
+    LUPDATE_OPTIONS
+        -locations none
 )
 
 qt_add_executable(FootballDSS WIN32 MACOSX_BUNDLE

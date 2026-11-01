@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QVariantMap>
 #include <QtQmlIntegration/qqmlintegration.h>
 
 #include <vector>
@@ -14,6 +15,7 @@ class NavigationModel : public QAbstractListModel {
     Q_PROPERTY(
         int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged FINAL)
     Q_PROPERTY(QString currentKey READ currentKey NOTIFY currentIndexChanged FINAL)
+    Q_PROPERTY(QVariantMap currentArgs READ currentArgs NOTIFY currentIndexChanged FINAL)
 
 public:
     // QML uses the role names from roleNames(); the enum is for C++ callers.
@@ -26,11 +28,15 @@ public:
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
     [[nodiscard]] int currentIndex() const;
+    // Moving to another section this way (the sidebar) clears the arguments.
     void setCurrentIndex(int index);
     [[nodiscard]] QString currentKey() const;
+    [[nodiscard]] QVariantMap currentArgs() const;
 
-    // Selects the section with the given key; unknown keys are reported and ignored.
-    Q_INVOKABLE void activate(const QString& key);
+    // Selects the section with the given key and hands it the arguments; unknown keys are reported
+    // and ignored. New arguments for the current section also emit currentIndexChanged, the notify
+    // signal of currentArgs.
+    Q_INVOKABLE void activate(const QString& key, const QVariantMap& args = {});
 
 signals:
     void currentIndexChanged();
@@ -47,6 +53,7 @@ private:
 
     std::vector<Item> m_items;
     int m_currentIndex = 0;
+    QVariantMap m_currentArgs;
 };
 
 } // namespace fdss::viewmodels

@@ -1,11 +1,19 @@
-// Loads Main.qml and every view offscreen. Fails on any warning, critical or fatal message,
-// when the Polish translation is not applied, or when preferences do not survive a restart.
+// Loads Main.qml in the three database states and every view offscreen. Fails on any warning,
+// critical or fatal message, when the Polish translation is not applied, or when preferences do not
+// survive a restart.
 
+#include "core/domain/Club.hpp"
+#include "core/domain/StaffUser.hpp"
+#include "core/domain/Team.hpp"
 #include "core/util/Error.hpp"
 #include "data/db/DatabaseManager.hpp"
+#include "services/AuthService.hpp"
+#include "services/SetupService.hpp"
 #include "viewmodels/AppSettings.hpp"
+#include "viewmodels/AppState.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/NavigationModel.hpp"
+#include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/StartupViewModel.hpp"
 
 #include <QDir>
@@ -14,11 +22,13 @@
 #include <QImage>
 #include <QKeyEvent>
 #include <QMetaObject>
+#include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QSettings>
+#include <QVariantMap>
 #include <QtQml/QQmlExtensionPlugin>
 
 #include <array>
@@ -34,13 +44,17 @@
 Q_IMPORT_QML_PLUGIN(FootballDSSPlugin)
 
 using fdss::viewmodels::AppSettings;
+using fdss::viewmodels::AppState;
 using fdss::viewmodels::LanguageManager;
 using fdss::viewmodels::NavigationModel;
+using fdss::viewmodels::ServiceRegistry;
 using fdss::viewmodels::StartupViewModel;
 
 namespace {
 
 constexpr auto kViewsDirectory = ":/qt/qml/FootballDSS/ui/views";
+// Enough to run PBKDF2 through; the real count would only make the test slow.
+constexpr int kPinIterations = 4;
 
 // Platform noise that is not a QML problem. Every entry needs a comment explaining why.
 #if defined(Q_OS_MACOS)
@@ -57,6 +71,9 @@ std::atomic<int> g_problemCount = 0;
 std::mutex g_messagesMutex;
 std::vector<QString> g_messages;
 int g_warningCount = 0;
+// A critical message that a test provokes on purpose. Anything else stays a problem.
+const char* g_expectedCritical = nullptr;
+int g_expectedCriticalCount = 0;
 
 void countingMessageHandler(QtMsgType type, const QMessageLogContext& context,
                             const QString& message) {
@@ -65,6 +82,14 @@ void countingMessageHandler(QtMsgType type, const QMessageLogContext& context,
             g_defaultHandler(type, context, message);
         }
         return;
+    }
+    if (type == QtCriticalMsg) {
+        const std::lock_guard lock(g_messagesMutex);
+        if (g_expectedCritical != nullptr &&
+            message.contains(QLatin1StringView(g_expectedCritical))) {
+            ++g_expectedCriticalCount;
+            return;
+        }
     }
     bool allowedMessage = false;
     // Never apply platform exceptions to warnings from our QML or to critical/fatal messages.
@@ -202,10 +227,94 @@ struct UiPreferences {
     bool darkTheme = true;
 };
 
-// Drives the main window through every section in both languages and both themes.
-// With a screenshot directory, saves the empty shell for every language x theme pair.
-// Returns the non-default preferences it leaves behind, so a restart can be checked.
+// Opens a new in-memory database and installs the registry on it, with the state brought about
+// through the services themselves: nothing, a club with a logged-out Coach, or a logged-in Coach.
+// Returns the database, owned by the registry, for the test that breaks it; nullptr on failure.
+fdss::data::DatabaseManager* installRegistry(AppState::State state) {
+    auto opened = fdss::data::DatabaseManager::openInMemory();
+    if (!opened) {
+        qWarning("qml_smoke: cannot open the in-memory database: %s",
+                 opened.error().detail.c_str());
+        return nullptr;
+    }
+    fdss::data::DatabaseManager* const database = opened->get();
+    fdss::viewmodels::RegistryOptions options;
+    options.pinIterations = kPinIterations;
+    ServiceRegistry::install(ServiceRegistry::create(std::move(*opened), std::move(options)));
+    if (state == AppState::State::NeedsSetup) {
+        return database;
+    }
+
+    fdss::core::ClubDraft club;
+    club.name = "KS Smoke";
+    fdss::core::TeamDraft team;
+    team.name = "Seniorzy";
+    team.season = "2026/27";
+    const auto coach =
+        ServiceRegistry::instance().setup().completeSetup(club, team, "Jan Trener", "1234");
+    if (!coach) {
+        qWarning("qml_smoke: cannot seed the database: %s", coach.error().detail.c_str());
+        return nullptr;
+    }
+    if (state == AppState::State::NeedsLogin) {
+        ServiceRegistry::instance().auth().logout();
+    }
+    return database;
+}
+
+// The first item of a QML file, by the name of the file. Compiled QML types carry a suffix. Walks
+// the visual tree: findChildren() from the window does not reach what a Repeater creates.
+QQuickItem* findQmlItem(QQuickItem* item, const char* fileName) {
+    if (QLatin1StringView(item->metaObject()->className())
+            .startsWith(QLatin1StringView(fileName))) {
+        return item;
+    }
+    const QList<QQuickItem*> children = item->childItems();
+    for (QQuickItem* child : children) {
+        if (QQuickItem* found = findQmlItem(child, fileName)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+// A view asks for a section with arguments; Main.qml passes them on, and only the view shown gets
+// them.
+void exerciseNavigationArguments(QQuickWindow* window, NavigationModel* navigation) {
+    auto* calendar = findQmlItem(window->contentItem(), "CalendarView");
+    auto* training = findQmlItem(window->contentItem(), "TrainingView");
+    if (calendar == nullptr || training == nullptr) {
+        fail("the calendar or training view is not loaded");
+        return;
+    }
+    const QVariantMap args{{QStringLiteral("sessionId"), 5}};
+
+    QMetaObject::invokeMethod(calendar, "navigateRequested",
+                              Q_ARG(QString, QStringLiteral("training")),
+                              Q_ARG(QVariant, QVariant(args)));
+    settle();
+    if (navigation->currentKey() != QLatin1StringView("training")) {
+        fail("navigateRequested did not change the section");
+    }
+    if (training->property("navigationArgs").toMap() != args) {
+        fail("the view shown did not get the navigation arguments");
+    }
+    if (!calendar->property("navigationArgs").toMap().isEmpty()) {
+        fail("a hidden view got the navigation arguments");
+    }
+
+    navigation->setCurrentIndex(0);
+    settle();
+    if (!training->property("navigationArgs").toMap().isEmpty()) {
+        fail("a view kept its navigation arguments after it was left");
+    }
+}
+
+// Drives the main window through both languages and both themes and, when a user is logged in,
+// through every section. With a screenshot directory, saves the empty shell for every language x
+// theme pair. Returns the non-default preferences it leaves behind, so a restart can be checked.
 std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
+                                                AppState::State expectedState,
                                                 const QString& screenshotDirectory) {
     // Same order as src/main.cpp: the translator is installed before Main.qml is loaded.
     auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
@@ -227,7 +336,16 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
         fail("Main.qml does not expose the 'navigation' property");
         return std::nullopt;
     }
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    if (appState->state() != expectedState) {
+        fail("AppState does not match the state of the database");
+    }
+    const bool ready = expectedState == AppState::State::Ready;
     settle();
+    if ((window->property("shell").value<QQuickItem*>() != nullptr) != ready) {
+        fail("the shell must exist exactly when a user is logged in");
+    }
 
     // Current language last, so every setLanguage() below is a live switch.
     QStringList languageOrder = languages->availableLanguages();
@@ -243,6 +361,23 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
         }
         for (const bool dark : {true, false}) {
             settings->setDarkTheme(dark);
+            if (!ready) {
+                // The placeholder that stands in for the views of P07b.
+                settle();
+                if (screenshotDirectory.isEmpty()) {
+                    window->grabWindow();
+                } else {
+                    saveScreenshot(
+                        window, screenshotDirectory,
+                        QStringLiteral("placeholder-%1-%2-%3.png")
+                            .arg(expectedState == AppState::State::NeedsSetup
+                                     ? QStringLiteral("setup")
+                                     : QStringLiteral("login"),
+                                 language,
+                                 dark ? QStringLiteral("dark") : QStringLiteral("light")));
+                }
+                continue;
+            }
             for (const bool collapsed : {false, true}) {
                 window->setProperty("sidebarCollapsed", collapsed);
                 for (int row = 0; row < navigation->rowCount(); ++row) {
@@ -272,6 +407,9 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
             exerciseComponentGallery(engine, window, language, theme, screenshotDirectory);
         }
     }
+    if (ready) {
+        exerciseNavigationArguments(window, navigation);
+    }
 
     // Defaults are the system language and the dark theme; leave the opposite behind.
     const UiPreferences leftBehind{languageOrder.constFirst(), false};
@@ -279,6 +417,177 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
     settings->setDarkTheme(leftBehind.darkTheme);
     settle();
     return leftBehind;
+}
+
+// The way through the states on a live window: placeholder, test club, shell, logout, placeholder,
+// test login, shell. Expects an empty database and a loaded Main.qml.
+void exerciseStateChanges(QQmlApplicationEngine& engine) {
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    if (!appState->debugBuild() || engine.rootObjects().isEmpty()) {
+        return; // the test club button exists only in debug builds
+    }
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    const auto shellLoaded = [window] {
+        return window->property("shell").value<QQuickItem*>() != nullptr;
+    };
+    // What the button of the placeholder sends, so the wiring in Main.qml is covered too.
+    const auto pressPlaceholderButton = [window] {
+        QQuickItem* placeholder = findQmlItem(window->contentItem(), "EmptyState");
+        if (placeholder == nullptr) {
+            fail("the placeholder is not there");
+            return;
+        }
+        QMetaObject::invokeMethod(placeholder, "actionTriggered");
+        settle();
+    };
+
+    // A login from the placeholder builds the shell once: the one seen when the state changes
+    // stays.
+    QPointer<QQuickItem> shellAtStateChange;
+    const QMetaObject::Connection watcher = QObject::connect(
+        appState, &AppState::stateChanged, appState, [&shellAtStateChange, window] {
+            shellAtStateChange = window->property("shell").value<QQuickItem*>();
+        });
+    pressPlaceholderButton();
+    QObject::disconnect(watcher);
+    if (appState->state() != AppState::State::Ready || !shellLoaded()) {
+        fail("the test club did not lead to the shell");
+    }
+    if (shellAtStateChange == nullptr ||
+        shellAtStateChange != window->property("shell").value<QQuickItem*>()) {
+        fail("a login built the shell more than once");
+    }
+    if (!appState->can(QStringLiteral("ManageStaff"))) {
+        fail("the test coach may not manage staff");
+    }
+
+    navigation->activate(QStringLiteral("settings"));
+    window->setProperty("sidebarCollapsed", true);
+    appState->logout();
+    settle();
+    if (appState->state() != AppState::State::NeedsLogin || shellLoaded()) {
+        fail("logout did not remove the shell");
+    }
+    if (navigation->currentKey() != QLatin1StringView("dashboard")) {
+        fail("logout did not go back to the dashboard");
+    }
+
+    pressPlaceholderButton();
+    if (appState->state() != AppState::State::Ready || !shellLoaded()) {
+        fail("the test login did not lead to the shell");
+    }
+    window->setProperty("sidebarCollapsed", false);
+    settle();
+}
+
+// One user logs in over another, with no logout in between. The state stays Ready, yet the views
+// have to be built anew: they and their can() bindings belong to the last user.
+void exerciseLoginOverSession(QQmlApplicationEngine& engine) {
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    const QPointer<QQuickItem> lastShell = window->property("shell").value<QQuickItem*>();
+    const QPointer<QQuickItem> lastView = findQmlItem(window->contentItem(), "SettingsView");
+    if (lastShell == nullptr || lastView == nullptr) {
+        fail("the shell of the coach is not there");
+        return;
+    }
+
+    auto& auth = ServiceRegistry::instance().auth();
+    fdss::core::StaffUserDraft draft;
+    draft.name = "Anna Analityk";
+    draft.role = fdss::core::Role::Analyst;
+    const auto analyst = auth.addStaff(draft, "1234");
+    if (!analyst) {
+        qWarning("qml_smoke: cannot add the analyst: %s", analyst.error().detail.c_str());
+        return;
+    }
+    navigation->activate(QStringLiteral("settings"));
+    settle();
+    const int lastSerial = appState->sessionSerial();
+
+    const auto login = auth.login(*analyst, "1234");
+    if (!login || login->status != fdss::services::PinCheckStatus::Accepted) {
+        fail("the analyst cannot log in");
+        return;
+    }
+    appState->refresh();
+    settle();
+
+    if (appState->state() != AppState::State::Ready) {
+        fail("a login over a session left the state Ready");
+    }
+    if (appState->sessionSerial() == lastSerial) {
+        fail("a login over a session did not change the serial");
+    }
+    if (lastShell != nullptr || lastView != nullptr) {
+        fail("the views of the last user survived a login over a session");
+    }
+    if (window->property("shell").value<QQuickItem*>() == nullptr ||
+        findQmlItem(window->contentItem(), "SettingsView") == nullptr) {
+        fail("a login over a session did not build the views anew");
+    }
+    if (navigation->currentKey() != QLatin1StringView("dashboard")) {
+        fail("a login over a session did not go back to the dashboard");
+    }
+    if (appState->can(QStringLiteral("ManageStaff")) || !appState->can(QStringLiteral("Import"))) {
+        fail("can() does not answer for the analyst");
+    }
+    if (appState->userName() != QLatin1StringView("Anna Analityk")) {
+        fail("the name of the last user stayed after a login over a session");
+    }
+}
+
+// A logout does not depend on the database: with reads failing the session still ends, the shell
+// goes, and the error is only reported. Breaks the database, so it runs last on this registry.
+void exerciseLogoutOnUnreadableDatabase(QQmlApplicationEngine& engine,
+                                        fdss::data::DatabaseManager& database) {
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* toasts =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Toasts"));
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    const QPointer<QQuickItem> lastShell = window->property("shell").value<QQuickItem*>();
+    if (lastShell == nullptr) {
+        fail("there is no shell to log out of");
+        return;
+    }
+    if (const auto broken = database.execSql(QStringLiteral("ALTER TABLE club RENAME TO club_gone"),
+                                             "break the database");
+        !broken) {
+        qWarning("qml_smoke: cannot break the database: %s", broken.error().detail.c_str());
+        return;
+    }
+
+    {
+        const std::lock_guard lock(g_messagesMutex);
+        g_expectedCritical = "no such table: club";
+    }
+    appState->logout();
+    settle();
+    {
+        const std::lock_guard lock(g_messagesMutex);
+        g_expectedCritical = nullptr;
+        if (g_expectedCriticalCount != 1) {
+            fail("the failed read was not logged exactly once");
+        }
+    }
+
+    if (appState->state() != AppState::State::NeedsLogin) {
+        fail("a logout with a failed read did not need a login");
+    }
+    if (!appState->userName().isEmpty() || !appState->roleName().isEmpty()) {
+        fail("a logout with a failed read kept the user");
+    }
+    if (lastShell != nullptr || window->property("shell").value<QQuickItem*>() != nullptr) {
+        fail("a logout with a failed read did not destroy the shell");
+    }
+    if (!toasts->property("active").toBool()) {
+        fail("a logout with a failed read did not show the error");
+    }
 }
 
 // A fresh engine creates fresh singletons, which must read the preferences back from QSettings.
@@ -406,21 +715,32 @@ int main(int argc, char* argv[]) {
             screenshotDirectory = arguments.at(flag + 1);
         }
 
-        // Same order as src/main.cpp: the database opens before any QML loads.
-        const auto database = fdss::data::DatabaseManager::openInMemory();
-        if (!database) {
-            qWarning("qml_smoke: cannot open the in-memory database: %s",
-                     database.error().detail.c_str());
-        }
-
         std::optional<UiPreferences> leftBehind;
-        {
-            QQmlApplicationEngine engine;
-            leftBehind = exerciseMainWindow(engine, screenshotDirectory);
-            exerciseDatabaseErrorView(engine, screenshotDirectory);
-            viewCount = instantiateEveryView(engine);
+        for (const AppState::State state :
+             {AppState::State::NeedsSetup, AppState::State::NeedsLogin, AppState::State::Ready}) {
+            // Same order as src/main.cpp: the registry is installed before any QML loads, and goes
+            // after the engine, whose singletons hold on to its services.
+            fdss::data::DatabaseManager* const database = installRegistry(state);
+            if (database == nullptr) {
+                fail("cannot install the service registry");
+                continue;
+            }
+            {
+                QQmlApplicationEngine engine;
+                leftBehind = exerciseMainWindow(engine, state, screenshotDirectory);
+                if (state == AppState::State::NeedsSetup) {
+                    exerciseStateChanges(engine);
+                }
+                if (state == AppState::State::Ready) {
+                    exerciseDatabaseErrorView(engine, screenshotDirectory);
+                    viewCount = instantiateEveryView(engine);
+                    exerciseLoginOverSession(engine);
+                    exerciseLogoutOnUnreadableDatabase(engine, *database);
+                }
+            }
+            settle();
+            ServiceRegistry::reset();
         }
-        settle();
         if (leftBehind) {
             verifyPreferencesSurviveRestart(*leftBehind);
         }
