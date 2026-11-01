@@ -94,10 +94,14 @@ target_link_libraries(fdss_ui PUBLIC fdss_services Qt6::Quick Qt6::QuickControls
 # The generated type registration includes viewmodel headers by file name.
 target_include_directories(fdss_ui PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/viewmodels")
 
+# No line numbers in the .ts files: every moved line would otherwise show up there, and parallel
+# packets would conflict over them.
 qt_add_translations(fdss_ui
     TS_FILES
         i18n/FootballDSS_pl.ts
         i18n/FootballDSS_en.ts
+    LUPDATE_OPTIONS
+        -locations none
 )
 
 qt_add_executable(FootballDSS WIN32 MACOSX_BUNDLE

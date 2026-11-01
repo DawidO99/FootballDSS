@@ -6,8 +6,11 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace fdss::core;
@@ -511,10 +514,13 @@ TEST_F(StaffManagementTest, ACoachCanGoWhenAnotherStays) {
 // --- Changing the session user ---
 
 TEST_F(StaffManagementTest, RenamingTheSessionUserUpdatesTheSession) {
+    const int serial = m_session.serial();
+
     ASSERT_TRUE(m_auth->updateStaff(m_coach, draft("  Jan Nowy ", Role::Coach)).has_value());
 
     ASSERT_TRUE(m_session.user().has_value());
     EXPECT_EQ(m_session.user()->name, "Jan Nowy");
+    EXPECT_EQ(m_session.serial(), serial);
 }
 
 TEST_F(StaffManagementTest, DemotingTheSessionUserEndsTheSession) {
@@ -617,3 +623,129 @@ INSTANTIATE_TEST_SUITE_P(
     [](const ::testing::TestParamInfo<std::optional<Role>>& info) {
         return info.param ? std::string(toDbText(*info.param)) : std::string("loggedOut");
     });
+
+// --- Two connections to one file, as with a second FootballDSS process ---
+
+namespace {
+
+// Lets a test run a step of the other connection at the next read of the clock. An attempt reads
+// the clock right after its first look at the credentials, before the hash and the transaction:
+// the window in which an earlier read of the counter would go stale.
+class InterleavingClock final : public Clock {
+public:
+    [[nodiscard]] Timestamp now() const override {
+        if (m_beforeNextRead) {
+            const std::function<void()> step = std::exchange(m_beforeNextRead, nullptr);
+            step();
+        }
+        return m_clock.now();
+    }
+    [[nodiscard]] Date today() const override { return m_clock.today(); }
+
+    void beforeNextRead(std::function<void()> step) { m_beforeNextRead = std::move(step); }
+
+private:
+    FakeClock m_clock;
+    mutable std::function<void()> m_beforeNextRead;
+};
+
+struct Connection {
+    explicit Connection(std::unique_ptr<fdss::data::DatabaseManager> opened)
+        : db(std::move(opened)), staff(*db), auth(*db, staff, session, clock, 4) {}
+
+    std::unique_ptr<fdss::data::DatabaseManager> db;
+    fdss::data::StaffRepository staff;
+    InterleavingClock clock;
+    Session session;
+    AuthService auth;
+};
+
+class TwoConnectionsTest : public TempDatabaseTest {
+protected:
+    static constexpr const char* kRightPin = "1234";
+    static constexpr const char* kWrongPin = "9999";
+
+    void SetUp() override {
+        TempDatabaseTest::SetUp();
+        m_first = open();
+        m_second = open();
+        ASSERT_TRUE(m_first && m_second);
+
+        const auto hash = m_first->auth.hashPin(kRightPin);
+        ASSERT_TRUE(hash.has_value());
+        StaffUserDraft coach;
+        coach.name = "Jan";
+        coach.role = Role::Coach;
+        const auto id = m_first->staff.create(coach, *hash);
+        ASSERT_TRUE(id.has_value()) << id.error().detail;
+        m_user = *id;
+    }
+
+    [[nodiscard]] std::unique_ptr<Connection> open() const {
+        auto opened = fdss::data::DatabaseManager::open(databasePath(), options());
+        EXPECT_TRUE(opened.has_value()) << opened.error().detail;
+        return opened ? std::make_unique<Connection>(std::move(*opened)) : nullptr;
+    }
+
+    // One complete wrong attempt on the second connection, while the first is in the middle of its
+    // own.
+    void secondConnectionFailsOnceDuringTheNextAttempt() {
+        m_first->clock.beforeNextRead([this] {
+            const auto check = m_second->auth.login(m_user, kWrongPin);
+            ASSERT_TRUE(check.has_value()) << check.error().detail;
+        });
+    }
+
+    [[nodiscard]] int storedFailures() const {
+        return scalar(m_first->db->database(),
+                      QStringLiteral("SELECT failed_attempts FROM staff_user WHERE id = ?"),
+                      {QVariant(static_cast<qlonglong>(m_user.value))})
+            .toInt();
+    }
+
+    std::unique_ptr<Connection> m_first;
+    std::unique_ptr<Connection> m_second;
+    StaffUserId m_user;
+};
+
+} // namespace
+
+TEST_F(TwoConnectionsTest, WrongPinsOfBothConnectionsAddUp) {
+    secondConnectionFailsOnceDuringTheNextAttempt();
+
+    const auto check = m_first->auth.login(m_user, kWrongPin);
+
+    ASSERT_TRUE(check.has_value()) << check.error().detail;
+    EXPECT_EQ(check->status, PinCheckStatus::WrongPin);
+    EXPECT_EQ(check->remainingAttempts, kMaxFailedAttempts - 2);
+    EXPECT_EQ(storedFailures(), 2);
+}
+
+TEST_F(TwoConnectionsTest, AWrongCurrentPinAddsUpWithTheOtherConnection) {
+    const auto login = m_first->auth.login(m_user, kRightPin);
+    ASSERT_TRUE(login.has_value()) << login.error().detail;
+    ASSERT_EQ(login->status, PinCheckStatus::Accepted);
+    secondConnectionFailsOnceDuringTheNextAttempt();
+
+    const auto check = m_first->auth.changeOwnPin(kWrongPin, "5678");
+
+    ASSERT_TRUE(check.has_value()) << check.error().detail;
+    EXPECT_EQ(check->status, PinCheckStatus::WrongPin);
+    EXPECT_EQ(check->remainingAttempts, kMaxFailedAttempts - 2);
+    EXPECT_EQ(storedFailures(), 2);
+}
+
+TEST_F(TwoConnectionsTest, ALockoutFromTheOtherConnectionStopsAnAttemptUnderWay) {
+    for (int attempt = 1; attempt < kMaxFailedAttempts; ++attempt) {
+        ASSERT_TRUE(m_first->auth.login(m_user, kWrongPin).has_value());
+    }
+    secondConnectionFailsOnceDuringTheNextAttempt(); // the fifth one
+
+    const auto check = m_first->auth.login(m_user, kRightPin);
+
+    ASSERT_TRUE(check.has_value()) << check.error().detail;
+    EXPECT_EQ(check->status, PinCheckStatus::LockedOut);
+    EXPECT_EQ(check->lockedFor, kLockoutDuration);
+    EXPECT_FALSE(m_first->session.user().has_value());
+    EXPECT_EQ(storedFailures(), kMaxFailedAttempts);
+}

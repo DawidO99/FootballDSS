@@ -124,8 +124,10 @@ Accepted by the human on 2026-11-01. These override the packet text above (AGENT
    CTest entry instead of one per test case; `--gtest_filter` on the binary still selects a single one.
 
 **Standing rules.**
-- Every service calls `validate()` before `create()`/`update()` in a repository: repositories do not
-  validate. `firstError()` in `services/ServiceSupport.hpp` turns the result into a `Status`.
+- Every service calls `validate()` before `create()`/`update()` in a repository on a draft made from what
+  the user entered: repositories do not validate. `firstError()` in `services/ServiceSupport.hpp` turns
+  the result into a `Status`. An operation that changes only a flag (`deactivate`, `reactivate`,
+  `archive`) does not validate the record.
 - A database write always runs on the main-thread connection in one `Transaction`; `QtConcurrent` is for
   computation only. `AuthService` and `SetupService` hash a PIN before the transaction begins, so the
   write lock is not held for the length of a hash.
@@ -143,6 +145,25 @@ beyond the navigation signal (requirement 5, decision 6).
   length of the key and returns `Internal`.
 - What a `Repeater` creates is not found by `findChildren()` from the window, so `qml_smoke` walks
   `childItems()` to find a section view.
+
+**Review decisions (one round).**
+- `logout()` does not depend on the database. The session lives in memory, so a failed read no longer
+  keeps `Ready` and the user data: the user is cleared, the state becomes `NeedsLogin`, the shell goes, and
+  the read error is only `errorOccurred`. `refresh()` sets all its values before the first signal.
+  `logout()` with nobody logged in changes nothing, so `NeedsSetup` stays.
+- `login` and `changeOwnPin` read the counter and the lockout and write them inside one `Transaction`
+  (`BEGIN IMMEDIATE` serializes the connections); reading them before the hash lost an attempt when a
+  second process failed at the same time. The hash stays before the transaction, on the salt and the
+  iterations of an earlier read: a PIN changed in between simply does not match, as one counted attempt.
+  `changeOwnPin` now always hashes the new PIN too, because the outcome is known only inside the
+  transaction, so a wrong current PIN also costs two hashes.
+- Every successful login builds the shell anew, also one user over another and the same user again.
+  `Session::serial()`, shown as `AppState.sessionSerial`, changes with every `start()` and every `clear()`
+  of a session; `Session::rename()` keeps it, so renaming yourself does not rebuild anything. `Main.qml`
+  rebuilds the shell when the serial differs from the one it was built for, so a login from the
+  placeholder still builds it once, and it returns to `dashboard`.
+- `.ts` files have no line numbers (`LUPDATE_OPTIONS -locations none`), so parallel packets conflict only
+  over real strings.
 
 **Known limitations.**
 - There is no way to recover the PIN of the only Coach (planned in W2).

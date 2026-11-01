@@ -42,6 +42,49 @@ TEST(SessionTest, FollowsTheCoreMatrixForEveryRole) {
     }
 }
 
+TEST(SessionTest, SerialChangesWithEveryLoginAndLogout) {
+    Session session;
+    const int atStart = session.serial();
+
+    session.start(user(Role::Coach));
+    const int firstLogin = session.serial();
+    EXPECT_NE(firstLogin, atStart);
+
+    // The same user again is another session too.
+    session.start(user(Role::Coach));
+    const int secondLogin = session.serial();
+    EXPECT_NE(secondLogin, firstLogin);
+
+    session.clear();
+    const int loggedOut = session.serial();
+    EXPECT_NE(loggedOut, secondLogin);
+
+    session.clear();
+    EXPECT_EQ(session.serial(), loggedOut);
+}
+
+TEST(SessionTest, RenameKeepsTheSession) {
+    Session session;
+    session.start(user(Role::Coach));
+    const int serial = session.serial();
+
+    session.rename("Jan Nowy");
+
+    EXPECT_EQ(session.user()->name, "Jan Nowy");
+    EXPECT_EQ(session.user()->role, Role::Coach);
+    EXPECT_EQ(session.serial(), serial);
+}
+
+TEST(SessionTest, RenameWithNobodyLoggedInDoesNothing) {
+    Session session;
+    const int serial = session.serial();
+
+    session.rename("Jan");
+
+    EXPECT_FALSE(session.user().has_value());
+    EXPECT_EQ(session.serial(), serial);
+}
+
 TEST(SessionTest, ClearEndsTheSession) {
     Session session;
     session.start(user(Role::Coach));

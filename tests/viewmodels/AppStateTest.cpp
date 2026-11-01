@@ -168,6 +168,7 @@ TEST_F(AppStateTest, EveryRoleHasADisplayName) {
 TEST_F(AppStateTest, RenamingTheSessionUserShowsAfterRefresh) {
     const StaffUser coach = completeSetup();
     AppState state;
+    const int serial = state.sessionSerial();
     StaffUserDraft draft = coach;
     draft.name = "Jan Nowy";
 
@@ -176,6 +177,8 @@ TEST_F(AppStateTest, RenamingTheSessionUserShowsAfterRefresh) {
 
     EXPECT_EQ(state.state(), State::Ready);
     EXPECT_EQ(state.userName(), QStringLiteral("Jan Nowy"));
+    // Still the same session: the shell stays.
+    EXPECT_EQ(state.sessionSerial(), serial);
 }
 
 TEST_F(AppStateTest, DemotingTheSessionUserNeedsLoginAfterRefresh) {
@@ -207,6 +210,107 @@ TEST_F(AppStateTest, FailedReadReportsAndKeepsTheState) {
     EXPECT_FALSE(message.isEmpty());
     EXPECT_FALSE(message.contains(QLatin1StringView("club_gone")));
     EXPECT_EQ(state.state(), State::Ready);
+}
+
+TEST_F(AppStateTest, LogoutEndsTheSessionWhateverTheDatabaseSays) {
+    completeSetup();
+    AppState state;
+    ASSERT_EQ(state.state(), State::Ready);
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE club RENAME TO club_gone"), "break").has_value());
+    int stateChanges = 0;
+    int userChanges = 0;
+    int serialChanges = 0;
+    QString message;
+    QObject::connect(&state, &AppState::stateChanged, &state, [&] { ++stateChanges; });
+    QObject::connect(&state, &AppState::userChanged, &state, [&] { ++userChanges; });
+    QObject::connect(&state, &AppState::sessionSerialChanged, &state, [&] { ++serialChanges; });
+    QObject::connect(&state, &AppState::errorOccurred, &state,
+                     [&](const QString& text) { message = text; });
+
+    state.logout();
+
+    EXPECT_EQ(state.state(), State::NeedsLogin);
+    EXPECT_TRUE(state.userName().isEmpty());
+    EXPECT_TRUE(state.roleName().isEmpty());
+    EXPECT_FALSE(state.can(QStringLiteral("ViewAnalysis")));
+    EXPECT_FALSE(registry().session().user().has_value());
+    EXPECT_EQ(stateChanges, 1);
+    EXPECT_EQ(userChanges, 1);
+    EXPECT_EQ(serialChanges, 1);
+    EXPECT_FALSE(message.isEmpty());
+}
+
+TEST_F(AppStateTest, LogoutWithNobodyLoggedInChangesNothing) {
+    AppState state;
+    ASSERT_EQ(state.state(), State::NeedsSetup);
+    const int serial = state.sessionSerial();
+
+    state.logout();
+
+    EXPECT_EQ(state.state(), State::NeedsSetup);
+    EXPECT_EQ(state.sessionSerial(), serial);
+}
+
+TEST_F(AppStateTest, LogoutChangesTheSerial) {
+    completeSetup();
+    AppState state;
+    const int serial = state.sessionSerial();
+
+    state.logout();
+
+    EXPECT_NE(state.sessionSerial(), serial);
+}
+
+TEST_F(AppStateTest, ALoginOverARunningSessionTakesTheRightsOfTheNewUser) {
+    completeSetup();
+    const StaffUserId analyst = addStaff("Analityk", Role::Analyst);
+    AppState state;
+    ASSERT_TRUE(state.can(QStringLiteral("ManageStaff")));
+    const int serial = state.sessionSerial();
+    int stateChanges = 0;
+    int serialChanges = 0;
+    QObject::connect(&state, &AppState::stateChanged, &state, [&] { ++stateChanges; });
+    QObject::connect(&state, &AppState::sessionSerialChanged, &state, [&] { ++serialChanges; });
+
+    const auto login = registry().auth().login(analyst, kPin);
+    ASSERT_TRUE(login.has_value()) << login.error().detail;
+    ASSERT_EQ(login->status, PinCheckStatus::Accepted);
+    state.refresh();
+
+    EXPECT_EQ(state.state(), State::Ready);
+    EXPECT_EQ(stateChanges, 0);
+    EXPECT_NE(state.sessionSerial(), serial);
+    EXPECT_EQ(serialChanges, 1);
+    EXPECT_EQ(state.userName(), QStringLiteral("Analityk"));
+    EXPECT_EQ(state.roleName(), AppState::roleDisplayName(Role::Analyst));
+    EXPECT_FALSE(state.can(QStringLiteral("ManageStaff")));
+    EXPECT_TRUE(state.can(QStringLiteral("Import")));
+}
+
+TEST_F(AppStateTest, TheSameUserLoggingInAgainIsAnotherSession) {
+    const StaffUser coach = completeSetup();
+    AppState state;
+    const int serial = state.sessionSerial();
+
+    const auto login = registry().auth().login(coach.id, kPin);
+    ASSERT_TRUE(login.has_value()) << login.error().detail;
+    state.refresh();
+
+    EXPECT_NE(state.sessionSerial(), serial);
+}
+
+// Whatever a signal brings up reads the final values, also of what is signalled after it.
+TEST_F(AppStateTest, TheSerialIsSetBeforeTheStateChanges) {
+    AppState state;
+    int serialAtChange = -1;
+    QObject::connect(&state, &AppState::stateChanged, &state,
+                     [&] { serialAtChange = state.sessionSerial(); });
+
+    completeSetup();
+    state.refresh();
+
+    EXPECT_EQ(serialAtChange, registry().session().serial());
 }
 
 TEST_F(AppStateTest, LanguageChangeNotifiesTheRoleName) {

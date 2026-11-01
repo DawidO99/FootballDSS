@@ -70,10 +70,15 @@ ApplicationWindow {
     Connections {
         target: AppState
 
-        function onStateChanged() {
+        function onSessionSerialChanged() {
             // The next user starts on the dashboard: the section of the last one may be hidden.
-            if (AppState.state !== AppState.Ready)
-                navigationModel.activate("dashboard");
+            navigationModel.activate("dashboard");
+            // A login over a running session leaves the state at Ready, so `active` does not change.
+            // After a login from the placeholder the shell is already built for this session.
+            if (shellLoader.item && shellLoader.builtForSession !== AppState.sessionSerial) {
+                shellLoader.sourceComponent = null;
+                shellLoader.sourceComponent = shellComponent;
+            }
         }
 
         function onErrorOccurred(message: string) {
@@ -87,10 +92,13 @@ ApplicationWindow {
     Loader {
         id: shellLoader
 
+        property int builtForSession: -1
+
         anchors.fill: parent
         active: AppState.state === AppState.Ready
         visible: !window.spikeChartsOpen && !window.componentGalleryOpen
         sourceComponent: shellComponent
+        onLoaded: builtForSession = AppState.sessionSerial
     }
 
     // P07a: stands in for the wizard and the profile picker. P07b replaces it with the real views.

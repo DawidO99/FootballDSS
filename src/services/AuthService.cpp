@@ -66,18 +66,18 @@ core::Error malformedPin() {
     return core::Error{core::ErrorCode::InvalidInput, "a PIN has 4 to 8 digits", "pin"};
 }
 
-// The answer to a PIN and the login state it leaves behind.
-struct PinAttempt {
-    PinCheck check;
-    bool changesLoginState = false;
-    int failedAttempts = 0;
-    std::optional<core::Timestamp> lockedUntil;
+// What an attempt needs before its transaction: the key of the PIN, or, for a locked account, the
+// time left, with nothing hashed.
+struct PreparedAttempt {
+    std::vector<std::uint8_t> key;
+    std::chrono::seconds lockedFor{0};
 };
 
-// Reads only. The caller stores the result in its own transaction, so the write lock is not held
-// for the length of a hash.
-core::Result<PinAttempt> evaluatePin(const data::StaffRepository& staff, core::StaffUserId id,
-                                     std::string_view pin, core::Timestamp now) {
+// Outside any transaction, so the write lock is not held for the length of a hash. Only the salt
+// and the iterations are used from this read: recordAttempt() reads the counter and the lockout
+// again.
+core::Result<PreparedAttempt> prepareAttempt(const data::StaffRepository& staff, const Clock& clock,
+                                             core::StaffUserId id, std::string_view pin) {
     if (!AuthService::isValidPin(pin)) {
         return std::unexpected(malformedPin());
     }
@@ -85,36 +85,50 @@ core::Result<PinAttempt> evaluatePin(const data::StaffRepository& staff, core::S
     if (!credentials) {
         return std::unexpected(credentials.error());
     }
-    // Checked first, so a locked account costs no hash and an attempt does not extend the lockout.
+    if (const std::chrono::seconds left = lockLeft(*credentials, clock.now()); left.count() > 0) {
+        return PreparedAttempt{{}, left};
+    }
+    return PreparedAttempt{deriveKey(pin, credentials->salt, credentials->iterations),
+                           std::chrono::seconds::zero()};
+}
+
+// Inside the transaction of the caller, whose BEGIN IMMEDIATE serializes the attempts of all
+// connections: the counter and the lockout are read and written under one lock, so no attempt gets
+// lost. A PIN changed since the hash simply does not match, and an attempt does not extend a
+// lockout.
+core::Result<PinCheck> recordAttempt(data::StaffRepository& staff, const Clock& clock,
+                                     core::StaffUserId id, std::span<const std::uint8_t> key) {
+    const auto credentials = staff.credentials(id);
+    if (!credentials) {
+        return std::unexpected(credentials.error());
+    }
+    const core::Timestamp now = clock.now();
     if (const std::chrono::seconds left = lockLeft(*credentials, now); left.count() > 0) {
-        return PinAttempt{PinCheck{PinCheckStatus::LockedOut, 0, left}, false, 0, std::nullopt};
+        return PinCheck{PinCheckStatus::LockedOut, 0, left};
     }
 
-    const std::vector<std::uint8_t> key =
-        deriveKey(pin, credentials->salt, credentials->iterations);
     if (equalInConstantTime(credentials->hash, key)) {
-        const bool hadFailures = credentials->failedAttempts != 0 || credentials->lockedUntil;
-        return PinAttempt{PinCheck{PinCheckStatus::Accepted, 0, std::chrono::seconds::zero()},
-                          hadFailures, 0, std::nullopt};
+        if (credentials->failedAttempts != 0 || credentials->lockedUntil) {
+            if (auto status = staff.setLoginState(id, 0, std::nullopt); !status) {
+                return std::unexpected(status.error());
+            }
+        }
+        return PinCheck{PinCheckStatus::Accepted, 0, std::chrono::seconds::zero()};
     }
 
     // A lockout that is over gives a fresh set of attempts.
     const int failed = credentials->lockedUntil ? 1 : credentials->failedAttempts + 1;
     if (failed >= kMaxFailedAttempts) {
-        return PinAttempt{PinCheck{PinCheckStatus::LockedOut, 0, kLockoutDuration}, true, failed,
-                          now + kLockoutDuration};
+        if (auto status = staff.setLoginState(id, failed, now + kLockoutDuration); !status) {
+            return std::unexpected(status.error());
+        }
+        return PinCheck{PinCheckStatus::LockedOut, 0, kLockoutDuration};
     }
-    return PinAttempt{PinCheck{PinCheckStatus::WrongPin, kMaxFailedAttempts - failed,
-                               std::chrono::seconds::zero()},
-                      true, failed, std::nullopt};
-}
-
-core::Status storeLoginState(data::StaffRepository& staff, core::StaffUserId id,
-                             const PinAttempt& attempt) {
-    if (!attempt.changesLoginState) {
-        return {};
+    if (auto status = staff.setLoginState(id, failed, std::nullopt); !status) {
+        return std::unexpected(status.error());
     }
-    return staff.setLoginState(id, attempt.failedAttempts, attempt.lockedUntil);
+    return PinCheck{PinCheckStatus::WrongPin, kMaxFailedAttempts - failed,
+                    std::chrono::seconds::zero()};
 }
 
 } // namespace
@@ -167,24 +181,29 @@ core::Result<PinCheck> AuthService::login(core::StaffUserId id, std::string_view
         return std::unexpected(
             core::Error{core::ErrorCode::PermissionDenied, "a deactivated user cannot log in", {}});
     }
-    const auto attempt = evaluatePin(m_staff, id, pin, m_clock.now());
-    if (!attempt) {
-        return std::unexpected(attempt.error());
+    const auto prepared = prepareAttempt(m_staff, m_clock, id, pin);
+    if (!prepared) {
+        return std::unexpected(prepared.error());
     }
+    if (prepared->lockedFor.count() > 0) {
+        return PinCheck{PinCheckStatus::LockedOut, 0, prepared->lockedFor};
+    }
+
     auto transaction = data::Transaction::begin(m_db);
     if (!transaction) {
         return std::unexpected(transaction.error());
     }
-    if (auto status = storeLoginState(m_staff, id, *attempt); !status) {
-        return std::unexpected(status.error());
+    const auto check = recordAttempt(m_staff, m_clock, id, prepared->key);
+    if (!check) {
+        return check;
     }
     if (auto status = transaction->commit(); !status) {
         return std::unexpected(status.error());
     }
-    if (attempt->check.status == PinCheckStatus::Accepted) {
+    if (check->status == PinCheckStatus::Accepted) {
         m_session.start(std::move(*user));
     }
-    return attempt->check;
+    return check;
 }
 
 void AuthService::logout() { m_session.clear(); }
@@ -199,36 +218,36 @@ core::Result<PinCheck> AuthService::changeOwnPin(std::string_view currentPin,
         return std::unexpected(malformedPin());
     }
     const core::StaffUserId id = m_session.user()->id;
-    const auto attempt = evaluatePin(m_staff, id, currentPin, m_clock.now());
-    if (!attempt) {
-        return std::unexpected(attempt.error());
+    const auto prepared = prepareAttempt(m_staff, m_clock, id, currentPin);
+    if (!prepared) {
+        return std::unexpected(prepared.error());
     }
-    const bool accepted = attempt->check.status == PinCheckStatus::Accepted;
-    core::PinHash pin;
-    if (accepted) {
-        auto hash = hashPin(newPin);
-        if (!hash) {
-            return std::unexpected(hash.error());
-        }
-        pin = std::move(*hash);
+    if (prepared->lockedFor.count() > 0) {
+        return PinCheck{PinCheckStatus::LockedOut, 0, prepared->lockedFor};
+    }
+    // Before the transaction like the other hash, so also for a current PIN that turns out wrong.
+    const auto pin = hashPin(newPin);
+    if (!pin) {
+        return std::unexpected(pin.error());
     }
 
     auto transaction = data::Transaction::begin(m_db);
     if (!transaction) {
         return std::unexpected(transaction.error());
     }
-    if (auto status = storeLoginState(m_staff, id, *attempt); !status) {
-        return std::unexpected(status.error());
+    const auto check = recordAttempt(m_staff, m_clock, id, prepared->key);
+    if (!check) {
+        return check;
     }
-    if (accepted) {
-        if (auto status = m_staff.setPin(id, pin); !status) {
+    if (check->status == PinCheckStatus::Accepted) {
+        if (auto status = m_staff.setPin(id, *pin); !status) {
             return std::unexpected(status.error());
         }
     }
     if (auto status = transaction->commit(); !status) {
         return std::unexpected(status.error());
     }
-    return attempt->check;
+    return check;
 }
 
 core::Result<std::vector<core::StaffUser>> AuthService::listAllStaff() const {
@@ -352,9 +371,7 @@ core::Status AuthService::changeStaff(core::StaffUserId id, const StaffChange& c
         if (!draft.active || draft.role != sessionUser->role) {
             m_session.clear();
         } else {
-            core::StaffUser renamed = *sessionUser;
-            renamed.name = core::trimmed(draft.name);
-            m_session.start(std::move(renamed));
+            m_session.rename(core::trimmed(draft.name));
         }
     }
     return {};
