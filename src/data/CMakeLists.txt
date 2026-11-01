@@ -49,6 +49,22 @@ add_library(fdss_data STATIC
     db/Migrations.cpp
     db/Transaction.hpp
     db/Transaction.cpp
+    repositories/AvailabilityRepository.hpp
+    repositories/AvailabilityRepository.cpp
+    repositories/ClubRepository.hpp
+    repositories/ClubRepository.cpp
+    repositories/MatchRepository.hpp
+    repositories/MatchRepository.cpp
+    repositories/OpponentRepository.hpp
+    repositories/OpponentRepository.cpp
+    repositories/PlayerRepository.hpp
+    repositories/PlayerRepository.cpp
+    repositories/RepositorySupport.hpp
+    repositories/RepositorySupport.cpp
+    repositories/StaffRepository.hpp
+    repositories/StaffRepository.cpp
+    repositories/TrainingRepository.hpp
+    repositories/TrainingRepository.cpp
 )
 
 # Migrations are embedded in the binary; see db/Migrations.hpp for the file format.

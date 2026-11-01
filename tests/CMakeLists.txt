@@ -17,14 +17,28 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(fdss_tests
     test_main.cpp
+    core/AvailabilityTest.cpp
+    core/EnumsTest.cpp
     core/ErrorTest.cpp
+    core/PermissionsTest.cpp
+    core/ValidationTest.cpp
     core/VersionTest.cpp
     data/AppPathsTest.cpp
+    data/AvailabilityRepositoryTest.cpp
     data/BackupTest.cpp
+    data/ClubRepositoryTest.cpp
     data/DatabaseManagerTest.cpp
+    data/EnumsSchemaTest.cpp
+    data/MatchRepositoryTest.cpp
     data/MigrationsTest.cpp
+    data/OpponentRepositoryTest.cpp
+    data/PlayerRepositoryTest.cpp
+    data/RepositoryFixture.hpp
+    data/RepositorySupportTest.cpp
     data/SchemaTest.cpp
+    data/StaffRepositoryTest.cpp
     data/TestDatabase.hpp
+    data/TrainingRepositoryTest.cpp
     data/TransactionTest.cpp
     data/XlsxSpikeTest.cpp
 )

@@ -72,3 +72,68 @@ Services, viewmodels, QML, demo data, PIN hashing (P07; the repository only stor
 - [ ] No QML or viewmodel changes.
 
 ## Decisions (accepted plan)
+
+Accepted by the human on 2026-11-01. These override the packet text above (AGENTS §11).
+
+1. **When an availability entry ends.** `actual_to` is the first available day (exclusive end), so
+   "Mark as returned" today makes the player available today. An entry with
+   `actual_to = from_date` is never active. The meaning of `expected_to` depends on the type:
+   - `injury`, `illness`: an estimate that does not affect the status; the entry stays active until
+     `actual_to`.
+   - `suspension`, `absence`: a known end. With `actual_to` empty the entry is active through
+     `expected_to` inclusive. `actual_to`, when set, takes precedence.
+2. **Overlapping entries.** The derived status follows `injury > illness > suspension > absence`.
+3. **Deleting a match.** `MatchRepository::removePlanned(MatchId)` is added, because P09a needs it and
+   its scope has no repositories. A status other than `planned` gives `Conflict`.
+4. **Name limits in `validate()`.** Club, team and opponent names 1–100 characters; `first_name`,
+   `last_name` and the staff name 1–50, all after trimming. `CHECK` holds the upper bound only for
+   player names. SPEC §6 is corrected in the same PR.
+5. **Editing a match.** `updatePlanned` on a match that is not `planned` gives `Conflict`.
+
+**Repository rule.** Every statement in the repositories goes through `execSql()` or ends with a
+`sqlError()` check; a repository stops working at the first error.
+
+Decided by the plan and accepted:
+- `saveAttendance` and `replaceAppearances` take `std::span<const AttendanceDraft>` and
+  `std::span<const AppearanceDraft>` instead of `vector<Attendance>`: `id` and `sessionId` have no
+  meaning on input.
+- Drafts hold no parent id: `create(TeamId, draft)`. `update` does not move a player between teams.
+- `AvailabilityDraft` includes `actualTo`, so P10 can create a closed entry in one call and `update`
+  can undo a mistaken close. `close()` stays. `description` lives in the draft: on `update`, `nullopt`
+  keeps the stored text and an empty text clears it.
+- `locked_until` is `std::chrono::sys_seconds` in core and `yyyy-MM-ddTHH:mm:ssZ` in the database.
+- `StaffUser` holds no PIN data: `pin_hash` and `salt` are read only through `credentials()`, as
+  `std::vector<std::uint8_t>`.
+- Repositories store trimmed names, and an optional text that is empty after trimming becomes `NULL`.
+  Length counts Unicode code points, the same as SQLite `length()`.
+- `createClub` refuses a second club with `Conflict`; the schema does not enforce one club per file.
+- `validate()` rejects duplicates in `secondary_positions` and the primary position among them. An
+  unknown token read from the database is a `Database` error.
+- `listAttendanceByPlayer` also returns the date and duration of the session (W2 load needs them).
+- `permissionFromName()` is added for `AppState.can()`: the scope of P07a has no core files.
+- `listActiveOn` narrows by `from_date` in SQL and leaves the rule to `isActiveOn()`. It skips players
+  archived on or before that date.
+- Repositories neither set nor return `import_id` (the import packet does). `Match::formation` is
+  read-only in W1.
+- Repositories do not know the logged-in user: hiding `description` from a role, and checking that a
+  player belongs to the team of a session or match, are service work (P08, P09b).
+- Added files beyond the list above: `core/domain/Ids.hpp`, `core/domain/DateTypes.hpp`,
+  `data/repositories/RepositorySupport.hpp/.cpp`, `tests/data/RepositoryFixture.hpp`.
+
+**Scope extension (same PR):** the name limits in `docs/SPEC.md` §6.
+
+**Found during implementation.**
+- `ON DELETE RESTRICT` reports SQLite code 1811 (`CONSTRAINT_TRIGGER`), not 787 (`CONSTRAINT_FOREIGNKEY`),
+  with the same message. `statementError()` handles both; the migrations cannot hold triggers of their
+  own, so 1811 always means `RESTRICT` here.
+- The driver binds a null `QString` as `NULL`, but an empty `QByteArray` as an empty blob. So
+  `textValue()` never passes a null string, and an empty `pin_hash` is stored without an error. The
+  repository only stores the bytes; `AuthService` (P07a) always writes a derived key.
+
+**Known limitations.**
+- `metric_value` references `training_session` and `match` with `RESTRICT`, so a session or match with
+  metric values cannot be deleted: `remove` and `removePlanned` return `Conflict` (for a match also
+  because of `lineup` and `event_data_file`).
+- `saveAttendance` and `replaceAppearances` replace rows with `DELETE` + `INSERT`, which loses
+  `import_id`. All of them are `NULL` in W1, so nothing breaks yet; the import packet must solve this,
+  otherwise "Undo import" misses the edited rows.
