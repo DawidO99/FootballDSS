@@ -1,9 +1,12 @@
 // Loads Main.qml and every view offscreen. Fails on any warning, critical or fatal message,
 // when the Polish translation is not applied, or when preferences do not survive a restart.
 
+#include "core/util/Error.hpp"
+#include "data/db/DatabaseManager.hpp"
 #include "viewmodels/AppSettings.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/NavigationModel.hpp"
+#include "viewmodels/StartupViewModel.hpp"
 
 #include <QDir>
 #include <QDirIterator>
@@ -30,6 +33,7 @@ Q_IMPORT_QML_PLUGIN(FootballDSSPlugin)
 using fdss::viewmodels::AppSettings;
 using fdss::viewmodels::LanguageManager;
 using fdss::viewmodels::NavigationModel;
+using fdss::viewmodels::StartupViewModel;
 
 namespace {
 
@@ -208,6 +212,65 @@ void verifyPreferencesSurviveRestart(const UiPreferences& expected) {
     }
 }
 
+// The window main.cpp loads when the database cannot be opened: every error code needs a translated
+// text, and the technical detail never reaches the user. Restores the language it found.
+void exerciseDatabaseErrorView(QQmlEngine& engine, const QString& screenshotDirectory) {
+    using fdss::core::Error;
+    using fdss::core::ErrorCode;
+    constexpr std::array kCodes{
+        ErrorCode::NotADatabase, ErrorCode::DatabaseLocked, ErrorCode::IncompatibleVersion,
+        ErrorCode::Io,           ErrorCode::Database,       ErrorCode::Internal};
+    const char* const detail = "technical detail for the log";
+
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    auto* startup = engine.singletonInstance<StartupViewModel*>(QStringLiteral("FootballDSS"),
+                                                                QStringLiteral("StartupViewModel"));
+    QQmlComponent component(&engine, QStringLiteral("FootballDSS"),
+                            QStringLiteral("DatabaseErrorView"));
+    const std::unique_ptr<QObject> root(component.create());
+    auto* window = qobject_cast<QQuickWindow*>(root.get());
+    if (window == nullptr) {
+        qWarning("qml_smoke: DatabaseErrorView is not a window: %s",
+                 qUtf8Printable(component.errorString()));
+        return;
+    }
+
+    const QString originalLanguage = languages->language();
+    const QString samplePath = QStringLiteral("/sample/folder/club.sqlite");
+    QStringList firstMessages;
+    const QStringList available = languages->availableLanguages();
+    for (const QString& language : available) {
+        languages->setLanguage(language);
+        for (const ErrorCode code : kCodes) {
+            startup->setDatabaseError(Error{code, detail, {}}, samplePath);
+            settle();
+            const QString message = startup->errorMessage();
+            if (message.isEmpty()) {
+                fail("a startup error has no message");
+            }
+            if (message.contains(QLatin1StringView(detail))) {
+                fail("a startup error shows the technical detail");
+            }
+            if (code == kCodes.front()) {
+                firstMessages.append(message);
+            }
+        }
+        window->grabWindow();
+        if (!screenshotDirectory.isEmpty()) {
+            startup->setDatabaseError(Error{kCodes.front(), detail, {}}, samplePath);
+            settle();
+            saveScreenshot(window, screenshotDirectory,
+                           QStringLiteral("database-error-%1.png").arg(language));
+        }
+    }
+    if (firstMessages.removeDuplicates() > 0) {
+        fail("startup error messages are not translated");
+    }
+    languages->setLanguage(originalLanguage);
+    settle();
+}
+
 // Instantiates every file in ui/views/ on its own, so new views are covered automatically.
 int instantiateEveryView(QQmlEngine& engine) {
     int viewCount = 0;
@@ -259,10 +322,18 @@ int main(int argc, char* argv[]) {
             screenshotDirectory = arguments.at(flag + 1);
         }
 
+        // Same order as src/main.cpp: the database opens before any QML loads.
+        const auto database = fdss::data::DatabaseManager::openInMemory();
+        if (!database) {
+            qWarning("qml_smoke: cannot open the in-memory database: %s",
+                     database.error().detail.c_str());
+        }
+
         std::optional<UiPreferences> leftBehind;
         {
             QQmlApplicationEngine engine;
             leftBehind = exerciseMainWindow(engine, screenshotDirectory);
+            exerciseDatabaseErrorView(engine, screenshotDirectory);
             viewCount = instantiateEveryView(engine);
         }
         settle();

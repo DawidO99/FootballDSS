@@ -114,10 +114,11 @@ name). The last active Coach cannot be deactivated or demoted.
 ## 6. Data model (SQLite, one file per club)
 
 Location: `QStandardPaths::AppDataLocation`/`club.sqlite`; backups in `…/backups/`
-(`club-<yyyyMMdd-HHmmss>-<reason>.sqlite`, 10 newest kept). Schema = numbered migrations; the
-first migration creates every table below at once so later packets do not reshape it. The table
-below lists key columns; P05 writes the exact column names and types into this section in the same
-commit as `0001_initial.sql`.
+(`club-<yyyyMMdd-HHmmss>-<reason>.sqlite`, `-2`, `-3`… for further backups of the same second, 10
+newest kept).
+Schema = numbered migrations; the first migration (`src/data/migrations/0001_initial.sql`) creates
+every table below at once so later packets do not reshape it. The tables below list the exact column
+names and types of that migration.
 
 Enumerations (stored as lowercase text with a `CHECK` constraint; C++ enums in `core/domain`):
 - Team category: `senior`, `u19`, `u17`, `u15`, `u13`, `u11`, `other`. Season text `2026/27`.
@@ -130,33 +131,47 @@ Enumerations (stored as lowercase text with a `CHECK` constraint; C++ enums in `
 - Match status: `planned`, `live`, `finished`; venue: `home`, `away`, `neutral`.
 - Session type: `training`, `match_prep`, `recovery`, `gym`, `other`.
 - Attendance status: `present`, `absent`, `excused`, `injured`.
+- Match event type: `goal`, `assist`, `yellow`, `red`, `sub`, `opponent_goal`.
+- Metric value type: `integer`, `decimal`, `boolean`. Aggregation: `sum`, `avg`, `min`, `max`, `last`.
+  Scope: `match`, `training`, `player`.
 
-Rules: players are archived (`archived_at`), never deleted; shirt number 1–99, unique among
-non-archived players of a team; birth year between 1950 and current year − 4; names 1–50
-characters after trimming; dates stored as ISO text (`YYYY-MM-DD`, local, no time zone),
-times of day as `HH:MM`, lockout timestamps as UTC ISO datetime; every foreign key indexed; `ON DELETE` restricted except for pure
-child rows (attendance → session, appearance/match_event → match: cascade).
+`import_log.type`, `event_data_file.provider` and `player_attribute.attribute` are open text (only
+"not empty" is checked): those features are not designed yet, and SQLite changes a `CHECK` only by
+rebuilding the table.
 
-| Table | Key columns | Notes |
+Rules: players are archived (`archived_at`), never deleted; shirt number 1–99 (optional), unique among
+non-archived players of a team; birth year (optional) between 1950 and current year − 4 (`CHECK` holds
+only the lower bound because it cannot use the current date; the core validation holds both); names
+1–50 characters after trimming; dates (including `archived_at`) stored as ISO text (`YYYY-MM-DD`,
+local, no time zone), times of day as `HH:MM`, lockout and `import_log` timestamps as UTC ISO datetime;
+wellness scores 1–5; every foreign key indexed; `ON DELETE RESTRICT` except for pure child rows
+(attendance → session, appearance/match_event → match: `CASCADE`).
+
+All tables are `STRICT` (SQLite 3.37 or newer), so column types are enforced. Every table has
+`id INTEGER PRIMARY KEY` except where noted. Columns are `NOT NULL` unless marked *null*. `import_id` is always *null* and references `import_log`: it marks rows an import created, so
+the import can be undone.
+
+| Table | Columns | Notes |
 | --- | --- | --- |
-| `club`, `team` | name, category (senior / U-19 / …), season | Many teams per club |
-| `staff_user` | name, role, pin_hash, salt, iterations, failed_attempts, locked_until, active | |
-| `player` | team, first/last name, shirt number, birth_year, primary position, secondary positions (comma list), foot, notes, archived_at | No PESEL, no contact data; "status" is derived from `availability` |
-| `availability` | player, type, from, expected_to, actual_to, description | Description: Coach + Physio only |
-| `opponent` | name, name_key (case-folded name, UNIQUE), notes | `name_key` = `QString::toCaseFolded()`, because SQLite `NOCASE` folds ASCII only |
-| `match` | team, opponent, date, kickoff_time (nullable), venue, competition, goals_for, goals_against, status (planned/live/finished), formation | |
-| `appearance` | match, player, started, minute_on, minute_off, position, rating 1–10, rpe | Minutes from Match Day |
-| `match_event` | match, minute, type (goal/assist/yellow/red/sub/opponent_goal), player, related_player | |
-| `training_session` | team, date, start_time (nullable), duration_min (15–240), type, note (nullable) | |
-| `attendance` | session, player, status, rpe 0–10, minutes_override (0–240) | session load = rpe × minutes; rpe and minutes empty unless `present` |
-| `wellness` | player, date, sleep, fatigue, soreness, stress, mood | SHOULD |
-| `metric_definition` | key, name_pl, name_en, value_type, unit, min, max, aggregation, scope (match/training/player), higher_is_better | |
-| `metric_value` | metric, player, match or session, date, value, import_id | |
-| `player_attribute` | player, attribute, coach rating 1–10, date | TOPSIS input for amateurs |
-| `lineup` | match or template, formation, tactic_json TEXT | |
-| `event_data_file` | match, provider, path, hash | Loaded on demand |
-| `import_log` | timestamp, file, hash, type, rows_ok, rows_failed, report_json | Undo by import_id |
-| `schema_version` | version | |
+| `club` | `name` TEXT | One file per club |
+| `team` | `club_id` INTEGER, `name` TEXT, `category` TEXT, `season` TEXT | Many teams per club. Season like `2026/27` |
+| `staff_user` | `name` TEXT, `role` TEXT, `pin_hash` BLOB, `salt` BLOB, `iterations` INTEGER, `failed_attempts` INTEGER (default 0), `locked_until` TEXT *null*, `active` INTEGER 0/1 (default 1) | |
+| `player` | `team_id` INTEGER, `first_name` TEXT, `last_name` TEXT, `shirt_number` INTEGER *null*, `birth_year` INTEGER *null*, `primary_position` TEXT, `secondary_positions` TEXT (comma list, default empty), `foot` TEXT (default `unknown`), `notes` TEXT *null*, `archived_at` TEXT *null*, `import_id` INTEGER | No PESEL, no contact data; "status" is derived from `availability`. Partial unique index on (`team_id`, `shirt_number`) among non-archived players |
+| `availability` | `player_id` INTEGER, `type` TEXT, `from_date` TEXT, `expected_to` TEXT *null*, `actual_to` TEXT *null*, `description` TEXT *null* | Description: Coach + Physio only. End dates not before `from_date` |
+| `opponent` | `name` TEXT, `name_key` TEXT UNIQUE, `notes` TEXT *null* | `name_key` = `QString::toCaseFolded()`, because SQLite `NOCASE` folds ASCII only |
+| `match` | `team_id` INTEGER, `opponent_id` INTEGER, `date` TEXT, `kickoff_time` TEXT *null*, `venue` TEXT, `competition` TEXT *null*, `goals_for` INTEGER *null*, `goals_against` INTEGER *null*, `status` TEXT (default `planned`), `formation` TEXT *null*, `import_id` INTEGER | |
+| `appearance` | `match_id` INTEGER, `player_id` INTEGER, `started` INTEGER 0/1 (default 0), `minute_on` INTEGER *null*, `minute_off` INTEGER *null*, `position` TEXT *null*, `rating` INTEGER *null* (1–10), `rpe` INTEGER *null* (0–10), `import_id` INTEGER | Minutes from Match Day, 0–130. UNIQUE (`match_id`, `player_id`) |
+| `match_event` | `match_id` INTEGER, `minute` INTEGER (0–130), `type` TEXT, `player_id` INTEGER *null*, `related_player_id` INTEGER *null* | `player_id` empty only for `opponent_goal` |
+| `training_session` | `team_id` INTEGER, `date` TEXT, `start_time` TEXT *null*, `duration_min` INTEGER (15–240), `type` TEXT, `note` TEXT *null*, `import_id` INTEGER | |
+| `attendance` | `session_id` INTEGER, `player_id` INTEGER, `status` TEXT, `rpe` INTEGER *null* (0–10), `minutes_override` INTEGER *null* (0–240), `import_id` INTEGER | session load = rpe × minutes; rpe and minutes empty unless `present`. UNIQUE (`session_id`, `player_id`) |
+| `wellness` | `player_id` INTEGER, `date` TEXT, `sleep`, `fatigue`, `soreness`, `stress`, `mood` INTEGER (1–5) | SHOULD. UNIQUE (`player_id`, `date`) |
+| `metric_definition` | `key` TEXT UNIQUE, `name_pl` TEXT, `name_en` TEXT, `value_type` TEXT, `unit` TEXT *null*, `min` REAL *null*, `max` REAL *null*, `aggregation` TEXT, `scope` TEXT, `higher_is_better` INTEGER 0/1 (default 1) | |
+| `metric_value` | `metric_id` INTEGER, `player_id` INTEGER, `match_id` INTEGER *null*, `session_id` INTEGER *null*, `date` TEXT, `value` REAL, `import_id` INTEGER | At most one of `match_id` and `session_id` (scope `player` has neither) |
+| `player_attribute` | `player_id` INTEGER, `attribute` TEXT, `rating` INTEGER (1–10), `date` TEXT | TOPSIS input for amateurs |
+| `lineup` | `match_id` INTEGER *null*, `template_name` TEXT *null*, `formation` TEXT, `tactic_json` TEXT | Exactly one of `match_id` and `template_name` |
+| `event_data_file` | `match_id` INTEGER, `provider` TEXT, `path` TEXT, `hash` TEXT | Loaded on demand |
+| `import_log` | `timestamp` TEXT, `file` TEXT, `hash` TEXT, `type` TEXT, `rows_ok` INTEGER (default 0), `rows_failed` INTEGER (default 0), `report_json` TEXT *null* | Undo by `import_id` |
+| `schema_version` | `id` INTEGER PRIMARY KEY (always 1), `version` INTEGER | One row |
 
 `.tactic.json`: `{ "version": 1, "formation": "4-3-3", "slots": [{ "position": "GK", "x": 0.5, "y": 0.95, "playerId": 12 }] }`
 — coordinates normalised 0–1 relative to the pitch (own goal at y = 1).

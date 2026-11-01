@@ -41,6 +41,7 @@ qt_add_qml_module(fdss_ui
         ui/components/TopBar.qml
         ui/views/CalendarView.qml
         ui/views/DashboardView.qml
+        ui/views/DatabaseErrorView.qml
         ui/views/ImportView.qml
         ui/views/LoadView.qml
         ui/views/MatchDayView.qml
@@ -56,6 +57,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/LanguageManager.cpp
         src/viewmodels/NavigationModel.hpp
         src/viewmodels/NavigationModel.cpp
+        src/viewmodels/StartupViewModel.hpp
+        src/viewmodels/StartupViewModel.cpp
 )
 
 target_link_libraries(fdss_ui PUBLIC fdss_services Qt6::Quick Qt6::QuickControls2 Qt6::Graphs)

@@ -16,12 +16,21 @@ set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(fdss_tests
+    test_main.cpp
+    core/ErrorTest.cpp
     core/VersionTest.cpp
+    data/AppPathsTest.cpp
+    data/BackupTest.cpp
+    data/DatabaseManagerTest.cpp
+    data/MigrationsTest.cpp
+    data/SchemaTest.cpp
+    data/TestDatabase.hpp
+    data/TransactionTest.cpp
     data/XlsxSpikeTest.cpp
 )
 # QXlsx is linked here only to prove the library itself (P03 spike); app code reaches it
 # through fdss_data.
-target_link_libraries(fdss_tests PRIVATE fdss_core Qt6::Core QXlsx::QXlsx GTest::gtest_main)
+target_link_libraries(fdss_tests PRIVATE fdss_data QXlsx::QXlsx GTest::gtest)
 target_compile_definitions(fdss_tests PRIVATE
     FDSS_EXPECTED_VERSION="${PROJECT_VERSION}"
     FDSS_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"

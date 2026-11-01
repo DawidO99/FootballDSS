@@ -70,6 +70,7 @@ Q_PROPERTY(QVariantMap currentArgs READ currentArgs NOTIFY currentIndexChanged)
 6. **Tests**: hash round trip and wrong PIN; same PIN → different hash; lockout and expiry with an
    injected clock; permission denial per role for each staff method; last-Coach protection; setup
    atomicity (forced failure leaves no club); `AppState.can()` for each role (vm test).
+7. Move the startup error texts from `StartupViewModel` to `ErrorPresenter`.
 
 ## Done when
 - [ ] Section 3 passes; `fdss_vm_tests` runs in CTest.

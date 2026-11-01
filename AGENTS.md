@@ -112,8 +112,8 @@ CMake targets:
 - Every QObject subclass has `Q_OBJECT`. QML types use `QML_ELEMENT` / `QML_SINGLETON` /
   `QML_UNCREATABLE` with `qt_add_qml_module`. `qmlRegisterType` is FORBIDDEN.
 - List data for QML: `QAbstractListModel` with named roles, or `QRangeModel` for simple cases.
-- Long work (import, recalculation over many players) runs via `QtConcurrent`;
-  the UI thread never blocks on it.
+- Long work (parsing, validation, recalculation) runs via `QtConcurrent`; database writes stay on
+  the main-thread connection in one `Transaction`. The UI thread never blocks on parsing or computation.
 - Naming: `PascalCase` types, `camelCase` functions/variables, `m_` members, `kConstant`.
   Code identifiers and comments in English.
 - `fdss_core` compiles with warnings as errors. Code formatted with the repo `.clang-format`.
@@ -130,6 +130,8 @@ CMake targets:
 - Every user-visible string goes through `qsTr()`. Source strings in English; Polish lives in
   `i18n/FootballDSS_pl.ts`. Update `.ts` files when you add strings
   (`cmake --build --preset dev --target update_translations`, then fill every `unfinished` entry).
+  Only the Polish file is translated; entries in `FootballDSS_en.ts` stay `unfinished` because
+  English is the source language.
 - `.ts` merge conflicts (parallel branches always touch them): never hand-merge XML. Take the
   `main` version, re-run `update_translations`, then translate the entries that came back
   `unfinished`.
@@ -154,8 +156,16 @@ CMake targets:
 ## 7. Database rules
 
 - Connection setup: `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;`
-- Schema changes ONLY via a new numbered migration file. Never edit an existing migration.
-- Queries ONLY with `prepare()` + `bindValue()`. String-concatenated SQL is forbidden.
+- `PRAGMA journal_mode = WAL` is requested on file databases; if SQLite refuses (for example on a
+  network drive) the app continues in the default journal mode and logs a warning; a database that
+  cannot be written shows the error screen.
+- Schema changes ONLY via a new numbered migration file. Never edit an existing migration. An
+  "existing migration" is one merged to `main`; migrations on an unmerged branch may still be edited.
+- Values in SQL are ONLY bound with `prepare()` + `bindValue()`. Identifiers (table/column names) may
+  be composed only from compile-time constants. Every statement goes through `execSql()`/`sqlError()`
+  so transaction failures are tracked.
+- Never use `OR ROLLBACK` / `ON CONFLICT ROLLBACK`: they end the whole transaction behind
+  `Transaction`'s back.
 - Multi-row writes run in a transaction. Automatic DB backup before every import and migration
   (keep the 10 newest).
 - No personal data beyond the schema: birth YEAR only, no PESEL, no addresses, no phone numbers.
@@ -214,7 +224,7 @@ first; UI and backend are then built against it independently. Stay inside your 
 ## 12. Forbidden
 
 Qt Widgets, `.ui` files, Qt Charts, `qmlRegisterType`, qmake, Python in app code, CMake build or
-the shipped package, network access from the app (sockets, HTTP, telemetry), string-built SQL, hex colors in views, hardcoded user-visible strings, editing existing
+the shipped package, network access from the app (sockets, HTTP, telemetry), SQL with concatenated values (identifiers only from compile-time constants, see §7), hex colors in views, hardcoded user-visible strings, editing existing
 migrations, silently swallowing errors, deleting or rewriting tests to make them pass.
 
 ## 13. Glossary (PL <-> EN)

@@ -1,4 +1,6 @@
 add_library(fdss_core STATIC
+    util/Error.hpp
+    util/Error.cpp
     util/Version.hpp
     util/Version.cpp
 )

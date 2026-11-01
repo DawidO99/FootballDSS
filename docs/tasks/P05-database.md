@@ -127,3 +127,64 @@ database returns `Internal`.
 ERD can be generated from 0001 later; keep table and column names exactly as in SPEC §6.
 
 ## Decisions (accepted plan)
+
+Accepted by the human on 2026-11-01. These override the packet text above (AGENTS §11).
+
+1. **Transaction API.** `Transaction::begin(DatabaseManager&)` returns `Result<Transaction>` instead of
+   the public constructor, because a constructor cannot report a failed `BEGIN IMMEDIATE` and later
+   statements would then commit one by one.
+2. **OpenOptions.** `open()` and `openInMemory()` take `OpenOptions` (`busyTimeoutMs`,
+   `backupDirectory`, `migrations`), so tests do not depend on earlier runs. `backup()` on an in-memory
+   database returns `Internal`.
+3. **`import_id`.** Nullable, `RESTRICT`, indexed, added now to `player`, `match`, `appearance`,
+   `training_session` and `attendance` (plus `metric_value` from SPEC §6).
+4. **Values SPEC §6 did not define.** `value_type`: `integer`, `decimal`, `boolean`. `aggregation`:
+   `sum`, `avg`, `min`, `max`, `last`. `wellness` scores: 1–5. `import_log.type`,
+   `event_data_file.provider` and `player_attribute.attribute`: non-empty only, no list of values.
+5. **Startup error texts.** Temporary `tr()` in `StartupViewModel`; P07a moves them to `ErrorPresenter`.
+6. **Translations.** Only `pl` is translated; `FootballDSS_en.ts` entries stay `unfinished` because
+   English is the source language.
+7. **This section** is written as the first step of the implementation.
+
+Decided by the plan and accepted:
+- `availability.from` becomes `from_date` (`from` is an SQL keyword).
+- `shirt_number` and `birth_year` are nullable (P08). The `CHECK` on `birth_year` has only the lower
+  bound 1950, because `CHECK` cannot use the current date; P06 validation checks the upper bound.
+- `archived_at` is `YYYY-MM-DD`; `import_log.timestamp` is UTC ISO. `rpe` and `rating` are INTEGER.
+  Minutes in `appearance` and `match_event` are 0–130 (SPEC §8).
+- A valid SQLite file with tables but no `schema_version` gives `NotADatabase`.
+- A bad file is detected by reading `sqlite_master`, not `quick_check`.
+- `busy_timeout` goes through `setConnectOptions`; the savepoint has the constant name `fdss_sp`.
+- Backups sort numerically by (timestamp, suffix). `reason` is limited to `[a-z0-9_]+`.
+- `DatabaseErrorView` uses two `PrimaryButton`s until P06b provides `SecondaryButton`.
+
+**Worker connections (human decision).** Heavy work (reading files, validation, computation) runs via
+`QtConcurrent`, but database writes always stay on the main-thread connection in one `Transaction`.
+`openWorkerConnection` stays, unused for now.
+
+**Scope extension (same PR):** one-sentence documentation changes in `AGENTS.md` §5 and §6 and in
+`docs/tasks/P07a-app-services-auth.md`.
+
+**Review decisions (both rounds).**
+- `Transaction::begin()` stays (decision 1). SQLITE_FULL, IOERR, BUSY, LOCKED, NOMEM or INTERRUPT
+  inside a `Transaction` may roll back the whole transaction by itself, so such an error marks the
+  stack as broken: `execSql()`, `Transaction::begin()` and `commit()` return `Database` until the
+  outermost `Transaction` is destroyed, and nothing of it is saved. Constraint violations do not
+  break the stack.
+- `execSql()` and `sqlError()` are methods of `DatabaseManager`, because the detection needs its
+  state. Every statement goes through them (AGENTS §7). `describeSqlError()` stays a free function
+  for work outside any `Transaction`.
+- All tables in `0001_initial.sql` are `STRICT` (SQLite 3.37 or newer). `0001` was edited for this
+  before the merge: an existing migration is one merged to `main` (AGENTS §7).
+- The backup name is reserved atomically: empty target file with `NewOnly`, then `VACUUM INTO`. On
+  failure only the file this call created is removed.
+- A new suffix is the highest suffix of that second + 1, and pruning never deletes the backup just
+  made.
+- The suffix has at most 6 digits: above 999999 `createBackup` returns `Internal` and creates no file.
+
+**Known limitations.**
+- Concurrent backups from two app instances are not fully protected; the instance lock in W2 closes
+  this.
+- An incomplete backup file left by a crash counts towards the 10 kept backups.
+- Queries with `bindValue()` report a failure through `sqlError()` only afterwards, so they end their
+  work at the first error.

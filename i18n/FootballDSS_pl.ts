@@ -38,6 +38,34 @@
     </message>
 </context>
 <context>
+    <name>DatabaseErrorView</name>
+    <message>
+        <location filename="../ui/views/DatabaseErrorView.qml" line="15"/>
+        <source>FootballDSS</source>
+        <translation>FootballDSS</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/DatabaseErrorView.qml" line="36"/>
+        <source>The database could not be opened</source>
+        <translation>Nie można otworzyć bazy danych</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/DatabaseErrorView.qml" line="58"/>
+        <source>Database file</source>
+        <translation>Plik bazy danych</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/DatabaseErrorView.qml" line="81"/>
+        <source>Open data folder</source>
+        <translation>Otwórz folder danych</translation>
+    </message>
+    <message>
+        <location filename="../ui/views/DatabaseErrorView.qml" line="86"/>
+        <source>Quit</source>
+        <translation>Zakończ</translation>
+    </message>
+</context>
+<context>
     <name>EmptyState</name>
     <message>
         <location filename="../ui/components/EmptyState.qml" line="9"/>
@@ -361,6 +389,39 @@
         <location filename="../src/viewmodels/NavigationModel.cpp" line="21"/>
         <source>Settings</source>
         <translation>Ustawienia</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::StartupViewModel</name>
+    <message>
+        <location filename="../src/viewmodels/StartupViewModel.cpp" line="24"/>
+        <source>This file is not a FootballDSS database, or it is damaged. Close the app. Then move the file out of the data folder to start with a new database, or replace it with a copy from the backups folder. In both cases delete the files next to it that end in -wal and -shm.</source>
+        <translation>Ten plik nie jest bazą danych FootballDSS albo jest uszkodzony. Zamknij aplikację. Następnie przenieś go poza folder danych, aby zacząć z nową bazą, albo zastąp go kopią z folderu backups. W obu przypadkach usuń leżące obok pliki z końcówką -wal i -shm.</translation>
+    </message>
+    <message>
+        <location filename="../src/viewmodels/StartupViewModel.cpp" line="29"/>
+        <source>Another program is using the database, possibly a second FootballDSS window. Close it and start the app again.</source>
+        <translation>Baza danych jest używana przez inny program, być może przez drugie okno FootballDSS. Zamknij go i uruchom aplikację ponownie.</translation>
+    </message>
+    <message>
+        <location filename="../src/viewmodels/StartupViewModel.cpp" line="32"/>
+        <source>This database was saved by a newer version of FootballDSS. Install the newer version to open it. The file was not changed.</source>
+        <translation>Ta baza danych została zapisana przez nowszą wersję FootballDSS. Zainstaluj nowszą wersję, aby ją otworzyć. Plik nie został zmieniony.</translation>
+    </message>
+    <message>
+        <location filename="../src/viewmodels/StartupViewModel.cpp" line="35"/>
+        <source>The database file cannot be read or written. Check that the disk is not full and that you may write to the data folder.</source>
+        <translation>Nie można odczytać ani zapisać pliku bazy danych. Sprawdź, czy dysk nie jest pełny i czy masz prawo zapisu w folderze danych.</translation>
+    </message>
+    <message>
+        <location filename="../src/viewmodels/StartupViewModel.cpp" line="38"/>
+        <source>FootballDSS could not start its database module. Install the app again.</source>
+        <translation>FootballDSS nie może uruchomić modułu bazy danych. Zainstaluj aplikację ponownie.</translation>
+    </message>
+    <message>
+        <location filename="../src/viewmodels/StartupViewModel.cpp" line="47"/>
+        <source>The database could not be opened because of an unexpected error. Start the app again. If this repeats, close the app, replace the file with a copy from the backups folder and delete the files next to it that end in -wal and -shm.</source>
+        <translation>Nie udało się otworzyć bazy danych z powodu nieoczekiwanego błędu. Uruchom aplikację ponownie. Jeśli błąd się powtórzy, zamknij aplikację, zastąp plik kopią z folderu backups i usuń leżące obok pliki z końcówką -wal i -shm.</translation>
     </message>
 </context>
 </TS>
