@@ -139,6 +139,10 @@ CMake targets:
   `unfinished`.
 - Keyboard shortcuts inside a view use `enabled: root.visible` (all views stay loaded; only the
   current one is visible), otherwise identical shortcuts in two views block each other.
+- Every user-facing shortcut is only an accelerator for a visible control (button, menu item,
+  field). Nothing is reachable by keyboard shortcut alone. The shortcut is shown in that
+  control's tooltip, e.g. "Add player (Ctrl+N)". Hidden developer views (Ctrl+Shift+G,
+  Ctrl+Shift+K) are the only exception and are never mentioned in the UI.
 - Dates between viewmodels and QML are ISO strings `yyyy-MM-dd` (times `HH:mm`), never JS `Date`
   (time-zone shifts). Formatting for display uses the app language, not the system locale.
 - Build UI from `ui/components/` (DataTable, form fields, dialogs, toast…). Do not restyle raw

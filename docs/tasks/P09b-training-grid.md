@@ -28,7 +28,8 @@ Calendar and editors (P09a), load calculations and charts (W2).
    `injured`; "Mark all present" button. RPE and minutes are cleared and disabled for absent,
    excused and injured.
 3. **Keyboard**: a digit in the RPE cell sets it (`1` then `0` within 600 ms = 10), Tab → next column,
-   Enter → same column next row, Esc reverts the cell, Ctrl+S saves (`enabled: root.visible`); focus
+   Enter → same column next row, Esc reverts the cell, Ctrl+S saves (a visible "Save" button in the 
+   sheet header does the same; it is disabled when nothing changed) (`enabled: root.visible`); focus
    stays in the grid after saving. Leaving with unsaved changes asks once.
 4. **Save** = `saveAttendance` (one transaction). Errors per row shown in the row (`ErrorPresenter`).
 5. Permission `EditTraining`; read-only otherwise.
