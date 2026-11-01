@@ -4,23 +4,31 @@
 
 #include "../services/FakeClock.hpp"
 #include "core/domain/Club.hpp"
+#include "core/domain/Player.hpp"
 #include "core/domain/StaffUser.hpp"
 #include "core/domain/Team.hpp"
+#include "core/domain/Validation.hpp"
 #include "core/util/Error.hpp"
 #include "data/db/DatabaseManager.hpp"
 #include "services/AuthService.hpp"
 #include "services/SetupService.hpp"
+#include "services/SquadService.hpp"
 #include "viewmodels/AppSettings.hpp"
 #include "viewmodels/AppState.hpp"
+#include "viewmodels/AvailabilityViewModel.hpp"
 #include "viewmodels/ChangePinViewModel.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/NavigationModel.hpp"
+#include "viewmodels/PlayerCardViewModel.hpp"
+#include "viewmodels/PlayerEditorViewModel.hpp"
 #include "viewmodels/ProfilePickerViewModel.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/SetupWizardViewModel.hpp"
+#include "viewmodels/SquadViewModel.hpp"
 #include "viewmodels/StaffViewModel.hpp"
 #include "viewmodels/StartupViewModel.hpp"
 
+#include <QColor>
 #include <QDir>
 #include <QDirIterator>
 #include <QGuiApplication>
@@ -40,6 +48,8 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
@@ -52,12 +62,16 @@ Q_IMPORT_QML_PLUGIN(FootballDSSPlugin)
 
 using fdss::viewmodels::AppSettings;
 using fdss::viewmodels::AppState;
+using fdss::viewmodels::AvailabilityViewModel;
 using fdss::viewmodels::ChangePinViewModel;
 using fdss::viewmodels::LanguageManager;
 using fdss::viewmodels::NavigationModel;
+using fdss::viewmodels::PlayerCardViewModel;
+using fdss::viewmodels::PlayerEditorViewModel;
 using fdss::viewmodels::ProfilePickerViewModel;
 using fdss::viewmodels::ServiceRegistry;
 using fdss::viewmodels::SetupWizardViewModel;
+using fdss::viewmodels::SquadViewModel;
 using fdss::viewmodels::StaffViewModel;
 using fdss::viewmodels::StartupViewModel;
 
@@ -356,6 +370,460 @@ void grabOrSave(QQuickWindow* window, const QString& directory, const QString& n
     } else {
         saveScreenshot(window, directory, name);
     }
+}
+
+void typeText(QQuickWindow* window, const QString& text) {
+    for (const QChar character : text) {
+        pressKey(window, static_cast<Qt::Key>(character.toUpper().unicode()), QString(character));
+    }
+}
+
+// Fills the form that a dialog opened on its first field, from the keyboard only. Nothing presses
+// Enter yet.
+void typePlayer(QQuickWindow* window, const QString& firstName, const QString& lastName,
+                const QString& number = {}) {
+    typeText(window, firstName);
+    pressKey(window, Qt::Key_Tab);
+    typeText(window, lastName);
+    if (!number.isEmpty()) {
+        pressKey(window, Qt::Key_Tab);
+        typeText(window, number);
+    }
+}
+
+void expectFlag(const QObject* object, const char* property, bool expected, const char* reason) {
+    if (object->property(property).toBool() != expected) {
+        fail(reason);
+    }
+}
+
+// The first item of that object name, also in a dialog: the visual tree holds the overlay too.
+QQuickItem* findByObjectName(QQuickItem* item, const QString& name) {
+    if (item->objectName() == name) {
+        return item;
+    }
+    const QList<QQuickItem*> children = item->childItems();
+    for (QQuickItem* child : children) {
+        if (QQuickItem* found = findByObjectName(child, name)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+// The label wraps inside its width, a word too long for a line included.
+void expectWrapsInside(QQuickItem* label, const char* reason) {
+    if (label == nullptr || label->property("contentWidth").toReal() > label->width()) {
+        fail(reason);
+    }
+}
+
+// The worst the squad screens get at the minimum window: a card with very long notes and a long
+// word must scroll, and a form with every error must keep its buttons in the window. Then New Year.
+void exerciseMinimumWindow(QQuickWindow* window, NavigationModel* navigation, QQuickItem* view,
+                           QQuickItem* card, SquadViewModel* squad,
+                           const QString& screenshotDirectory) {
+    constexpr int kMinimumWidth = 1280;
+    constexpr int kMinimumHeight = 720;
+    constexpr int kNoteLines = 80;
+    constexpr qsizetype kLongWordLength = 500;
+    const QSize originalSize = window->size();
+    window->resize(kMinimumWidth, kMinimumHeight);
+    settle();
+    const auto capture = [&](const char* name) {
+        settle();
+        grabOrSave(window, screenshotDirectory, QString::fromLatin1(name) + QStringLiteral(".png"));
+    };
+
+    QStringList lines;
+    for (int line = 1; line <= kNoteLines; ++line) {
+        lines.append(QStringLiteral("Wiersz %1").arg(line));
+    }
+    lines.append(QString(kLongWordLength, u'x'));
+    fdss::core::PlayerDraft draft;
+    draft.firstName = "Dlugie";
+    draft.lastName = "Notatki";
+    draft.notes = lines.join(u'\n').toStdString();
+    const auto added =
+        ServiceRegistry::instance().squad().addPlayer(fdss::core::TeamId{squad->teamId()}, draft);
+    if (!added) {
+        fail("the player with long notes was not added");
+        window->resize(originalSize);
+        return;
+    }
+
+    navigation->activate(QStringLiteral("squad"),
+                         QVariantMap{{QStringLiteral("playerId"), qint64{added->value}}});
+    capture("squad-card-long-notes");
+    auto* page = findByObjectName(card, QStringLiteral("overviewPage"));
+    auto* notes = findByObjectName(card, QStringLiteral("playerData_notes"));
+    if (page == nullptr || notes == nullptr) {
+        fail("the overview page of the card is not all there");
+        window->resize(originalSize);
+        return;
+    }
+    if (page->property("contentHeight").toReal() <= page->height() || page->height() <= 0) {
+        fail("very long notes do not make the card scroll");
+    }
+    expectWrapsInside(notes, "a long word in the notes leaves the card");
+    if (notes->mapToItem(page, QPointF(notes->width(), 0)).x() > page->width()) {
+        fail("the notes are wider than the card");
+    }
+
+    // The keyboard gets to the end of the notes from the Back button, which has the focus.
+    pressKey(window, Qt::Key_PageDown);
+    if (page->property("contentY").toReal() <= 0) {
+        fail("PageDown does not scroll the card");
+    }
+    page->setProperty("contentY", page->property("contentHeight").toReal() - page->height());
+    capture("squad-card-long-notes-end");
+    const qreal notesBottom =
+        notes->mapToItem(window->contentItem(), QPointF(0, notes->height())).y();
+    if (notesBottom > kMinimumHeight) {
+        fail("the end of the notes cannot be scrolled into the window");
+    }
+
+    // A long description can be read to its end under the table.
+    auto* availability = card->property("availabilityModel").value<AvailabilityViewModel*>();
+    if (!availability->add(QStringLiteral("injury"), QStringLiteral("2026-10-01"), {},
+                           QString(kLongWordLength, u'y'))) {
+        fail("the entry with a long description was not added");
+    }
+    card->findChild<QObject*>(QStringLiteral("entriesTable"))->setProperty("currentIndex", 0);
+    page->setProperty("contentY", 0);
+    capture("squad-card-long-description");
+    expectWrapsInside(findByObjectName(card, QStringLiteral("selectedDescription")),
+                      "a long word in the description leaves the card");
+
+    QMetaObject::invokeMethod(view, "closeCard");
+    settle();
+
+    // Every error of the form at once.
+    QObject* const dialogObject = view->property("playerEditor").value<QObject*>();
+    auto* editor = dialogObject->property("viewModel").value<PlayerEditorViewModel*>();
+    QMetaObject::invokeMethod(view, "openAddDialog");
+    settle();
+    editor->setShirtNumber(fdss::core::kMaxShirtNumber + 1);
+    editor->setBirthYear(fdss::core::kMinBirthYear - 1);
+    editor->setSecondaryPositions({editor->primaryPosition()});
+    if (editor->save()) {
+        fail("a form with every error was saved");
+    }
+    if (editor->firstNameError().isEmpty() || editor->lastNameError().isEmpty() ||
+        editor->shirtNumberError().isEmpty() || editor->birthYearError().isEmpty() ||
+        editor->secondaryPositionsError().isEmpty()) {
+        fail("the form does not show every error");
+    }
+    capture("squad-editor-all-errors");
+    const qreal dialogTop = dialogObject->property("y").toReal();
+    const qreal dialogHeight = dialogObject->property("height").toReal();
+    if (dialogTop < 0 || dialogTop + dialogHeight > kMinimumHeight) {
+        fail("the form with every error leaves the minimum window");
+    }
+    auto* body = findByObjectName(window->contentItem(), QStringLiteral("dialogBody"));
+    if (body == nullptr || body->height() <= 0) {
+        fail("the form with every error has no room left");
+    }
+    pressKey(window, Qt::Key_Escape);
+    settle();
+
+    // The limit of the birth year follows New Year in a form opened again in the same session.
+    constexpr auto kToNextYear = std::chrono::days{61};
+    g_clock->advance(kToNextYear);
+    QMetaObject::invokeMethod(view, "openAddDialog");
+    settle();
+    auto* birthYear = findByObjectName(window->contentItem(), QStringLiteral("birthYearInput"));
+    if (birthYear == nullptr || birthYear->property("to").toInt() != editor->maxBirthYear() ||
+        editor->maxBirthYear() != 2027 - fdss::core::kYoungestPlayerAge) {
+        fail("the birth year field did not follow New Year");
+    }
+    pressKey(window, Qt::Key_Escape);
+    settle();
+
+    window->resize(originalSize);
+    settle();
+}
+
+// The way of the squad on a live window: an empty table, players added from the keyboard, a taken
+// shirt number, archiving with undo, a card opened by navigation arguments, and the dialogs of the
+// card. A real Ctrl+N would need Qt Test or private API here, so the shortcut is activated directly
+// and its enabled state is checked instead.
+void exerciseSquad(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    auto* toasts =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Toasts"));
+    navigation->activate(QStringLiteral("squad"));
+    settle();
+
+    auto* view = findQmlItem(window->contentItem(), "SquadView");
+    auto* card = findQmlItem(window->contentItem(), "PlayerCardView");
+    if (view == nullptr || card == nullptr) {
+        fail("the squad view or the player card is not loaded");
+        return;
+    }
+    auto* squad = view->property("viewModel").value<SquadViewModel*>();
+    auto* editorDialog = view->property("playerEditor").value<QObject*>();
+    auto* editor = editorDialog != nullptr
+                       ? editorDialog->property("viewModel").value<PlayerEditorViewModel*>()
+                       : nullptr;
+    auto* addShortcut = view->findChild<QObject*>(QStringLiteral("addShortcut"));
+    auto* playersTable = view->findChild<QObject*>(QStringLiteral("playersTable"));
+    auto* backShortcut = card->findChild<QObject*>(QStringLiteral("backShortcut"));
+    if (squad == nullptr || editor == nullptr || addShortcut == nullptr ||
+        playersTable == nullptr || backShortcut == nullptr) {
+        fail("the squad view is not all there");
+        return;
+    }
+    const auto capture = [&](const char* name) {
+        settle();
+        grabOrSave(window, screenshotDirectory, QString::fromLatin1(name) + QStringLiteral(".png"));
+    };
+    const auto openAddDialog = [&] {
+        QMetaObject::invokeMethod(addShortcut, "activated");
+        settle();
+        expectFlag(editorDialog, "visible", true, "Ctrl+N did not open the player dialog");
+        expectFlag(addShortcut, "enabled", false, "Ctrl+N stays on over the player dialog");
+    };
+
+    capture("squad-empty");
+    expectFlag(addShortcut, "enabled", true, "the coach has no Ctrl+N in the squad");
+
+    // Done when: three players from the keyboard only.
+    for (const auto& [first, last] :
+         {std::pair{"Jan", "Nowak"}, std::pair{"Adam", "Lis"}, std::pair{"Piotr", "Zych"}}) {
+        openAddDialog();
+        typePlayer(window, QString::fromLatin1(first), QString::fromLatin1(last));
+        pressKey(window, Qt::Key_Return);
+        expectFlag(editorDialog, "visible", false, "Enter did not save the player");
+    }
+    if (squad->players()->rowCount() != 3) {
+        fail("the keyboard did not add three players");
+    }
+
+    // Done when: a duplicate shirt number shows an error on the field.
+    openAddDialog();
+    typePlayer(window, QStringLiteral("Ewa"), QStringLiteral("Bak"), QStringLiteral("7"));
+    pressKey(window, Qt::Key_Return);
+    expectFlag(editorDialog, "visible", false, "Enter did not save the player with a number");
+    openAddDialog();
+    typePlayer(window, QStringLiteral("Ola"), QStringLiteral("Bak"), QStringLiteral("7"));
+    pressKey(window, Qt::Key_Return);
+    expectFlag(editorDialog, "visible", true, "a taken shirt number closed the dialog");
+    if (editor->shirtNumberError().isEmpty()) {
+        fail("a taken shirt number shows no error on the field");
+    }
+    capture("squad-editor-duplicate");
+    pressKey(window, Qt::Key_Escape);
+    expectFlag(editorDialog, "visible", false, "Esc did not close the player dialog");
+
+    // Text the field refused must not be saved as the last valid value.
+    openAddDialog();
+    typePlayer(window, QStringLiteral("Ola"), QStringLiteral("Bak"), QStringLiteral("150"));
+    expectFlag(editorDialog, "primaryEnabled", false, "Save stays on over a refused number");
+    pressKey(window, Qt::Key_Return);
+    expectFlag(editorDialog, "visible", true, "Enter saved over a refused number");
+    pressKey(window, Qt::Key_Escape);
+    openAddDialog();
+    expectFlag(editorDialog, "primaryEnabled", true, "the refused number stayed in the next form");
+    pressKey(window, Qt::Key_Escape);
+    if (squad->players()->rowCount() != 4) {
+        fail("a failed save changed the list");
+    }
+
+    capture("squad-list");
+    if (!expectFollowsLanguage(engine, [squad] {
+            return squad->rowAt(0).value(QStringLiteral("status")).toString();
+        })) {
+        fail("the status in the squad table stayed in the old language");
+    }
+
+    // Done when: archive + undo.
+    playersTable->setProperty("currentIndex", 0);
+    settle();
+    QMetaObject::invokeMethod(view, "archiveSelected");
+    settle();
+    if (squad->players()->rowCount() != 3 || !toasts->property("active").toBool()) {
+        fail("archiving did not hide the player and offer an undo");
+    }
+    QMetaObject::invokeMethod(toasts, "undo");
+    settle();
+    if (squad->players()->rowCount() != 4) {
+        fail("the undo toast did not bring the player back");
+    }
+
+    // An archived player: on request only, with the Archived badge, and Restore brings it back.
+    playersTable->setProperty("currentIndex", 0);
+    settle();
+    const qint64 archivedId = squad->rowAt(0).value(QStringLiteral("playerId")).toLongLong();
+    QMetaObject::invokeMethod(view, "archiveSelected");
+    QMetaObject::invokeMethod(toasts, "dismiss");
+    settle();
+    expectFlag(view, "hasSelection", false, "a player gone from the table stays selected");
+    squad->setShowArchived(true);
+    settle();
+    if (squad->players()->rowCount() != 4) {
+        fail("Show archived did not show the archived player");
+    }
+    playersTable->setProperty("currentIndex", squad->rowOf(archivedId));
+    capture("squad-archived");
+    if (!view->property("selectedPlayer").toMap().value(QStringLiteral("archived")).toBool()) {
+        fail("the archived player cannot be selected");
+    }
+    QMetaObject::invokeMethod(view, "restoreSelected");
+    settle();
+    squad->setShowArchived(false);
+    settle();
+    if (squad->players()->rowCount() != 4) {
+        fail("Restore did not bring the player back");
+    }
+
+    // An empty table because of the filters offers to clear them.
+    squad->setSearchText(QStringLiteral("nikogo takiego"));
+    capture("squad-no-match");
+    QMetaObject::invokeMethod(view, "clearFilters");
+    settle();
+    if (squad->players()->rowCount() != 4) {
+        fail("Clear filters did not bring the players back");
+    }
+
+    // The whole form by Tab: the list of secondary positions keeps Esc for itself, and Enter saves
+    // from the notes too.
+    openAddDialog();
+    typePlayer(window, QStringLiteral("Iza"), QStringLiteral("Wrona"));
+    for (int field = 0; field < 4; ++field) {
+        pressKey(window, Qt::Key_Tab);
+    }
+    pressKey(window, Qt::Key_Space, QStringLiteral(" "));
+    pressKey(window, Qt::Key_Space, QStringLiteral(" "));
+    capture("squad-editor-positions");
+    if (editor->secondaryPositions() != QStringList{QStringLiteral("gk")}) {
+        fail("Space in the list did not choose a secondary position");
+    }
+    pressKey(window, Qt::Key_Escape);
+    expectFlag(editorDialog, "visible", true, "Esc in the list closed the whole dialog");
+    pressKey(window, Qt::Key_Tab);
+    pressKey(window, Qt::Key_Tab);
+    typeText(window, QStringLiteral("x"));
+    if (editor->notes() != QLatin1StringView("x")) {
+        fail("Tab did not lead through the form to the notes");
+    }
+    pressKey(window, Qt::Key_Return);
+    expectFlag(editorDialog, "visible", false, "Enter in the notes did not save the player");
+    if (editor->notes() != QLatin1StringView("x") || squad->players()->rowCount() != 5) {
+        fail("Enter in the notes did not add the player");
+    }
+
+    // Iza has GK as a secondary position: muted, and in the accent color under the group filter.
+    auto* theme =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Theme"));
+    const auto secondaryCodeColor = [&] {
+        settle();
+        window->grabWindow();
+        auto* code = findByObjectName(view, QStringLiteral("secondaryCode_GK"));
+        return code != nullptr ? code->property("color").value<QColor>() : QColor{};
+    };
+    fdss::core::PlayerDraft goalkeeper;
+    goalkeeper.firstName = "Olek";
+    goalkeeper.lastName = "Bramka";
+    goalkeeper.shirtNumber = 50;
+    goalkeeper.primaryPosition = fdss::core::Position::Gk;
+    if (!ServiceRegistry::instance()
+             .squad()
+             .addPlayer(fdss::core::TeamId{squad->teamId()}, goalkeeper)
+             .has_value()) {
+        fail("the goalkeeper was not added");
+    }
+    squad->reload();
+    if (secondaryCodeColor() != theme->property("textMuted").value<QColor>()) {
+        fail("a secondary position is not muted without a group filter");
+    }
+    squad->setPositionGroup(QStringLiteral("goalkeeper"));
+    const QColor filteredColor = secondaryCodeColor();
+    capture("squad-secondary-filter");
+    if (filteredColor != theme->property("accent").value<QColor>()) {
+        fail("the secondary position of the filter is not in the accent color");
+    }
+    if (squad->players()->rowCount() != 2) {
+        fail("the group filter does not take secondary positions into account");
+    }
+    squad->setPositionGroup(QStringLiteral("all"));
+    if (secondaryCodeColor() != theme->property("textMuted").value<QColor>()) {
+        fail("a secondary position stayed highlighted after the group filter");
+    }
+
+    // navigationArgs.playerId opens the card, also when the section is entered that way.
+    const qint64 playerId = squad->rowAt(0).value(QStringLiteral("playerId")).toLongLong();
+    navigation->activate(QStringLiteral("training"));
+    settle();
+    expectFlag(addShortcut, "enabled", false, "Ctrl+N of the squad works in another section");
+    navigation->activate(QStringLiteral("squad"),
+                         QVariantMap{{QStringLiteral("playerId"), playerId}});
+    settle();
+    expectFlag(view, "cardOpen", true, "navigationArgs.playerId did not open the card");
+    auto* cardModel = card->property("viewModel").value<PlayerCardViewModel*>();
+    auto* availability = card->property("availabilityModel").value<AvailabilityViewModel*>();
+    if (cardModel == nullptr || availability == nullptr) {
+        fail("the player card is not all there");
+        return;
+    }
+    if (cardModel->playerId() != playerId || cardModel->name().isEmpty()) {
+        fail("the card does not show the player of the navigation arguments");
+    }
+    expectFlag(backShortcut, "enabled", true, "Esc does not lead back from the card");
+    expectFlag(addShortcut, "enabled", false, "Ctrl+N works on the card, without its button");
+
+    // Availability, the dialogs on top of the card, and Esc staying with the dialogs.
+    capture("squad-card-empty");
+    if (!availability->add(QStringLiteral("injury"), QStringLiteral("2026-10-01"), {},
+                           QStringLiteral("Skręcona kostka"))) {
+        fail("the coach could not add an availability entry");
+    }
+    if (cardModel->statusKey() != QLatin1StringView("injured")) {
+        fail("the card did not follow a new availability entry");
+    }
+    if (squad->rowAt(squad->rowOf(playerId)).value(QStringLiteral("statusKey")).toString() !=
+        QLatin1StringView("injured")) {
+        fail("the squad table did not follow a new availability entry");
+    }
+    card->findChild<QObject*>(QStringLiteral("entriesTable"))->setProperty("currentIndex", 0);
+    capture("squad-card");
+
+    auto* availabilityDialog = card->property("availabilityEditor").value<QObject*>();
+    QMetaObject::invokeMethod(card, "openEditAvailability");
+    capture("squad-availability-dialog");
+    expectFlag(availabilityDialog, "visible", true, "the availability dialog did not open");
+    expectFlag(backShortcut, "enabled", false, "Esc would leave the card under a dialog");
+    pressKey(window, Qt::Key_Escape);
+    expectFlag(availabilityDialog, "visible", false, "Esc did not close the availability dialog");
+
+    auto* returnDialog = card->property("returnEditor").value<QObject*>();
+    QMetaObject::invokeMethod(card, "openMarkReturned");
+    capture("squad-return-dialog");
+    expectFlag(returnDialog, "visible", true, "the return dialog did not open");
+    pressKey(window, Qt::Key_Return);
+    expectFlag(returnDialog, "visible", false, "Enter did not mark the return");
+    if (cardModel->statusKey() != QLatin1StringView("available")) {
+        fail("marking the return did not change the status");
+    }
+
+    QMetaObject::invokeMethod(card, "editRequested", Q_ARG(double, double(playerId)));
+    settle();
+    expectFlag(editorDialog, "visible", true, "Edit on the card did not open the player dialog");
+    expectFlag(backShortcut, "enabled", false, "Esc would leave the card under the player dialog");
+    pressKey(window, Qt::Key_Escape);
+
+    QMetaObject::invokeMethod(backShortcut, "activated");
+    settle();
+    expectFlag(view, "cardOpen", false, "Esc did not lead back to the list");
+    if (playersTable->property("currentIndex").toInt() != squad->rowOf(playerId)) {
+        fail("coming back from the card lost the selected player");
+    }
+
+    exerciseMinimumWindow(window, navigation, view, card, squad, screenshotDirectory);
+
+    navigation->setCurrentIndex(0);
+    settle();
 }
 
 SetupWizardViewModel* wizardOf(QQuickWindow* window) {
@@ -1101,6 +1569,119 @@ void exerciseDatabaseErrorView(QQmlEngine& engine, const QString& screenshotDire
     settle();
 }
 
+// Every item under `item` whose text holds the markup. Each one that can render markup must have
+// Text.PlainText; a TextInput has no textFormat and never renders it.
+int countPlainMarkup(QQuickItem* item, const QString& markup, const char* where) {
+    int found = 0;
+    if (item->property("text").toString().contains(markup)) {
+        const QVariant format = item->property("textFormat");
+        if (format.isValid() && format.toInt() != Qt::PlainText) {
+            std::fprintf(stderr, "qml_smoke: %s: rich text in %s\n", where,
+                         item->metaObject()->className());
+            fail("markup in user data is not shown as plain text");
+        }
+        ++found;
+    }
+    const QList<QQuickItem*> children = item->childItems();
+    for (QQuickItem* child : children) {
+        found += countPlainMarkup(child, markup, where);
+    }
+    return found;
+}
+
+// User data with markup, from the wizard to the profile picker. Not one piece may render as rich
+// text: that would show something else than what was typed, and <img> would go to the network
+// (AGENTS sections 1 and 6). Expects an empty database and a loaded Main.qml.
+void exerciseUserMarkup(QQmlApplicationEngine& engine) {
+    const QString markup = QStringLiteral("<b>x</b><img src=\"http://example.invalid/a.png\">");
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* toasts =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Toasts"));
+    const auto expectShown = [&](const char* where) {
+        settle();
+        window->grabWindow();
+        if (countPlainMarkup(window->contentItem(), markup, where) == 0) {
+            std::fprintf(stderr, "qml_smoke: %s\n", where);
+            fail("the markup is not on the screen where it should be");
+        }
+    };
+
+    auto* wizard = wizardOf(window);
+    if (wizard == nullptr) {
+        fail("the wizard is not there for the markup test");
+        return;
+    }
+    wizard->next();
+    wizard->setClubName(markup);
+    wizard->setTeamName(markup);
+    wizard->next();
+    wizard->setCoachName(markup);
+    wizard->setPin(QStringLiteral("1234"));
+    wizard->setPinRepeat(QStringLiteral("1234"));
+    wizard->next();
+    expectShown("wizard summary");
+    if (!wizard->create()) {
+        fail("the wizard did not take names with markup");
+        return;
+    }
+    expectShown("top bar");
+
+    fdss::core::PlayerDraft draft;
+    draft.firstName = markup.toStdString();
+    draft.lastName = "Nowak";
+    draft.notes = markup.toStdString();
+    auto& squadService = ServiceRegistry::instance().squad();
+    const auto playerId = squadService.addPlayer(
+        fdss::core::TeamId{static_cast<std::int64_t>(appState->teamId())}, draft);
+    if (!playerId) {
+        fail("the player with markup was not added");
+        return;
+    }
+    navigation->activate(QStringLiteral("squad"));
+    expectShown("squad table");
+
+    auto* view = findQmlItem(window->contentItem(), "SquadView");
+    auto* card = findQmlItem(window->contentItem(), "PlayerCardView");
+    view->findChild<QObject*>(QStringLiteral("playersTable"))->setProperty("currentIndex", 0);
+    settle();
+    QMetaObject::invokeMethod(view, "archiveSelected");
+    expectShown("undo toast");
+    QMetaObject::invokeMethod(toasts, "undo");
+    settle();
+
+    navigation->activate(QStringLiteral("squad"),
+                         QVariantMap{{QStringLiteral("playerId"), qint64{playerId->value}}});
+    auto* availability = card->property("availabilityModel").value<AvailabilityViewModel*>();
+    if (!availability->add(QStringLiteral("injury"), QStringLiteral("2026-10-01"), {}, markup)) {
+        fail("the description with markup was not added");
+    }
+    card->findChild<QObject*>(QStringLiteral("entriesTable"))->setProperty("currentIndex", 0);
+    expectShown("player card");
+    if (const auto* notes = findByObjectName(card, QStringLiteral("playerData_notes"));
+        notes == nullptr || notes->property("text").toString() != markup) {
+        fail("the notes do not show what was typed");
+    }
+    QMetaObject::invokeMethod(card, "openEditAvailability");
+    expectShown("availability dialog");
+    pressKey(window, Qt::Key_Escape);
+    QMetaObject::invokeMethod(view, "closeCard");
+    settle();
+
+    navigation->activate(QStringLiteral("settings"));
+    expectShown("staff table");
+    auto* settingsView = findQmlItem(window->contentItem(), "SettingsView");
+    auto* staffSection = settingsView->property("staffSection").value<QQuickItem*>();
+    QMetaObject::invokeMethod(staffSection, "openResetPinDialog");
+    expectShown("reset PIN dialog");
+    pressKey(window, Qt::Key_Escape);
+
+    appState->logout();
+    expectShown("profile picker");
+}
+
 // Instantiates every file in ui/views/ on its own, so new views are covered automatically.
 int instantiateEveryView(QQmlEngine& engine) {
     int viewCount = 0;
@@ -1172,11 +1753,24 @@ int main(int argc, char* argv[]) {
                     exerciseTileScrolling(engine);
                 }
                 if (state == AppState::State::Ready) {
+                    exerciseSquad(engine, screenshotDirectory);
                     exerciseDatabaseErrorView(engine, screenshotDirectory);
                     viewCount = instantiateEveryView(engine);
                     exerciseLoginOverSession(engine);
                     exerciseLogoutOnUnreadableDatabase(engine, *database);
                 }
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+                settle();
+                exerciseUserMarkup(engine);
             }
             settle();
             ServiceRegistry::reset();

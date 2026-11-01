@@ -23,6 +23,12 @@
 
 namespace fdss::core {
 
+inline constexpr int kMinShirtNumber = 1;
+inline constexpr int kMaxShirtNumber = 99;
+inline constexpr int kMinBirthYear = 1950;
+// The upper limit of birth_year is the current year minus this.
+inline constexpr int kYoungestPlayerAge = 4;
+
 struct ValidationError {
     std::string field;
     ErrorCode code = ErrorCode::InvalidInput;

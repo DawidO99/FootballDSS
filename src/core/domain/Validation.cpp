@@ -9,10 +9,6 @@ namespace {
 
 constexpr std::size_t kMaxPersonNameLength = 50;
 constexpr std::size_t kMaxOrganisationNameLength = 100;
-constexpr int kMinShirtNumber = 1;
-constexpr int kMaxShirtNumber = 99;
-constexpr int kMinBirthYear = 1950;
-constexpr int kYoungestPlayerAge = 4;
 constexpr int kMaxMatchMinute = 130;
 constexpr int kMinRating = 1;
 constexpr int kMaxRating = 10;

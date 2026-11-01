@@ -62,9 +62,10 @@ Item {
             Label {
                 Layout.fillWidth: true
                 text: Toasts.text
+                textFormat: Text.PlainText
                 color: Theme.text
                 font.pixelSize: Theme.fontSize.body
-                wrapMode: Text.WordWrap
+                wrapMode: Text.Wrap
                 Accessible.role: Accessible.AlertMessage
                 Accessible.name: text
             }

@@ -368,6 +368,7 @@ FocusScope {
                                 Layout.fillWidth: true
                                 Layout.preferredWidth: 0
                                 text: summaryRow.modelData.value
+                                textFormat: Text.PlainText
                                 color: Theme.text
                                 font.pixelSize: Theme.fontSize.body
                                 font.weight: Font.DemiBold

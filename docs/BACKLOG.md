@@ -9,6 +9,8 @@
 - "Expected return date has passed" hint on the player card (P06)
 - DatabaseErrorView window sizes from Theme (P05)
 - Keyboard shortcut overview on F1
+- Column chooser in the squad table, SPEC section 4 (P08)
+- Deleting an availability entry entered by mistake; the repository already has `remove` (P08)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,

@@ -17,6 +17,45 @@
     </message>
 </context>
 <context>
+    <name>AvailabilityDialog</name>
+    <message>
+        <source>Add availability</source>
+        <translation>Dodaj dostępność</translation>
+    </message>
+    <message>
+        <source>Edit availability</source>
+        <translation>Edytuj dostępność</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Typ</translation>
+    </message>
+    <message>
+        <source>From</source>
+        <translation>Od</translation>
+    </message>
+    <message>
+        <source>Expected return</source>
+        <translation>Planowany powrót</translation>
+    </message>
+    <message>
+        <source>Available again from</source>
+        <translation>Dostępny ponownie od</translation>
+    </message>
+    <message>
+        <source>Leave it empty if the player has not returned after all.</source>
+        <translation>Zostaw puste, jeśli zawodnik jednak nie wrócił.</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Opis</translation>
+    </message>
+    <message>
+        <source>Only the coach and the physio can read this. Shift+Enter: new line</source>
+        <translation>Mogą to czytać tylko trener i fizjoterapeuta. Shift+Enter: nowa linia</translation>
+    </message>
+</context>
+<context>
     <name>CalendarView</name>
     <message>
         <source>Calendar</source>
@@ -246,6 +285,18 @@
         <translation>Dzień wolny</translation>
     </message>
     <message>
+        <source>Ill</source>
+        <translation>Chory</translation>
+    </message>
+    <message>
+        <source>Suspended</source>
+        <translation>Zawieszony</translation>
+    </message>
+    <message>
+        <source>Archived</source>
+        <translation>Zarchiwizowany</translation>
+    </message>
+    <message>
         <source>Last gallery interaction: %1</source>
         <translation>Ostatnia akcja w galerii: %1</translation>
     </message>
@@ -292,6 +343,30 @@
     <message>
         <source>Search player or number…</source>
         <translation>Szukaj zawodnika lub numeru…</translation>
+    </message>
+    <message>
+        <source>Secondary positions</source>
+        <translation>Pozycje zapasowe</translation>
+    </message>
+    <message>
+        <source>Space opens the list and toggles an item, Enter closes it.</source>
+        <translation>Spacja otwiera listę i przełącza pozycję, Enter ją zamyka.</translation>
+    </message>
+    <message>
+        <source>Notes</source>
+        <translation>Notatki</translation>
+    </message>
+    <message>
+        <source>Shift+Enter: new line</source>
+        <translation>Shift+Enter: nowa linia</translation>
+    </message>
+    <message>
+        <source>Show archived</source>
+        <translation>Pokaż zarchiwizowanych</translation>
+    </message>
+    <message>
+        <source>Tab keeps field %1 in view</source>
+        <translation>Tab utrzymuje pole %1 w widoku</translation>
     </message>
     <message>
         <source>Error state</source>
@@ -727,6 +802,192 @@
     </message>
 </context>
 <context>
+    <name>PlayerCardView</name>
+    <message>
+        <source>← Squad</source>
+        <translation>← Kadra</translation>
+    </message>
+    <message>
+        <source>Back to the list (%1)</source>
+        <translation>Powrót do listy (%1)</translation>
+    </message>
+    <message>
+        <source>%1, age %2</source>
+        <translation>%1, wiek: %2</translation>
+    </message>
+    <message>
+        <source>Edit player</source>
+        <translation>Edytuj zawodnika</translation>
+    </message>
+    <message>
+        <source>This player could not be read</source>
+        <translation>Nie udało się odczytać danych zawodnika</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>Overview</source>
+        <translation>Przegląd</translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation>Obciążenie</translation>
+    </message>
+    <message>
+        <source>Matches</source>
+        <translation>Mecze</translation>
+    </message>
+    <message>
+        <source>Notes</source>
+        <translation>Notatki</translation>
+    </message>
+    <message>
+        <source>Player data</source>
+        <translation>Dane zawodnika</translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation>Pozycja</translation>
+    </message>
+    <message>
+        <source>Secondary positions</source>
+        <translation>Pozycje zapasowe</translation>
+    </message>
+    <message>
+        <source>Birth year</source>
+        <translation>Rok urodzenia</translation>
+    </message>
+    <message>
+        <source>Preferred foot</source>
+        <translation>Lepsza noga</translation>
+    </message>
+    <message>
+        <source>Not set</source>
+        <translation>Nie podano</translation>
+    </message>
+    <message>
+        <source>Availability</source>
+        <translation>Dostępność</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Typ</translation>
+    </message>
+    <message>
+        <source>From</source>
+        <translation>Od</translation>
+    </message>
+    <message>
+        <source>Expected</source>
+        <translation>Planowany</translation>
+    </message>
+    <message>
+        <source>Returned</source>
+        <translation>Powrót</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Opis</translation>
+    </message>
+    <message>
+        <source>The availability could not be read</source>
+        <translation>Nie udało się odczytać dostępności</translation>
+    </message>
+    <message>
+        <source>No availability entries</source>
+        <translation>Brak wpisów o dostępności</translation>
+    </message>
+    <message>
+        <source>Injuries, illnesses, suspensions and absences of this player will appear here.</source>
+        <translation>Tutaj pojawią się kontuzje, choroby, zawieszenia i nieobecności tego zawodnika.</translation>
+    </message>
+    <message>
+        <source>Add availability</source>
+        <translation>Dodaj dostępność</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Edytuj</translation>
+    </message>
+    <message>
+        <source>Mark as returned</source>
+        <translation>Oznacz powrót</translation>
+    </message>
+    <message>
+        <source>The training load of this player will appear here.</source>
+        <translation>Tutaj pojawi się obciążenie treningowe tego zawodnika.</translation>
+    </message>
+    <message>
+        <source>The matches, minutes and ratings of this player will appear here.</source>
+        <translation>Tutaj pojawią się mecze, minuty i oceny tego zawodnika.</translation>
+    </message>
+    <message>
+        <source>Dated notes about this player will appear here.</source>
+        <translation>Tutaj pojawią się datowane notatki o tym zawodniku.</translation>
+    </message>
+    <message>
+        <source>Available again from</source>
+        <translation>Dostępny ponownie od</translation>
+    </message>
+    <message>
+        <source>The first day the player is available.</source>
+        <translation>Pierwszy dzień, w którym zawodnik jest dostępny.</translation>
+    </message>
+</context>
+<context>
+    <name>PlayerEditorDialog</name>
+    <message>
+        <source>Add player</source>
+        <translation>Dodaj zawodnika</translation>
+    </message>
+    <message>
+        <source>Edit player</source>
+        <translation>Edytuj zawodnika</translation>
+    </message>
+    <message>
+        <source>First name</source>
+        <translation>Imię</translation>
+    </message>
+    <message>
+        <source>Last name</source>
+        <translation>Nazwisko</translation>
+    </message>
+    <message>
+        <source>Shirt number</source>
+        <translation>Numer na koszulce</translation>
+    </message>
+    <message>
+        <source>Birth year</source>
+        <translation>Rok urodzenia</translation>
+    </message>
+    <message>
+        <source>Primary position</source>
+        <translation>Pozycja główna</translation>
+    </message>
+    <message>
+        <source>Secondary positions</source>
+        <translation>Pozycje zapasowe</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Brak</translation>
+    </message>
+    <message>
+        <source>Preferred foot</source>
+        <translation>Lepsza noga</translation>
+    </message>
+    <message>
+        <source>Notes</source>
+        <translation>Notatki</translation>
+    </message>
+    <message>
+        <source>Shift+Enter: new line</source>
+        <translation>Shift+Enter: nowa linia</translation>
+    </message>
+</context>
+<context>
     <name>PreMatchView</name>
     <message>
         <source>Pre-match</source>
@@ -1122,16 +1383,117 @@
 <context>
     <name>SquadView</name>
     <message>
+        <source>%1 was archived.</source>
+        <translation>Zarchiwizowano: %1.</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>Cofnij</translation>
+    </message>
+    <message>
         <source>Squad</source>
         <translation>Kadra</translation>
     </message>
     <message>
-        <source>Add your players by hand or import them from a CSV or XLSX file.</source>
-        <translation>Dodaj zawodników ręcznie albo zaimportuj ich z pliku CSV lub XLSX.</translation>
+        <source>Add player</source>
+        <translation>Dodaj zawodnika</translation>
     </message>
     <message>
-        <source>Import players</source>
-        <translation>Importuj zawodników</translation>
+        <source>Add player (%1)</source>
+        <translation>Dodaj zawodnika (%1)</translation>
+    </message>
+    <message>
+        <source>Search by name or number…</source>
+        <translation>Szukaj po nazwisku lub numerze…</translation>
+    </message>
+    <message>
+        <source>Search players</source>
+        <translation>Szukaj zawodników</translation>
+    </message>
+    <message>
+        <source>Status filter</source>
+        <translation>Filtr statusu</translation>
+    </message>
+    <message>
+        <source>Position filter</source>
+        <translation>Filtr pozycji</translation>
+    </message>
+    <message>
+        <source>Show archived</source>
+        <translation>Pokaż zarchiwizowanych</translation>
+    </message>
+    <message>
+        <source>No.</source>
+        <translation>Nr</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Imię i nazwisko</translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation>Pozycja</translation>
+    </message>
+    <message>
+        <source>Age</source>
+        <translation>Wiek</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>·</source>
+        <extracomment>Between the codes of the secondary positions of a player.</extracomment>
+        <translation>·</translation>
+    </message>
+    <message>
+        <source>The squad could not be read</source>
+        <translation>Nie udało się odczytać kadry</translation>
+    </message>
+    <message>
+        <source>No players match the filters</source>
+        <translation>Żaden zawodnik nie pasuje do filtrów</translation>
+    </message>
+    <message>
+        <source>No active players yet</source>
+        <translation>Nie ma jeszcze aktywnych zawodników</translation>
+    </message>
+    <message>
+        <source>Change the search or the filters to see more players.</source>
+        <translation>Zmień wyszukiwanie lub filtry, aby zobaczyć więcej zawodników.</translation>
+    </message>
+    <message>
+        <source>Add the players of your team to start.</source>
+        <translation>Na początek dodaj zawodników swojej drużyny.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or an assistant to add the players.</source>
+        <translation>Poproś trenera lub asystenta o dodanie zawodników.</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>Clear filters</source>
+        <translation>Wyczyść filtry</translation>
+    </message>
+    <message>
+        <source>Open card</source>
+        <translation>Otwórz kartę</translation>
+    </message>
+    <message>
+        <source>Edit player</source>
+        <translation>Edytuj zawodnika</translation>
+    </message>
+    <message>
+        <source>Archive</source>
+        <translation>Archiwizuj</translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation>Przywróć</translation>
     </message>
 </context>
 <context>
@@ -1300,6 +1662,38 @@
         <translation>Podaj sezon w postaci 2026/27.</translation>
     </message>
     <message>
+        <source>Enter the first name, up to 50 characters.</source>
+        <translation>Wpisz imię, maksymalnie 50 znaków.</translation>
+    </message>
+    <message>
+        <source>Enter the last name, up to 50 characters.</source>
+        <translation>Wpisz nazwisko, maksymalnie 50 znaków.</translation>
+    </message>
+    <message>
+        <source>Enter a shirt number from %1 to %2, or leave it empty.</source>
+        <translation>Wpisz numer od %1 do %2 albo zostaw puste.</translation>
+    </message>
+    <message>
+        <source>Enter a birth year from %1 on, or leave it empty. A player is at least %2 years old.</source>
+        <translation>Wpisz rok urodzenia od %1 wzwyż albo zostaw puste. Zawodnik ma co najmniej %2 lata.</translation>
+    </message>
+    <message>
+        <source>Choose each secondary position once, and not the primary one.</source>
+        <translation>Wybierz każdą pozycję zapasową raz i bez pozycji głównej.</translation>
+    </message>
+    <message>
+        <source>Enter the first day of the absence.</source>
+        <translation>Wpisz pierwszy dzień nieobecności.</translation>
+    </message>
+    <message>
+        <source>The expected return cannot be before the first day of the absence.</source>
+        <translation>Planowany powrót nie może być wcześniejszy niż pierwszy dzień nieobecności.</translation>
+    </message>
+    <message>
+        <source>The return cannot be before the first day of the absence.</source>
+        <translation>Powrót nie może być wcześniejszy niż pierwszy dzień nieobecności.</translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation>Jedna z wartości jest niepoprawna. Sprawdź, co zostało wpisane, i spróbuj ponownie.</translation>
     </message>
@@ -1314,6 +1708,10 @@
     <message>
         <source>The club must keep an active coach. Make someone else a coach first.</source>
         <translation>Klub musi mieć aktywnego trenera. Najpierw nadaj rolę trenera innej osobie.</translation>
+    </message>
+    <message>
+        <source>Another player already has this shirt number. Choose a different one.</source>
+        <translation>Inny zawodnik ma już ten numer. Wybierz inny.</translation>
     </message>
     <message>
         <source>This conflicts with data that already exists. Change the value and try again.</source>
@@ -1342,6 +1740,14 @@
     <message>
         <source>The database could not be opened because of an unexpected error. Start the app again. If this repeats, close the app, replace the file with a copy from the backups folder and delete the files next to it that end in -wal and -shm.</source>
         <translation>Nie udało się otworzyć bazy danych z powodu nieoczekiwanego błędu. Uruchom aplikację ponownie. Jeśli błąd się powtórzy, zamknij aplikację, zastąp plik kopią z folderu backups i usuń leżące obok pliki z końcówką -wal i -shm.</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::IsoDates</name>
+    <message>
+        <source>dd/MM/yyyy</source>
+        <extracomment>Qt date format of the app language. Keep it the same as in DateField: dd.MM.yyyy in Polish.</extracomment>
+        <translation>dd.MM.yyyy</translation>
     </message>
 </context>
 <context>
@@ -1381,6 +1787,164 @@
     <message>
         <source>Settings</source>
         <translation>Ustawienia</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::SquadTexts</name>
+    <message>
+        <source>Goalkeeper</source>
+        <translation>Bramkarz</translation>
+    </message>
+    <message>
+        <source>Right back</source>
+        <translation>Prawy obrońca</translation>
+    </message>
+    <message>
+        <source>Centre back</source>
+        <translation>Środkowy obrońca</translation>
+    </message>
+    <message>
+        <source>Left back</source>
+        <translation>Lewy obrońca</translation>
+    </message>
+    <message>
+        <source>Right wing-back</source>
+        <translation>Prawy wahadłowy</translation>
+    </message>
+    <message>
+        <source>Left wing-back</source>
+        <translation>Lewy wahadłowy</translation>
+    </message>
+    <message>
+        <source>Defensive midfielder</source>
+        <translation>Defensywny pomocnik</translation>
+    </message>
+    <message>
+        <source>Central midfielder</source>
+        <translation>Środkowy pomocnik</translation>
+    </message>
+    <message>
+        <source>Attacking midfielder</source>
+        <translation>Ofensywny pomocnik</translation>
+    </message>
+    <message>
+        <source>Right midfielder</source>
+        <translation>Prawy pomocnik</translation>
+    </message>
+    <message>
+        <source>Left midfielder</source>
+        <translation>Lewy pomocnik</translation>
+    </message>
+    <message>
+        <source>Right winger</source>
+        <translation>Prawy skrzydłowy</translation>
+    </message>
+    <message>
+        <source>Left winger</source>
+        <translation>Lewy skrzydłowy</translation>
+    </message>
+    <message>
+        <source>Striker</source>
+        <translation>Napastnik</translation>
+    </message>
+    <message>
+        <source>Left</source>
+        <translation>Lewa</translation>
+    </message>
+    <message>
+        <source>Right</source>
+        <translation>Prawa</translation>
+    </message>
+    <message>
+        <source>Both</source>
+        <translation>Obie</translation>
+    </message>
+    <message>
+        <source>Not known</source>
+        <translation>Nie wiadomo</translation>
+    </message>
+    <message>
+        <source>Injury</source>
+        <translation>Kontuzja</translation>
+    </message>
+    <message>
+        <source>Illness</source>
+        <translation>Choroba</translation>
+    </message>
+    <message>
+        <source>Suspension</source>
+        <translation>Zawieszenie</translation>
+    </message>
+    <message>
+        <source>Absence</source>
+        <translation>Nieobecność</translation>
+    </message>
+    <message>
+        <source>Archived</source>
+        <translation>Zarchiwizowany</translation>
+    </message>
+    <message>
+        <source>Available</source>
+        <translation>Dostępny</translation>
+    </message>
+    <message>
+        <source>Injured</source>
+        <translation>Kontuzjowany</translation>
+    </message>
+    <message>
+        <source>Ill</source>
+        <translation>Chory</translation>
+    </message>
+    <message>
+        <source>Suspended</source>
+        <translation>Zawieszony</translation>
+    </message>
+    <message>
+        <source>Absent</source>
+        <translation>Nieobecny</translation>
+    </message>
+    <message>
+        <source>Secondary position: %1</source>
+        <translation>Pozycja zapasowa: %1</translation>
+    </message>
+    <message>
+        <source>%1. Secondary: %2</source>
+        <translation>%1. Zapasowe: %2</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::SquadViewModel</name>
+    <message>
+        <source>Goalkeepers</source>
+        <translation>Bramkarze</translation>
+    </message>
+    <message>
+        <source>Defenders</source>
+        <translation>Obrońcy</translation>
+    </message>
+    <message>
+        <source>Midfielders</source>
+        <translation>Pomocnicy</translation>
+    </message>
+    <message>
+        <source>Forwards</source>
+        <translation>Napastnicy</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>Wszyscy</translation>
+    </message>
+    <message>
+        <source>Available</source>
+        <translation>Dostępni</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Niedostępni</translation>
+    </message>
+    <message>
+        <source>All positions</source>
+        <translation>Wszystkie pozycje</translation>
     </message>
 </context>
 </TS>

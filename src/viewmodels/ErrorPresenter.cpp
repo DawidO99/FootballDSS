@@ -1,5 +1,6 @@
 #include "viewmodels/ErrorPresenter.hpp"
 
+#include "core/domain/Validation.hpp"
 #include "services/AuthService.hpp"
 
 namespace fdss::viewmodels {
@@ -61,6 +62,35 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     if (field == "season") {
         return tr("Enter the season in the form 2026/27.");
     }
+    if (field == "first_name") {
+        return tr("Enter the first name, up to 50 characters.");
+    }
+    if (field == "last_name") {
+        return tr("Enter the last name, up to 50 characters.");
+    }
+    if (field == "shirt_number") {
+        return tr("Enter a shirt number from %1 to %2, or leave it empty.")
+            .arg(core::kMinShirtNumber)
+            .arg(core::kMaxShirtNumber);
+    }
+    if (field == "birth_year") {
+        return tr("Enter a birth year from %1 on, or leave it empty. A player is at least %2 years "
+                  "old.")
+            .arg(core::kMinBirthYear)
+            .arg(core::kYoungestPlayerAge);
+    }
+    if (field == "secondary_positions") {
+        return tr("Choose each secondary position once, and not the primary one.");
+    }
+    if (field == "from_date") {
+        return tr("Enter the first day of the absence.");
+    }
+    if (field == "expected_to") {
+        return tr("The expected return cannot be before the first day of the absence.");
+    }
+    if (field == "actual_to") {
+        return tr("The return cannot be before the first day of the absence.");
+    }
     return tr("One of the values is not valid. Check what you entered and try again.");
 }
 
@@ -79,6 +109,9 @@ QString ErrorPresenter::pinCheckMessage(const services::PinCheck& check) {
 QString ErrorPresenter::conflictMessage(const std::string& field) {
     if (field == "last_coach") {
         return tr("The club must keep an active coach. Make someone else a coach first.");
+    }
+    if (field == "shirt_number") {
+        return tr("Another player already has this shirt number. Choose a different one.");
     }
     return tr("This conflicts with data that already exists. Change the value and try again.");
 }

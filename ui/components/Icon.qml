@@ -33,6 +33,7 @@ Item {
             "chevronUp": "M6 15l6-6 6 6",
             "chevronDown": "M6 9l6 6 6-6",
             "close": "M6 6l12 12 M18 6L6 18",
+            "check": "M5 12.5l4.5 4.5L19 7.5",
             "plus": "M12 5v14 M5 12h14",
             "minus": "M5 12h14",
             "undo": "M9 14L4 9l5-5 M4 9h11a5 5 0 0 1 0 10h-3",

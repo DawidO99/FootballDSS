@@ -37,21 +37,27 @@ qt_add_qml_module(fdss_ui
         ui/theme/Theme.qml
         ui/components/AppDialog.qml
         ui/components/AppTabs.qml
+        ui/components/AvailabilityDialog.qml
         ui/components/Card.qml
+        ui/components/CheckBoxField.qml
         ui/components/DangerButton.qml
         ui/components/DataTable.qml
         ui/components/DataTableCell.qml
         ui/components/DateField.qml
         ui/components/EmptyState.qml
         ui/components/FieldBackground.qml
+        ui/components/FocusFlickable.qml
         ui/components/FormField.qml
         ui/components/Icon.qml
         ui/components/IconButton.qml
         ui/components/LanguageThemeSwitch.qml
+        ui/components/MultiSelectField.qml
         ui/components/NumberField.qml
         ui/components/PageHeader.qml
         ui/components/PinField.qml
         ui/components/PinPad.qml
+        ui/components/PlayerEditorDialog.qml
+        ui/components/PlayerStatusBadge.qml
         ui/components/PrimaryButton.qml
         ui/components/ProfileTile.qml
         ui/components/SearchField.qml
@@ -61,6 +67,7 @@ qt_add_qml_module(fdss_ui
         ui/components/Sidebar.qml
         ui/components/SidebarButton.qml
         ui/components/StatusBadge.qml
+        ui/components/TextAreaField.qml
         ui/components/TextInputField.qml
         ui/components/ToastHost.qml
         ui/components/Toasts.qml
@@ -72,6 +79,7 @@ qt_add_qml_module(fdss_ui
         ui/views/ImportView.qml
         ui/views/LoadView.qml
         ui/views/MatchDayView.qml
+        ui/views/PlayerCardView.qml
         ui/views/PreMatchView.qml
         ui/views/ProfilePickerView.qml
         ui/views/SettingsView.qml
@@ -84,22 +92,40 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/AppSettings.cpp
         src/viewmodels/AppState.hpp
         src/viewmodels/AppState.cpp
+        src/viewmodels/AvailabilityListModel.hpp
+        src/viewmodels/AvailabilityListModel.cpp
+        src/viewmodels/AvailabilityViewModel.hpp
+        src/viewmodels/AvailabilityViewModel.cpp
         src/viewmodels/ChangePinViewModel.hpp
         src/viewmodels/ChangePinViewModel.cpp
         src/viewmodels/ErrorPresenter.hpp
         src/viewmodels/ErrorPresenter.cpp
+        src/viewmodels/IsoDates.hpp
+        src/viewmodels/IsoDates.cpp
         src/viewmodels/LanguageManager.hpp
         src/viewmodels/LanguageManager.cpp
         src/viewmodels/LockCountdown.hpp
         src/viewmodels/LockCountdown.cpp
         src/viewmodels/NavigationModel.hpp
         src/viewmodels/NavigationModel.cpp
+        src/viewmodels/PlayerCardViewModel.hpp
+        src/viewmodels/PlayerCardViewModel.cpp
+        src/viewmodels/PlayerEditorViewModel.hpp
+        src/viewmodels/PlayerEditorViewModel.cpp
         src/viewmodels/ProfilePickerViewModel.hpp
         src/viewmodels/ProfilePickerViewModel.cpp
         src/viewmodels/ServiceRegistry.hpp
         src/viewmodels/ServiceRegistry.cpp
         src/viewmodels/SetupWizardViewModel.hpp
         src/viewmodels/SetupWizardViewModel.cpp
+        src/viewmodels/SquadFilterModel.hpp
+        src/viewmodels/SquadFilterModel.cpp
+        src/viewmodels/SquadListModel.hpp
+        src/viewmodels/SquadListModel.cpp
+        src/viewmodels/SquadTexts.hpp
+        src/viewmodels/SquadTexts.cpp
+        src/viewmodels/SquadViewModel.hpp
+        src/viewmodels/SquadViewModel.cpp
         src/viewmodels/StaffListModel.hpp
         src/viewmodels/StaffListModel.cpp
         src/viewmodels/StaffViewModel.hpp
