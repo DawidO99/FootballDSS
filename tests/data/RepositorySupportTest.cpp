@@ -2,13 +2,16 @@
 
 #include "RepositoryFixture.hpp"
 #include "data/db/Transaction.hpp"
+#include "data/repositories/OpponentRepository.hpp"
 
 #include <gtest/gtest.h>
 
 #include <chrono>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <vector>
 
 using namespace fdss::core;
@@ -95,6 +98,27 @@ TEST(IsoTextTest, DamagedTimestampFails) {
         ASSERT_FALSE(parsed.has_value()) << text;
         EXPECT_EQ(parsed.error().code, ErrorCode::Database) << text;
     }
+}
+
+// Each of these is a date and time that a lenient ISO parser reads. Without a zone it would be
+// local time, so the end of a lockout would depend on the machine.
+TEST(IsoTextTest, TimestampInAnyOtherFormatFails) {
+    for (const char* text :
+         {"2026-11-01", "2026-11-01T10:00:30", "2026-11-01T10:00Z", "2026-11-01 10:00:30Z",
+          "2026-11-01T10:00:30+00:00", "2026-11-01T10:00:30+01:00", "2026-11-01T10:00:30.000Z",
+          "2026-11-01T24:00:00Z", "2026-11-01t10:00:30z"}) {
+        const auto parsed = parseIsoTimestamp(QString::fromLatin1(text));
+        ASSERT_FALSE(parsed.has_value()) << text;
+        EXPECT_EQ(parsed.error().code, ErrorCode::Database) << text;
+    }
+}
+
+// This hour does not exist in Polish local time: the clocks jump from 02:00 to 03:00.
+TEST(IsoTextTest, TimestampIsNotReadThroughTheLocalZone) {
+    const Timestamp expected = sys_days{2026y / March / 29d} + hours{2} + minutes{30};
+    const auto parsed = parseIsoTimestamp(QStringLiteral("2026-03-29T02:30:00Z"));
+    ASSERT_TRUE(parsed.has_value());
+    EXPECT_EQ(*parsed, expected);
 }
 
 // --- Constraint violations ---
@@ -195,6 +219,78 @@ TEST_F(RepositorySupportFileTest, DatabaseHeldByAnotherProcessIsReportedAsLocked
     EXPECT_EQ(result.error().code, ErrorCode::DatabaseLocked) << result.error().detail;
 
     ASSERT_TRUE(run(other.database(), QStringLiteral("ROLLBACK")));
+}
+
+// --- A lost transaction ---
+
+// SQLITE_FULL for real. It rolls back the whole transaction, so a statement that is not refused
+// commits on its own and survives the destructor of `outer`.
+TEST_F(RepositorySupportFileTest, WriteAfterADiskFullIsRefusedAndNothingIsSaved) {
+    const auto opened = DatabaseManager::open(databasePath(), options());
+    ASSERT_TRUE(opened.has_value()) << opened.error().detail;
+    DatabaseManager& db = **opened;
+    // Far less than the row below needs. SQLite raises the limit to the current size if necessary.
+    ASSERT_TRUE(run(db.database(), QStringLiteral("PRAGMA max_page_count = 100")));
+    OpponentRepository repository(db);
+    const QString countOpponents = QStringLiteral("SELECT count(*) FROM opponent");
+
+    {
+        auto outer = Transaction::begin(db);
+        ASSERT_TRUE(outer.has_value()) << outer.error().detail;
+        ASSERT_TRUE(repository.create(OpponentDraft{"Przed", std::nullopt}).has_value());
+
+        const auto full = repository.create(OpponentDraft{"Duży", std::string(1'000'000, 'x')});
+        ASSERT_FALSE(full.has_value());
+        EXPECT_EQ(full.error().code, ErrorCode::Io) << full.error().detail;
+
+        // EXPECT, not ASSERT: what was saved has to be checked below either way.
+        const auto afterFull = repository.create(OpponentDraft{"Po", std::nullopt});
+        EXPECT_FALSE(afterFull.has_value());
+        if (!afterFull) {
+            EXPECT_EQ(afterFull.error().code, ErrorCode::Database) << afterFull.error().detail;
+        }
+        EXPECT_FALSE(outer->commit().has_value());
+    }
+
+    const RawConnection other(databasePath());
+    EXPECT_EQ(scalar(db.database(), countOpponents).toInt(), 0);
+    EXPECT_EQ(scalar(other.database(), countOpponents).toInt(), 0);
+
+    // Works again afterwards, for what fits.
+    ASSERT_TRUE(repository.create(OpponentDraft{"Później", std::nullopt}).has_value());
+    EXPECT_EQ(scalar(other.database(), countOpponents).toInt(), 1);
+}
+
+// The raw ROLLBACK does what SQLite may do by itself, so a statement that runs commits at once.
+TEST_F(RepositorySupportTest, EveryWayToRunAStatementIsRefusedOnABrokenStack) {
+    const QString write = QStringLiteral("INSERT INTO club (name) VALUES ('Inny')");
+    const QString change = QStringLiteral("UPDATE club SET name = 'Inny'");
+    const QString read = QStringLiteral("SELECT name FROM club");
+    const auto readRow = [](RowReader& reader) { return reader.text(); };
+    const auto expectRefused = [](const auto& result) {
+        ASSERT_FALSE(result.has_value());
+        EXPECT_EQ(result.error().code, ErrorCode::Database) << result.error().detail;
+    };
+    {
+        auto outer = Transaction::begin(*m_db);
+        ASSERT_TRUE(outer.has_value()) << outer.error().detail;
+        ASSERT_TRUE(run(m_db->database(), QStringLiteral("ROLLBACK")));
+        const QSqlError full(QStringLiteral("driver text"), QStringLiteral("database text"),
+                             QSqlError::StatementError, QStringLiteral("13"));
+        std::ignore = statementError(*m_db, full, "test");
+
+        expectRefused(runSql(*m_db, write, {}, "test"));
+        expectRefused(insertRow(*m_db, write, {}, "test"));
+        expectRefused(changeRow(*m_db, change, {}, "test"));
+        expectRefused(requireRow(*m_db, read, {}, "test"));
+        expectRefused(selectOne(*m_db, read, {}, "test", readRow));
+        expectRefused(selectAll(*m_db, read, {}, "test", readRow));
+    }
+    EXPECT_EQ(count("SELECT count(*) FROM club"), 1);
+    EXPECT_EQ(selectOne(*m_db, read, {}, "test", readRow).value(), "KS Test");
+
+    // Destroying the outermost Transaction ends it.
+    EXPECT_TRUE(insertRow(*m_db, write, {}, "test").has_value());
 }
 
 // --- Statements ---
@@ -383,6 +479,49 @@ TEST_F(RepositorySupportTest, RowReaderReadsColumnsFromLeftToRight) {
     EXPECT_EQ(row->position, Position::Gk);
     EXPECT_EQ(row->noPosition, std::nullopt);
     EXPECT_EQ(row->player, PlayerId{7});
+}
+
+// 4294967296 is the value that a plain conversion to int silently turns into 0.
+TEST_F(RepositorySupportTest, IntegerOutsideTheIntRangeFailsAndNamesTheColumn) {
+    const QString select = QStringLiteral("SELECT ? AS goals");
+    for (const qlonglong value : {2147483648LL, -2147483649LL, 4294967296LL}) {
+        SCOPED_TRACE(value);
+        const auto required = selectOne(*m_db, select, {value}, "test",
+                                        [](RowReader& reader) { return reader.integer(); });
+        ASSERT_FALSE(required.has_value());
+        EXPECT_EQ(required.error().code, ErrorCode::Database);
+        EXPECT_NE(required.error().detail.find("goals"), std::string::npos)
+            << required.error().detail;
+
+        const auto optional = selectOne(*m_db, select, {value}, "test",
+                                        [](RowReader& reader) { return reader.optionalInteger(); });
+        ASSERT_FALSE(optional.has_value());
+        EXPECT_EQ(optional.error().code, ErrorCode::Database);
+        EXPECT_NE(optional.error().detail.find("goals"), std::string::npos)
+            << optional.error().detail;
+    }
+}
+
+TEST_F(RepositorySupportTest, IntegerAtTheEndsOfTheIntRangeIsRead) {
+    for (const int value : {std::numeric_limits<int>::min(), std::numeric_limits<int>::max()}) {
+        const QVariantList values{value};
+        const auto required = selectOne(*m_db, QStringLiteral("SELECT ?"), values, "test",
+                                        [](RowReader& reader) { return reader.integer(); });
+        ASSERT_TRUE(required.has_value()) << required.error().detail;
+        EXPECT_EQ(*required, value);
+
+        const auto optional = selectOne(*m_db, QStringLiteral("SELECT ?"), values, "test",
+                                        [](RowReader& reader) { return reader.optionalInteger(); });
+        ASSERT_TRUE(optional.has_value()) << optional.error().detail;
+        EXPECT_EQ(*optional, value);
+    }
+}
+
+TEST_F(RepositorySupportTest, NullInARequiredIntegerFails) {
+    const auto row = selectOne(*m_db, QStringLiteral("SELECT NULL AS goals"), {}, "test",
+                               [](RowReader& reader) { return reader.integer(); });
+    ASSERT_FALSE(row.has_value());
+    EXPECT_EQ(row.error().code, ErrorCode::Database);
 }
 
 TEST_F(RepositorySupportTest, RowReaderKeepsTheFirstErrorAsADatabaseError) {

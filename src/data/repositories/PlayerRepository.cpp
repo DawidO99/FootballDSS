@@ -75,6 +75,9 @@ core::Status PlayerRepository::update(core::PlayerId id, const core::PlayerDraft
 }
 
 core::Status PlayerRepository::archive(core::PlayerId id, core::Date date) {
+    if (auto supported = checkSupportedDate(date, "archived_at"); !supported) {
+        return supported;
+    }
     return changeRow(
         m_db,
         QStringLiteral("UPDATE player SET archived_at = COALESCE(archived_at, ?) WHERE id = ?"),

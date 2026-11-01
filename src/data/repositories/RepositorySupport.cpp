@@ -5,11 +5,13 @@
 #include <QByteArray>
 #include <QDate>
 #include <QDateTime>
+#include <QSqlRecord>
 #include <QTime>
 #include <QTimeZone>
 
 #include <chrono>
 #include <format>
+#include <limits>
 
 namespace fdss::data {
 
@@ -74,6 +76,13 @@ core::Error statementError(DatabaseManager& db, const QSqlError& error, std::str
 
 core::Result<QSqlQuery> runSql(DatabaseManager& db, const QString& sql, const QVariantList& values,
                                std::string_view context, ForeignKeyFailure foreignKeyFailure) {
+    // After a lost transaction this statement would run on its own and commit at once.
+    if (db.isTransactionBroken()) {
+        return std::unexpected(core::Error{
+            core::ErrorCode::Database,
+            std::format("{}: an earlier error may have rolled back the transaction", context),
+            {}});
+    }
     QSqlQuery query(db.database());
     query.setForwardOnly(true);
     if (!query.prepare(sql)) {
@@ -128,6 +137,16 @@ core::Status requireRow(DatabaseManager& db, const QString& sql, const QVariantL
     return std::unexpected(rowNotFound(context));
 }
 
+core::Status checkSupportedDate(core::Date date, std::string_view field) {
+    if (core::isSupportedDate(date)) {
+        return {};
+    }
+    return std::unexpected(core::Error{
+        core::ErrorCode::InvalidInput,
+        std::format("date {} is outside the supported range", toIsoDate(date).toStdString()),
+        std::string(field)});
+}
+
 QString toIsoDate(core::Date date) {
     return QString::fromStdString(std::format("{:04}-{:02}-{:02}", static_cast<int>(date.year()),
                                               static_cast<unsigned>(date.month()),
@@ -165,10 +184,13 @@ QString toIsoTimestamp(core::Timestamp timestamp) {
 
 core::Result<core::Timestamp> parseIsoTimestamp(const QString& text) {
     const QDateTime dateTime = QDateTime::fromString(text, Qt::ISODate);
-    if (!dateTime.isValid()) {
+    const core::Timestamp timestamp{std::chrono::seconds{dateTime.toSecsSinceEpoch()}};
+    // Qt::ISODate also reads other forms, some of them as local time. Only what toIsoTimestamp()
+    // writes comes back as the same text.
+    if (!dateTime.isValid() || toIsoTimestamp(timestamp) != text) {
         return std::unexpected(damagedValue("timestamp", text));
     }
-    return core::Timestamp{std::chrono::seconds{dateTime.toSecsSinceEpoch()}};
+    return timestamp;
 }
 
 QVariant textValue(std::string_view text) {
@@ -226,14 +248,29 @@ std::optional<std::string> RowReader::optionalText() {
     return value.isNull() ? std::nullopt : std::optional(value.toString().toStdString());
 }
 
-int RowReader::integer() { return next().toInt(); }
+int RowReader::checkedInt(const QVariant& value) {
+    bool isNumber = false;
+    const qlonglong number = value.toLongLong(&isNumber);
+    if (isNumber && number >= std::numeric_limits<int>::min() &&
+        number <= std::numeric_limits<int>::max()) {
+        return static_cast<int>(number);
+    }
+    keepFirstError(core::Error{core::ErrorCode::Database,
+                               std::format("column '{}': stored value '{}' does not fit an int",
+                                           m_query.record().fieldName(m_column - 1).toStdString(),
+                                           value.toString().toStdString()),
+                               {}});
+    return 0;
+}
+
+int RowReader::integer() { return checkedInt(next()); }
 
 std::optional<int> RowReader::optionalInteger() {
     const QVariant value = next();
-    return value.isNull() ? std::nullopt : std::optional(value.toInt());
+    return value.isNull() ? std::nullopt : std::optional(checkedInt(value));
 }
 
-bool RowReader::boolean() { return next().toInt() != 0; }
+bool RowReader::boolean() { return integer() != 0; }
 
 std::vector<std::uint8_t> RowReader::bytes() {
     const QByteArray value = next().toByteArray();

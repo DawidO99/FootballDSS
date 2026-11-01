@@ -85,6 +85,9 @@ core::Status AvailabilityRepository::update(core::AvailabilityId id,
 }
 
 core::Status AvailabilityRepository::close(core::AvailabilityId id, core::Date actualTo) {
+    if (auto supported = checkSupportedDate(actualTo, "actual_to"); !supported) {
+        return supported;
+    }
     return changeRow(m_db, QStringLiteral("UPDATE availability SET actual_to = ? WHERE id = ?"),
                      {dateValue(actualTo), idValue(id)}, "close availability");
 }

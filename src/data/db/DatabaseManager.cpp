@@ -143,6 +143,8 @@ core::Error DatabaseManager::sqlError(const QSqlError& error, std::string_view c
     return describeSqlError(error, context);
 }
 
+bool DatabaseManager::isTransactionBroken() const { return m_transactionBroken; }
+
 core::Status DatabaseManager::execSql(const QString& sql, std::string_view context) {
     // After a lost transaction this statement would run on its own and commit at once.
     if (m_transactionBroken) {

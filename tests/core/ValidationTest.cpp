@@ -17,6 +17,9 @@ constexpr int kCurrentYear = 2026;
 constexpr Date kDate = 2026y / November / 10d;
 constexpr Date kDayBefore = 2026y / November / 9d;
 constexpr Date kImpossibleDate = 2026y / February / 30d;
+constexpr std::array kSupportedEnds{1900y / January / 1d, 2100y / December / 31d};
+constexpr std::array kUnsupportedDates{1899y / December / 31d, 2101y / January / 1d,
+                                       0y / January / 1d};
 
 // N characters, each of them two bytes in UTF-8.
 std::string polishName(std::size_t length) {
@@ -203,6 +206,62 @@ TEST(ValidationTest, SeasonFollowsTheSchemaFormat) {
     EXPECT_FALSE(hasError("1999/00"));
     for (const char* bad : {"", "2026", "26/27", "2026-27", "2026/2027", "abcd/ef"}) {
         EXPECT_TRUE(hasError(bad)) << bad;
+    }
+}
+
+// --- Supported dates ---
+
+TEST(ValidationTest, SupportedDatesAreRealDatesFrom1900To2100) {
+    EXPECT_EQ(kMinSupportedDate, kSupportedEnds.front());
+    EXPECT_EQ(kMaxSupportedDate, kSupportedEnds.back());
+    EXPECT_TRUE(isSupportedDate(kDate));
+    for (const Date date : kSupportedEnds) {
+        EXPECT_TRUE(isSupportedDate(date));
+    }
+    for (const Date date : kUnsupportedDates) {
+        EXPECT_FALSE(isSupportedDate(date));
+    }
+    EXPECT_FALSE(isSupportedDate(kImpossibleDate));
+    EXPECT_FALSE(isSupportedDate(Date{}));
+}
+
+TEST(ValidationTest, EveryDateFieldAcceptsTheEndsOfTheSupportedRange) {
+    for (const Date date : kSupportedEnds) {
+        AvailabilityDraft availability;
+        availability.fromDate = date;
+        availability.expectedTo = date;
+        availability.actualTo = date;
+        EXPECT_TRUE(validate(availability).empty());
+
+        MatchDraft match = validMatch();
+        match.date = date;
+        EXPECT_TRUE(validate(match).empty());
+
+        TrainingSessionDraft session = validSession();
+        session.date = date;
+        EXPECT_TRUE(validate(session).empty());
+    }
+}
+
+// All three availability dates are equal, so only the range can reject the end dates.
+TEST(ValidationTest, EveryDateFieldRejectsDatesOutsideTheSupportedRange) {
+    for (const Date date : kUnsupportedDates) {
+        AvailabilityDraft availability;
+        availability.fromDate = date;
+        availability.expectedTo = date;
+        availability.actualTo = date;
+        const ValidationErrors errors = validate(availability);
+        EXPECT_TRUE(hasField(errors, "from_date"));
+        EXPECT_TRUE(hasField(errors, "expected_to"));
+        EXPECT_TRUE(hasField(errors, "actual_to"));
+
+        MatchDraft match = validMatch();
+        match.date = date;
+        EXPECT_TRUE(hasField(validate(match), "date"));
+
+        TrainingSessionDraft session = validSession();
+        session.date = date;
+        EXPECT_TRUE(hasField(validate(session), "date"));
     }
 }
 

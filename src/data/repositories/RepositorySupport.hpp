@@ -19,9 +19,10 @@
 #include <utility>
 #include <vector>
 
-// What every repository shares. Every statement goes through runSql(), so its failure reaches
+// What every repository shares. Every statement goes through runSql(), which refuses to run after a
+// lost transaction, because the statement would commit on its own, and reports a failure through
 // DatabaseManager::sqlError(). A repository returns at the first error (AGENTS section 7, P06
-// Decisions): after a lost transaction a further statement would commit on its own.
+// Decisions).
 
 namespace fdss::data {
 
@@ -35,8 +36,9 @@ enum class ForeignKeyFailure { MissingParent, RowInUse };
 statementError(DatabaseManager& db, const QSqlError& error, std::string_view context,
                ForeignKeyFailure foreignKeyFailure = ForeignKeyFailure::MissingParent);
 
-// Prepares, binds positional values and runs one statement. Keep the returned query only as long as
-// its rows are needed: it must be gone before the Transaction around it ends.
+// Prepares, binds positional values and runs one statement. On a broken transaction stack it
+// returns Database without running anything. Keep the returned query only as long as its rows are
+// needed: it must be gone before the Transaction around it ends.
 [[nodiscard]] core::Result<QSqlQuery>
 runSql(DatabaseManager& db, const QString& sql, const QVariantList& values,
        std::string_view context,
@@ -57,11 +59,16 @@ changeRow(DatabaseManager& db, const QString& sql, const QVariantList& values,
 [[nodiscard]] core::Status requireRow(DatabaseManager& db, const QString& sql,
                                       const QVariantList& values, std::string_view context);
 
+// For a method that takes a bare date, which no core::validate() sees. Outside the supported range:
+// InvalidInput with `field`.
+[[nodiscard]] core::Status checkSupportedDate(core::Date date, std::string_view field);
+
 // --- ISO text. Dates YYYY-MM-DD, times HH:MM, timestamps UTC yyyy-MM-ddTHH:mm:ssZ. ---
 //
 // Formatting keeps an impossible value visible (2026-02-30), so the CHECK of the column rejects it;
 // it never turns into NULL, which a nullable column would accept. Stored text that does not parse
-// means a damaged database: Database.
+// means a damaged database: Database. A timestamp in any other form does not parse either: without
+// a zone it would mean local time, and the end of a lockout would depend on the machine.
 
 [[nodiscard]] QString toIsoDate(core::Date date);
 [[nodiscard]] core::Result<core::Date> parseIsoDate(const QString& text);
@@ -132,6 +139,8 @@ public:
 private:
     [[nodiscard]] QVariant next();
     void keepFirstError(const core::Error& error);
+    // `value` is the column just read. One that does not fit an int is an error, never truncated.
+    [[nodiscard]] int checkedInt(const QVariant& value);
 
     template <class T> [[nodiscard]] T unwrap(core::Result<T> value) {
         if (value) {

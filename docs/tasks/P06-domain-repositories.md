@@ -130,6 +130,24 @@ Decided by the plan and accepted:
   `textValue()` never passes a null string, and an empty `pin_hash` is stored without an error. The
   repository only stores the bytes; `AuthService` (P07a) always writes a derived key.
 
+**Review decisions (one round).**
+- `runSql()`, the one path of every repository statement, checks the new
+  `DatabaseManager::isTransactionBroken()` first and returns `Database` without running anything, as
+  `execSql()` does. A real `SQLITE_FULL` rolled back the whole transaction, and the next write committed
+  on its own and survived the destructor of the outer `Transaction`.
+- `RowReader::integer()` and `optionalInteger()` return `Database` naming the column for a value that
+  does not fit `int`, instead of truncating it. `boolean()` reads through `integer()`.
+- Supported dates are 1900-01-01 to 2100-12-31 (`core::isSupportedDate()`), used by `validate()` for
+  every date field. `archive()` and `close()` take a bare date that no `validate()` sees, so they check
+  it themselves: `InvalidInput` with `field` = `archived_at` / `actual_to`. Reading is not limited to
+  the range.
+- `parseIsoTimestamp()` accepts only `yyyy-MM-ddTHH:mm:ssZ`. A date alone or a time without a zone is
+  `Database`: read as local time it would make the end of a lockout depend on the machine.
+- SPEC §6 now states the availability rules of decisions 1 and 2.
+
+**Scope extension of the review:** `DatabaseManager::isTransactionBroken()` in `src/data/db/`, the
+availability rules in `docs/SPEC.md` §6.
+
 **Known limitations.**
 - `metric_value` references `training_session` and `match` with `RESTRICT`, so a session or match with
   metric values cannot be deleted: `remove` and `removePlanned` return `Conflict` (for a match also

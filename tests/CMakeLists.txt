@@ -37,6 +37,7 @@ add_executable(fdss_tests
     data/RepositorySupportTest.cpp
     data/SchemaTest.cpp
     data/StaffRepositoryTest.cpp
+    data/SupportedDatesTest.cpp
     data/TestDatabase.hpp
     data/TrainingRepositoryTest.cpp
     data/TransactionTest.cpp

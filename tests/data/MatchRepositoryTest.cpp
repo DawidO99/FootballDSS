@@ -259,6 +259,15 @@ TEST_F(MatchRepositoryTest, NegativeGoalsAreInvalidInput) {
                ErrorCode::InvalidInput);
 }
 
+// The schema has no upper limit on goals; a plain conversion to int would read this as 0.
+TEST_F(MatchRepositoryTest, GoalsThatDoNotFitAnIntAreADatabaseError) {
+    ASSERT_TRUE(sql("UPDATE match SET goals_for = 4294967296 WHERE id = 1"));
+    const auto match = repository().get(kMatch);
+    ASSERT_FALSE(match.has_value());
+    EXPECT_EQ(match.error().code, ErrorCode::Database);
+    EXPECT_NE(match.error().detail.find("goals_for"), std::string::npos) << match.error().detail;
+}
+
 TEST_F(MatchRepositoryTest, SetResultOfAMissingMatchIsNotFound) {
     expectCode(repository().setResult(kNoMatch, 1, 1, MatchStatus::Finished), ErrorCode::NotFound);
 }

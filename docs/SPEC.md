@@ -149,6 +149,11 @@ local, no time zone), times of day as `HH:MM`, lockout and `import_log` timestam
 wellness scores 1–5; every foreign key indexed; `ON DELETE RESTRICT` except for pure child rows
 (attendance → session, appearance/match_event → match: `CASCADE`).
 
+Availability status: `actual_to` is the first available day; with `actual_to` empty, `suspension` and
+`absence` stay active through `expected_to` inclusive, while for `injury` and `illness` `expected_to`
+does not affect the status. Overlapping entries resolve as `injury` > `illness` > `suspension` >
+`absence`.
+
 All tables are `STRICT` (SQLite 3.37 or newer), so column types are enforced. Every table has
 `id INTEGER PRIMARY KEY` except where noted. Columns are `NOT NULL` unless marked *null*. `import_id` is always *null* and references `import_log`: it marks rows an import created, so
 the import can be undone.

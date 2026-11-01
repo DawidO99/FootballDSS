@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include <optional>
+#include <string>
 
 using namespace fdss::core;
 using namespace fdss::data;
@@ -194,6 +195,38 @@ TEST_F(StaffRepositoryTest, SetLoginStateStoresTheLockoutInUtc) {
     ASSERT_TRUE(cleared.has_value());
     EXPECT_EQ(cleared->failedAttempts, 0);
     EXPECT_EQ(cleared->lockedUntil, std::nullopt);
+}
+
+// The schema allows these values; a plain conversion to int would read them as 0.
+TEST_F(StaffRepositoryTest, CredentialsThatDoNotFitAnIntAreADatabaseError) {
+    for (const char* column : {"iterations", "failed_attempts"}) {
+        SCOPED_TRACE(column);
+        const StaffUserId id = create();
+        ASSERT_TRUE(run(m_db->database(),
+                        QStringLiteral("UPDATE staff_user SET %1 = 4294967296 WHERE id = ?")
+                            .arg(QString::fromLatin1(column)),
+                        {idValue(id)}));
+
+        const auto credentials = repository().credentials(id);
+        ASSERT_FALSE(credentials.has_value());
+        EXPECT_EQ(credentials.error().code, ErrorCode::Database);
+        EXPECT_NE(credentials.error().detail.find(column), std::string::npos)
+            << credentials.error().detail;
+    }
+}
+
+TEST_F(StaffRepositoryTest, LockoutOutsideTheUtcFormatIsADatabaseError) {
+    const StaffUserId id = create();
+    for (const char* text : {"2026-11-01", "2026-11-01T10:00:30"}) {
+        SCOPED_TRACE(text);
+        ASSERT_TRUE(run(m_db->database(),
+                        QStringLiteral("UPDATE staff_user SET locked_until = ? WHERE id = ?"),
+                        {QString::fromLatin1(text), idValue(id)}));
+
+        const auto credentials = repository().credentials(id);
+        ASSERT_FALSE(credentials.has_value());
+        EXPECT_EQ(credentials.error().code, ErrorCode::Database);
+    }
 }
 
 TEST_F(StaffRepositoryTest, SetLoginStateOfAMissingUserIsNotFound) {

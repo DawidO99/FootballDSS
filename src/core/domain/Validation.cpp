@@ -58,7 +58,7 @@ void checkTime(ValidationErrors& errors, std::string_view field,
 void checkEndDate(ValidationErrors& errors, std::string_view field, const std::optional<Date>& end,
                   Date from) {
     // A broken start is reported on its own field; ordering against it would mean nothing.
-    if (end && (!end->ok() || (from.ok() && *end < from))) {
+    if (end && (!isSupportedDate(*end) || (isSupportedDate(from) && *end < from))) {
         add(errors, field);
     }
 }
@@ -140,7 +140,7 @@ ValidationErrors validate(const PlayerDraft& draft, int currentYear) {
 
 ValidationErrors validate(const AvailabilityDraft& draft) {
     ValidationErrors errors;
-    if (!draft.fromDate.ok()) {
+    if (!isSupportedDate(draft.fromDate)) {
         add(errors, "from_date");
     }
     checkEndDate(errors, "expected_to", draft.expectedTo, draft.fromDate);
@@ -156,7 +156,7 @@ ValidationErrors validate(const OpponentDraft& draft) {
 
 ValidationErrors validate(const MatchDraft& draft) {
     ValidationErrors errors;
-    if (!draft.date.ok()) {
+    if (!isSupportedDate(draft.date)) {
         add(errors, "date");
     }
     checkTime(errors, "kickoff_time", draft.kickoffTime);
@@ -186,7 +186,7 @@ ValidationErrors validate(const MatchEventDraft& draft) {
 
 ValidationErrors validate(const TrainingSessionDraft& draft) {
     ValidationErrors errors;
-    if (!draft.date.ok()) {
+    if (!isSupportedDate(draft.date)) {
         add(errors, "date");
     }
     checkTime(errors, "start_time", draft.startTime);
