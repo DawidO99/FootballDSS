@@ -1,10 +1,11 @@
 #include "viewmodels/ProfilePickerViewModel.hpp"
 
 #include "services/AuthService.hpp"
+#include "services/Clock.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 
-#include <chrono>
+#include <algorithm>
 #include <utility>
 
 namespace fdss::viewmodels {
@@ -17,7 +18,7 @@ constexpr std::chrono::seconds kLockTick{1};
 
 ProfilePickerViewModel::ProfilePickerViewModel(QObject* parent)
     : QObject(parent), m_auth(ServiceRegistry::instance().auth()),
-      m_staff(new StaffListModel(this)) {
+      m_clock(ServiceRegistry::instance().clock()), m_staff(new StaffListModel(this)) {
     m_lockTimer.setInterval(kLockTick);
     connect(&m_lockTimer, &QTimer::timeout, this, &ProfilePickerViewModel::tickLock);
     reload();
@@ -101,16 +102,20 @@ void ProfilePickerViewModel::login(const QString& pin) {
         setMessage(ErrorPresenter::pinCheckMessage(*check));
         break;
     case services::PinCheckStatus::LockedOut:
-        showLock(check->lockedFor.count());
+        startLock(check->lockedFor);
         break;
     }
     emit pinRejected();
 }
 
 void ProfilePickerViewModel::tickLock() {
-    if (m_lockSeconds > 0) {
-        showLock(m_lockSeconds - 1);
+    if (m_lockSeconds <= 0) {
+        return;
     }
+    const std::chrono::seconds left = m_lockEnd - m_clock.now();
+    // More than a whole lockout left means the clock was moved back; the service treats that as
+    // expired too (P07a decision 8).
+    showLock(left > services::kLockoutDuration ? 0 : std::max<qint64>(left.count(), 0));
 }
 
 void ProfilePickerViewModel::readLock() {
@@ -123,7 +128,12 @@ void ProfilePickerViewModel::readLock() {
         report(left.error());
         return;
     }
-    showLock(left->count());
+    startLock(*left);
+}
+
+void ProfilePickerViewModel::startLock(std::chrono::seconds left) {
+    m_lockEnd = m_clock.now() + left;
+    showLock(left.count());
 }
 
 void ProfilePickerViewModel::showLock(qint64 seconds) {

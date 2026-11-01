@@ -2,6 +2,7 @@
 // critical or fatal message, when the Polish translation is not applied, or when preferences do not
 // survive a restart.
 
+#include "../services/FakeClock.hpp"
 #include "core/domain/Club.hpp"
 #include "core/domain/StaffUser.hpp"
 #include "core/domain/Team.hpp"
@@ -82,6 +83,8 @@ int g_warningCount = 0;
 // A critical message that a test provokes on purpose. Anything else stays a problem.
 const char* g_expectedCritical = nullptr;
 int g_expectedCriticalCount = 0;
+// Owned by the installed registry, so a lockout can end without waiting for it.
+fdss::tests::FakeClock* g_clock = nullptr;
 
 void countingMessageHandler(QtMsgType type, const QMessageLogContext& context,
                             const QString& message) {
@@ -248,6 +251,9 @@ fdss::data::DatabaseManager* installRegistry(AppState::State state) {
     fdss::data::DatabaseManager* const database = opened->get();
     fdss::viewmodels::RegistryOptions options;
     options.pinIterations = kPinIterations;
+    auto clock = std::make_unique<fdss::tests::FakeClock>();
+    g_clock = clock.get();
+    options.clock = std::move(clock);
     ServiceRegistry::install(ServiceRegistry::create(std::move(*opened), std::move(options)));
     if (state == AppState::State::NeedsSetup) {
         return database;
@@ -708,9 +714,8 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
     if (pinField->isEnabled() || loginButton->isEnabled()) {
         fail("a locked profile can still enter a PIN");
     }
-    for (int second = 0; second < 30 && picker->locked(); ++second) {
-        picker->tickLock();
-    }
+    g_clock->advance(fdss::services::kLockoutDuration);
+    picker->tickLock();
     settle();
     if (!pinField->isEnabled() || !loginButton->isEnabled()) {
         fail("the PIN field and the login button did not come back after the lockout");

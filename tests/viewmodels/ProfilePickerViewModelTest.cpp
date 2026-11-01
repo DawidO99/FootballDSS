@@ -170,6 +170,59 @@ TEST_F(ProfilePickerViewModelTest, TheLockoutCountsDownAndEnds) {
     EXPECT_TRUE(registry().session().user().has_value());
 }
 
+TEST_F(ProfilePickerViewModelTest, OneTickAfterASleepLongerThanTheLockoutUnlocks) {
+    ProfilePickerViewModel picker;
+    picker.select(m_coach.value);
+    failLogin(picker, 5);
+    ASSERT_TRUE(picker.locked());
+
+    m_clock->advance(std::chrono::seconds{31});
+    picker.tickLock();
+
+    EXPECT_FALSE(picker.locked());
+    EXPECT_TRUE(picker.message().isEmpty());
+    picker.login(QString::fromLatin1(kPin));
+    EXPECT_TRUE(registry().session().user().has_value());
+}
+
+TEST_F(ProfilePickerViewModelTest, OneTickAfterAShorterSleepShowsTheTrueTime) {
+    ProfilePickerViewModel picker;
+    picker.select(m_coach.value);
+    failLogin(picker, 5);
+
+    m_clock->advance(std::chrono::seconds{12});
+    picker.tickLock();
+
+    EXPECT_TRUE(picker.locked());
+    EXPECT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 18 s."));
+}
+
+TEST_F(ProfilePickerViewModelTest, ATickWithoutTimePassingChangesNothing) {
+    ProfilePickerViewModel picker;
+    picker.select(m_coach.value);
+    failLogin(picker, 5);
+
+    for (int i = 0; i < 30; ++i) {
+        picker.tickLock();
+    }
+
+    EXPECT_TRUE(picker.locked());
+    EXPECT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 30 s."));
+}
+
+TEST_F(ProfilePickerViewModelTest, AClockMovedBackEndsTheLockoutLikeInTheService) {
+    ProfilePickerViewModel picker;
+    picker.select(m_coach.value);
+    failLogin(picker, 5);
+
+    m_clock->advance(std::chrono::seconds{-40});
+    picker.tickLock();
+
+    EXPECT_FALSE(picker.locked());
+    picker.login(QString::fromLatin1(kPin));
+    EXPECT_TRUE(registry().session().user().has_value());
+}
+
 TEST_F(ProfilePickerViewModelTest, AFailedReadDoesNotKeepTheLockoutAfterItsTime) {
     ProfilePickerViewModel picker;
     QStringList errors;
@@ -205,6 +258,7 @@ TEST_F(ProfilePickerViewModelTest, TheTimerKeepsCountingAfterAFailedRead) {
     breakStaffTable();
     picker.select(m_coach.value);
     ASSERT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 30 s."));
+    m_clock->advance(std::chrono::seconds{1});
 
     QEventLoop loop;
     QObject::connect(&picker, &ProfilePickerViewModel::messageChanged, &loop, &QEventLoop::quit);
@@ -213,22 +267,6 @@ TEST_F(ProfilePickerViewModelTest, TheTimerKeepsCountingAfterAFailedRead) {
 
     EXPECT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 29 s."));
     repairStaffTable();
-}
-
-TEST_F(ProfilePickerViewModelTest, ACountdownThatRanAheadIsCorrectedByTheNextAnswer) {
-    ProfilePickerViewModel picker;
-    picker.select(m_coach.value);
-    failLogin(picker, 5);
-    for (int i = 0; i < 30; ++i) {
-        picker.tickLock(); // the clock of the service has not moved
-    }
-    ASSERT_FALSE(picker.locked());
-
-    picker.login(QString::fromLatin1(kPin));
-
-    EXPECT_TRUE(picker.locked());
-    EXPECT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 30 s."));
-    EXPECT_FALSE(registry().session().user().has_value());
 }
 
 TEST_F(ProfilePickerViewModelTest, TheLockoutSurvivesARestart) {

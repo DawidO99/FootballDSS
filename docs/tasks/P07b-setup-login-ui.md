@@ -84,12 +84,12 @@ and the screenshots), `TopBar` (`AppState.teamName` instead of "My team"), the p
   no hover.
 
 **Review decisions (one round).**
-- The lockout counts down locally (`m_lockSeconds - 1`, a tick per second) with no database read. The
-  database is read only when a profile is selected, and a login answer sets the time left. A failed read
-  gives `errorOccurred` and leaves the timer running, so the PIN field cannot stay disabled after the time
-  is up. The service stays the authority: a countdown that ended early gets the true time from the next
-  answer. A countdown can also run late, because a timer does not tick while the computer sleeps: the
-  field then stays disabled until the countdown ends or the profile is selected again.
+- The lockout counts down from its end time. Selecting a profile and every `LockedOut` answer store
+  `lockEnd = clock.now() + lockedFor`; a tick every second shows `lockEnd - clock.now()`, with no database
+  read. A failed read gives `errorOccurred` and leaves the timer running, so the PIN field cannot stay
+  disabled after the time is up, and the first tick after the computer sleeps shows the true time. More
+  than 30 s left means the clock was moved back and counts as expired, the same rule as in the service
+  (P07a decision 8).
 - A tile that gets the focus scrolls into view (`revealTile`), covered by `exerciseTileScrolling`.
 - `StaffViewModel` checks `ManageStaff` itself before every change (`checkAllowed`), and before the input,
   and does not call the service otherwise (AGENTS §4). The tests tell the two refusals apart by the log.
