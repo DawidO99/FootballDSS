@@ -22,6 +22,9 @@ namespace fdss::data {
 
 namespace {
 
+// The backup name pattern allows six digits: a longer suffix would not count as a backup.
+constexpr int kMaxBackupSuffix = 999999;
+
 struct BackupFile {
     QString timestamp;
     int suffix = 1; // a name without a suffix counts as 1
@@ -58,7 +61,7 @@ core::Result<QString> reserveBackupFile(const QDir& target, const QString& times
     }
 
     const QString stem = QStringLiteral("club-%1-%2").arg(timestamp, reason);
-    for (int suffix = highest + 1;; ++suffix) {
+    for (int suffix = highest + 1; suffix <= kMaxBackupSuffix; ++suffix) {
         const QString path =
             target.filePath(suffix == 1 ? stem + QStringLiteral(".sqlite")
                                         : QStringLiteral("%1-%2.sqlite").arg(stem).arg(suffix));
@@ -75,6 +78,10 @@ core::Result<QString> reserveBackupFile(const QDir& target, const QString& times
                             {}});
         }
     }
+    return std::unexpected(
+        core::Error{core::ErrorCode::Internal,
+                    std::format("no backup suffix left for {}", stem.toStdString()),
+                    {}});
 }
 
 } // namespace

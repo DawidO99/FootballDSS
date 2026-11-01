@@ -164,3 +164,27 @@ Decided by the plan and accepted:
 
 **Scope extension (same PR):** one-sentence documentation changes in `AGENTS.md` §5 and §6 and in
 `docs/tasks/P07a-app-services-auth.md`.
+
+**Review decisions (both rounds).**
+- `Transaction::begin()` stays (decision 1). SQLITE_FULL, IOERR, BUSY, LOCKED, NOMEM or INTERRUPT
+  inside a `Transaction` may roll back the whole transaction by itself, so such an error marks the
+  stack as broken: `execSql()`, `Transaction::begin()` and `commit()` return `Database` until the
+  outermost `Transaction` is destroyed, and nothing of it is saved. Constraint violations do not
+  break the stack.
+- `execSql()` and `sqlError()` are methods of `DatabaseManager`, because the detection needs its
+  state. Every statement goes through them (AGENTS §7). `describeSqlError()` stays a free function
+  for work outside any `Transaction`.
+- All tables in `0001_initial.sql` are `STRICT` (SQLite 3.37 or newer). `0001` was edited for this
+  before the merge: an existing migration is one merged to `main` (AGENTS §7).
+- The backup name is reserved atomically: empty target file with `NewOnly`, then `VACUUM INTO`. On
+  failure only the file this call created is removed.
+- A new suffix is the highest suffix of that second + 1, and pruning never deletes the backup just
+  made.
+- The suffix has at most 6 digits: above 999999 `createBackup` returns `Internal` and creates no file.
+
+**Known limitations.**
+- Concurrent backups from two app instances are not fully protected; the instance lock in W2 closes
+  this.
+- An incomplete backup file left by a crash counts towards the 10 kept backups.
+- Queries with `bindValue()` report a failure through `sqlError()` only afterwards, so they end their
+  work at the first error.

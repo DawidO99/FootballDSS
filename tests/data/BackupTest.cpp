@@ -138,6 +138,33 @@ TEST_F(BackupTest, SuffixContinuesAfterTheHighestOfThatSecond) {
     EXPECT_EQ(QFileInfo(*path).fileName(), QStringLiteral("club-20261101-120000-manual-8.sqlite"));
 }
 
+TEST_F(BackupTest, HighestAllowedSuffixIsStillUsed) {
+    touchBackup(QStringLiteral("club-20261101-120000-manual-999998.sqlite"));
+
+    const auto path = createBackup(m_db->database(), backupDirectory(), "manual", kNoon);
+    ASSERT_TRUE(path.has_value()) << path.error().detail;
+    EXPECT_EQ(QFileInfo(*path).fileName(),
+              QStringLiteral("club-20261101-120000-manual-999999.sqlite"));
+}
+
+TEST_F(BackupTest, SuffixBeyondTheLimitIsInternalAndCreatesNoFile) {
+    const QString highest = QStringLiteral("club-20261101-120000-manual-999999.sqlite");
+    touchBackup(highest);
+
+    const auto path = createBackup(m_db->database(), backupDirectory(), "manual", kNoon);
+    ASSERT_FALSE(path.has_value());
+    EXPECT_EQ(path.error().code, ErrorCode::Internal);
+    EXPECT_EQ(filesIn(backupDirectory()), QStringList{highest});
+}
+
+TEST_F(BackupTest, SevenDigitSuffixIsNotABackup) {
+    touchBackup(QStringLiteral("club-20261101-120000-manual-1000000.sqlite"));
+
+    const auto path = createBackup(m_db->database(), backupDirectory(), "manual", kNoon);
+    ASSERT_TRUE(path.has_value()) << path.error().detail;
+    EXPECT_EQ(QFileInfo(*path).fileName(), QStringLiteral("club-20261101-120000-manual.sqlite"));
+}
+
 TEST_F(BackupTest, NameReservedByAnotherCallIsNotTouched) {
     // An empty file is what a call running right now has just reserved.
     touchBackup(QStringLiteral("club-20261101-120000-manual.sqlite"));

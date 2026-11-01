@@ -156,12 +156,16 @@ CMake targets:
 ## 7. Database rules
 
 - Connection setup: `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;`
-- `PRAGMA journal_mode = WAL` is requested on file databases; if SQLite refuses (network drive,
-  read-only media) the app continues in the default journal mode and logs a warning.
-- Schema changes ONLY via a new numbered migration file. Never edit an existing migration.
+- `PRAGMA journal_mode = WAL` is requested on file databases; if SQLite refuses (for example on a
+  network drive) the app continues in the default journal mode and logs a warning; a database that
+  cannot be written shows the error screen.
+- Schema changes ONLY via a new numbered migration file. Never edit an existing migration. An
+  "existing migration" is one merged to `main`; migrations on an unmerged branch may still be edited.
 - Values in SQL are ONLY bound with `prepare()` + `bindValue()`. Identifiers (table/column names) may
   be composed only from compile-time constants. Every statement goes through `execSql()`/`sqlError()`
   so transaction failures are tracked.
+- Never use `OR ROLLBACK` / `ON CONFLICT ROLLBACK`: they end the whole transaction behind
+  `Transaction`'s back.
 - Multi-row writes run in a transaction. Automatic DB backup before every import and migration
   (keep the 10 newest).
 - No personal data beyond the schema: birth YEAR only, no PESEL, no addresses, no phone numbers.
@@ -220,7 +224,7 @@ first; UI and backend are then built against it independently. Stay inside your 
 ## 12. Forbidden
 
 Qt Widgets, `.ui` files, Qt Charts, `qmlRegisterType`, qmake, Python in app code, CMake build or
-the shipped package, network access from the app (sockets, HTTP, telemetry), string-built SQL, hex colors in views, hardcoded user-visible strings, editing existing
+the shipped package, network access from the app (sockets, HTTP, telemetry), SQL with concatenated values (identifiers only from compile-time constants, see §7), hex colors in views, hardcoded user-visible strings, editing existing
 migrations, silently swallowing errors, deleting or rewriting tests to make them pass.
 
 ## 13. Glossary (PL <-> EN)
