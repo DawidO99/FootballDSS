@@ -28,11 +28,13 @@ construction line in `ServiceRegistry`, file lists in `CMakeLists.txt`, and the 
 | P06 | Claude | High | Codex |
 | P06b | Claude (Antigravity) | Medium | Codex |
 | P07a | Claude | High | Codex |
-| P07b | Claude (Antigravity) or Codex | Medium | the other one |
-| P08 | Codex or Claude (Antigravity) | Medium | the other one |
+| P07b | Claude | Medium (done) | Codex |
+| P08 | Claude | Medium | Codex |
 | P09a | Claude | Medium | Codex |
 | P09b | Claude | High | Codex |
-| P10 | Codex or Claude (Antigravity) | Medium | the other one |
+| P10 | Claude | Medium | Codex |
+
+Claude in Antigravity is the overflow when the Claude Code limit runs low. Gemini is not used.
 
 ## Suggested order
 

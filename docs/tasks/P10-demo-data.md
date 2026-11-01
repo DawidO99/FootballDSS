@@ -2,7 +2,7 @@
 
 **Branch:** `feature/P10-demo-data`
 **Depends on:** P07a merged for the service; the wizard option needs P07b (merge after it)
-**Owner agent:** Codex or Claude in Antigravity (effort Medium)
+**Owner agent:** Claude (effort Medium)
 
 ## Goal
 One click in the first-run wizard creates a complete, believable half-season of a fictional

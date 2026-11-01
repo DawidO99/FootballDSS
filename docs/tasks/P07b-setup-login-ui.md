@@ -2,7 +2,7 @@
 
 **Branch:** `feature/P07b-setup-ui`
 **Depends on:** P07a and P06b merged
-**Owner agent:** Claude in Antigravity or Codex (effort Medium/High)
+**Owner agent:** Claude (effort Medium)
 
 ## Goal
 The screens on top of P07a: a new installation walks the coach through a wizard, every later

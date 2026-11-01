@@ -2,7 +2,7 @@
 
 **Branch:** `feature/Pxx-<slug>`
 **Depends on:** Pyy
-**Owner agent:** <Claude | Codex | Gemini>
+**Owner agent:** Claude (effort <Medium | High>); review: Codex; Claude in Antigravity is the overflow when the Claude Code limit runs low
 
 ## Goal
 One or two sentences: what exists after this packet that did not exist before.

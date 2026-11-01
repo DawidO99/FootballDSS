@@ -2,7 +2,7 @@
 
 **Branch:** `feature/P08-squad`
 **Depends on:** P07a and P06b merged (parallel with P07b, P09a, P09b, P10)
-**Owner agent:** Codex or Claude in Antigravity (effort Medium/High)
+**Owner agent:** Claude (effort Medium)
 
 ## Goal
 The coach manages the squad: a sortable, filterable table, add/edit/archive players with
