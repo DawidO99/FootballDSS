@@ -4,6 +4,10 @@
 #include "services/Session.hpp"
 #include "viewmodels/AppState.hpp"
 
+#include <QEventLoop>
+#include <QStringList>
+#include <QTimer>
+
 #include <gtest/gtest.h>
 
 #include <chrono>
@@ -32,6 +36,26 @@ protected:
         for (int i = 0; i < times; ++i) {
             picker.login(QString::fromLatin1(kWrongPin));
         }
+    }
+
+    // Time goes by for the service and for the countdown alike.
+    void passSeconds(ProfilePickerViewModel& picker, int seconds) {
+        for (int i = 0; i < seconds; ++i) {
+            m_clock->advance(std::chrono::seconds{1});
+            picker.tickLock();
+        }
+    }
+
+    void breakStaffTable() {
+        ASSERT_TRUE(m_db->execSql(QStringLiteral("ALTER TABLE staff_user RENAME TO staff_gone"),
+                                  "break the database")
+                        .has_value());
+    }
+
+    void repairStaffTable() {
+        ASSERT_TRUE(m_db->execSql(QStringLiteral("ALTER TABLE staff_gone RENAME TO staff_user"),
+                                  "repair the database")
+                        .has_value());
     }
 
     StaffUserId m_coach;
@@ -134,18 +158,77 @@ TEST_F(ProfilePickerViewModelTest, TheLockoutCountsDownAndEnds) {
     picker.select(m_coach.value);
     failLogin(picker, 5);
 
-    m_clock->advance(std::chrono::seconds{12});
-    picker.updateLock();
+    passSeconds(picker, 12);
     EXPECT_TRUE(picker.locked());
     EXPECT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 18 s."));
 
-    m_clock->advance(std::chrono::seconds{18});
-    picker.updateLock();
+    passSeconds(picker, 18);
     EXPECT_FALSE(picker.locked());
     EXPECT_TRUE(picker.message().isEmpty());
 
     picker.login(QString::fromLatin1(kPin));
     EXPECT_TRUE(registry().session().user().has_value());
+}
+
+TEST_F(ProfilePickerViewModelTest, AFailedReadDoesNotKeepTheLockoutAfterItsTime) {
+    ProfilePickerViewModel picker;
+    QStringList errors;
+    QObject::connect(&picker, &ProfilePickerViewModel::errorOccurred, &picker,
+                     [&](const QString& text) { errors.append(text); });
+    picker.select(m_coach.value);
+    failLogin(picker, 5);
+    ASSERT_TRUE(picker.locked());
+    breakStaffTable();
+
+    picker.select(m_coach.value);
+
+    EXPECT_EQ(errors.size(), 1);
+    EXPECT_TRUE(picker.locked());
+    EXPECT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 30 s."));
+
+    passSeconds(picker, 29);
+    EXPECT_TRUE(picker.locked());
+    passSeconds(picker, 1);
+    EXPECT_FALSE(picker.locked());
+    EXPECT_TRUE(picker.message().isEmpty());
+    EXPECT_EQ(errors.size(), 1) << "the countdown reads nothing";
+
+    repairStaffTable();
+    picker.login(QString::fromLatin1(kPin));
+    EXPECT_TRUE(registry().session().user().has_value());
+}
+
+TEST_F(ProfilePickerViewModelTest, TheTimerKeepsCountingAfterAFailedRead) {
+    ProfilePickerViewModel picker;
+    picker.select(m_coach.value);
+    failLogin(picker, 5);
+    breakStaffTable();
+    picker.select(m_coach.value);
+    ASSERT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 30 s."));
+
+    QEventLoop loop;
+    QObject::connect(&picker, &ProfilePickerViewModel::messageChanged, &loop, &QEventLoop::quit);
+    QTimer::singleShot(std::chrono::seconds{5}, &loop, &QEventLoop::quit);
+    loop.exec();
+
+    EXPECT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 29 s."));
+    repairStaffTable();
+}
+
+TEST_F(ProfilePickerViewModelTest, ACountdownThatRanAheadIsCorrectedByTheNextAnswer) {
+    ProfilePickerViewModel picker;
+    picker.select(m_coach.value);
+    failLogin(picker, 5);
+    for (int i = 0; i < 30; ++i) {
+        picker.tickLock(); // the clock of the service has not moved
+    }
+    ASSERT_FALSE(picker.locked());
+
+    picker.login(QString::fromLatin1(kPin));
+
+    EXPECT_TRUE(picker.locked());
+    EXPECT_EQ(picker.message(), QStringLiteral("Too many wrong PINs. Try again in 30 s."));
+    EXPECT_FALSE(registry().session().user().has_value());
 }
 
 TEST_F(ProfilePickerViewModelTest, TheLockoutSurvivesARestart) {

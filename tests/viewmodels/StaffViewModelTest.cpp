@@ -2,22 +2,72 @@
 
 #include "ViewModelFixture.hpp"
 #include "services/Session.hpp"
+#include "viewmodels/ErrorPresenter.hpp"
 
 #include <QCoreApplication>
 #include <QEvent>
+#include <QStringList>
 #include <QVariantMap>
 
 #include <gtest/gtest.h>
 
+#include <functional>
+#include <vector>
+
 using namespace fdss::core;
 using namespace fdss::tests;
 using fdss::services::PinCheckStatus;
+using fdss::viewmodels::ErrorPresenter;
 using fdss::viewmodels::StaffListModel;
 using fdss::viewmodels::StaffViewModel;
 
 namespace {
 
 const auto kNewPin = QStringLiteral("5678");
+constexpr auto kRefusedHere = "refused by the viewmodel";
+
+// What gets logged while it lives. The service refuses with the same error code and text for the
+// user, so only the log tells that it was never called.
+class LogCapture {
+public:
+    LogCapture() : m_previous(qInstallMessageHandler(capture)) { s_messages.clear(); }
+    ~LogCapture() { qInstallMessageHandler(m_previous); }
+    LogCapture(const LogCapture&) = delete;
+    LogCapture& operator=(const LogCapture&) = delete;
+
+    [[nodiscard]] static const QStringList& messages() { return s_messages; }
+
+private:
+    static void capture(QtMsgType, const QMessageLogContext&, const QString& message) {
+        s_messages.append(message);
+    }
+
+    static inline QStringList s_messages;
+    QtMessageHandler m_previous;
+};
+
+struct StaffChange {
+    const char* name;
+    std::function<bool(StaffViewModel&, qint64)> run;
+};
+
+std::vector<StaffChange> everyStaffChange() {
+    return {
+        {"add",
+         [](StaffViewModel& staff, qint64) {
+             return staff.add(QStringLiteral("Nowa Osoba"), QStringLiteral("physio"), kNewPin,
+                              kNewPin);
+         }},
+        {"update",
+         [](StaffViewModel& staff, qint64 id) {
+             return staff.update(id, QStringLiteral("Inne Nazwisko"), QStringLiteral("physio"));
+         }},
+        {"resetPin",
+         [](StaffViewModel& staff, qint64 id) { return staff.resetPin(id, kNewPin, kNewPin); }},
+        {"deactivate", [](StaffViewModel& staff, qint64 id) { return staff.deactivate(id); }},
+        {"reactivate", [](StaffViewModel& staff, qint64 id) { return staff.reactivate(id); }},
+    };
+}
 
 class StaffViewModelTest : public ViewModelTest {
 protected:
@@ -25,6 +75,38 @@ protected:
     void SetUp() override {
         ViewModelTest::SetUp();
         m_coach = completeSetup().id;
+    }
+
+    static void expectEveryChangeRefused(StaffViewModel& staff, StaffUserId target) {
+        const QString refusal = ErrorPresenter::message(Error{ErrorCode::PermissionDenied, {}, {}});
+        for (const StaffChange& change : everyStaffChange()) {
+            SCOPED_TRACE(change.name);
+            QStringList errors;
+            const QMetaObject::Connection connection =
+                QObject::connect(&staff, &StaffViewModel::errorOccurred, &staff,
+                                 [&](const QString& text) { errors.append(text); });
+            const SignalCount changed(&staff, &StaffViewModel::staffChanged);
+            const LogCapture log;
+
+            EXPECT_FALSE(change.run(staff, target.value));
+
+            QObject::disconnect(connection);
+            EXPECT_EQ(errors, QStringList{refusal});
+            EXPECT_EQ(changed.count(), 0);
+            ASSERT_EQ(LogCapture::messages().size(), 1) << "the service logs a refusal of its own";
+            EXPECT_TRUE(LogCapture::messages().front().contains(QLatin1StringView(kRefusedHere)));
+        }
+    }
+
+    // Logs the Coach in to read the staff, and the target to prove that the PIN stayed.
+    void expectNothingChanged(const std::vector<StaffUser>& before, StaffUserId target) const {
+        ASSERT_TRUE(registry().auth().login(m_coach, kPin).has_value());
+        const auto after = registry().auth().listAllStaff();
+        ASSERT_TRUE(after.has_value());
+        EXPECT_EQ(*after, before);
+        const auto check = registry().auth().login(target, kPin);
+        ASSERT_TRUE(check.has_value());
+        EXPECT_EQ(check->status, PinCheckStatus::Accepted);
     }
 
     StaffUserId m_coach;
@@ -67,6 +149,49 @@ TEST_F(StaffViewModelTest, WithoutManageStaffAChangeIsRefused) {
     EXPECT_FALSE(staff.deactivate(m_coach.value));
 
     EXPECT_FALSE(message.isEmpty());
+}
+
+TEST_F(StaffViewModelTest, EveryChangeIsRefusedHereForARoleWithoutManageStaff) {
+    const StaffUserId target = addStaff("Anna Cel", Role::Assistant);
+    const StaffUserId assistant = addStaff("Adam Asystent", Role::Assistant);
+    const StaffUserId physio = addStaff("Piotr Fizjo", Role::Physio);
+    const StaffUserId analyst = addStaff("Ewa Analityk", Role::Analyst);
+    const auto before = registry().auth().listAllStaff();
+    ASSERT_TRUE(before.has_value());
+
+    for (const StaffUserId user : {assistant, physio, analyst}) {
+        ASSERT_TRUE(registry().auth().login(user, kPin).has_value());
+        StaffViewModel staff;
+        expectEveryChangeRefused(staff, target);
+    }
+
+    expectNothingChanged(before.value(), target);
+}
+
+TEST_F(StaffViewModelTest, EveryChangeIsRefusedHereAfterALogout) {
+    const StaffUserId target = addStaff("Anna Cel", Role::Assistant);
+    const auto before = registry().auth().listAllStaff();
+    ASSERT_TRUE(before.has_value());
+    StaffViewModel staff; // built while the Coach was logged in, with the list read
+    ASSERT_NE(staff.staff()->find(target.value), nullptr);
+
+    registry().auth().logout();
+    expectEveryChangeRefused(staff, target);
+
+    expectNothingChanged(before.value(), target);
+}
+
+TEST_F(StaffViewModelTest, TheRefusalComesBeforeTheInputIsChecked) {
+    registry().auth().logout();
+    StaffViewModel staff;
+
+    EXPECT_FALSE(staff.add({}, QStringLiteral("physio"), {}, QStringLiteral("1")));
+    EXPECT_FALSE(staff.update(m_coach.value, {}, QStringLiteral("coach")));
+    EXPECT_FALSE(staff.resetPin(m_coach.value, {}, QStringLiteral("1")));
+
+    EXPECT_TRUE(staff.nameError().isEmpty());
+    EXPECT_TRUE(staff.pinError().isEmpty());
+    EXPECT_TRUE(staff.pinRepeatError().isEmpty());
 }
 
 TEST_F(StaffViewModelTest, RoleOptionsOfferEveryRole) {

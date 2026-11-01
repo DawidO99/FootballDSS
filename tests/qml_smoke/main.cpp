@@ -30,6 +30,8 @@
 #include <QQmlComponent>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QRectF>
+#include <QSet>
 #include <QSettings>
 #include <QVariantMap>
 #include <QtQml/QQmlExtensionPlugin>
@@ -695,6 +697,25 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
     }
     window->grabWindow();
 
+    // The controls follow the lockout, and come back when its time is up.
+    auto* pickerView = window->property("profilePicker").value<QQuickItem*>();
+    auto* pinField = pickerView->findChild<QQuickItem*>(QStringLiteral("pinInput"));
+    auto* loginButton = pickerView->findChild<QQuickItem*>(QStringLiteral("loginButton"));
+    if (pinField == nullptr || loginButton == nullptr) {
+        fail("the PIN field or the login button is not there");
+        return;
+    }
+    if (pinField->isEnabled() || loginButton->isEnabled()) {
+        fail("a locked profile can still enter a PIN");
+    }
+    for (int second = 0; second < 30 && picker->locked(); ++second) {
+        picker->tickLock();
+    }
+    settle();
+    if (!pinField->isEnabled() || !loginButton->isEnabled()) {
+        fail("the PIN field and the login button did not come back after the lockout");
+    }
+
     picker->select(picker->staff()->staff().front().id.value);
     settle();
     picker->login(pin);
@@ -707,6 +728,77 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
     }
     window->setProperty("sidebarCollapsed", false);
     settle();
+}
+
+// With more tiles than fit, a tile that gets the focus by Tab scrolls into view, down and, when Tab
+// wraps around, up again. Expects a loaded Main.qml in the state NeedsLogin with the Coach of
+// installRegistry().
+void exerciseTileScrolling(QQmlApplicationEngine& engine) {
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* picker = pickerOf(window);
+    if (picker == nullptr) {
+        fail("the picker is not there");
+        return;
+    }
+    auto& auth = ServiceRegistry::instance().auth();
+    const qint64 coachId = picker->staff()->staff().front().id.value;
+    if (const auto login = auth.login(fdss::core::StaffUserId{coachId}, "1234");
+        !login || login->status != fdss::services::PinCheckStatus::Accepted) {
+        fail("the coach cannot log in to add the staff");
+        return;
+    }
+    constexpr int kAddedStaff = 24;
+    for (int i = 1; i <= kAddedStaff; ++i) {
+        fdss::core::StaffUserDraft draft;
+        draft.name = QStringLiteral("Osoba %1").arg(i).toStdString();
+        if (!auth.addStaff(draft, "1234")) {
+            fail("cannot add the staff");
+            return;
+        }
+    }
+    auth.logout();
+    picker->reload();
+    settle();
+
+    auto* view = window->property("profilePicker").value<QQuickItem*>();
+    auto* area = view->findChild<QQuickItem*>(QStringLiteral("tilesArea"));
+    if (area == nullptr) {
+        fail("the area of the tiles is not there");
+        return;
+    }
+    if (area->property("contentHeight").toReal() <= area->height()) {
+        fail("the tiles fit, so this proves nothing");
+        return;
+    }
+
+    QSet<QQuickItem*> focusedTiles;
+    bool scrolledDown = false;
+    bool scrolledUp = false;
+    qreal lastContentY = area->property("contentY").toReal();
+    constexpr int kTabPresses = 3 * kAddedStaff; // more than one way around
+    for (int press = 0; press < kTabPresses; ++press) {
+        pressKey(window, Qt::Key_Tab);
+        QQuickItem* focused = window->activeFocusItem();
+        if (focused == nullptr || !QLatin1StringView(focused->metaObject()->className())
+                                       .startsWith(QLatin1StringView("ProfileTile"))) {
+            continue;
+        }
+        focusedTiles.insert(focused);
+        const QRectF rect = focused->mapRectToItem(area, focused->boundingRect());
+        if (rect.top() < 0 || rect.bottom() > area->height()) {
+            fail("Tab reached a tile outside of the visible area");
+        }
+        const qreal contentY = area->property("contentY").toReal();
+        scrolledDown = scrolledDown || contentY > lastContentY;
+        scrolledUp = scrolledUp || contentY < lastContentY;
+        lastContentY = contentY;
+    }
+    if (focusedTiles.size() != kAddedStaff + 1) {
+        fail("Tab did not reach every tile");
+    }
+    if (!scrolledDown || !scrolledUp) {
+        fail("Tab did not scroll the tiles both ways");
+    }
 }
 
 // One user logs in over another, with no logout in between. The state stays Ready, yet the views
@@ -962,6 +1054,9 @@ int main(int argc, char* argv[]) {
                 leftBehind = exerciseMainWindow(engine, state, screenshotDirectory);
                 if (state == AppState::State::NeedsSetup) {
                     exerciseStateChanges(engine);
+                }
+                if (state == AppState::State::NeedsLogin) {
+                    exerciseTileScrolling(engine);
                 }
                 if (state == AppState::State::Ready) {
                     exerciseDatabaseErrorView(engine, screenshotDirectory);

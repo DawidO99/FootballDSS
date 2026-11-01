@@ -73,6 +73,9 @@ void StaffViewModel::reload() {
 bool StaffViewModel::add(const QString& name, const QString& role, const QString& pin,
                          const QString& pinRepeat) {
     clearErrors();
+    if (!checkAllowed()) {
+        return false;
+    }
     const bool nameValid = checkName(name);
     const bool pinValid = checkPin(pin, pinRepeat);
     if (!nameValid || !pinValid) {
@@ -92,7 +95,7 @@ bool StaffViewModel::add(const QString& name, const QString& role, const QString
 
 bool StaffViewModel::update(qint64 id, const QString& name, const QString& role) {
     clearErrors();
-    if (!checkName(name)) {
+    if (!checkAllowed() || !checkName(name)) {
         return false;
     }
     const auto parsedRole = core::fromDbText<core::Role>(role.toStdString());
@@ -113,18 +116,18 @@ bool StaffViewModel::update(qint64 id, const QString& name, const QString& role)
 
 bool StaffViewModel::resetPin(qint64 id, const QString& pin, const QString& pinRepeat) {
     clearErrors();
-    if (!checkPin(pin, pinRepeat)) {
+    if (!checkAllowed() || !checkPin(pin, pinRepeat)) {
         return false;
     }
     return finish(m_auth.resetPin(core::StaffUserId{id}, pin.toStdString()));
 }
 
 bool StaffViewModel::deactivate(qint64 id) {
-    return finish(m_auth.deactivate(core::StaffUserId{id}));
+    return checkAllowed() && finish(m_auth.deactivate(core::StaffUserId{id}));
 }
 
 bool StaffViewModel::reactivate(qint64 id) {
-    return finish(m_auth.reactivate(core::StaffUserId{id}));
+    return checkAllowed() && finish(m_auth.reactivate(core::StaffUserId{id}));
 }
 
 void StaffViewModel::clearErrors() {
@@ -139,6 +142,15 @@ bool StaffViewModel::eventFilter(QObject* watched, QEvent* event) {
         emit roleOptionsChanged();
     }
     return QObject::eventFilter(watched, event);
+}
+
+bool StaffViewModel::checkAllowed() {
+    if (m_session.isAllowed(core::Permission::ManageStaff)) {
+        return true;
+    }
+    report(core::Error{
+        core::ErrorCode::PermissionDenied, "refused by the viewmodel: ManageStaff is needed", {}});
+    return false;
 }
 
 bool StaffViewModel::checkName(const QString& name) {

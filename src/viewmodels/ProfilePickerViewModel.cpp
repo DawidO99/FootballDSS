@@ -19,7 +19,7 @@ ProfilePickerViewModel::ProfilePickerViewModel(QObject* parent)
     : QObject(parent), m_auth(ServiceRegistry::instance().auth()),
       m_staff(new StaffListModel(this)) {
     m_lockTimer.setInterval(kLockTick);
-    connect(&m_lockTimer, &QTimer::timeout, this, &ProfilePickerViewModel::updateLock);
+    connect(&m_lockTimer, &QTimer::timeout, this, &ProfilePickerViewModel::tickLock);
     reload();
 }
 
@@ -74,7 +74,7 @@ void ProfilePickerViewModel::select(qint64 id) {
         setMessage({});
         emit selectionChanged();
     }
-    updateLock();
+    readLock();
 }
 
 void ProfilePickerViewModel::login(const QString& pin) {
@@ -101,28 +101,38 @@ void ProfilePickerViewModel::login(const QString& pin) {
         setMessage(ErrorPresenter::pinCheckMessage(*check));
         break;
     case services::PinCheckStatus::LockedOut:
-        updateLock();
+        showLock(check->lockedFor.count());
         break;
     }
     emit pinRejected();
 }
 
-void ProfilePickerViewModel::updateLock() {
+void ProfilePickerViewModel::tickLock() {
+    if (m_lockSeconds > 0) {
+        showLock(m_lockSeconds - 1);
+    }
+}
+
+void ProfilePickerViewModel::readLock() {
     if (m_selectedId == 0) {
         return;
     }
     const auto left = m_auth.lockRemaining(core::StaffUserId{m_selectedId});
     if (!left) {
-        m_lockTimer.stop();
+        // A countdown already running goes on: it needs no database.
         report(left.error());
         return;
     }
+    showLock(left->count());
+}
+
+void ProfilePickerViewModel::showLock(qint64 seconds) {
     const bool wasLocked = m_lockSeconds > 0;
-    m_lockSeconds = left->count();
+    m_lockSeconds = seconds;
     if (m_lockSeconds > 0) {
         services::PinCheck check;
         check.status = services::PinCheckStatus::LockedOut;
-        check.lockedFor = *left;
+        check.lockedFor = std::chrono::seconds{m_lockSeconds};
         m_message = ErrorPresenter::pinCheckMessage(check);
         if (!m_lockTimer.isActive()) {
             m_lockTimer.start();

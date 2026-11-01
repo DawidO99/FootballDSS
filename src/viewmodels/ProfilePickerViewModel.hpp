@@ -45,8 +45,9 @@ public:
     Q_INVOKABLE void select(qint64 id);
     Q_INVOKABLE void login(const QString& pin);
 
-    // Reads the time left of the lockout. Runs every second while there is one; public for tests.
-    void updateLock();
+    // One second less of the lockout, with no database: a read that fails must not leave the field
+    // locked after the time is up. The timer calls it; public for tests.
+    void tickLock();
 
 signals:
     void selectionChanged();
@@ -60,6 +61,9 @@ signals:
     void errorOccurred(const QString& message);
 
 private:
+    // The time left as the database has it, when a profile is selected.
+    void readLock();
+    void showLock(qint64 seconds);
     void setMessage(const QString& message);
     void report(const core::Error& error);
 

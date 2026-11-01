@@ -67,6 +67,9 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    // Without a session or without ManageStaff: errorOccurred, and the service is not called. The
+    // service checks the same again (AGENTS section 4).
+    [[nodiscard]] bool checkAllowed();
     [[nodiscard]] bool checkName(const QString& name);
     [[nodiscard]] bool checkPin(const QString& pin, const QString& pinRepeat);
     [[nodiscard]] bool finish(const core::Status& status);

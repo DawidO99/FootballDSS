@@ -83,6 +83,18 @@ and the screenshots), `TopBar` (`AppState.teamName` instead of "My team"), the p
 - The tooltip on the disabled "Deactivate" sits on a wrapper with a `HoverHandler`: a disabled button gets
   no hover.
 
+**Review decisions (one round).**
+- The lockout counts down locally (`m_lockSeconds - 1`, a tick per second) with no database read. The
+  database is read only when a profile is selected, and a login answer sets the time left. A failed read
+  gives `errorOccurred` and leaves the timer running, so the PIN field cannot stay disabled after the time
+  is up. The service stays the authority: a countdown that ended early gets the true time from the next
+  answer. A countdown can also run late, because a timer does not tick while the computer sleeps: the
+  field then stays disabled until the countdown ends or the profile is selected again.
+- A tile that gets the focus scrolls into view (`revealTile`), covered by `exerciseTileScrolling`.
+- `StaffViewModel` checks `ManageStaff` itself before every change (`checkAllowed`), and before the input,
+  and does not call the service otherwise (AGENTS §4). The tests tell the two refusals apart by the log.
+- Rejected: driving saves through the dialogs and the toast in `qml_smoke`. The manual test covers it.
+
 **Removed tests.** `AppStateTest` loses `TestClubButtonGoesFromSetupToReady`,
 `TestClubButtonLogsTheCoachBackIn` and `TestClubButtonReportsACoachWithAnotherPin`: they test the
 temporary API this packet removes. The wizard and picker viewmodel tests take over what they covered.

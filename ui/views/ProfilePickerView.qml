@@ -28,6 +28,14 @@ FocusScope {
             pinInput.forceActiveFocus(Qt.TabFocusReason);
     }
 
+    // Tab can reach a tile below the fold; the keyboard user has to see where the focus went.
+    function revealTile(tile: Item) {
+        if (tile.y < tilesArea.contentY)
+            tilesArea.contentY = tile.y;
+        else if (tile.y + tile.height > tilesArea.contentY + tilesArea.height)
+            tilesArea.contentY = tile.y + tile.height - tilesArea.height;
+    }
+
     Keys.onReturnPressed: root.submit()
     Keys.onEnterPressed: root.submit()
     Keys.onEscapePressed: root.clearPin()
@@ -87,6 +95,7 @@ FocusScope {
                 Flickable {
                     id: tilesArea
 
+                    objectName: "tilesArea"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     contentWidth: width
@@ -114,6 +123,10 @@ FocusScope {
                                 required initials
 
                                 selected: picker.selectedId === staffId
+                                onActiveFocusChanged: {
+                                    if (activeFocus)
+                                        root.revealTile(tile);
+                                }
                                 onClicked: {
                                     picker.select(tile.staffId);
                                     root.focusPin();
@@ -154,6 +167,7 @@ FocusScope {
                         PinField {
                             id: pinInput
 
+                            objectName: "pinInput"
                             Layout.fillWidth: true
                             enabled: !picker.locked
                             error: picker.message
@@ -171,6 +185,7 @@ FocusScope {
                     }
 
                     PrimaryButton {
+                        objectName: "loginButton"
                         Layout.fillWidth: true
                         enabled: !picker.locked
                         touch: true
