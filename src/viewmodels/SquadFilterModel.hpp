@@ -28,7 +28,8 @@ public:
     // exactly that shirt number.
     void setSearchText(const QString& text);
     void setStatusGroup(StatusGroup group);
-    // nullopt: every position. Looks at the primary position.
+    // nullopt: every position. A player passes on the primary or on any secondary position. The
+    // default order, by number ascending, shows those of the primary position first.
     void setPositionGroup(std::optional<core::PositionGroup> group);
     // An archived player passes only with this on, and then only on StatusGroup::All, having no
     // status of today.
@@ -36,6 +37,9 @@ public:
     // A role of SquadListModel. Rows without a value (no number, no age) stay last in both
     // directions.
     void sortByRole(int role, Qt::SortOrder order);
+
+    // The roles of the secondary positions follow the position group; the others are the source's.
+    [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
 
 protected:
     [[nodiscard]] bool filterAcceptsRow(int sourceRow,

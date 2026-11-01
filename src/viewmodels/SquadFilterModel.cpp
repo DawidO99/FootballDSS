@@ -69,6 +69,13 @@ void SquadFilterModel::setPositionGroup(std::optional<core::PositionGroup> group
     beginFilterChange();
     m_positionGroup = group;
     endFilterChange(Direction::Rows);
+    // The default order depends on the group, and so does what the remaining rows show.
+    invalidate();
+    if (rowCount() > 0) {
+        emit dataChanged(
+            index(0, 0), index(rowCount() - 1, 0),
+            {SquadListModel::SecondaryPositionsRole, SquadListModel::PositionTooltipRole});
+    }
 }
 
 void SquadFilterModel::setShowArchived(bool show) {
@@ -82,6 +89,19 @@ void SquadFilterModel::sortByRole(int role, Qt::SortOrder order) {
     sort(0, order);
 }
 
+QVariant SquadFilterModel::data(const QModelIndex& index, int role) const {
+    if (m_positionGroup && index.isValid()) {
+        const core::Player& player = source().playerAt(mapToSource(index).row()).player;
+        if (role == SquadListModel::SecondaryPositionsRole) {
+            return SquadTexts::secondaryPositionCodes(player, m_positionGroup);
+        }
+        if (role == SquadListModel::PositionTooltipRole) {
+            return SquadTexts::positionTooltip(player, m_positionGroup);
+        }
+    }
+    return QSortFilterProxyModel::data(index, role);
+}
+
 bool SquadFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex&) const {
     const services::SquadPlayer& entry = source().playerAt(sourceRow);
     const core::Player& player = entry.player;
@@ -93,7 +113,10 @@ bool SquadFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex&) const
             (m_statusGroup == StatusGroup::Available)) {
         return false;
     }
-    if (m_positionGroup && core::positionGroup(player.primaryPosition) != *m_positionGroup) {
+    if (m_positionGroup && core::positionGroup(player.primaryPosition) != *m_positionGroup &&
+        !std::ranges::any_of(player.secondaryPositions, [this](core::Position position) {
+            return core::positionGroup(position) == *m_positionGroup;
+        })) {
         return false;
     }
     if (m_searchIsNumber) {
@@ -118,6 +141,13 @@ bool SquadFilterModel::lessThan(const QModelIndex& left, const QModelIndex& righ
     };
     switch (sortRole()) {
     case SquadListModel::NumberRole:
+        if (m_positionGroup && sortOrder() == Qt::AscendingOrder) {
+            const bool aPrimary = core::positionGroup(a.player.primaryPosition) == *m_positionGroup;
+            const bool bPrimary = core::positionGroup(b.player.primaryPosition) == *m_positionGroup;
+            if (aPrimary != bPrimary) {
+                return aPrimary;
+            }
+        }
         return compareOptional(a.player.shirtNumber, b.player.shirtNumber, false);
     case SquadListModel::AgeRole:
         // A higher birth year is a lower age.

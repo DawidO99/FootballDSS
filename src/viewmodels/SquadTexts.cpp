@@ -1,5 +1,6 @@
 #include "viewmodels/SquadTexts.hpp"
 
+#include <QStringList>
 #include <QVariantMap>
 
 namespace fdss::viewmodels {
@@ -128,6 +129,36 @@ QString SquadTexts::displayName(const core::Player& player) {
 
 QVariant SquadTexts::age(const std::optional<int>& birthYear, int currentYear) {
     return birthYear ? QVariant(currentYear - *birthYear) : QVariant{};
+}
+
+QVariantList SquadTexts::secondaryPositionCodes(const core::Player& player,
+                                                std::optional<core::PositionGroup> activeGroup) {
+    QVariantList codes;
+    for (const core::Position position : player.secondaryPositions) {
+        codes.append(QVariantMap{
+            {QStringLiteral("code"), positionCode(position)},
+            {QStringLiteral("highlighted"), activeGroup == core::positionGroup(position)}});
+    }
+    return codes;
+}
+
+QString SquadTexts::positionTooltip(const core::Player& player,
+                                    std::optional<core::PositionGroup> activeGroup) {
+    QStringList allNames;
+    QStringList activeNames;
+    for (const core::Position position : player.secondaryPositions) {
+        allNames.append(positionName(position));
+        if (activeGroup == core::positionGroup(position)) {
+            activeNames.append(positionName(position));
+        }
+    }
+    const QString separator = QStringLiteral(", ");
+    if (activeGroup != core::positionGroup(player.primaryPosition) && !activeNames.isEmpty()) {
+        return tr("Secondary position: %1").arg(activeNames.join(separator));
+    }
+    const QString primary = positionName(player.primaryPosition);
+    return allNames.isEmpty() ? primary
+                              : tr("%1. Secondary: %2").arg(primary, allNames.join(separator));
 }
 
 QVariantList SquadTexts::positionOptions() {

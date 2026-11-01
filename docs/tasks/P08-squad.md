@@ -121,6 +121,17 @@ Accepted by the human on 2026-11-01. These override the packet text above (AGENT
 `TopBar.qml`, `PageHeader.qml`, `Card.qml`, `AppDialog.qml`, `ToastHost.qml`, `SelectField.qml`,
 `ui/views/SetupWizardView.qml`.
 
+**Decisions after the manual test: secondary positions.**
+- **The position group filter passes a player on the primary or on any secondary position.**
+- **The position column shows the secondary codes** after the primary one, muted and smaller. Under a
+  group filter the codes of that group have the accent color (and a heavier weight, so not color alone).
+- **Tooltip:** the full names of the primary and the secondary positions. For a row that is in the group
+  through a secondary position only: "Secondary position: Centre back". A row in the group by its primary
+  position keeps the full names, even with a secondary code highlighted.
+- **Order under a group filter:** by number ascending, the default, those of the primary position come
+  first. Any other sort is that column alone; the position column still sorts by the primary position.
+- **Polish term:** "pozycje zapasowe" instead of "pozycje dodatkowe" everywhere, as in the new tooltip.
+
 **Known limitations.**
 - The status is computed when the list is read. `SquadView` reads it again whenever it becomes visible,
   but a screen left open over midnight keeps yesterday's status until then.

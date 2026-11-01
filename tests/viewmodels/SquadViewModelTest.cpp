@@ -12,6 +12,8 @@
 
 #include <chrono>
 #include <optional>
+#include <utility>
+#include <vector>
 
 using namespace fdss::core;
 using namespace fdss::tests;
@@ -34,13 +36,15 @@ protected:
     }
 
     PlayerId addPlayer(const char* firstName, const char* lastName, std::optional<int> number,
-                       Position position, std::optional<int> birthYear = std::nullopt) {
+                       Position position, std::optional<int> birthYear = std::nullopt,
+                       std::vector<Position> secondary = {}) {
         PlayerDraft draft;
         draft.firstName = firstName;
         draft.lastName = lastName;
         draft.shirtNumber = number;
         draft.primaryPosition = position;
         draft.birthYear = birthYear;
+        draft.secondaryPositions = std::move(secondary);
         const auto id = registry().squad().addPlayer(m_team, draft);
         EXPECT_TRUE(id.has_value()) << id.error().detail;
         return id.value_or(PlayerId{});
@@ -83,6 +87,7 @@ protected:
 
 const auto kAvailable = QStringLiteral("available");
 const auto kUnavailable = QStringLiteral("unavailable");
+const auto kDefenders = QStringLiteral("defender");
 
 QStringList names(std::initializer_list<const char*> values) {
     QStringList result;
@@ -115,7 +120,9 @@ TEST_F(SquadViewModelTest, RowShowsItsValues) {
     const QVariantMap row = squad.rowAt(1);
     EXPECT_EQ(row.value(QStringLiteral("number")).toInt(), 4);
     EXPECT_EQ(row.value(QStringLiteral("position")).toString(), QStringLiteral("CB"));
-    EXPECT_FALSE(row.value(QStringLiteral("positionName")).toString().isEmpty());
+    EXPECT_EQ(row.value(QStringLiteral("positionTooltip")).toString(),
+              QStringLiteral("Centre back"));
+    EXPECT_TRUE(row.value(QStringLiteral("secondaryPositions")).toList().isEmpty());
     EXPECT_EQ(row.value(QStringLiteral("age")).toInt(), 2026 - 1990);
     EXPECT_EQ(row.value(QStringLiteral("statusKey")).toString(), QStringLiteral("injured"));
 
@@ -204,6 +211,108 @@ TEST_F(SquadViewModelTest, StatusAndPositionGroupsFilter) {
     EXPECT_EQ(lastNames(squad), names({"Nowak"}));
     squad.setPositionGroup(QStringLiteral("nonsense"));
     EXPECT_EQ(squad.positionGroup(), QStringLiteral("forward"));
+}
+
+TEST_F(SquadViewModelTest, ASecondaryPositionPassesTheGroupFilterBehindThePrimaryOnes) {
+    seedSquad();
+    // A lower number than the centre backs, and yet behind them.
+    addPlayer("Ewa", "Zając", 2, Position::Cm, std::nullopt, {Position::Cb});
+    // No number at all, and yet in front of the player who only can play there.
+    addPlayer("Anna", "Lis", std::nullopt, Position::Lb);
+    SquadViewModel squad;
+    open(squad);
+
+    squad.setPositionGroup(kDefenders);
+    EXPECT_EQ(lastNames(squad), names({"Łukasiewicz", "Lis", "Zając"}));
+
+    squad.setPositionGroup(QStringLiteral("midfielder"));
+    EXPECT_EQ(lastNames(squad), names({"Zając", "Żak"}));
+
+    squad.setPositionGroup(QStringLiteral("all"));
+    EXPECT_EQ(lastNames(squad), names({"Kowalski", "Zając", "Łukasiewicz", "Żak", "Nowak", "Lis"}));
+}
+
+TEST_F(SquadViewModelTest, OnlyTheDefaultOrderPutsSecondaryPositionsBehind) {
+    addPlayer("Adam", "Bak", 5, Position::Cb);
+    addPlayer("Ewa", "Abel", 2, Position::Cm, std::nullopt, {Position::Cb});
+    addPlayer("Jan", "Cis", 9, Position::Lb);
+    SquadViewModel squad;
+    open(squad);
+    squad.setPositionGroup(kDefenders);
+    EXPECT_EQ(lastNames(squad), names({"Bak", "Cis", "Abel"}));
+
+    // By the column of the position: still the primary position.
+    squad.sortBy(QStringLiteral("position"), true);
+    EXPECT_EQ(lastNames(squad), names({"Bak", "Cis", "Abel"}));
+    squad.sortBy(QStringLiteral("position"), false);
+    EXPECT_EQ(lastNames(squad), names({"Abel", "Cis", "Bak"}));
+
+    // A column the user chose, the number descending included, is that column alone.
+    squad.sortBy(QStringLiteral("name"), true);
+    EXPECT_EQ(lastNames(squad), names({"Abel", "Bak", "Cis"}));
+    squad.sortBy(QStringLiteral("number"), false);
+    EXPECT_EQ(lastNames(squad), names({"Cis", "Bak", "Abel"}));
+
+    squad.sortBy(QStringLiteral("number"), true);
+    EXPECT_EQ(lastNames(squad), names({"Bak", "Cis", "Abel"}));
+}
+
+TEST_F(SquadViewModelTest, TheActiveGroupHighlightsItsSecondaryCodes) {
+    const PlayerId id =
+        addPlayer("Ewa", "Zając", 2, Position::Cm, std::nullopt, {Position::Cb, Position::St});
+    SquadViewModel squad;
+    open(squad);
+    const auto codes = [&] {
+        QStringList result;
+        const QVariantList list =
+            squad.rowAt(squad.rowOf(id.value)).value(QStringLiteral("secondaryPositions")).toList();
+        for (const QVariant& code : list) {
+            const QVariantMap map = code.toMap();
+            result.append(map.value(QStringLiteral("code")).toString() +
+                          (map.value(QStringLiteral("highlighted")).toBool() ? u'+' : u'-'));
+        }
+        return result;
+    };
+    EXPECT_EQ(codes(), names({"CB-", "ST-"}));
+
+    SignalCount changed(squad.players(), &QAbstractItemModel::dataChanged);
+    squad.setPositionGroup(kDefenders);
+    EXPECT_EQ(codes(), names({"CB+", "ST-"}));
+    EXPECT_GE(changed.count(), 1);
+
+    squad.setPositionGroup(QStringLiteral("forward"));
+    EXPECT_EQ(codes(), names({"CB-", "ST+"}));
+
+    squad.setPositionGroup(QStringLiteral("all"));
+    EXPECT_EQ(codes(), names({"CB-", "ST-"}));
+}
+
+TEST_F(SquadViewModelTest, TheTooltipSaysWhyTheRowIsInTheGroup) {
+    const PlayerId mixed =
+        addPlayer("Ewa", "Zając", 2, Position::Cm, std::nullopt, {Position::Cb, Position::St});
+    const PlayerId defender =
+        addPlayer("Jan", "Cis", 9, Position::Lb, std::nullopt, {Position::Cb});
+    const PlayerId plain = addPlayer("Adam", "Bak", 5, Position::Cb);
+    SquadViewModel squad;
+    open(squad);
+    const auto tooltip = [&](PlayerId id) {
+        return squad.rowAt(squad.rowOf(id.value))
+            .value(QStringLiteral("positionTooltip"))
+            .toString();
+    };
+    EXPECT_EQ(tooltip(mixed),
+              QStringLiteral("Central midfielder. Secondary: Centre back, Striker"));
+    EXPECT_EQ(tooltip(plain), QStringLiteral("Centre back"));
+
+    squad.setPositionGroup(kDefenders);
+    EXPECT_EQ(tooltip(mixed), QStringLiteral("Secondary position: Centre back"));
+    // In the group by the primary position: nothing to explain, even with a code highlighted.
+    EXPECT_EQ(tooltip(defender), QStringLiteral("Left back. Secondary: Centre back"));
+    EXPECT_EQ(tooltip(plain), QStringLiteral("Centre back"));
+
+    squad.setPositionGroup(QStringLiteral("all"));
+    EXPECT_EQ(tooltip(mixed),
+              QStringLiteral("Central midfielder. Secondary: Centre back, Striker"));
 }
 
 TEST_F(SquadViewModelTest, FilterSearchAndSortWorkTogether) {

@@ -205,12 +205,12 @@ Item {
                     {
                         "role": "name",
                         "title": qsTr("Name"),
-                        "width": 0.42
+                        "width": 0.37
                     },
                     {
                         "role": "position",
                         "title": qsTr("Position"),
-                        "width": 0.15,
+                        "width": 0.2,
                         "delegate": positionCell
                     },
                     {
@@ -237,21 +237,65 @@ Item {
                 DataTableCell {
                     id: cell
 
+                    // Many secondary positions end at the edge of the column; the tooltip has them all.
+                    clip: true
+
                     HoverHandler {
                         id: positionHover
                     }
 
-                    Label {
-                        anchors.fill: parent
-                        text: String(cell.value ?? "")
-                        color: Theme.text
-                        font.pixelSize: Theme.fontSize.body
-                        verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
+                    Row {
+                        height: cell.height
+                        spacing: Theme.spacing.s
+
+                        Label {
+                            height: parent.height
+                            text: String(cell.value ?? "")
+                            color: Theme.text
+                            font.pixelSize: Theme.fontSize.body
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        Row {
+                            height: parent.height
+
+                            Repeater {
+                                model: cell.rowData ? cell.rowData.secondaryPositions : []
+
+                                delegate: Row {
+                                    id: secondaryCode
+
+                                    required property var modelData
+                                    required property int index
+
+                                    height: cell.height
+
+                                    Label {
+                                        height: parent.height
+                                        visible: secondaryCode.index > 0
+                                        //: Between the codes of the secondary positions of a player.
+                                        text: qsTr("·")
+                                        color: Theme.textMuted
+                                        font.pixelSize: Theme.fontSize.caption
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+
+                                    Label {
+                                        objectName: "secondaryCode_" + secondaryCode.modelData.code
+                                        height: parent.height
+                                        text: secondaryCode.modelData.code
+                                        color: secondaryCode.modelData.highlighted ? Theme.accent : Theme.textMuted
+                                        font.pixelSize: Theme.fontSize.caption
+                                        font.weight: secondaryCode.modelData.highlighted ? Font.DemiBold : Font.Normal
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     ToolTip.visible: positionHover.hovered
-                    ToolTip.text: cell.rowData ? cell.rowData.positionName : ""
+                    ToolTip.text: cell.rowData ? cell.rowData.positionTooltip : ""
                     ToolTip.delay: Theme.tooltipDelay
                 }
             }

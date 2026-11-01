@@ -346,7 +346,7 @@
     </message>
     <message>
         <source>Secondary positions</source>
-        <translation>Pozycje dodatkowe</translation>
+        <translation>Pozycje zapasowe</translation>
     </message>
     <message>
         <source>Space opens the list and toggles an item, Enter closes it.</source>
@@ -853,7 +853,7 @@
     </message>
     <message>
         <source>Secondary positions</source>
-        <translation>Pozycje dodatkowe</translation>
+        <translation>Pozycje zapasowe</translation>
     </message>
     <message>
         <source>Birth year</source>
@@ -968,7 +968,7 @@
     </message>
     <message>
         <source>Secondary positions</source>
-        <translation>Pozycje dodatkowe</translation>
+        <translation>Pozycje zapasowe</translation>
     </message>
     <message>
         <source>None</source>
@@ -1443,6 +1443,11 @@
         <translation>Status</translation>
     </message>
     <message>
+        <source>·</source>
+        <extracomment>Between the codes of the secondary positions of a player.</extracomment>
+        <translation>·</translation>
+    </message>
+    <message>
         <source>The squad could not be read</source>
         <translation>Nie udało się odczytać kadry</translation>
     </message>
@@ -1674,7 +1679,7 @@
     </message>
     <message>
         <source>Choose each secondary position once, and not the primary one.</source>
-        <translation>Wybierz każdą pozycję dodatkową raz i bez pozycji głównej.</translation>
+        <translation>Wybierz każdą pozycję zapasową raz i bez pozycji głównej.</translation>
     </message>
     <message>
         <source>Enter the first day of the absence.</source>
@@ -1897,6 +1902,14 @@
     <message>
         <source>Absent</source>
         <translation>Nieobecny</translation>
+    </message>
+    <message>
+        <source>Secondary position: %1</source>
+        <translation>Pozycja zapasowa: %1</translation>
+    </message>
+    <message>
+        <source>%1. Secondary: %2</source>
+        <translation>%1. Zapasowe: %2</translation>
     </message>
 </context>
 <context>

@@ -22,6 +22,14 @@ public:
     // International in every language: GK, RB… (P08 decision 9).
     [[nodiscard]] static QString positionCode(core::Position position);
     [[nodiscard]] static QString positionName(core::Position position);
+    // [{ code, highlighted }] of the secondary positions; highlighted: in the active group.
+    [[nodiscard]] static QVariantList
+    secondaryPositionCodes(const core::Player& player,
+                           std::optional<core::PositionGroup> activeGroup);
+    // Why the player is in the active group when only a secondary position puts them there;
+    // otherwise the full names of the primary and the secondary positions.
+    [[nodiscard]] static QString positionTooltip(const core::Player& player,
+                                                 std::optional<core::PositionGroup> activeGroup);
     [[nodiscard]] static QString footName(core::PreferredFoot foot);
     [[nodiscard]] static QString availabilityTypeName(core::AvailabilityType type);
 

@@ -28,6 +28,7 @@
 #include "viewmodels/StaffViewModel.hpp"
 #include "viewmodels/StartupViewModel.hpp"
 
+#include <QColor>
 #include <QDir>
 #include <QDirIterator>
 #include <QGuiApplication>
@@ -711,6 +712,44 @@ void exerciseSquad(QQmlApplicationEngine& engine, const QString& screenshotDirec
     expectFlag(editorDialog, "visible", false, "Enter in the notes did not save the player");
     if (editor->notes() != QLatin1StringView("x") || squad->players()->rowCount() != 5) {
         fail("Enter in the notes did not add the player");
+    }
+
+    // Iza has GK as a secondary position: muted, and in the accent color under the group filter.
+    auto* theme =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Theme"));
+    const auto secondaryCodeColor = [&] {
+        settle();
+        window->grabWindow();
+        auto* code = findByObjectName(view, QStringLiteral("secondaryCode_GK"));
+        return code != nullptr ? code->property("color").value<QColor>() : QColor{};
+    };
+    fdss::core::PlayerDraft goalkeeper;
+    goalkeeper.firstName = "Olek";
+    goalkeeper.lastName = "Bramka";
+    goalkeeper.shirtNumber = 50;
+    goalkeeper.primaryPosition = fdss::core::Position::Gk;
+    if (!ServiceRegistry::instance()
+             .squad()
+             .addPlayer(fdss::core::TeamId{squad->teamId()}, goalkeeper)
+             .has_value()) {
+        fail("the goalkeeper was not added");
+    }
+    squad->reload();
+    if (secondaryCodeColor() != theme->property("textMuted").value<QColor>()) {
+        fail("a secondary position is not muted without a group filter");
+    }
+    squad->setPositionGroup(QStringLiteral("goalkeeper"));
+    const QColor filteredColor = secondaryCodeColor();
+    capture("squad-secondary-filter");
+    if (filteredColor != theme->property("accent").value<QColor>()) {
+        fail("the secondary position of the filter is not in the accent color");
+    }
+    if (squad->players()->rowCount() != 2) {
+        fail("the group filter does not take secondary positions into account");
+    }
+    squad->setPositionGroup(QStringLiteral("all"));
+    if (secondaryCodeColor() != theme->property("textMuted").value<QColor>()) {
+        fail("a secondary position stayed highlighted after the group filter");
     }
 
     // navigationArgs.playerId opens the card, also when the section is entered that way.

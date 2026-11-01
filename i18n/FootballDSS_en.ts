@@ -1443,6 +1443,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>·</source>
+        <extracomment>Between the codes of the secondary positions of a player.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The squad could not be read</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1896,6 +1901,14 @@
     </message>
     <message>
         <source>Absent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Secondary position: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1. Secondary: %2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

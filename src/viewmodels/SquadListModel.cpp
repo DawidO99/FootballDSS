@@ -37,8 +37,10 @@ QVariant SquadListModel::data(const QModelIndex& index, int role) const {
         return SquadTexts::displayName(player);
     case PositionRole:
         return SquadTexts::positionCode(player.primaryPosition);
-    case PositionNameRole:
-        return SquadTexts::positionName(player.primaryPosition);
+    case SecondaryPositionsRole:
+        return SquadTexts::secondaryPositionCodes(player, std::nullopt);
+    case PositionTooltipRole:
+        return SquadTexts::positionTooltip(player, std::nullopt);
     case AgeRole:
         return SquadTexts::age(player.birthYear, m_currentYear);
     case StatusRole:
@@ -57,7 +59,8 @@ QHash<int, QByteArray> SquadListModel::roleNames() const {
             {NumberRole, "number"},
             {NameRole, "name"},
             {PositionRole, "position"},
-            {PositionNameRole, "positionName"},
+            {SecondaryPositionsRole, "secondaryPositions"},
+            {PositionTooltipRole, "positionTooltip"},
             {AgeRole, "age"},
             {StatusRole, "status"},
             {StatusKeyRole, "statusKey"},
@@ -84,7 +87,7 @@ int SquadListModel::rowOf(qint64 playerId) const {
 
 bool SquadListModel::eventFilter(QObject* watched, QEvent* event) {
     if (event->type() == QEvent::LanguageChange && !m_players.empty()) {
-        emit dataChanged(index(0), index(rowCount() - 1), {PositionNameRole, StatusRole});
+        emit dataChanged(index(0), index(rowCount() - 1), {PositionTooltipRole, StatusRole});
     }
     return QAbstractListModel::eventFilter(watched, event);
 }

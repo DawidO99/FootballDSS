@@ -23,7 +23,9 @@ public:
         NumberRole,
         NameRole,
         PositionRole,
-        PositionNameRole,
+        // [{ code, highlighted }]; SquadFilterModel highlights the codes of the active group.
+        SecondaryPositionsRole,
+        PositionTooltipRole,
         AgeRole,
         StatusRole,
         StatusKeyRole,
