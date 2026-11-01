@@ -1,7 +1,8 @@
 # Start pracy w IDE — kolejność na dziś i jutro
 
 ## Podział ról
-- **IDE + agenci (Claude / Codex / Gemini):** piszą kod według pakietów z `docs/tasks/`.
+- **IDE + agenci (Claude autor, Codex review, Claude in Antigravity jako zapas przy wyczerpanym
+  limicie):** piszą kod według pakietów z `docs/tasks/`.
 - **Rozmowa z promotorem-architektem (czat):** wracasz tam, gdy kończysz weekend, gdy agent proponuje
   zmianę architektury albo stacku, gdy coś blokuje Cię dłużej niż ~30 minut, oraz po kolejne pakiety
   (pakiety rozpisujemy przed każdym weekendem, na podstawie tego, co faktycznie powstało).

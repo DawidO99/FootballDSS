@@ -1,7 +1,8 @@
 # AGENTS.md — FootballDSS
 
-Single source of truth for every AI agent working in this repo (Claude, Codex, Gemini).
-`CLAUDE.md` and `GEMINI.md` only say: "Read and follow AGENTS.md."
+Single source of truth for every AI agent working in this repo. Claude authors the packets, Codex
+reviews them, and Claude in Antigravity is the overflow when the Claude Code limit runs low.
+`CLAUDE.md` and `GEMINI.md` (read by Antigravity) only say: "Read and follow AGENTS.md."
 If a task packet contradicts this file, stop and ask the human.
 
 Document map:
@@ -142,8 +143,9 @@ CMake targets:
 - `.ts` merge conflicts (parallel branches always touch them): never hand-merge XML. Take the
   `main` version, re-run `update_translations`, then translate the entries that came back
   `unfinished`.
-- `AppState.can()` is evaluated when a view is created. Section views are recreated at every login
-  (a `Loader` on state `Ready` in `Main.qml`), so `visible: AppState.can("...")` is correct.
+- `AppState.can()` is evaluated when a view is created. The shell in `Main.qml` is loaded by a
+  `Loader` in state `Ready`, and section views are recreated on every login and every user change
+  (`AppState.sessionSerial`), so `visible: AppState.can("...")` is correct.
 - Keyboard shortcuts inside a view use `enabled: root.visible` (all views stay loaded; only the
   current one is visible), otherwise identical shortcuts in two views block each other.
 - Every user-facing shortcut is only an accelerator for a visible control (button, menu item,

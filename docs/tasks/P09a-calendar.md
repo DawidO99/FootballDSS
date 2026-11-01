@@ -2,7 +2,7 @@
 
 **Branch:** `feature/P09a-calendar`
 **Depends on:** P07a and P06b merged (parallel with P07b, P08, P10)
-**Owner agent:** Claude (effort Medium/High)
+**Owner agent:** Claude (effort Medium)
 
 ## Goal
 The coach plans matches and training sessions and sees them in a list and a week view.
