@@ -244,6 +244,18 @@ TEST_F(TransactionTest, ErrorsThatCanLoseTheTransactionBreakTheStack) {
     }
 }
 
+TEST_F(TransactionTest, IsTransactionBrokenLastsUntilTheOutermostTransactionEnds) {
+    EXPECT_FALSE(m_db->isTransactionBroken());
+    {
+        auto outer = Transaction::begin(*m_db);
+        ASSERT_TRUE(outer.has_value()) << outer.error().detail;
+        EXPECT_FALSE(m_db->isTransactionBroken());
+        std::ignore = m_db->sqlError(errorWithCode("13"), "test");
+        EXPECT_TRUE(m_db->isTransactionBroken());
+    }
+    EXPECT_FALSE(m_db->isTransactionBroken());
+}
+
 TEST_F(TransactionTest, ConstraintViolationsDoNotBreakTheStack) {
     // CONSTRAINT, CHECK, FOREIGNKEY, PRIMARYKEY, UNIQUE
     for (const char* code : {"19", "275", "787", "1555", "2067"}) {

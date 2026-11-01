@@ -1,0 +1,226 @@
+#include "data/repositories/MatchRepository.hpp"
+
+#include "data/db/Transaction.hpp"
+#include "data/repositories/RepositorySupport.hpp"
+
+#include <format>
+#include <string_view>
+
+namespace fdss::data {
+
+namespace {
+
+const auto kSelectMatch =
+    QStringLiteral("SELECT id, team_id, opponent_id, date, kickoff_time, venue, competition, "
+                   "goals_for, goals_against, status, formation FROM match ");
+const auto kMatchExists = QStringLiteral("SELECT 1 FROM match WHERE id = ?");
+
+core::Match readMatch(RowReader& row) {
+    core::Match match;
+    match.id = row.id<core::MatchId>();
+    match.teamId = row.id<core::TeamId>();
+    match.opponentId = row.id<core::OpponentId>();
+    match.date = row.date();
+    match.kickoffTime = row.optionalTime();
+    match.venue = row.enumeration<core::Venue>();
+    match.competition = row.optionalText();
+    match.goalsFor = row.optionalInteger();
+    match.goalsAgainst = row.optionalInteger();
+    match.status = row.enumeration<core::MatchStatus>();
+    match.formation = row.optionalText();
+    return match;
+}
+
+core::Appearance readAppearance(RowReader& row) {
+    core::Appearance appearance;
+    appearance.id = row.id<core::AppearanceId>();
+    appearance.matchId = row.id<core::MatchId>();
+    appearance.playerId = row.id<core::PlayerId>();
+    appearance.started = row.boolean();
+    appearance.minuteOn = row.optionalInteger();
+    appearance.minuteOff = row.optionalInteger();
+    appearance.position = row.optionalEnumeration<core::Position>();
+    appearance.rating = row.optionalInteger();
+    appearance.rpe = row.optionalInteger();
+    return appearance;
+}
+
+core::MatchEvent readEvent(RowReader& row) {
+    core::MatchEvent event;
+    event.id = row.id<core::MatchEventId>();
+    event.matchId = row.id<core::MatchId>();
+    event.minute = row.integer();
+    event.type = row.enumeration<core::MatchEventType>();
+    event.playerId = row.optionalId<core::PlayerId>();
+    event.relatedPlayerId = row.optionalId<core::PlayerId>();
+    return event;
+}
+
+// A statement limited to planned matches changed nothing: either there is no such match, or it is
+// not planned any more.
+core::Status explainNoPlannedMatch(DatabaseManager& db, core::MatchId id,
+                                   std::string_view context) {
+    if (auto exists = requireRow(db, kMatchExists, {idValue(id)}, context); !exists) {
+        return exists;
+    }
+    return std::unexpected(core::Error{
+        core::ErrorCode::Conflict, std::format("{}: the match is not planned", context), {}});
+}
+
+} // namespace
+
+core::Result<std::vector<core::Match>> MatchRepository::list(core::TeamId team,
+                                                             core::DateRange range) const {
+    return selectAll(m_db,
+                     kSelectMatch + QStringLiteral("WHERE team_id = ? "
+                                                   "AND date >= COALESCE(?, '0000-01-01') "
+                                                   "AND date <= COALESCE(?, '9999-12-31') "
+                                                   "ORDER BY date, kickoff_time, id"),
+                     {idValue(team), optionalDateValue(range.from), optionalDateValue(range.to)},
+                     "list matches", readMatch);
+}
+
+core::Result<core::Match> MatchRepository::get(core::MatchId id) const {
+    return selectOne(m_db, kSelectMatch + QStringLiteral("WHERE id = ?"), {idValue(id)},
+                     "get match", readMatch);
+}
+
+core::Result<core::MatchId> MatchRepository::create(core::TeamId team,
+                                                    const core::MatchDraft& draft) {
+    const auto id = insertRow(
+        m_db,
+        QStringLiteral("INSERT INTO match (team_id, opponent_id, date, kickoff_time, venue, "
+                       "competition) VALUES (?, ?, ?, ?, ?, ?)"),
+        {idValue(team), idValue(draft.opponentId), dateValue(draft.date),
+         optionalTimeValue(draft.kickoffTime), enumValue(draft.venue),
+         optionalTextValue(draft.competition)},
+        "create match");
+    if (!id) {
+        return std::unexpected(id.error());
+    }
+    return core::MatchId{*id};
+}
+
+core::Status MatchRepository::updatePlanned(core::MatchId id, const core::MatchDraft& draft) {
+    constexpr std::string_view kContext = "update planned match";
+    auto status = changeRow(
+        m_db,
+        QStringLiteral("UPDATE match SET opponent_id = ?, date = ?, kickoff_time = ?, venue = ?, "
+                       "competition = ? WHERE id = ? AND status = ?"),
+        {idValue(draft.opponentId), dateValue(draft.date), optionalTimeValue(draft.kickoffTime),
+         enumValue(draft.venue), optionalTextValue(draft.competition), idValue(id),
+         enumValue(core::MatchStatus::Planned)},
+        kContext);
+    if (!status && status.error().code == core::ErrorCode::NotFound) {
+        return explainNoPlannedMatch(m_db, id, kContext);
+    }
+    return status;
+}
+
+core::Status MatchRepository::removePlanned(core::MatchId id) {
+    constexpr std::string_view kContext = "delete planned match";
+    auto status = changeRow(m_db, QStringLiteral("DELETE FROM match WHERE id = ? AND status = ?"),
+                            {idValue(id), enumValue(core::MatchStatus::Planned)}, kContext,
+                            ForeignKeyFailure::RowInUse);
+    if (!status && status.error().code == core::ErrorCode::NotFound) {
+        return explainNoPlannedMatch(m_db, id, kContext);
+    }
+    return status;
+}
+
+core::Status MatchRepository::setResult(core::MatchId id, std::optional<int> goalsFor,
+                                        std::optional<int> goalsAgainst, core::MatchStatus status) {
+    return changeRow(
+        m_db,
+        QStringLiteral("UPDATE match SET goals_for = ?, goals_against = ?, status = ? "
+                       "WHERE id = ?"),
+        {optionalValue(goalsFor), optionalValue(goalsAgainst), enumValue(status), idValue(id)},
+        "set match result");
+}
+
+core::Result<std::vector<std::string>> MatchRepository::listCompetitions(core::TeamId team) const {
+    return selectAll(m_db,
+                     QStringLiteral("SELECT competition FROM match "
+                                    "WHERE team_id = ? AND competition IS NOT NULL "
+                                    "GROUP BY competition ORDER BY MAX(date) DESC, competition"),
+                     {idValue(team)}, "list competitions",
+                     [](RowReader& row) { return row.text(); });
+}
+
+core::Status
+MatchRepository::replaceAppearances(core::MatchId match,
+                                    std::span<const core::AppearanceDraft> appearances) {
+    constexpr std::string_view kContext = "replace appearances";
+    auto transaction = Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    // Without this an empty list for a missing match would look like a success.
+    if (auto exists = requireRow(m_db, kMatchExists, {idValue(match)}, kContext); !exists) {
+        return exists;
+    }
+    if (const auto deleted =
+            runSql(m_db, QStringLiteral("DELETE FROM appearance WHERE match_id = ?"),
+                   {idValue(match)}, kContext);
+        !deleted) {
+        return std::unexpected(deleted.error());
+    }
+    for (const core::AppearanceDraft& appearance : appearances) {
+        const auto inserted = insertRow(
+            m_db,
+            QStringLiteral("INSERT INTO appearance (match_id, player_id, started, minute_on, "
+                           "minute_off, position, rating, rpe) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
+            {idValue(match), idValue(appearance.playerId), appearance.started ? 1 : 0,
+             optionalValue(appearance.minuteOn), optionalValue(appearance.minuteOff),
+             optionalEnumValue(appearance.position), optionalValue(appearance.rating),
+             optionalValue(appearance.rpe)},
+            kContext);
+        if (!inserted) {
+            return std::unexpected(inserted.error());
+        }
+    }
+    return transaction->commit();
+}
+
+core::Result<std::vector<core::Appearance>>
+MatchRepository::listAppearances(core::MatchId match) const {
+    return selectAll(m_db,
+                     QStringLiteral("SELECT id, match_id, player_id, started, minute_on, "
+                                    "minute_off, position, rating, rpe FROM appearance "
+                                    "WHERE match_id = ? ORDER BY id"),
+                     {idValue(match)}, "list appearances", readAppearance);
+}
+
+core::Result<core::MatchEventId> MatchRepository::appendEvent(core::MatchId match,
+                                                              const core::MatchEventDraft& draft) {
+    const auto id =
+        insertRow(m_db,
+                  QStringLiteral("INSERT INTO match_event (match_id, minute, type, player_id, "
+                                 "related_player_id) VALUES (?, ?, ?, ?, ?)"),
+                  {idValue(match), draft.minute, enumValue(draft.type),
+                   optionalIdValue(draft.playerId), optionalIdValue(draft.relatedPlayerId)},
+                  "append match event");
+    if (!id) {
+        return std::unexpected(id.error());
+    }
+    return core::MatchEventId{*id};
+}
+
+core::Result<std::vector<core::MatchEvent>> MatchRepository::listEvents(core::MatchId match) const {
+    return selectAll(m_db,
+                     QStringLiteral("SELECT id, match_id, minute, type, player_id, "
+                                    "related_player_id FROM match_event WHERE match_id = ? "
+                                    "ORDER BY minute, id"),
+                     {idValue(match)}, "list match events", readEvent);
+}
+
+core::Result<core::MatchEvent> MatchRepository::deleteLastEvent(core::MatchId match) {
+    return selectOne(
+        m_db,
+        QStringLiteral("DELETE FROM match_event WHERE id = "
+                       "(SELECT MAX(id) FROM match_event WHERE match_id = ?) "
+                       "RETURNING id, match_id, minute, type, player_id, related_player_id"),
+        {idValue(match)}, "delete last match event", readEvent);
+}
+
+} // namespace fdss::data

@@ -141,11 +141,18 @@ rebuilding the table.
 
 Rules: players are archived (`archived_at`), never deleted; shirt number 1–99 (optional), unique among
 non-archived players of a team; birth year (optional) between 1950 and current year − 4 (`CHECK` holds
-only the lower bound because it cannot use the current date; the core validation holds both); names
-1–50 characters after trimming; dates (including `archived_at`) stored as ISO text (`YYYY-MM-DD`,
+only the lower bound because it cannot use the current date; the core validation holds both); player
+first and last names and staff names 1–50 characters after trimming, club, team and opponent names
+1–100 (`CHECK` holds the upper bound only for player names; the core validation holds all of them);
+dates (including `archived_at`) stored as ISO text (`YYYY-MM-DD`,
 local, no time zone), times of day as `HH:MM`, lockout and `import_log` timestamps as UTC ISO datetime;
 wellness scores 1–5; every foreign key indexed; `ON DELETE RESTRICT` except for pure child rows
 (attendance → session, appearance/match_event → match: `CASCADE`).
+
+Availability status: `actual_to` is the first available day; with `actual_to` empty, `suspension` and
+`absence` stay active through `expected_to` inclusive, while for `injury` and `illness` `expected_to`
+does not affect the status. Overlapping entries resolve as `injury` > `illness` > `suspension` >
+`absence`.
 
 All tables are `STRICT` (SQLite 3.37 or newer), so column types are enforced. Every table has
 `id INTEGER PRIMARY KEY` except where noted. Columns are `NOT NULL` unless marked *null*. `import_id` is always *null* and references `import_log`: it marks rows an import created, so

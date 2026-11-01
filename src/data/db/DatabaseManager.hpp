@@ -66,6 +66,9 @@ public:
     // Transaction::begin() and commit() then return Database until the outermost Transaction is
     // destroyed. Constraint violations do not break it.
     [[nodiscard]] core::Error sqlError(const QSqlError& error, std::string_view context);
+    // True from such an error until the outermost Transaction is destroyed. A statement that binds
+    // values cannot use execSql(), so it checks this first and does not run while it holds.
+    [[nodiscard]] bool isTransactionBroken() const;
     // Prepares and runs one statement without parameters.
     [[nodiscard]] core::Status execSql(const QString& sql, std::string_view context);
 
