@@ -156,8 +156,12 @@ CMake targets:
 ## 7. Database rules
 
 - Connection setup: `PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;`
+- `PRAGMA journal_mode = WAL` is requested on file databases; if SQLite refuses (network drive,
+  read-only media) the app continues in the default journal mode and logs a warning.
 - Schema changes ONLY via a new numbered migration file. Never edit an existing migration.
-- Queries ONLY with `prepare()` + `bindValue()`. String-concatenated SQL is forbidden.
+- Values in SQL are ONLY bound with `prepare()` + `bindValue()`. Identifiers (table/column names) may
+  be composed only from compile-time constants. Every statement goes through `execSql()`/`sqlError()`
+  so transaction failures are tracked.
 - Multi-row writes run in a transaction. Automatic DB backup before every import and migration
   (keep the 10 newest).
 - No personal data beyond the schema: birth YEAR only, no PESEL, no addresses, no phone numbers.

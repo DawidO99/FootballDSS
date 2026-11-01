@@ -4,7 +4,10 @@
 -- Migration files must not contain a semicolon inside literals or triggers, and every statement
 -- ends its own line with one.
 --
--- Dates are ISO text (YYYY-MM-DD). "x IS date(x)" rejects anything else, including impossible dates,
+-- All tables are STRICT (SQLite 3.37 or newer): without it INTEGER columns also store 1.5 or 'junk'.
+-- Logical columns hold 0 or 1.
+--
+-- Dates are ISO text (YYYY-MM-DD)."x IS date(x)" rejects anything else, including impossible dates,
 -- and accepts NULL. Times of day are HH:MM; the extra "< 24:00" is needed because the pattern alone
 -- allows hours up to 29. CHECK cannot use the current date, so the upper limit of birth_year is
 -- checked by the core validation.
@@ -12,7 +15,7 @@
 CREATE TABLE schema_version (
     id      INTEGER PRIMARY KEY CHECK (id = 1),
     version INTEGER NOT NULL CHECK (version >= 0)
-);
+) STRICT;
 
 CREATE TABLE import_log (
     id          INTEGER PRIMARY KEY,
@@ -23,12 +26,12 @@ CREATE TABLE import_log (
     rows_ok     INTEGER NOT NULL DEFAULT 0 CHECK (rows_ok >= 0),
     rows_failed INTEGER NOT NULL DEFAULT 0 CHECK (rows_failed >= 0),
     report_json TEXT
-);
+) STRICT;
 
 CREATE TABLE club (
     id   INTEGER PRIMARY KEY,
     name TEXT NOT NULL CHECK (length(trim(name)) > 0)
-);
+) STRICT;
 
 CREATE TABLE team (
     id       INTEGER PRIMARY KEY,
@@ -36,7 +39,7 @@ CREATE TABLE team (
     name     TEXT NOT NULL CHECK (length(trim(name)) > 0),
     category TEXT NOT NULL CHECK (category IN ('senior', 'u19', 'u17', 'u15', 'u13', 'u11', 'other')),
     season   TEXT NOT NULL CHECK (season GLOB '[0-9][0-9][0-9][0-9]/[0-9][0-9]')
-);
+) STRICT;
 CREATE INDEX ix_team_club_id ON team (club_id);
 
 CREATE TABLE staff_user (
@@ -49,7 +52,7 @@ CREATE TABLE staff_user (
     failed_attempts INTEGER NOT NULL DEFAULT 0 CHECK (failed_attempts >= 0),
     locked_until    TEXT,
     active          INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))
-);
+) STRICT;
 
 CREATE TABLE player (
     id                  INTEGER PRIMARY KEY,
@@ -64,7 +67,7 @@ CREATE TABLE player (
     notes               TEXT,
     archived_at         TEXT CHECK (archived_at IS date(archived_at)),
     import_id           INTEGER REFERENCES import_log (id) ON DELETE RESTRICT
-);
+) STRICT;
 CREATE INDEX ix_player_team_id ON player (team_id);
 CREATE INDEX ix_player_import_id ON player (import_id);
 -- An archived player frees the number, and any number of players can have none.
@@ -79,7 +82,7 @@ CREATE TABLE availability (
     expected_to TEXT CHECK (expected_to IS date(expected_to) AND expected_to >= from_date),
     actual_to   TEXT CHECK (actual_to IS date(actual_to) AND actual_to >= from_date),
     description TEXT
-);
+) STRICT;
 CREATE INDEX ix_availability_player_id ON availability (player_id);
 CREATE INDEX ix_availability_from_date ON availability (from_date);
 
@@ -88,7 +91,7 @@ CREATE TABLE opponent (
     name     TEXT NOT NULL CHECK (length(trim(name)) > 0),
     name_key TEXT NOT NULL UNIQUE,
     notes    TEXT
-);
+) STRICT;
 
 CREATE TABLE match (
     id            INTEGER PRIMARY KEY,
@@ -103,7 +106,7 @@ CREATE TABLE match (
     status        TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'live', 'finished')),
     formation     TEXT,
     import_id     INTEGER REFERENCES import_log (id) ON DELETE RESTRICT
-);
+) STRICT;
 CREATE INDEX ix_match_team_id ON match (team_id);
 CREATE INDEX ix_match_opponent_id ON match (opponent_id);
 CREATE INDEX ix_match_date ON match (date);
@@ -121,7 +124,7 @@ CREATE TABLE appearance (
     rpe        INTEGER CHECK (rpe BETWEEN 0 AND 10),
     import_id  INTEGER REFERENCES import_log (id) ON DELETE RESTRICT,
     UNIQUE (match_id, player_id)
-);
+) STRICT;
 CREATE INDEX ix_appearance_player_id ON appearance (player_id);
 CREATE INDEX ix_appearance_import_id ON appearance (import_id);
 
@@ -133,7 +136,7 @@ CREATE TABLE match_event (
     player_id         INTEGER REFERENCES player (id) ON DELETE RESTRICT,
     related_player_id INTEGER REFERENCES player (id) ON DELETE RESTRICT,
     CHECK (type = 'opponent_goal' OR player_id IS NOT NULL)
-);
+) STRICT;
 CREATE INDEX ix_match_event_match_id ON match_event (match_id);
 CREATE INDEX ix_match_event_player_id ON match_event (player_id);
 CREATE INDEX ix_match_event_related_player_id ON match_event (related_player_id);
@@ -147,7 +150,7 @@ CREATE TABLE training_session (
     type         TEXT NOT NULL CHECK (type IN ('training', 'match_prep', 'recovery', 'gym', 'other')),
     note         TEXT,
     import_id    INTEGER REFERENCES import_log (id) ON DELETE RESTRICT
-);
+) STRICT;
 CREATE INDEX ix_training_session_team_id ON training_session (team_id);
 CREATE INDEX ix_training_session_date ON training_session (date);
 CREATE INDEX ix_training_session_import_id ON training_session (import_id);
@@ -162,7 +165,7 @@ CREATE TABLE attendance (
     import_id        INTEGER REFERENCES import_log (id) ON DELETE RESTRICT,
     UNIQUE (session_id, player_id),
     CHECK (status = 'present' OR (rpe IS NULL AND minutes_override IS NULL))
-);
+) STRICT;
 CREATE INDEX ix_attendance_player_id ON attendance (player_id);
 CREATE INDEX ix_attendance_import_id ON attendance (import_id);
 
@@ -176,7 +179,7 @@ CREATE TABLE wellness (
     stress    INTEGER NOT NULL CHECK (stress BETWEEN 1 AND 5),
     mood      INTEGER NOT NULL CHECK (mood BETWEEN 1 AND 5),
     UNIQUE (player_id, date)
-);
+) STRICT;
 CREATE INDEX ix_wellness_date ON wellness (date);
 
 CREATE TABLE metric_definition (
@@ -192,7 +195,7 @@ CREATE TABLE metric_definition (
     scope            TEXT NOT NULL CHECK (scope IN ('match', 'training', 'player')),
     higher_is_better INTEGER NOT NULL DEFAULT 1 CHECK (higher_is_better IN (0, 1)),
     CHECK (min <= max)
-);
+) STRICT;
 
 CREATE TABLE metric_value (
     id         INTEGER PRIMARY KEY,
@@ -204,7 +207,7 @@ CREATE TABLE metric_value (
     value      REAL NOT NULL,
     import_id  INTEGER REFERENCES import_log (id) ON DELETE RESTRICT,
     CHECK (match_id IS NULL OR session_id IS NULL)
-);
+) STRICT;
 CREATE INDEX ix_metric_value_metric_id ON metric_value (metric_id);
 CREATE INDEX ix_metric_value_player_id ON metric_value (player_id);
 CREATE INDEX ix_metric_value_match_id ON metric_value (match_id);
@@ -218,7 +221,7 @@ CREATE TABLE player_attribute (
     attribute TEXT NOT NULL CHECK (length(attribute) > 0),
     rating    INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 10),
     date      TEXT NOT NULL CHECK (date IS date(date))
-);
+) STRICT;
 CREATE INDEX ix_player_attribute_player_id ON player_attribute (player_id);
 CREATE INDEX ix_player_attribute_date ON player_attribute (date);
 
@@ -229,7 +232,7 @@ CREATE TABLE lineup (
     formation     TEXT NOT NULL,
     tactic_json   TEXT NOT NULL,
     CHECK ((match_id IS NULL) <> (template_name IS NULL))
-);
+) STRICT;
 CREATE INDEX ix_lineup_match_id ON lineup (match_id);
 
 CREATE TABLE event_data_file (
@@ -238,5 +241,5 @@ CREATE TABLE event_data_file (
     provider TEXT NOT NULL CHECK (length(provider) > 0),
     path     TEXT NOT NULL,
     hash     TEXT NOT NULL
-);
+) STRICT;
 CREATE INDEX ix_event_data_file_match_id ON event_data_file (match_id);

@@ -20,21 +20,25 @@ constexpr auto kPreMigrationReason = "pre_migration";
 // SQLite primary result codes (sqlite3.h is not part of the Qt API).
 constexpr int kSqliteBusy = 5;
 constexpr int kSqliteLocked = 6;
+constexpr int kSqliteNoMemory = 7;
 constexpr int kSqliteReadOnly = 8;
+constexpr int kSqliteInterrupt = 9;
 constexpr int kSqliteIoError = 10;
 constexpr int kSqliteCorrupt = 11;
 constexpr int kSqliteFull = 13;
 constexpr int kSqliteCantOpen = 14;
 constexpr int kSqliteNotADatabase = 26;
 
-core::ErrorCode errorCodeFor(const QSqlError& error) {
+// 0 when the error carries no SQLite code. Extended result codes keep the primary code in the low
+// byte.
+int primaryResultCode(const QSqlError& error) {
     bool isNumber = false;
     const int nativeCode = error.nativeErrorCode().toInt(&isNumber);
-    if (!isNumber) {
-        return core::ErrorCode::Database;
-    }
-    // Extended result codes keep the primary code in the low byte.
-    switch (nativeCode & 0xFF) {
+    return isNumber ? nativeCode & 0xFF : 0;
+}
+
+core::ErrorCode errorCodeFor(const QSqlError& error) {
+    switch (primaryResultCode(error)) {
     case kSqliteNotADatabase:
     case kSqliteCorrupt:
         return core::ErrorCode::NotADatabase;
@@ -51,23 +55,46 @@ core::ErrorCode errorCodeFor(const QSqlError& error) {
     }
 }
 
+// The errors after which SQLite may have rolled back the whole transaction by itself.
+bool mayLoseTheTransaction(const QSqlError& error) {
+    switch (primaryResultCode(error)) {
+    case kSqliteFull:
+    case kSqliteIoError:
+    case kSqliteBusy:
+    case kSqliteLocked:
+    case kSqliteNoMemory:
+    case kSqliteInterrupt:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// For opening a connection, where no Transaction can be open yet.
+core::Status execStatement(const QSqlDatabase& db, const QString& sql, std::string_view context) {
+    QSqlQuery query(db);
+    if (!query.prepare(sql) || !query.exec()) {
+        return std::unexpected(describeSqlError(query.lastError(), context));
+    }
+    return {};
+}
+
 // Sets what every connection needs: busy timeout and enforced foreign keys.
 core::Status connect(QSqlDatabase& db, const QString& databaseName, int busyTimeoutMs) {
     db.setDatabaseName(databaseName);
-    // A connect option, not a PRAGMA: PRAGMA values cannot be bound and string-built SQL is
-    // forbidden.
+    // A connect option, not a PRAGMA: PRAGMA values cannot be bound.
     db.setConnectOptions(QStringLiteral("QSQLITE_BUSY_TIMEOUT=%1").arg(busyTimeoutMs));
     if (!db.open()) {
-        return std::unexpected(sqlError(db.lastError(), "open database"));
+        return std::unexpected(describeSqlError(db.lastError(), "open database"));
     }
     if (auto status =
-            execSql(db, QStringLiteral("PRAGMA foreign_keys = ON"), "enable foreign keys");
+            execStatement(db, QStringLiteral("PRAGMA foreign_keys = ON"), "enable foreign keys");
         !status) {
         return status;
     }
     QSqlQuery query(db);
     if (!query.prepare(QStringLiteral("PRAGMA foreign_keys")) || !query.exec() || !query.next()) {
-        return std::unexpected(sqlError(query.lastError(), "read foreign_keys"));
+        return std::unexpected(describeSqlError(query.lastError(), "read foreign_keys"));
     }
     if (query.value(0).toInt() != 1) {
         return std::unexpected(
@@ -80,7 +107,7 @@ core::Status enableWal(const QSqlDatabase& db) {
     QSqlQuery query(db);
     if (!query.prepare(QStringLiteral("PRAGMA journal_mode = WAL")) || !query.exec() ||
         !query.next()) {
-        return std::unexpected(sqlError(query.lastError(), "enable WAL"));
+        return std::unexpected(describeSqlError(query.lastError(), "enable WAL"));
     }
     // SQLite keeps the old mode where WAL is impossible (some network drives). The app still works.
     const QString mode = query.value(0).toString();
@@ -93,28 +120,50 @@ core::Status enableWal(const QSqlDatabase& db) {
 // In WAL mode reads are not blocked by a writer, so only taking the write lock shows a database
 // held by another process.
 core::Status checkWriteLock(const QSqlDatabase& db) {
-    if (auto status = execSql(db, QStringLiteral("BEGIN IMMEDIATE"), "take the write lock");
+    if (auto status = execStatement(db, QStringLiteral("BEGIN IMMEDIATE"), "take the write lock");
         !status) {
         return status;
     }
-    return execSql(db, QStringLiteral("ROLLBACK"), "release the write lock");
+    return execStatement(db, QStringLiteral("ROLLBACK"), "release the write lock");
 }
 
 } // namespace
 
-core::Error sqlError(const QSqlError& error, std::string_view context) {
+core::Error describeSqlError(const QSqlError& error, std::string_view context) {
     return core::Error{errorCodeFor(error),
                        std::format("{}: {} (SQLite code {})", context, error.text().toStdString(),
                                    error.nativeErrorCode().toStdString()),
                        {}};
 }
 
-core::Status execSql(const QSqlDatabase& db, const QString& sql, std::string_view context) {
-    QSqlQuery query(db);
+core::Error DatabaseManager::sqlError(const QSqlError& error, std::string_view context) {
+    if (m_transactionDepth > 0 && mayLoseTheTransaction(error)) {
+        m_transactionBroken = true;
+    }
+    return describeSqlError(error, context);
+}
+
+core::Status DatabaseManager::execSql(const QString& sql, std::string_view context) {
+    // After a lost transaction this statement would run on its own and commit at once.
+    if (m_transactionBroken) {
+        return std::unexpected(brokenTransactionError());
+    }
+    return runStatement(sql, context);
+}
+
+core::Status DatabaseManager::runStatement(const QString& sql, std::string_view context) {
+    QSqlQuery query(database());
     if (!query.prepare(sql) || !query.exec()) {
         return std::unexpected(sqlError(query.lastError(), context));
     }
     return {};
+}
+
+core::Error DatabaseManager::brokenTransactionError() {
+    return core::Error{core::ErrorCode::Database,
+                       "an earlier error may have rolled back the transaction; destroy the "
+                       "outermost Transaction before going on",
+                       {}};
 }
 
 core::Result<std::unique_ptr<DatabaseManager>> DatabaseManager::open(const QString& filePath,
@@ -265,7 +314,7 @@ core::Result<QString> DatabaseManager::backup(std::string_view reason) {
     auto path = createBackup(database(), directory, reason, QDateTime::currentDateTime());
     if (path) {
         // The new backup exists, so a leftover old file is worth a log line, not a failure.
-        if (const auto pruned = pruneBackups(directory); !pruned) {
+        if (const auto pruned = pruneBackups(directory, *path); !pruned) {
             qWarning("DatabaseManager: %s", pruned.error().detail.c_str());
         }
     }

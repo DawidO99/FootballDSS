@@ -23,9 +23,13 @@ void logIfFailed(const core::Status& status) {
 } // namespace
 
 core::Result<Transaction> Transaction::begin(DatabaseManager& db) {
+    // On a lost transaction a SAVEPOINT would start a new one, which its RELEASE would then commit.
+    if (db.m_transactionBroken) {
+        return std::unexpected(DatabaseManager::brokenTransactionError());
+    }
     const int depth = db.m_transactionDepth + 1;
     const QString sql = depth == 1 ? QStringLiteral("BEGIN IMMEDIATE") : kSavepoint;
-    if (auto status = execSql(db.database(), sql, "begin transaction"); !status) {
+    if (auto status = db.runStatement(sql, "begin transaction"); !status) {
         return std::unexpected(status.error());
     }
     db.m_transactionDepth = depth;
@@ -42,14 +46,21 @@ Transaction::~Transaction() {
         return;
     }
     Q_ASSERT(m_db->m_transactionDepth == m_depth);
-    const QSqlDatabase connection = m_db->database();
-    // Failures are logged: a destructor has no caller to report to, and SQLite may already have
-    // rolled back by itself (disk full, for example).
+    // Failures are logged: a destructor has no caller to report to.
     if (m_depth == 1) {
-        logIfFailed(execSql(connection, QStringLiteral("ROLLBACK"), "roll back"));
-    } else {
-        logIfFailed(execSql(connection, kRollbackToSavepoint, "roll back to savepoint"));
-        logIfFailed(execSql(connection, kReleaseSavepoint, "release savepoint"));
+        // On a broken stack SQLite may have rolled back already, and this then fails harmlessly.
+        logIfFailed(m_db->runStatement(QStringLiteral("ROLLBACK"), "roll back"));
+        m_db->m_transactionBroken = false;
+    } else if (!m_db->m_transactionBroken) {
+        const core::Status rolledBack =
+            m_db->runStatement(kRollbackToSavepoint, "roll back to savepoint");
+        const core::Status released = m_db->runStatement(kReleaseSavepoint, "release savepoint");
+        logIfFailed(rolledBack);
+        logIfFailed(released);
+        // The savepoint is gone, so the transaction was lost in a way sqlError() did not see.
+        if (!rolledBack || !released) {
+            m_db->m_transactionBroken = true;
+        }
     }
     m_db->m_transactionDepth = m_depth - 1;
 }
@@ -59,12 +70,19 @@ core::Status Transaction::commit() {
         return std::unexpected(
             core::Error{core::ErrorCode::Internal, "transaction is already finished", {}});
     }
+    if (m_db->m_transactionBroken) {
+        return std::unexpected(DatabaseManager::brokenTransactionError());
+    }
     if (m_db->m_transactionDepth != m_depth) {
         return std::unexpected(
             core::Error{core::ErrorCode::Internal, "an inner transaction is still open", {}});
     }
     const QString sql = m_depth == 1 ? QStringLiteral("COMMIT") : kReleaseSavepoint;
-    if (auto status = execSql(m_db->database(), sql, "commit transaction"); !status) {
+    if (auto status = m_db->runStatement(sql, "commit transaction"); !status) {
+        // A savepoint that cannot be released is gone: see the destructor.
+        if (m_depth > 1) {
+            m_db->m_transactionBroken = true;
+        }
         return status;
     }
     m_db->m_transactionDepth = m_depth - 1;

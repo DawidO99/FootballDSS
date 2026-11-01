@@ -29,12 +29,9 @@ struct OpenOptions {
 };
 
 // Turns a failed QtSql call into an Error. The SQLite result code picks the ErrorCode; `context`
-// (what was being done) goes into detail.
-[[nodiscard]] core::Error sqlError(const QSqlError& error, std::string_view context);
-
-// Prepares and runs one statement without parameters.
-[[nodiscard]] core::Status execSql(const QSqlDatabase& db, const QString& sql,
-                                   std::string_view context);
+// (what was being done) goes into detail. Only for work outside any Transaction: opening a
+// connection, backups. A statement on database() uses DatabaseManager::sqlError() instead.
+[[nodiscard]] core::Error describeSqlError(const QSqlError& error, std::string_view context);
 
 // Owns the connection of the thread that opened the database. Repositories ask for it on each call
 // and never store a copy.
@@ -62,6 +59,16 @@ public:
     [[nodiscard]] int schemaVersion() const;
     [[nodiscard]] QString filePath() const; // empty for in-memory
 
+    // Every statement on database() runs through execSql() or reports its failure through
+    // sqlError(). After SQLITE_FULL, IOERR, BUSY, LOCKED, NOMEM or INTERRUPT inside a Transaction,
+    // SQLite may have rolled back the whole transaction by itself, and anything run afterwards
+    // would commit on its own. So such an error marks the stack as broken: execSql(),
+    // Transaction::begin() and commit() then return Database until the outermost Transaction is
+    // destroyed. Constraint violations do not break it.
+    [[nodiscard]] core::Error sqlError(const QSqlError& error, std::string_view context);
+    // Prepares and runs one statement without parameters.
+    [[nodiscard]] core::Status execSql(const QString& sql, std::string_view context);
+
     // New named connection to the same file for reading on a worker thread; database writes stay on
     // the main-thread connection (AGENTS section 5). Call it on the worker thread. The caller
     // closes it with QSqlDatabase::removeDatabase() after dropping every copy. In-memory: Internal.
@@ -79,12 +86,17 @@ private:
     [[nodiscard]] static core::Result<std::unique_ptr<DatabaseManager>>
     openConnection(const QString& filePath, OpenOptions options);
 
+    // execSql() without the broken-stack check, for the statements that end a transaction.
+    [[nodiscard]] core::Status runStatement(const QString& sql, std::string_view context);
+    [[nodiscard]] static core::Error brokenTransactionError();
+
     QString m_connectionName;
     QString m_filePath;
     QString m_backupDirectory;
     int m_busyTimeoutMs = kDefaultBusyTimeoutMs;
     int m_schemaVersion = 0;
     int m_transactionDepth = 0;
+    bool m_transactionBroken = false;
 };
 
 } // namespace fdss::data

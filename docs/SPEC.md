@@ -114,7 +114,8 @@ name). The last active Coach cannot be deactivated or demoted.
 ## 6. Data model (SQLite, one file per club)
 
 Location: `QStandardPaths::AppDataLocation`/`club.sqlite`; backups in `…/backups/`
-(`club-<yyyyMMdd-HHmmss>-<reason>.sqlite`, `-2`, `-3`… when the name is taken, 10 newest kept).
+(`club-<yyyyMMdd-HHmmss>-<reason>.sqlite`, `-2`, `-3`… for further backups of the same second, 10
+newest kept).
 Schema = numbered migrations; the first migration (`src/data/migrations/0001_initial.sql`) creates
 every table below at once so later packets do not reshape it. The tables below list the exact column
 names and types of that migration.
@@ -146,8 +147,8 @@ local, no time zone), times of day as `HH:MM`, lockout and `import_log` timestam
 wellness scores 1–5; every foreign key indexed; `ON DELETE RESTRICT` except for pure child rows
 (attendance → session, appearance/match_event → match: `CASCADE`).
 
-Every table has `id INTEGER PRIMARY KEY` except where noted. Columns are `NOT NULL` unless marked
-*null*. `import_id` is always *null* and references `import_log`: it marks rows an import created, so
+All tables are `STRICT` (SQLite 3.37 or newer), so column types are enforced. Every table has
+`id INTEGER PRIMARY KEY` except where noted. Columns are `NOT NULL` unless marked *null*. `import_id` is always *null* and references `import_log`: it marks rows an import created, so
 the import can be undone.
 
 | Table | Columns | Notes |

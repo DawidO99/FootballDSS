@@ -62,7 +62,7 @@ core::Status applyMigration(DatabaseManager& db, const Migration& migration) {
         if (!query.prepare(statement) || !query.exec()) {
             return std::unexpected(
                 migrationError(migration, core::ErrorCode::Database,
-                               sqlError(query.lastError(), statement.toStdString()).detail));
+                               db.sqlError(query.lastError(), statement.toStdString()).detail));
         }
     }
 
@@ -70,15 +70,15 @@ core::Status applyMigration(DatabaseManager& db, const Migration& migration) {
     if (!update.prepare(
             QStringLiteral("INSERT INTO schema_version (id, version) VALUES (1, ?) "
                            "ON CONFLICT (id) DO UPDATE SET version = excluded.version"))) {
-        return std::unexpected(
-            migrationError(migration, core::ErrorCode::Database,
-                           sqlError(update.lastError(), "prepare schema_version update").detail));
+        return std::unexpected(migrationError(
+            migration, core::ErrorCode::Database,
+            db.sqlError(update.lastError(), "prepare schema_version update").detail));
     }
     update.bindValue(0, migration.version);
     if (!update.exec()) {
         return std::unexpected(
             migrationError(migration, core::ErrorCode::Database,
-                           sqlError(update.lastError(), "update schema_version").detail));
+                           db.sqlError(update.lastError(), "update schema_version").detail));
     }
 
     if (auto committed = transaction->commit(); !committed) {
@@ -146,7 +146,7 @@ core::Result<int> readSchemaVersion(const QSqlDatabase& db) {
             "SELECT count(*), coalesce(sum(type = 'table' AND name = 'schema_version'), 0) "
             "FROM sqlite_master")) ||
         !tables.exec() || !tables.next()) {
-        return std::unexpected(sqlError(tables.lastError(), "read sqlite_master"));
+        return std::unexpected(describeSqlError(tables.lastError(), "read sqlite_master"));
     }
     if (tables.value(0).toInt() == 0) {
         return 0;
@@ -158,7 +158,7 @@ core::Result<int> readSchemaVersion(const QSqlDatabase& db) {
 
     QSqlQuery version(db);
     if (!version.prepare(QStringLiteral("SELECT version FROM schema_version")) || !version.exec()) {
-        core::Error error = sqlError(version.lastError(), "read schema_version");
+        core::Error error = describeSqlError(version.lastError(), "read schema_version");
         // A plain SQL error means another program's table with the same name. A lock stays a lock.
         if (error.code == core::ErrorCode::Database) {
             error.code = core::ErrorCode::NotADatabase;

@@ -6,6 +6,7 @@
 #include "data/db/Transaction.hpp"
 
 #include <QSqlQuery>
+#include <QVersionNumber>
 
 #include <gtest/gtest.h>
 
@@ -400,6 +401,103 @@ TEST_F(SchemaTest, LineupBelongsToAMatchOrIsATemplate) {
 
 TEST_F(SchemaTest, SchemaVersionHoldsOneRow) {
     EXPECT_FALSE(sql("INSERT INTO schema_version (id, version) VALUES (2, 5)"));
+}
+
+// --- Declared types ---
+
+TEST_F(SchemaTest, SqliteIsNewEnoughForStrictTables) {
+    const QString version =
+        scalar(m_manager->database(), QStringLiteral("SELECT sqlite_version()")).toString();
+    EXPECT_TRUE(QVersionNumber::fromString(version) >= QVersionNumber(3, 37))
+        << version.toStdString();
+}
+
+TEST_F(SchemaTest, EveryTableIsStrict) {
+    QSqlQuery query(m_manager->database());
+    ASSERT_TRUE(query.prepare(QStringLiteral("SELECT name, strict FROM pragma_table_list "
+                                             "WHERE schema = 'main' AND type = 'table' "
+                                             "AND name NOT LIKE 'sqlite_%'")));
+    ASSERT_TRUE(query.exec());
+    int tables = 0;
+    while (query.next()) {
+        EXPECT_EQ(query.value(1).toInt(), 1) << query.value(0).toString().toStdString();
+        ++tables;
+    }
+    EXPECT_EQ(tables, 19);
+}
+
+TEST_F(SchemaTest, NumericColumnsRejectValuesOfTheWrongType) {
+    const QVariantList notInteger{1.5, QStringLiteral("junk")};
+    const QString insertAppearance =
+        QStringLiteral("INSERT INTO appearance (match_id, player_id, %1) VALUES (1, 1, ?)");
+    const QString insertAttendance = QStringLiteral(
+        "INSERT INTO attendance (session_id, player_id, status, %1) VALUES (1, 1, 'present', ?)");
+    const ColumnRule rules[] = {
+        {"player.shirt_number", insertPlayerWith("shirt_number"), {8}, notInteger},
+        {"player.birth_year", insertPlayerWith("birth_year"), {1980}, notInteger},
+        {"appearance.rpe", insertAppearance.arg(QStringLiteral("rpe")), {5}, notInteger},
+        {"appearance.rating", insertAppearance.arg(QStringLiteral("rating")), {5}, notInteger},
+        {"appearance.minute_on",
+         insertAppearance.arg(QStringLiteral("minute_on")),
+         {5},
+         notInteger},
+        {"attendance.rpe", insertAttendance.arg(QStringLiteral("rpe")), {5}, notInteger},
+        {"attendance.minutes_override",
+         insertAttendance.arg(QStringLiteral("minutes_override")),
+         {5},
+         notInteger},
+        {"match_event.minute",
+         QStringLiteral("INSERT INTO match_event (match_id, player_id, type, minute) "
+                        "VALUES (1, 1, 'goal', ?)"),
+         {5},
+         notInteger},
+        {"training_session.duration_min",
+         QStringLiteral("INSERT INTO training_session (team_id, date, type, duration_min) "
+                        "VALUES (1, '2026-11-01', 'gym', ?)"),
+         {90},
+         notInteger},
+        {"player_attribute.rating",
+         QStringLiteral("INSERT INTO player_attribute (player_id, attribute, date, rating) "
+                        "VALUES (1, 'speed', '2026-11-01', ?)"),
+         {5},
+         notInteger},
+        {"wellness.sleep", insertWellnessWith("sleep"), {3}, notInteger},
+        {"staff_user.iterations",
+         QStringLiteral("INSERT INTO staff_user (name, role, pin_hash, salt, iterations) "
+                        "VALUES ('X', 'coach', x'00', x'00', ?)"),
+         {1000},
+         notInteger},
+        {"metric_value.value",
+         QStringLiteral("INSERT INTO metric_value (metric_id, player_id, date, value) "
+                        "VALUES (1, 1, '2026-11-01', ?)"),
+         {1.5, 5},
+         {QStringLiteral("junk")}},
+    };
+    for (const ColumnRule& rule : rules) {
+        checkRule(rule);
+    }
+}
+
+TEST_F(SchemaTest, LogicalColumnsAcceptOnlyZeroAndOne) {
+    const QVariantList accepted{0, 1};
+    const QVariantList rejected{2, -1, 1.5};
+    const ColumnRule rules[] = {
+        {"staff_user.active",
+         QStringLiteral("INSERT INTO staff_user (name, role, pin_hash, salt, iterations, active) "
+                        "VALUES ('X', 'coach', x'00', x'00', 1, ?)"),
+         accepted, rejected},
+        {"appearance.started",
+         QStringLiteral("INSERT INTO appearance (match_id, player_id, started) VALUES (1, 1, ?)"),
+         accepted, rejected},
+        {"metric_definition.higher_is_better",
+         QStringLiteral("INSERT INTO metric_definition (key, name_pl, name_en, value_type, "
+                        "aggregation, scope, higher_is_better) "
+                        "VALUES ('k', 'x', 'x', 'integer', 'sum', 'match', ?)"),
+         accepted, rejected},
+    };
+    for (const ColumnRule& rule : rules) {
+        checkRule(rule);
+    }
 }
 
 // --- Values of single columns ---

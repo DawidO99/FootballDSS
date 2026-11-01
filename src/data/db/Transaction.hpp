@@ -12,6 +12,10 @@ class DatabaseManager;
 //
 // begin() instead of a constructor: a constructor cannot report a failed BEGIN, and the statements
 // after it would then commit one by one.
+//
+// When SQLite may have rolled back by itself (see DatabaseManager::sqlError()), begin() and
+// commit() return Database until the outermost Transaction is destroyed, and nothing of it is
+// saved.
 class [[nodiscard]] Transaction {
 public:
     [[nodiscard]] static core::Result<Transaction> begin(DatabaseManager& db);
