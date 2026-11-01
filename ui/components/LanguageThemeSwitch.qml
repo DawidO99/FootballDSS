@@ -8,12 +8,19 @@ import FootballDSS
 // Language buttons and the theme toggle: in the top bar and in the corner of the screens before a
 // login. A click leaves the keyboard focus where it was, so a PIN being typed goes on; Tab reaches
 // them.
+// API:
+//   showLanguage: bool   false leaves only the theme toggle, for a screen with a language control
+//                        of its own
 RowLayout {
     id: root
+
+    property bool showLanguage: true
 
     spacing: Theme.spacing.l
 
     Row {
+        objectName: "languageButtons"
+        visible: root.showLanguage
         spacing: Theme.spacing.xs
 
         Repeater {

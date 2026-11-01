@@ -101,13 +101,13 @@ FocusScope {
         onErrorOccurred: message => Toasts.error(message)
     }
 
-    // The first step has its own language control.
     LanguageThemeSwitch {
         objectName: "cornerSwitch"
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: Theme.spacing.m
-        visible: wizard.currentStep > 0
+        // The first step has its own language control.
+        showLanguage: wizard.currentStep > 0
     }
 
     Card {

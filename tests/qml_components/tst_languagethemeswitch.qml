@@ -103,6 +103,19 @@ TestCase {
         verify(button.activeFocusOnTab);
     }
 
+    function test_without_language_only_the_theme_toggle_stays() {
+        const host = createHost();
+        const toggle = findChild(host.control, "themeToggle");
+        host.control.showLanguage = false;
+        waitForRendering(host);
+        verify(!languageButton(host.control, "pl").visible);
+        verify(toggle.visible);
+        verify(host.control.implicitWidth <= toggle.implicitWidth + host.control.spacing);
+        AppSettings.darkTheme = true;
+        mouseClick(toggle);
+        compare(AppSettings.darkTheme, false);
+    }
+
     function test_every_control_is_a_hit_target() {
         const host = createHost();
         for (const item of [languageButton(host.control, "pl"), languageButton(host.control, "en"), findChild(host.control, "themeToggle")]) {

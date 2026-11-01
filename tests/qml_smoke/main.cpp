@@ -368,6 +368,31 @@ ProfilePickerViewModel* pickerOf(QQuickWindow* window) {
     return view != nullptr ? view->property("viewModel").value<ProfilePickerViewModel*>() : nullptr;
 }
 
+// The theme toggle is in the corner on every step, the language buttons from the second step on:
+// the first step has a language control of its own.
+void expectWizardCorner(QQuickWindow* window, bool languageButtons) {
+    auto* view = window->property("setupWizard").value<QQuickItem*>();
+    auto* corner =
+        view != nullptr ? view->findChild<QQuickItem*>(QStringLiteral("cornerSwitch")) : nullptr;
+    if (corner == nullptr) {
+        fail("the wizard has no corner switch");
+        return;
+    }
+    auto* toggle = corner->findChild<QQuickItem*>(QStringLiteral("themeToggle"));
+    auto* buttons = corner->findChild<QQuickItem*>(QStringLiteral("languageButtons"));
+    if (toggle == nullptr || buttons == nullptr) {
+        fail("the corner switch of the wizard is not all there");
+        return;
+    }
+    if (!toggle->isVisible()) {
+        fail("the wizard does not offer the theme toggle");
+    }
+    if (buttons->isVisible() != languageButtons) {
+        fail(languageButtons ? "the language buttons are not there after the first step"
+                             : "the first step of the wizard shows two language controls");
+    }
+}
+
 // Renders every step of the wizard, the errors included, and goes back to the first one with the
 // fields empty again.
 void exerciseWizardSteps(QQuickWindow* window, const QString& language, const QString& theme,
@@ -383,8 +408,12 @@ void exerciseWizardSteps(QQuickWindow* window, const QString& language, const QS
                    QStringLiteral("wizard-%1-%2-%3.png").arg(step, language, theme));
     };
 
+    // The loop of the caller brings this to both themes and both languages.
+    expectWizardCorner(window, false);
     capture(QStringLiteral("1-welcome"));
     wizard->next();
+    settle();
+    expectWizardCorner(window, true);
     if (wizard->next()) {
         fail("the wizard left the club step with empty names");
     }
@@ -580,17 +609,31 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
     if (!expectFollowsLanguage(engine, [wizard] { return wizard->clubNameError(); })) {
         fail("an error of the wizard stayed in the old language");
     }
-    auto* wizardView = window->property("setupWizard").value<QQuickItem*>();
-    auto* wizardCorner = wizardView->findChild<QQuickItem*>(QStringLiteral("cornerSwitch"));
-    if (wizardCorner == nullptr || !wizardCorner->isVisible()) {
-        fail("the language and theme switch is not there after the first step");
-    }
+    expectWizardCorner(window, true);
     wizard->back();
     settle();
-    if (wizardCorner != nullptr && wizardCorner->isVisible()) {
-        fail("the first step of the wizard shows two language controls");
+    expectWizardCorner(window, false);
+
+    // The theme toggle works on the first step, to the other theme and back.
+    auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                            QStringLiteral("AppSettings"));
+    auto* themeToggle = window->property("setupWizard")
+                            .value<QQuickItem*>()
+                            ->findChild<QQuickItem*>(QStringLiteral("themeToggle"));
+    if (themeToggle == nullptr) {
+        fail("the first step of the wizard has no theme toggle");
+        return;
     }
-    settle();
+    const bool startedDark = settings->darkTheme();
+    for (const bool expectedDark : {!startedDark, startedDark}) {
+        QMetaObject::invokeMethod(themeToggle, "click");
+        settle();
+        window->grabWindow();
+        if (settings->darkTheme() != expectedDark) {
+            fail("the theme toggle on the first step of the wizard did not switch the theme");
+        }
+    }
+
     wizard->setClubName(QStringLiteral("KS Smoke"));
     wizard->setTeamName(QStringLiteral("Seniorzy"));
     wizard->setCoachName(QStringLiteral("Jan Trener"));

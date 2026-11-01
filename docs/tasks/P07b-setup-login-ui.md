@@ -103,8 +103,9 @@ and the screenshots), `TopBar` (`AppState.teamName` instead of "My team"), the p
   not end it. It is not read from the database when the dialog opens: a user locked out cannot log in, so
   the lockout always comes from an answer in this session.
 - `LanguageThemeSwitch` holds the controls of the top bar, also in the corner of the picker and of the
-  wizard after its first step, which has a language control of its own. A click leaves the focus where it
-  was, so a PIN being typed goes on.
+  wizard. On the first step of the wizard the corner has only the theme toggle (`showLanguage: false`),
+  because that step has a language control of its own. A click leaves the focus where it was, so a PIN
+  being typed goes on.
 - The language can now change on the picker and on any step of the wizard, so the texts made in C++ follow
   it: the wizard checks the step anew when it shows errors, and the picker makes its texts when they are
   read. `StaffViewModel::loadError` does the same; it was already reachable through the top bar.
