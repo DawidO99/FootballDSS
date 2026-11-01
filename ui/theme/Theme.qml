@@ -28,7 +28,7 @@ QtObject {
 
         readonly property color series1: dark ? "#0280F7" : "#1387FE" // blue
         readonly property color series2: dark ? "#C0149A" : "#880278" // magenta
-        readonly property color series3: dark ? "#836D03" : "#AE931D" // olive
+        readonly property color series3: dark ? "#AC7D1B" : "#AE931D" // ochre
         readonly property color series4: dark ? "#C659FC" : "#6E337B" // purple
         readonly property color series5: dark ? "#049886" : "#10A49E" // teal
         readonly property list<color> series: [series1, series2, series3, series4, series5]

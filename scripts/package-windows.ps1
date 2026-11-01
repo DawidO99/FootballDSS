@@ -5,11 +5,12 @@
 .DESCRIPTION
     P03 spike (docs/adr/ADR-006-spike-results.md). Steps:
       1. MSVC x64 environment (found with vswhere) unless cl.exe is already on PATH.
-      2. cmake --preset release, build the FootballDSS target.
+      2. cmake --preset release against -QtDir (--fresh if the existing build used another Qt kit),
+         build the FootballDSS target.
       3. Copy FootballDSS.exe to dist/FootballDSS-<version>-win64/.
       4. windeployqt --release --qmldir ui (Qt DLLs, plugins, QML modules).
       5. MSVC runtime DLLs next to the exe (app-local), so no VC++ Redistributable is needed.
-      6. Check that the key files are there and zip the folder.
+      6. Check that the key files are there, list them and zip the folder.
     Works in Windows PowerShell 5.1 and PowerShell 7.
 
 .PARAMETER QtDir
@@ -20,6 +21,7 @@
 
 .PARAMETER SkipBuild
     Package the existing build/release/FootballDSS.exe without configuring or building.
+    Fails if that build used a different Qt kit than -QtDir.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1 -QtDir C:\Qt\6.12.0\msvc2022_64
@@ -85,23 +87,75 @@ function Get-ProjectVersion {
     return $match.Groups[1].Value
 }
 
+# CMake paths use forward slashes; a backslash can act as an escape character.
+function ConvertTo-CMakePath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    return $Path.Replace('\', '/').TrimEnd('/')
+}
+
+# Qt6_DIR from a CMake cache; $null when the file or the entry does not exist.
+function Get-CachedQt6Dir {
+    param([Parameter(Mandatory = $true)][string]$CacheFile)
+    if (-not (Test-Path -LiteralPath $CacheFile)) {
+        return $null
+    }
+    $entry = Select-String -LiteralPath $CacheFile -Pattern '^Qt6_DIR:[^=]*=(.+)$' | Select-Object -First 1
+    if (-not $entry) {
+        return $null
+    }
+    return $entry.Matches[0].Groups[1].Value.Trim()
+}
+
+# The trailing slash keeps msvc2022_64_static from matching msvc2022_64. Qt6_DIR-NOTFOUND never matches.
+function Test-Qt6DirInKit {
+    param(
+        [Parameter(Mandatory = $true)][string]$Qt6Dir,
+        [Parameter(Mandatory = $true)][string]$Kit
+    )
+    $kitPrefix = (ConvertTo-CMakePath $Kit) + '/'
+    return (ConvertTo-CMakePath $Qt6Dir).StartsWith($kitPrefix, [StringComparison]::OrdinalIgnoreCase)
+}
+
 $windeployqt = Join-Path $QtDir 'bin\windeployqt.exe'
 if (-not (Test-Path $windeployqt)) {
     throw "windeployqt.exe not found in $QtDir\bin. Pass the MSVC kit, e.g. C:\Qt\6.12.0\msvc2022_64."
 }
+# Absolute, because the script changes directory and compares the kit with paths in the CMake cache.
+$QtDir = (Resolve-Path -LiteralPath $QtDir).Path
+$windeployqt = Join-Path $QtDir 'bin\windeployqt.exe'
 
 Push-Location $repo
 try {
     Enter-MsvcEnvironment
-    $env:CMAKE_PREFIX_PATH = $QtDir
 
     $exe = Join-Path $repo 'build\release\FootballDSS.exe'
-    if (-not $SkipBuild) {
+    $cacheFile = Join-Path $repo 'build\release\CMakeCache.txt'
+    $cachedQt6Dir = Get-CachedQt6Dir $cacheFile
+    $otherKitCached = $cachedQt6Dir -and -not (Test-Qt6DirInKit $cachedQt6Dir $QtDir)
+    if ($SkipBuild) {
+        if ($otherKitCached) {
+            throw "build\release was configured with Qt6_DIR=$cachedQt6Dir, not $QtDir. Run without -SkipBuild."
+        }
+    }
+    else {
         Assert-Command 'cmake' 'Use CMake 3.28+ (Visual Studio or Qt Tools\CMake_64\bin).'
         Assert-Command 'ninja' 'Use Ninja from Visual Studio or Qt Tools\Ninja.'
-        Invoke-Native 'cmake' @('--preset', 'release')
+        $configureArgs = @('--preset', 'release', "-DCMAKE_PREFIX_PATH=$(ConvertTo-CMakePath $QtDir)")
+        if ($otherKitCached) {
+            Write-Host "build\release used Qt6_DIR=$cachedQt6Dir; reconfiguring from scratch."
+            $configureArgs += '--fresh'
+        }
+        Invoke-Native 'cmake' $configureArgs
+
+        $configuredQt6Dir = Get-CachedQt6Dir $cacheFile
+        if (-not $configuredQt6Dir -or -not (Test-Qt6DirInKit $configuredQt6Dir $QtDir)) {
+            throw "CMake configured Qt6_DIR=$configuredQt6Dir, which is outside $QtDir."
+        }
         Invoke-Native 'cmake' @('--build', '--preset', 'release', '--target', 'FootballDSS')
     }
+    $qtVersion = & (Join-Path $QtDir 'bin\qtpaths.exe') --qt-version
+    Write-Host "Qt kit: $QtDir (Qt $qtVersion)"
+
     if (-not (Test-Path $exe)) {
         throw "$exe not found. Run without -SkipBuild first."
     }
@@ -147,10 +201,20 @@ try {
         'qml\QtGraphs',
         'vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll'
     )
+    # windeployqt adds Qt6Sql.dll once the app links Qt6::Sql (P05); it cannot open a database
+    # without the driver plugin.
+    if (Test-Path (Join-Path $stage 'Qt6Sql.dll')) {
+        $required += 'Qt6Sql.dll', 'sqldrivers\qsqlite.dll'
+    }
     $missing = @($required | Where-Object { -not (Test-Path (Join-Path $stage $_)) })
     if ($missing.Count -gt 0) {
         throw "Package is incomplete, missing: $($missing -join ', ')"
     }
+    Write-Host 'Package contains:'
+    $required | ForEach-Object { Write-Host "  $_" }
+    # Reported only: QtQml can pull it in by itself, so it does not prove that the app links it (P07a).
+    $networkState = if (Test-Path (Join-Path $stage 'Qt6Network.dll')) { 'present' } else { 'not deployed' }
+    Write-Host "  Qt6Network.dll: $networkState"
 
     if (Test-Path $zip) {
         Remove-Item -LiteralPath $zip -Force

@@ -1,6 +1,6 @@
 # ADR-006: Technology risk spike — QXlsx, Qt Graphs, Windows package
 
-**Status:** accepted for Q1 (Linux, Windows), Q2 and Q3 · Q1 on macOS pending · 2026-10-31
+**Status:** accepted · 2026-10-31
 
 ## Context
 Three risks could force a change of course late in the project: Excel import (QXlsx with Qt 6.12),
@@ -9,7 +9,7 @@ Packet P03 answers each with YES / NO / YES-WITH-WORKAROUND, backed by minimal c
 
 | # | Question | Answer |
 | --- | --- | --- |
-| 1 | QXlsx builds with Qt 6.12 and reads a cell | **YES-WITH-WORKAROUND**: Linux (GCC 14.2) and Windows (MSVC on `windows-latest`, green in `ci.yml` and `package-windows.yml`), with the same CMake patch and no Windows-specific workaround. macOS: pending a manual `ci.yml` run (macOS runs only on `workflow_dispatch`). |
+| 1 | QXlsx builds with Qt 6.12 and reads a cell | **YES-WITH-WORKAROUND**: Linux (GCC 14.2) and Windows (MSVC on `windows-latest`, green in `ci.yml` and `package-windows.yml`), with the same CMake patch and no Windows-specific workaround. macOS: green in a manual `ci.yml` run on `main` (build, unit tests incl. `XlsxSpikeTest`, `qml_smoke`). |
 | 2 | Qt Graphs covers our charts | **YES-WITH-WORKAROUND**: legend and tooltips are our own components; date axis needs two rules; headless Linux test runs need OpenGL (Mesa + Xvfb). |
 | 3 | Portable Windows ZIP runs on a clean machine | **YES**: on a clean Windows 10 without Qt the ZIP (50 MB, 130 MB unpacked) starts immediately with no missing DLLs; only SmartScreen asks for confirmation, because the exe is unsigned. |
 
@@ -142,7 +142,7 @@ the view in both languages and both themes and renders it, and `--screenshots <d
   charts in `qml_smoke` would leave every future chart untested.
 - *Consequence.* Every `GraphsView` triggers the query, so any headless Linux run of `qml_smoke` (CI, a
   server, a container) needs a display with OpenGL: `xvfb-run` plus Mesa. On Windows and macOS the query
-  uses D3D12 / Metal; it is green on `windows-latest`, and macOS has not run yet.
+  uses D3D12 / Metal; it is green on `windows-latest` and in the manual macOS run.
 
 **Charts that become custom QML `Shape` components.** None beyond those AGENTS.md already plans: the
 radar, the pitch / shot map and the heatmaps. Line and bar charts (load per player, goals by 15-minute
@@ -150,7 +150,7 @@ bins, form) stay on Qt Graphs with our `ChartLegend` and `ChartTooltip`. Not tes
 threshold bands behind the acute:chronic ratio line (`AreaSeries` or a `Shape` overlay); decide in the
 load-monitoring packet.
 
-**Chart palette (`Theme.chart`).** Five series colors per mode (blue, magenta, olive, purple, teal), in a
+**Chart palette (`Theme.chart`).** Five series colors per mode (blue, magenta, ochre, purple, teal), in a
 fixed order. The hues avoid the status colors (green/amber/red/sky) and the accent. They were picked by
 an OKLCH search and checked with the data-viz validator (OKLab ΔE × 100, Machado 2009 protan/deutan
 simulation, severity 1.0), against `Theme.surface`:
@@ -158,10 +158,13 @@ simulation, severity 1.0), against `Theme.surface`:
 | Check | Light (`#FFFFFF`) | Dark (`#151D2E`) |
 | --- | --- | --- |
 | Worst adjacent pair, CVD (target ≥ 8) | 22.5 | 15.3 |
-| Worst adjacent pair, normal vision (floor ≥ 15) | 30.9 | 29.3 |
+| Worst adjacent pair, normal vision (floor ≥ 15) | 30.9 | 28.6 |
 | First 3 slots, all pairs (grouped bars) | pass | pass |
 | Contrast vs surface ≥ 3:1 | all 5 | all 5 |
 | Closest series vs any status/accent color, normal vision | 15.1 | 15.2 |
+
+P04b changed dark `series3` from `#836D03` (muddy olive on navy) to `#AC7D1B`, 15.6 from `warn`. Saturated
+ochre cannot get much lighter: it falls under the 15 ΔE floor against `warn` (`#F59E0B`) above L ≈ 0.64.
 
 ## Q3 — Portable Windows ZIP
 
