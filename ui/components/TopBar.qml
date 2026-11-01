@@ -14,6 +14,14 @@ Rectangle {
         searchField.selectAll();
     }
 
+    function openUserMenu() {
+        userMenu.open();
+    }
+
+    function openChangePinDialog() {
+        changePinDialog.openEmpty();
+    }
+
     implicitHeight: 56
     color: Theme.surface
 
@@ -39,7 +47,7 @@ Rectangle {
         spacing: Theme.spacing.l
 
         Label {
-            text: qsTr("My team")
+            text: AppState.teamName
             color: Theme.text
             font.pixelSize: Theme.fontSize.title
             font.weight: Font.DemiBold
@@ -157,33 +165,159 @@ Rectangle {
             }
         }
 
-        Rectangle {
+        AbstractButton {
+            id: userChip
+
             implicitWidth: userRow.implicitWidth + 2 * Theme.spacing.m
             implicitHeight: Theme.hitMin
-            radius: height / 2
-            color: Theme.surfaceAlt
-            border.width: 1
-            border.color: Theme.border
+            hoverEnabled: true
+            text: qsTr("%1, %2").arg(AppState.userName).arg(AppState.roleName)
+            Accessible.role: Accessible.ButtonMenu
+            Accessible.name: text
+            Keys.onReturnPressed: click()
+            Keys.onEnterPressed: click()
+            onClicked: root.openUserMenu()
 
-            Row {
-                id: userRow
+            background: Rectangle {
+                radius: height / 2
+                color: userChip.hovered ? Theme.rowHover : Theme.surfaceAlt
+                border.width: userChip.visualFocus ? Theme.focusRingWidth : Theme.borderWidth
+                border.color: userChip.visualFocus ? Theme.accent : Theme.border
+            }
 
-                anchors.centerIn: parent
-                spacing: Theme.spacing.s
+            contentItem: Item {
+                Row {
+                    id: userRow
 
-                Icon {
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: "user"
-                    size: 18
-                    color: Theme.textMuted
+                    anchors.centerIn: parent
+                    spacing: Theme.spacing.s
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "user"
+                        size: 18
+                        color: Theme.textMuted
+                    }
+
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: AppState.userName
+                        color: Theme.text
+                        font.pixelSize: Theme.fontSize.body
+                    }
+
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: AppState.roleName
+                        color: Theme.textMuted
+                        font.pixelSize: Theme.fontSize.caption
+                    }
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "chevronDown"
+                        size: Theme.iconSize.s
+                        color: Theme.textMuted
+                    }
+                }
+            }
+
+            Menu {
+                id: userMenu
+
+                x: userChip.width - width
+                y: userChip.height + Theme.spacing.xs
+
+                MenuItem {
+                    text: qsTr("Change PIN")
+                    onTriggered: root.openChangePinDialog()
                 }
 
-                Label {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("Coach")
-                    color: Theme.text
-                    font.pixelSize: Theme.fontSize.body
+                MenuItem {
+                    text: qsTr("Log out")
+                    onTriggered: AppState.logout()
                 }
+            }
+        }
+    }
+
+    ChangePinViewModel {
+        id: changePin
+
+        onErrorOccurred: message => Toasts.error(message)
+    }
+
+    AppDialog {
+        id: changePinDialog
+
+        function openEmpty() {
+            changePin.clearErrors();
+            currentPinInput.clear();
+            newPinInput.clear();
+            pinRepeatInput.clear();
+            changePinDialog.open();
+            currentPinInput.forceActiveFocus(Qt.TabFocusReason);
+        }
+
+        size: AppDialog.Small
+        title: qsTr("Change PIN")
+        primaryText: qsTr("Change PIN")
+        onPrimaryClicked: {
+            if (changePin.change(currentPinInput.text, newPinInput.text, pinRepeatInput.text)) {
+                changePinDialog.close();
+                Toasts.info(qsTr("Your PIN was changed."));
+            }
+        }
+
+        FormField {
+            id: currentPinFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Current PIN")
+            mandatory: true
+            error: currentPinInput.effectiveError
+
+            PinField {
+                id: currentPinInput
+
+                Layout.fillWidth: true
+                error: changePin.currentPinError
+                Accessible.name: currentPinFormField.label
+            }
+        }
+
+        FormField {
+            id: newPinFormField
+
+            Layout.fillWidth: true
+            label: qsTr("New PIN")
+            mandatory: true
+            helpText: qsTr("4 to 8 digits.")
+            error: newPinInput.effectiveError
+
+            PinField {
+                id: newPinInput
+
+                Layout.fillWidth: true
+                error: changePin.newPinError
+                Accessible.name: newPinFormField.label
+            }
+        }
+
+        FormField {
+            id: pinRepeatFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Repeat the PIN")
+            mandatory: true
+            error: pinRepeatInput.effectiveError
+
+            PinField {
+                id: pinRepeatInput
+
+                Layout.fillWidth: true
+                error: changePin.pinRepeatError
+                Accessible.name: pinRepeatFormField.label
             }
         }
     }

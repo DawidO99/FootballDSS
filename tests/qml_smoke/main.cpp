@@ -13,7 +13,10 @@
 #include "viewmodels/AppState.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/NavigationModel.hpp"
+#include "viewmodels/ProfilePickerViewModel.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
+#include "viewmodels/SetupWizardViewModel.hpp"
+#include "viewmodels/StaffViewModel.hpp"
 #include "viewmodels/StartupViewModel.hpp"
 
 #include <QDir>
@@ -47,7 +50,10 @@ using fdss::viewmodels::AppSettings;
 using fdss::viewmodels::AppState;
 using fdss::viewmodels::LanguageManager;
 using fdss::viewmodels::NavigationModel;
+using fdss::viewmodels::ProfilePickerViewModel;
 using fdss::viewmodels::ServiceRegistry;
+using fdss::viewmodels::SetupWizardViewModel;
+using fdss::viewmodels::StaffViewModel;
 using fdss::viewmodels::StartupViewModel;
 
 namespace {
@@ -310,6 +316,106 @@ void exerciseNavigationArguments(QQuickWindow* window, NavigationModel* navigati
     }
 }
 
+// A key press and release at whatever has the focus in the window.
+void pressKey(QQuickWindow* window, Qt::Key key, const QString& text = {}) {
+    QKeyEvent press(QEvent::KeyPress, key, Qt::NoModifier, text);
+    QKeyEvent release(QEvent::KeyRelease, key, Qt::NoModifier, text);
+    QCoreApplication::sendEvent(window, &press);
+    QCoreApplication::sendEvent(window, &release);
+    settle();
+}
+
+void grabOrSave(QQuickWindow* window, const QString& directory, const QString& name) {
+    if (directory.isEmpty()) {
+        window->grabWindow();
+    } else {
+        saveScreenshot(window, directory, name);
+    }
+}
+
+SetupWizardViewModel* wizardOf(QQuickWindow* window) {
+    auto* view = window->property("setupWizard").value<QQuickItem*>();
+    return view != nullptr ? view->property("viewModel").value<SetupWizardViewModel*>() : nullptr;
+}
+
+ProfilePickerViewModel* pickerOf(QQuickWindow* window) {
+    auto* view = window->property("profilePicker").value<QQuickItem*>();
+    return view != nullptr ? view->property("viewModel").value<ProfilePickerViewModel*>() : nullptr;
+}
+
+// Renders every step of the wizard, the errors included, and goes back to the first one with the
+// fields empty again.
+void exerciseWizardSteps(QQuickWindow* window, const QString& language, const QString& theme,
+                         const QString& screenshotDirectory) {
+    auto* wizard = wizardOf(window);
+    if (wizard == nullptr) {
+        fail("the wizard is not there in the state NeedsSetup");
+        return;
+    }
+    const auto capture = [&](const QString& step) {
+        settle();
+        grabOrSave(window, screenshotDirectory,
+                   QStringLiteral("wizard-%1-%2-%3.png").arg(step, language, theme));
+    };
+
+    capture(QStringLiteral("1-welcome"));
+    wizard->next();
+    if (wizard->next()) {
+        fail("the wizard left the club step with empty names");
+    }
+    capture(QStringLiteral("2-club-errors"));
+    wizard->setClubName(QStringLiteral("KS Łączna"));
+    wizard->setTeamName(QStringLiteral("Seniorzy"));
+    capture(QStringLiteral("2-club"));
+    if (!wizard->next()) {
+        fail("the wizard did not accept the club step");
+    }
+    wizard->setCoachName(QStringLiteral("Jan Trener"));
+    wizard->setPin(QStringLiteral("1234"));
+    wizard->setPinRepeat(QStringLiteral("1235"));
+    if (wizard->next()) {
+        fail("the wizard left the coach step with different PINs");
+    }
+    capture(QStringLiteral("3-coach-errors"));
+    wizard->setPinRepeat(QStringLiteral("1234"));
+    capture(QStringLiteral("3-coach"));
+    if (!wizard->next()) {
+        fail("the wizard did not accept the coach step");
+    }
+    capture(QStringLiteral("4-summary"));
+
+    for (int step = wizard->currentStep(); step > 0; --step) {
+        wizard->back();
+    }
+    wizard->setClubName({});
+    wizard->setTeamName({});
+    wizard->setCoachName({});
+    wizard->setPin({});
+    wizard->setPinRepeat({});
+    settle();
+    if (wizard->currentStep() != 0) {
+        fail("Back did not lead to the first step of the wizard");
+    }
+}
+
+// Renders the picker with the only profile there is, selected right away. No attempts: they would
+// add up to a lockout over the languages and themes.
+void exerciseProfilePicker(QQuickWindow* window, const QString& language, const QString& theme,
+                           const QString& screenshotDirectory) {
+    auto* picker = pickerOf(window);
+    if (picker == nullptr) {
+        fail("the picker is not there in the state NeedsLogin");
+        return;
+    }
+    if (picker->staff()->rowCount() == 0) {
+        fail("the picker shows no staff");
+        return;
+    }
+    settle();
+    grabOrSave(window, screenshotDirectory,
+               QStringLiteral("picker-%1-%2.png").arg(language, theme));
+}
+
 // Drives the main window through both languages and both themes and, when a user is logged in,
 // through every section. With a screenshot directory, saves the empty shell for every language x
 // theme pair. Returns the non-default preferences it leaves behind, so a restart can be checked.
@@ -362,19 +468,11 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
         for (const bool dark : {true, false}) {
             settings->setDarkTheme(dark);
             if (!ready) {
-                // The placeholder that stands in for the views of P07b.
-                settle();
-                if (screenshotDirectory.isEmpty()) {
-                    window->grabWindow();
+                const QString theme = dark ? QStringLiteral("dark") : QStringLiteral("light");
+                if (expectedState == AppState::State::NeedsSetup) {
+                    exerciseWizardSteps(window, language, theme, screenshotDirectory);
                 } else {
-                    saveScreenshot(
-                        window, screenshotDirectory,
-                        QStringLiteral("placeholder-%1-%2-%3.png")
-                            .arg(expectedState == AppState::State::NeedsSetup
-                                     ? QStringLiteral("setup")
-                                     : QStringLiteral("login"),
-                                 language,
-                                 dark ? QStringLiteral("dark") : QStringLiteral("light")));
+                    exerciseProfilePicker(window, language, theme, screenshotDirectory);
                 }
                 continue;
             }
@@ -392,6 +490,10 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
                 settle();
                 saveScreenshot(window, screenshotDirectory,
                                QStringLiteral("shell-%1-%2.png").arg(language, theme));
+                navigation->activate(QStringLiteral("settings"));
+                settle();
+                saveScreenshot(window, screenshotDirectory,
+                               QStringLiteral("settings-staff-%1-%2.png").arg(language, theme));
             }
             // P03 spike: the Qt Graphs view is reachable only through Ctrl+Shift+G. Grab it
             // even without a screenshot directory, so the charts are actually rendered.
@@ -419,50 +521,125 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
     return leftBehind;
 }
 
-// The way through the states on a live window: placeholder, test club, shell, logout, placeholder,
-// test login, shell. Expects an empty database and a loaded Main.qml.
+// The way through the states on a live window: wizard, shell, logout, picker, wrong PIN, lockout on
+// another profile, right PIN, shell. Goes through the real viewmodels, so the wiring of the views
+// to AppState is covered too. Expects an empty database and a loaded Main.qml.
 void exerciseStateChanges(QQmlApplicationEngine& engine) {
     auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
                                                          QStringLiteral("AppState"));
-    if (!appState->debugBuild() || engine.rootObjects().isEmpty()) {
-        return; // the test club button exists only in debug builds
+    auto* toasts =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Toasts"));
+    if (engine.rootObjects().isEmpty()) {
+        return;
     }
     auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
     auto* navigation = window->property("navigation").value<NavigationModel*>();
     const auto shellLoaded = [window] {
         return window->property("shell").value<QQuickItem*>() != nullptr;
     };
-    // What the button of the placeholder sends, so the wiring in Main.qml is covered too.
-    const auto pressPlaceholderButton = [window] {
-        QQuickItem* placeholder = findQmlItem(window->contentItem(), "EmptyState");
-        if (placeholder == nullptr) {
-            fail("the placeholder is not there");
-            return;
-        }
-        QMetaObject::invokeMethod(placeholder, "actionTriggered");
-        settle();
-    };
 
-    // A login from the placeholder builds the shell once: the one seen when the state changes
-    // stays.
+    auto* wizard = wizardOf(window);
+    if (wizard == nullptr) {
+        fail("the wizard is not there");
+        return;
+    }
+    // Enter = Next, and it does not get past a step that is not valid.
+    pressKey(window, Qt::Key_Return);
+    if (wizard->currentStep() != 1) {
+        fail("Enter did not go to the next step of the wizard");
+    }
+    pressKey(window, Qt::Key_Return);
+    if (wizard->currentStep() != 1 || wizard->clubNameError().isEmpty()) {
+        fail("Enter did not stop at the club step with empty names");
+    }
+    wizard->back();
+    settle();
+    wizard->setClubName(QStringLiteral("KS Smoke"));
+    wizard->setTeamName(QStringLiteral("Seniorzy"));
+    wizard->setCoachName(QStringLiteral("Jan Trener"));
+    wizard->setPin(QStringLiteral("1234"));
+    wizard->setPinRepeat(QStringLiteral("1234"));
+
+    // A login from the wizard builds the shell once: the one seen when the state changes stays.
     QPointer<QQuickItem> shellAtStateChange;
     const QMetaObject::Connection watcher = QObject::connect(
         appState, &AppState::stateChanged, appState, [&shellAtStateChange, window] {
             shellAtStateChange = window->property("shell").value<QQuickItem*>();
         });
-    pressPlaceholderButton();
+    const bool created = wizard->create();
     QObject::disconnect(watcher);
-    if (appState->state() != AppState::State::Ready || !shellLoaded()) {
-        fail("the test club did not lead to the shell");
+    settle();
+    if (!created || appState->state() != AppState::State::Ready || !shellLoaded()) {
+        fail("the wizard did not lead to the shell");
+    }
+    if (window->property("setupWizard").value<QQuickItem*>() != nullptr) {
+        fail("the wizard stayed after the setup");
     }
     if (shellAtStateChange == nullptr ||
         shellAtStateChange != window->property("shell").value<QQuickItem*>()) {
         fail("a login built the shell more than once");
     }
     if (!appState->can(QStringLiteral("ManageStaff"))) {
-        fail("the test coach may not manage staff");
+        fail("the coach of the wizard may not manage staff");
     }
 
+    // A second profile to lock out, added through the Staff section of the Coach.
+    auto* settingsView = findQmlItem(window->contentItem(), "SettingsView");
+    auto* staffSection = settingsView != nullptr
+                             ? settingsView->property("staffSection").value<QQuickItem*>()
+                             : nullptr;
+    auto* staff = staffSection != nullptr
+                      ? staffSection->property("viewModel").value<StaffViewModel*>()
+                      : nullptr;
+    if (staff == nullptr) {
+        fail("the coach has no Staff section");
+        return;
+    }
+    const QString pin = QStringLiteral("1234");
+    if (!staff->add(QStringLiteral("Anna Asystent"), QStringLiteral("assistant"), pin, pin)) {
+        fail("the Staff section did not add a staff member");
+    }
+    const qint64 assistantId = staff->staff()->staff().back().id.value;
+    settle();
+    if (!staffSection->property("hasSelection").toBool()) {
+        fail("adding a staff member lost the selected row");
+    }
+    if (!staffSection->property("ownRowSelected").toBool()) {
+        fail("the first row of the table is not the coach");
+    }
+
+    // The dialogs of the section and of the top bar open and close without a warning.
+    for (const char* opener : {"openAddDialog", "openEditDialog", "openResetPinDialog"}) {
+        QMetaObject::invokeMethod(staffSection, opener);
+        settle();
+        window->grabWindow();
+        pressKey(window, Qt::Key_Escape);
+    }
+    auto* topBar = findQmlItem(window->contentItem(), "TopBar");
+    if (topBar == nullptr) {
+        fail("the top bar is not there");
+        return;
+    }
+    for (const char* opener : {"openUserMenu", "openChangePinDialog"}) {
+        QMetaObject::invokeMethod(topBar, opener);
+        settle();
+        window->grabWindow();
+        pressKey(window, Qt::Key_Escape);
+    }
+
+    // Renaming yourself reaches the top bar through AppState.
+    if (!staff->update(staff->currentUserId(), QStringLiteral("Jan Nowy"),
+                       QStringLiteral("coach"))) {
+        fail("the Staff section did not rename the coach");
+    }
+    settle();
+    if (appState->userName() != QLatin1StringView("Jan Nowy") || !shellLoaded()) {
+        fail("renaming yourself did not update the session");
+    }
+
+    // An undo toast does not reach the next user.
+    QMetaObject::invokeMethod(toasts, "show", Q_ARG(QVariant, QStringLiteral("Undo me")),
+                              Q_ARG(QVariant, QStringLiteral("Undo")), Q_ARG(QVariant, QVariant{}));
     navigation->activate(QStringLiteral("settings"));
     window->setProperty("sidebarCollapsed", true);
     appState->logout();
@@ -473,10 +650,60 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
     if (navigation->currentKey() != QLatin1StringView("dashboard")) {
         fail("logout did not go back to the dashboard");
     }
+    if (toasts->property("active").toBool()) {
+        fail("a toast of the last user stayed after the logout");
+    }
 
-    pressPlaceholderButton();
+    auto* picker = pickerOf(window);
+    if (picker == nullptr) {
+        fail("the picker is not there after a logout");
+        return;
+    }
+    if (picker->staff()->rowCount() != 2) {
+        fail("the picker does not show both profiles");
+    }
+    picker->select(assistantId);
+    settle();
+    // Esc clears, so what Enter then submits is an empty PIN, which is not counted.
+    for (const Qt::Key digit : {Qt::Key_9, Qt::Key_9, Qt::Key_9, Qt::Key_9}) {
+        pressKey(window, digit, QStringLiteral("9"));
+    }
+    pressKey(window, Qt::Key_Escape);
+    pressKey(window, Qt::Key_Return);
+    if (!picker->message().contains(QLatin1StringView("4"))) {
+        fail("Esc did not clear the PIN, or Enter did not submit it");
+    }
+    // Typed with the keyboard and submitted with Enter: the first wrong PIN.
+    for (const Qt::Key digit : {Qt::Key_9, Qt::Key_9, Qt::Key_9, Qt::Key_9}) {
+        pressKey(window, digit, QStringLiteral("9"));
+    }
+    pressKey(window, Qt::Key_Return);
+    const QString afterWrongPin = picker->message();
+    if (afterWrongPin.isEmpty()) {
+        fail("a wrong PIN says nothing");
+    }
+    window->grabWindow();
+    for (int attempt = 0; attempt < 4; ++attempt) {
+        if (picker->locked()) {
+            fail("the profile was locked too early");
+        }
+        picker->login(QStringLiteral("9999"));
+    }
+    settle();
+    if (!picker->locked()) {
+        fail("five wrong PINs did not lock the profile");
+    }
+    window->grabWindow();
+
+    picker->select(picker->staff()->staff().front().id.value);
+    settle();
+    picker->login(pin);
+    settle();
     if (appState->state() != AppState::State::Ready || !shellLoaded()) {
-        fail("the test login did not lead to the shell");
+        fail("the right PIN did not lead to the shell");
+    }
+    if (window->property("profilePicker").value<QQuickItem*>() != nullptr) {
+        fail("the picker stayed after the login");
     }
     window->setProperty("sidebarCollapsed", false);
     settle();
@@ -494,6 +721,9 @@ void exerciseLoginOverSession(QQmlApplicationEngine& engine) {
     if (lastShell == nullptr || lastView == nullptr) {
         fail("the shell of the coach is not there");
         return;
+    }
+    if (lastView->property("staffSection").value<QQuickItem*>() == nullptr) {
+        fail("the coach does not see the Staff section");
     }
 
     auto& auth = ServiceRegistry::instance().auth();
@@ -526,9 +756,11 @@ void exerciseLoginOverSession(QQmlApplicationEngine& engine) {
     if (lastShell != nullptr || lastView != nullptr) {
         fail("the views of the last user survived a login over a session");
     }
-    if (window->property("shell").value<QQuickItem*>() == nullptr ||
-        findQmlItem(window->contentItem(), "SettingsView") == nullptr) {
+    auto* settingsView = findQmlItem(window->contentItem(), "SettingsView");
+    if (window->property("shell").value<QQuickItem*>() == nullptr || settingsView == nullptr) {
         fail("a login over a session did not build the views anew");
+    } else if (settingsView->property("staffSection").value<QQuickItem*>() != nullptr) {
+        fail("the analyst sees the Staff section");
     }
     if (navigation->currentKey() != QLatin1StringView("dashboard")) {
         fail("a login over a session did not go back to the dashboard");

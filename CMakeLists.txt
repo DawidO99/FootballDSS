@@ -49,7 +49,10 @@ qt_add_qml_module(fdss_ui
         ui/components/IconButton.qml
         ui/components/NumberField.qml
         ui/components/PageHeader.qml
+        ui/components/PinField.qml
+        ui/components/PinPad.qml
         ui/components/PrimaryButton.qml
+        ui/components/ProfileTile.qml
         ui/components/SearchField.qml
         ui/components/SecondaryButton.qml
         ui/components/SegmentedControl.qml
@@ -69,7 +72,9 @@ qt_add_qml_module(fdss_ui
         ui/views/LoadView.qml
         ui/views/MatchDayView.qml
         ui/views/PreMatchView.qml
+        ui/views/ProfilePickerView.qml
         ui/views/SettingsView.qml
+        ui/views/SetupWizardView.qml
         ui/views/SpikeChartsView.qml
         ui/views/SquadView.qml
         ui/views/TrainingView.qml
@@ -78,14 +83,24 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/AppSettings.cpp
         src/viewmodels/AppState.hpp
         src/viewmodels/AppState.cpp
+        src/viewmodels/ChangePinViewModel.hpp
+        src/viewmodels/ChangePinViewModel.cpp
         src/viewmodels/ErrorPresenter.hpp
         src/viewmodels/ErrorPresenter.cpp
         src/viewmodels/LanguageManager.hpp
         src/viewmodels/LanguageManager.cpp
         src/viewmodels/NavigationModel.hpp
         src/viewmodels/NavigationModel.cpp
+        src/viewmodels/ProfilePickerViewModel.hpp
+        src/viewmodels/ProfilePickerViewModel.cpp
         src/viewmodels/ServiceRegistry.hpp
         src/viewmodels/ServiceRegistry.cpp
+        src/viewmodels/SetupWizardViewModel.hpp
+        src/viewmodels/SetupWizardViewModel.cpp
+        src/viewmodels/StaffListModel.hpp
+        src/viewmodels/StaffListModel.cpp
+        src/viewmodels/StaffViewModel.hpp
+        src/viewmodels/StaffViewModel.cpp
         src/viewmodels/StartupViewModel.hpp
         src/viewmodels/StartupViewModel.cpp
 )

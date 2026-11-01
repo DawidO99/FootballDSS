@@ -32,8 +32,6 @@ class AppState : public QObject {
     // Changes with every login and logout, also when one user logs in over another and the state
     // stays Ready. Main.qml builds the shell anew on it.
     Q_PROPERTY(int sessionSerial READ sessionSerial NOTIFY sessionSerialChanged FINAL)
-    // Temporary, for the test club button in Main.qml. P07b removes it.
-    Q_PROPERTY(bool debugBuild READ debugBuild CONSTANT FINAL)
 
 public:
     enum class State { NeedsSetup, NeedsLogin, Ready };
@@ -49,7 +47,6 @@ public:
     [[nodiscard]] QString teamName() const;
     [[nodiscard]] qint64 teamId() const;
     [[nodiscard]] int sessionSerial() const;
-    [[nodiscard]] bool debugBuild() const;
 
     // `permission` is the name of a core Permission. An unknown name is reported and gives false.
     // A binding on this does not update by itself. It holds in a section view because Main.qml
@@ -62,9 +59,6 @@ public:
     // club; only Ready goes without a session, which lives in memory. All values are in place
     // before the first signal.
     Q_INVOKABLE void refresh();
-    // Temporary, debug builds only, PIN 1234: lets P08 and P09 be clicked through before the
-    // screens of P07b exist. P07b removes it.
-    Q_INVOKABLE void createTestClubAndLogin();
 
     [[nodiscard]] static QString roleDisplayName(core::Role role);
 

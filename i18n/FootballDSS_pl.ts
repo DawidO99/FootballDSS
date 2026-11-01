@@ -342,6 +342,38 @@
         <translation>Szukaj</translation>
     </message>
     <message>
+        <source>PinField and PinPad</source>
+        <translation>PinField i PinPad</translation>
+    </message>
+    <message>
+        <source>PIN</source>
+        <translation>PIN</translation>
+    </message>
+    <message>
+        <source>Digits only, masked.</source>
+        <translation>Tylko cyfry, ukryte.</translation>
+    </message>
+    <message>
+        <source>ProfileTile</source>
+        <translation>ProfileTile</translation>
+    </message>
+    <message>
+        <source>Jan Kowalski</source>
+        <translation>Jan Kowalski</translation>
+    </message>
+    <message>
+        <source>Coach</source>
+        <translation>Trener</translation>
+    </message>
+    <message>
+        <source>Anna Nowak</source>
+        <translation>Anna Nowak</translation>
+    </message>
+    <message>
+        <source>Physio</source>
+        <translation>Fizjoterapeuta</translation>
+    </message>
+    <message>
         <source>Filter by name or shirt number…</source>
         <translation>Filtruj po nazwisku lub numerze…</translation>
     </message>
@@ -625,26 +657,6 @@
         <source>FootballDSS</source>
         <translation>FootballDSS</translation>
     </message>
-    <message>
-        <source>Welcome to FootballDSS</source>
-        <translation>Witaj w FootballDSS</translation>
-    </message>
-    <message>
-        <source>Log in</source>
-        <translation>Logowanie</translation>
-    </message>
-    <message>
-        <source>The setup wizard is not available in this version yet.</source>
-        <translation>Kreator pierwszego uruchomienia nie jest jeszcze dostępny w tej wersji.</translation>
-    </message>
-    <message>
-        <source>The profile picker is not available in this version yet.</source>
-        <translation>Wybór profilu nie jest jeszcze dostępny w tej wersji.</translation>
-    </message>
-    <message>
-        <source>Create test club and log in as Coach</source>
-        <translation>Utwórz testowy klub i zaloguj jako trener</translation>
-    </message>
 </context>
 <context>
     <name>MatchDayView</name>
@@ -685,6 +697,17 @@
     </message>
 </context>
 <context>
+    <name>PinPad</name>
+    <message>
+        <source>Clear (Esc)</source>
+        <translation>Wyczyść (Esc)</translation>
+    </message>
+    <message>
+        <source>Delete the last digit</source>
+        <translation>Usuń ostatnią cyfrę</translation>
+    </message>
+</context>
+<context>
     <name>PreMatchView</name>
     <message>
         <source>Pre-match</source>
@@ -697,6 +720,48 @@
     <message>
         <source>Open the squad</source>
         <translation>Otwórz kadrę</translation>
+    </message>
+</context>
+<context>
+    <name>ProfilePickerView</name>
+    <message>
+        <source>The staff list could not be read</source>
+        <translation>Nie udało się odczytać listy sztabu</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>Who is using the app?</source>
+        <translation>Kto korzysta z aplikacji?</translation>
+    </message>
+    <message>
+        <source>Choose your profile</source>
+        <translation>Wybierz swój profil</translation>
+    </message>
+    <message>
+        <source>Pick your tile, then enter your PIN.</source>
+        <translation>Wybierz swój kafelek, a potem wpisz PIN.</translation>
+    </message>
+    <message>
+        <source>PIN</source>
+        <translation>PIN</translation>
+    </message>
+    <message>
+        <source>Log in</source>
+        <translation>Zaloguj</translation>
+    </message>
+    <message>
+        <source>%1 (Enter)</source>
+        <translation>%1 (Enter)</translation>
+    </message>
+</context>
+<context>
+    <name>ProfileTile</name>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
     </message>
 </context>
 <context>
@@ -721,12 +786,239 @@
         <translation>Ustawienia</translation>
     </message>
     <message>
-        <source>Club details, staff and roles, custom metrics and backups will be configured here.</source>
-        <translation>Tu skonfigurujesz dane klubu, sztab i role, własne metryki oraz kopie zapasowe.</translation>
+        <source>Club details, custom metrics and backups will be configured here.</source>
+        <translation>Tutaj skonfigurujesz dane klubu, metryki własne i kopie zapasowe.</translation>
+    </message>
+    <message>
+        <source>%1 was deactivated.</source>
+        <translation>Dezaktywowano: %1.</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>Cofnij</translation>
+    </message>
+    <message>
+        <source>Staff</source>
+        <translation>Sztab</translation>
+    </message>
+    <message>
+        <source>Add staff member</source>
+        <translation>Dodaj członka sztabu</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Imię i nazwisko</translation>
+    </message>
+    <message>
+        <source>Role</source>
+        <translation>Rola</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Active</source>
+        <translation>Aktywne</translation>
+    </message>
+    <message>
+        <source>Deactivated</source>
+        <translation>Dezaktywowane</translation>
+    </message>
+    <message>
+        <source>The staff list could not be read</source>
+        <translation>Nie udało się odczytać listy sztabu</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Edytuj</translation>
+    </message>
+    <message>
+        <source>Reset PIN</source>
+        <translation>Zresetuj PIN</translation>
+    </message>
+    <message>
+        <source>Deactivate</source>
+        <translation>Dezaktywuj</translation>
+    </message>
+    <message>
+        <source>You cannot deactivate your own account. Another coach has to do it.</source>
+        <translation>Nie możesz dezaktywować własnego konta. Musi to zrobić inny trener.</translation>
+    </message>
+    <message>
+        <source>Reactivate</source>
+        <translation>Aktywuj ponownie</translation>
+    </message>
+    <message>
+        <source>Edit staff member</source>
+        <translation>Edytuj członka sztabu</translation>
+    </message>
+    <message>
+        <source>If you change your own role, you will have to log in again.</source>
+        <translation>Jeśli zmienisz własną rolę, trzeba będzie zalogować się ponownie.</translation>
+    </message>
+    <message>
+        <source>PIN</source>
+        <translation>PIN</translation>
+    </message>
+    <message>
+        <source>4 to 8 digits. Tell it to this person, who can change it later.</source>
+        <translation>Od 4 do 8 cyfr. Przekaż PIN tej osobie; później może go zmienić.</translation>
+    </message>
+    <message>
+        <source>Repeat the PIN</source>
+        <translation>Powtórz PIN</translation>
+    </message>
+    <message>
+        <source>Reset the PIN of %1</source>
+        <translation>Zresetuj PIN: %1</translation>
+    </message>
+    <message>
+        <source>The PIN of %1 was reset.</source>
+        <translation>Zresetowano PIN: %1.</translation>
+    </message>
+    <message>
+        <source>New PIN</source>
+        <translation>Nowy PIN</translation>
+    </message>
+    <message>
+        <source>4 to 8 digits. This also ends a lockout.</source>
+        <translation>Od 4 do 8 cyfr. To również kończy blokadę.</translation>
     </message>
     <message>
         <source>Back to the dashboard</source>
         <translation>Wróć do pulpitu</translation>
+    </message>
+</context>
+<context>
+    <name>SetupWizardView</name>
+    <message>
+        <source>Welcome</source>
+        <translation>Witaj</translation>
+    </message>
+    <message>
+        <source>Club and team</source>
+        <translation>Klub i drużyna</translation>
+    </message>
+    <message>
+        <source>Coach account</source>
+        <translation>Konto trenera</translation>
+    </message>
+    <message>
+        <source>Summary</source>
+        <translation>Podsumowanie</translation>
+    </message>
+    <message>
+        <source>Seniors</source>
+        <translation>Seniorzy</translation>
+    </message>
+    <message>
+        <source>U19</source>
+        <translation>U19</translation>
+    </message>
+    <message>
+        <source>U17</source>
+        <translation>U17</translation>
+    </message>
+    <message>
+        <source>U15</source>
+        <translation>U15</translation>
+    </message>
+    <message>
+        <source>U13</source>
+        <translation>U13</translation>
+    </message>
+    <message>
+        <source>U11</source>
+        <translation>U11</translation>
+    </message>
+    <message>
+        <source>Other</source>
+        <translation>Inna</translation>
+    </message>
+    <message>
+        <source>Step %1 of %2</source>
+        <translation>Krok %1 z %2</translation>
+    </message>
+    <message>
+        <source>FootballDSS helps you plan training and matches and keep an eye on your squad. A few details and you can start.</source>
+        <translation>FootballDSS pomaga planować treningi i mecze oraz mieć oko na kadrę. Kilka informacji i można zaczynać.</translation>
+    </message>
+    <message>
+        <source>Language</source>
+        <translation>Język</translation>
+    </message>
+    <message>
+        <source>Club name</source>
+        <translation>Nazwa klubu</translation>
+    </message>
+    <message>
+        <source>Team name</source>
+        <translation>Nazwa drużyny</translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation>Kategoria</translation>
+    </message>
+    <message>
+        <source>Season</source>
+        <translation>Sezon</translation>
+    </message>
+    <message>
+        <source>For example 2026/27.</source>
+        <translation>Na przykład 2026/27.</translation>
+    </message>
+    <message>
+        <source>Your name</source>
+        <translation>Imię i nazwisko</translation>
+    </message>
+    <message>
+        <source>You will be the coach, who manages the staff and the settings.</source>
+        <translation>Twoje konto będzie kontem trenera, który zarządza sztabem i ustawieniami.</translation>
+    </message>
+    <message>
+        <source>PIN</source>
+        <translation>PIN</translation>
+    </message>
+    <message>
+        <source>4 to 8 digits. You will enter it at every start.</source>
+        <translation>Od 4 do 8 cyfr. Wpisujesz go przy każdym uruchomieniu.</translation>
+    </message>
+    <message>
+        <source>Repeat the PIN</source>
+        <translation>Powtórz PIN</translation>
+    </message>
+    <message>
+        <source>Club</source>
+        <translation>Klub</translation>
+    </message>
+    <message>
+        <source>Team</source>
+        <translation>Drużyna</translation>
+    </message>
+    <message>
+        <source>Coach</source>
+        <translation>Trener</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Wstecz</translation>
+    </message>
+    <message>
+        <source>Create</source>
+        <translation>Utwórz</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Dalej</translation>
+    </message>
+    <message>
+        <source>%1 (Enter)</source>
+        <translation>%1 (Enter)</translation>
     </message>
 </context>
 <context>
@@ -848,10 +1140,6 @@
 <context>
     <name>TopBar</name>
     <message>
-        <source>My team</source>
-        <translation>Moja drużyna</translation>
-    </message>
-    <message>
         <source>Search… (%1)</source>
         <translation>Szukaj… (%1)</translation>
     </message>
@@ -872,8 +1160,36 @@
         <translation>Przełącz na ciemny motyw</translation>
     </message>
     <message>
-        <source>Coach</source>
-        <translation>Trener</translation>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source>Change PIN</source>
+        <translation>Zmień PIN</translation>
+    </message>
+    <message>
+        <source>Log out</source>
+        <translation>Wyloguj</translation>
+    </message>
+    <message>
+        <source>Your PIN was changed.</source>
+        <translation>Twój PIN został zmieniony.</translation>
+    </message>
+    <message>
+        <source>Current PIN</source>
+        <translation>Obecny PIN</translation>
+    </message>
+    <message>
+        <source>New PIN</source>
+        <translation>Nowy PIN</translation>
+    </message>
+    <message>
+        <source>4 to 8 digits.</source>
+        <translation>Od 4 do 8 cyfr.</translation>
+    </message>
+    <message>
+        <source>Repeat the PIN</source>
+        <translation>Powtórz PIN</translation>
     </message>
 </context>
 <context>
@@ -893,10 +1209,6 @@
 </context>
 <context>
     <name>fdss::viewmodels::AppState</name>
-    <message>
-        <source>The test login needs a coach with PIN 1234.</source>
-        <translation>Testowe logowanie wymaga trenera z PIN-em 1234.</translation>
-    </message>
     <message>
         <source>Coach</source>
         <translation>Trener</translation>
@@ -953,6 +1265,10 @@
         <translation>PIN musi mieć od 4 do 8 cyfr.</translation>
     </message>
     <message>
+        <source>The PINs do not match. Enter the same PIN twice.</source>
+        <translation>PIN-y się różnią. Wpisz dwa razy ten sam PIN.</translation>
+    </message>
+    <message>
         <source>Enter the club name, up to 100 characters.</source>
         <translation>Podaj nazwę klubu (do 100 znaków).</translation>
     </message>
@@ -975,6 +1291,14 @@
     <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation>Jedna z wartości jest niepoprawna. Sprawdź, co zostało wpisane, i spróbuj ponownie.</translation>
+    </message>
+    <message>
+        <source>Wrong PIN. Attempts left: %1.</source>
+        <translation>Błędny PIN. Pozostałe próby: %1.</translation>
+    </message>
+    <message>
+        <source>Too many wrong PINs. Try again in %1 s.</source>
+        <translation>Zbyt wiele błędnych PIN-ów. Spróbuj ponownie za %1 s.</translation>
     </message>
     <message>
         <source>The club must keep an active coach. Make someone else a coach first.</source>

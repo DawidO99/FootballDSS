@@ -65,9 +65,14 @@ add_executable(fdss_vm_tests
     test_main.cpp
     services/FakeClock.hpp
     viewmodels/AppStateTest.cpp
+    viewmodels/ChangePinViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
     viewmodels/NavigationModelTest.cpp
+    viewmodels/ProfilePickerViewModelTest.cpp
     viewmodels/ServiceRegistryTest.cpp
+    viewmodels/SetupWizardViewModelTest.cpp
+    viewmodels/StaffListModelTest.cpp
+    viewmodels/StaffViewModelTest.cpp
     viewmodels/ViewModelFixture.hpp
 )
 target_link_libraries(fdss_vm_tests PRIVATE fdss_ui GTest::gtest)

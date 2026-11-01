@@ -1,10 +1,15 @@
 #include "viewmodels/ErrorPresenter.hpp"
 
+#include "services/AuthService.hpp"
+
 #include <gtest/gtest.h>
 
 #include <array>
+#include <chrono>
 
 using namespace fdss::core;
+using fdss::services::PinCheck;
+using fdss::services::PinCheckStatus;
 using fdss::viewmodels::ErrorPresenter;
 
 namespace {
@@ -40,9 +45,35 @@ TEST(ErrorPresenterTest, EveryCodeHasAStartupText) {
 
 TEST(ErrorPresenterTest, EveryFieldOfAuthAndSetupHasItsOwnText) {
     const QString generic = message(ErrorCode::InvalidInput);
-    for (const char* field : {"pin", "club_name", "team_name", "coach_name", "name", "season"}) {
+    for (const char* field :
+         {"pin", "pin_repeat", "club_name", "team_name", "coach_name", "name", "season"}) {
         EXPECT_NE(message(ErrorCode::InvalidInput, field), generic) << field;
     }
+}
+
+TEST(ErrorPresenterTest, AWrongPinNamesTheAttemptsLeft) {
+    PinCheck check;
+    check.status = PinCheckStatus::WrongPin;
+    check.remainingAttempts = 3;
+
+    EXPECT_EQ(ErrorPresenter::pinCheckMessage(check),
+              QStringLiteral("Wrong PIN. Attempts left: 3."));
+}
+
+TEST(ErrorPresenterTest, ALockoutNamesTheTimeLeft) {
+    PinCheck check;
+    check.status = PinCheckStatus::LockedOut;
+    check.lockedFor = std::chrono::seconds{17};
+
+    EXPECT_EQ(ErrorPresenter::pinCheckMessage(check),
+              QStringLiteral("Too many wrong PINs. Try again in 17 s."));
+}
+
+TEST(ErrorPresenterTest, AnAcceptedPinHasNoText) {
+    PinCheck check;
+    check.status = PinCheckStatus::Accepted;
+
+    EXPECT_TRUE(ErrorPresenter::pinCheckMessage(check).isEmpty());
 }
 
 TEST(ErrorPresenterTest, TheLastCoachHasItsOwnText) {

@@ -12,6 +12,9 @@ ApplicationWindow {
     readonly property NavigationModel navigation: navigationModel
     // Exposed for tests: null unless a user is logged in.
     readonly property Item shell: shellLoader.item as Item
+    // Exposed for tests: null unless the state asks for them.
+    readonly property Item setupWizard: setupLoader.item as Item
+    readonly property Item profilePicker: pickerLoader.item as Item
     // Lives here, not on the Sidebar, so it survives a logout.
     property bool sidebarCollapsed: false
     // P03 spike: Ctrl+Shift+G shows the Qt Graphs spike view instead of the shell. Not part of
@@ -71,10 +74,12 @@ ApplicationWindow {
         target: AppState
 
         function onSessionSerialChanged() {
+            // An undo toast belongs to the last user, whose views are going away.
+            Toasts.dismiss();
             // The next user starts on the dashboard: the section of the last one may be hidden.
             navigationModel.activate("dashboard");
             // A login over a running session leaves the state at Ready, so `active` does not change.
-            // After a login from the placeholder the shell is already built for this session.
+            // After a login from the picker the shell is already built for this session.
             if (shellLoader.item && shellLoader.builtForSession !== AppState.sessionSerial) {
                 shellLoader.sourceComponent = null;
                 shellLoader.sourceComponent = shellComponent;
@@ -101,15 +106,25 @@ ApplicationWindow {
         onLoaded: builtForSession = AppState.sessionSerial
     }
 
-    // P07a: stands in for the wizard and the profile picker. P07b replaces it with the real views.
-    EmptyState {
+    Loader {
+        id: setupLoader
+
         anchors.fill: parent
-        visible: AppState.state !== AppState.Ready && !window.spikeChartsOpen && !window.componentGalleryOpen
-        iconName: "user"
-        title: AppState.state === AppState.NeedsSetup ? qsTr("Welcome to FootballDSS") : qsTr("Log in")
-        description: AppState.state === AppState.NeedsSetup ? qsTr("The setup wizard is not available in this version yet.") : qsTr("The profile picker is not available in this version yet.")
-        actionText: AppState.debugBuild ? qsTr("Create test club and log in as Coach") : ""
-        onActionTriggered: AppState.createTestClubAndLogin()
+        active: AppState.state === AppState.NeedsSetup
+        visible: !window.spikeChartsOpen && !window.componentGalleryOpen
+        focus: active
+        sourceComponent: setupWizardView
+    }
+
+    // Built anew for every logout, so nothing typed by the last user stays behind.
+    Loader {
+        id: pickerLoader
+
+        anchors.fill: parent
+        active: AppState.state === AppState.NeedsLogin
+        visible: !window.spikeChartsOpen && !window.componentGalleryOpen
+        focus: active
+        sourceComponent: profilePickerView
     }
 
     Shortcut {
@@ -214,6 +229,18 @@ ApplicationWindow {
                 }
             }
         }
+    }
+
+    Component {
+        id: setupWizardView
+
+        SetupWizardView {}
+    }
+
+    Component {
+        id: profilePickerView
+
+        ProfilePickerView {}
     }
 
     Component {
