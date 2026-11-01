@@ -82,7 +82,7 @@ ApplicationWindow {
                 onClicked: StartupViewModel.openDataFolder()
             }
 
-            PrimaryButton {
+            SecondaryButton {
                 text: qsTr("Quit")
                 onClicked: Qt.quit()
             }

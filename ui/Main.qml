@@ -14,6 +14,9 @@ ApplicationWindow {
     // P03 spike: Ctrl+Shift+G shows the Qt Graphs spike view instead of the shell. Not part of
     // NavigationModel; goes away together with SpikeChartsView.qml.
     property bool spikeChartsOpen: false
+    // P06b: Ctrl+Shift+K toggles the hidden UI kit component gallery.
+    property bool componentGalleryOpen: false
+    readonly property Item componentGallery: galleryLoader.item as Item
 
     // Section key -> view. Keys come from NavigationModel.
     readonly property var viewComponents: ({
@@ -63,7 +66,7 @@ ApplicationWindow {
 
     RowLayout {
         anchors.fill: parent
-        visible: !window.spikeChartsOpen
+        visible: !window.spikeChartsOpen && !window.componentGalleryOpen
         spacing: 0
 
         Sidebar {
@@ -102,13 +105,43 @@ ApplicationWindow {
 
     Shortcut {
         sequence: "Ctrl+Shift+G"
-        onActivated: window.spikeChartsOpen = !window.spikeChartsOpen
+        onActivated: {
+            window.spikeChartsOpen = !window.spikeChartsOpen;
+            if (window.spikeChartsOpen)
+                window.componentGalleryOpen = false;
+        }
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+K"
+        onActivated: {
+            window.componentGalleryOpen = !window.componentGalleryOpen;
+            if (window.componentGalleryOpen)
+                window.spikeChartsOpen = false;
+        }
     }
 
     Loader {
         anchors.fill: parent
         active: window.spikeChartsOpen
         sourceComponent: spikeChartsView
+    }
+
+    Loader {
+        id: galleryLoader
+
+        anchors.fill: parent
+        active: window.componentGalleryOpen
+        sourceComponent: componentGalleryView
+    }
+
+    ToastHost {
+        parent: Overlay.overlay
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.spacing.xl
+        width: Math.min(Theme.toastWidth, parent.width - 2 * Theme.spacing.xl)
+        z: 1
     }
 
     Component {
@@ -187,5 +220,11 @@ ApplicationWindow {
         id: spikeChartsView
 
         SpikeChartsView {}
+    }
+
+    Component {
+        id: componentGalleryView
+
+        ComponentGalleryView {}
     }
 }
