@@ -44,3 +44,8 @@ Everything else, including `ci.yml` (already updated by the human) and `SpikeCha
 - [ ] New `series3` values and validator numbers in the report.
 
 ## Decisions (accepted plan)
+Akceptuję plan z poprawkami : 
+1. Akceptuję propozycję koloru
+2. Zezwalam na edycję ADR-006 w zaproponownaym zakresie
+3. Sekcja Decision została przeze mnie zaktualizowana przed wysłaniem odpowiedzi
+4. Data to 31.10.2026
