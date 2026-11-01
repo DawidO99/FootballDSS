@@ -46,18 +46,19 @@ FocusScope {
             }
 
             Repeater {
-                model: root.titles
+                // By count, not by list: retranslating qsTr() titles assigns a new list, and
+                // rebuilding the buttons would send TabBar back to the first tab.
+                model: root.titles.length
 
                 delegate: TabButton {
                     id: tabButton
 
-                    required property string modelData
                     required property int index
                     readonly property bool selected: tabBar.currentIndex === index
 
                     implicitWidth: tabLabel.implicitWidth + 2 * Theme.spacing.l
                     implicitHeight: Theme.controlHeight + Theme.spacing.xs
-                    text: modelData
+                    text: root.titles[index] ?? ""
                     hoverEnabled: true
                     focusPolicy: Qt.NoFocus
                     Accessible.role: Accessible.PageTab

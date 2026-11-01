@@ -14,6 +14,7 @@ Item {
     readonly property int tabCount: galleryTabs.titles.length
     property int undoCount: 0
     property string lastActionText: qsTr("None")
+    property string tableFilterValue: "all"
     readonly property bool dialogOpen: sampleDialog.visible
 
     signal navigateRequested(string key)
@@ -138,7 +139,7 @@ Item {
     ]
 
     readonly property var filteredPlayers: {
-        const filter = tableFilter.currentValue;
+        const filter = root.tableFilterValue;
         if (filter === "empty")
             return [];
         const query = tableSearch.text.trim().toLowerCase();
@@ -725,11 +726,10 @@ Item {
                     }
 
                     SegmentedControl {
-                        id: tableFilter
-
                         Accessible.name: qsTr("Availability filter")
                         model: root.tableFilterOptions
-                        currentValue: "all"
+                        currentValue: root.tableFilterValue
+                        onActivated: value => root.tableFilterValue = String(value)
                     }
 
                     Item {
@@ -783,7 +783,7 @@ Item {
                         actionText: qsTr("Show all rows")
                         onActionTriggered: {
                             tableSearch.clear();
-                            tableFilter.currentValue = "all";
+                            root.tableFilterValue = "all";
                         }
                     }
                 }

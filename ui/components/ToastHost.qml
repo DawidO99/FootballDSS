@@ -18,7 +18,8 @@ Item {
         target: Toasts
 
         function onSerialChanged() {
-            if (Toasts.active)
+            // While hovered the timer stays stopped; it starts when the pointer leaves.
+            if (Toasts.active && !hoverHandler.hovered)
                 dismissTimer.restart();
         }
     }

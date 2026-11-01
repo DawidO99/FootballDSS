@@ -6,10 +6,13 @@ import QtQuick.Controls.Basic
 // Drop-down selection.
 // API:
 //   model, textRole, valueRole, currentIndex, currentValue, currentText   (inherited from ComboBox)
-//   value: var              selected value; the current item follows indexOfValue(value)
+//   value: var              input: selected value; never assigned by the field
 //   placeholderText         shown while nothing is selected
 //   error: string           external message, empty = valid (red border)
-//   valueActivated(var value)   the user picked an item (`value` is already updated)
+//   valueActivated(var value)   the user picked an item (read it from `currentValue` too)
+// A pick stays inside the field, so a binding on `value` survives it. Keep a viewmodel in sync in
+// valueActivated; whenever `value` changes the field shows it again. The selection is looked up
+// again when the model changes, so rows may arrive after the value.
 // Set Accessible.name to the field label.
 ComboBox {
     id: control
@@ -22,7 +25,8 @@ ComboBox {
     signal valueActivated(var value)
 
     function syncIndex() {
-        control.currentIndex = control.value === undefined || control.value === null ? -1 : control.indexOfValue(control.value);
+        const selected = internal.selectedValue;
+        control.currentIndex = selected === undefined || selected === null ? -1 : control.indexOfValue(selected);
     }
 
     implicitWidth: Theme.fieldWidth
@@ -35,12 +39,41 @@ ComboBox {
     opacity: enabled ? 1.0 : Theme.disabledOpacity
     Accessible.name: placeholderText
 
-    onValueChanged: syncIndex()
+    onValueChanged: {
+        internal.selectedValue = control.value;
+        syncIndex();
+    }
     onModelChanged: syncIndex()
-    Component.onCompleted: syncIndex()
+    onCountChanged: syncIndex()
+    Component.onCompleted: {
+        internal.selectedValue = control.value;
+        syncIndex();
+    }
     onActivated: {
-        control.value = control.currentValue;
-        control.valueActivated(control.value);
+        internal.selectedValue = control.currentValue;
+        control.valueActivated(control.currentValue);
+    }
+
+    QtObject {
+        id: internal
+
+        property var selectedValue
+        // Duck typing: `model` may also be a JS array, which is not a Connections target.
+        readonly property var itemModel: control.model && control.model.modelReset !== undefined ? control.model : null
+    }
+
+    // A reset with the same row count does not change `count`. The later call lets ComboBox's own
+    // model handling finish first, whatever the connection order.
+    Connections {
+        target: internal.itemModel
+
+        function onRowsInserted() {
+            Qt.callLater(control.syncIndex);
+        }
+
+        function onModelReset() {
+            Qt.callLater(control.syncIndex);
+        }
     }
 
     background: FieldBackground {

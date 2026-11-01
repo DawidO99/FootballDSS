@@ -7,15 +7,21 @@ import QtQuick.Layouts
 // ListView-based table with a sticky sortable header, alternating rows, keyboard navigation
 // (Up/Down/Home/End/PageUp/PageDown, Enter = activated) and an optional empty state.
 // Sorting is performed by the viewmodel in response to sortRequested(role, ascending).
+// Tab reaches the sortable headers (Enter/Space request the sort), then the rows.
+// Columns always fit the table: pixel columns shrink proportionally when they do not fit beside the
+// fraction columns' minimum width.
+// Every view passes its own emptyState that says what to do next, with a button (AGENTS.md section
+// 6). The built-in one has no action and only keeps a forgotten emptyState from showing a blank table.
 // API:
 //   model: var              QAbstractListModel, ListModel or JS array of row objects
 //   columns: var            [{ role, title, width (<=1 fraction or >1 px), align?, delegate?, sortable? }]
 //   currentIndex: int       selected row index (-1 = none)
 //   sortRole: string        currently sorted column role
 //   sortAscending: bool     sort direction indicator in the header
-//   emptyState: Component   custom empty state shown when count === 0
-//   touch: bool             44 px row height
+//   emptyState: Component   empty state shown when count === 0
+//   touch: bool             44 px header and row height
 //   count: int              read-only row count
+//   columnWidths: var       read-only width of each column in px
 //   sortRequested(string role, bool ascending)
 //   activated(int index)    Enter or double-click on a row
 FocusScope {
@@ -30,25 +36,48 @@ FocusScope {
     property bool touch: false
     readonly property int count: listView.count
     readonly property int effectiveRowHeight: touch ? Theme.controlHeightTouch : Theme.rowHeight
+    readonly property int effectiveHeaderHeight: touch ? Math.max(Theme.tableHeaderHeight, Theme.hitTouch) : Theme.tableHeaderHeight
+    readonly property var columnWidths: computeColumnWidths(columns, width - 2 * Theme.borderWidth)
 
     signal sortRequested(string role, bool ascending)
     signal activated(int index)
 
-    function columnWidth(column, totalWidth) {
-        let fixedSum = 0;
-        let fractionSum = 0;
-        for (let i = 0; i < root.columns.length; ++i) {
-            const w = root.columns[i].width ?? 1;
-            if (w > 1)
-                fixedSum += w;
-            else
-                fractionSum += w;
+    function computeColumnWidths(columns, totalWidth) {
+        const available = Math.max(0, totalWidth);
+        const specs = columns.map(column => column.width ?? 1);
+        const fixedSum = specs.filter(spec => spec > 1).reduce((sum, spec) => sum + spec, 0);
+        const fractionCount = specs.filter(spec => spec <= 1).length;
+
+        // When even the minimums do not fit, the fraction columns share the whole width equally.
+        const minimum = fractionCount > 0 ? Math.min(Theme.spacing.xxl * 2, available / fractionCount) : 0;
+        const roomForFixed = available - fractionCount * minimum;
+        const fixedScale = fixedSum > roomForFixed ? roomForFixed / fixedSum : 1;
+
+        // Fractions below the minimum are pinned to it and the rest share what remains; pinning one
+        // column can push another below the minimum, hence the loop.
+        const widths = specs.map(spec => spec > 1 ? spec * fixedScale : -1);
+        for (;;) {
+            let remaining = available;
+            let fractionSum = 0;
+            for (let i = 0; i < specs.length; ++i) {
+                if (widths[i] >= 0)
+                    remaining -= widths[i];
+                else
+                    fractionSum += specs[i];
+            }
+            const free = specs.map((spec, i) => i).filter(i => widths[i] < 0);
+            if (free.length === 0)
+                return widths;
+            const share = i => fractionSum > 0 ? remaining * specs[i] / fractionSum : remaining / free.length;
+            const pinned = free.filter(i => share(i) < minimum);
+            if (pinned.length === 0) {
+                for (const i of free)
+                    widths[i] = share(i);
+                return widths;
+            }
+            for (const i of pinned)
+                widths[i] = minimum;
         }
-        const widthSpec = column.width ?? 1;
-        if (widthSpec > 1)
-            return widthSpec;
-        const remaining = Math.max(0, totalWidth - fixedSum);
-        return fractionSum > 0 ? remaining * (widthSpec / fractionSum) : 0;
     }
 
     function moveSelection(targetIndex) {
@@ -64,8 +93,7 @@ FocusScope {
     }
 
     implicitWidth: 2 * Theme.fieldWidth
-    implicitHeight: Theme.tableHeaderHeight + 6 * effectiveRowHeight
-    activeFocusOnTab: true
+    implicitHeight: effectiveHeaderHeight + 6 * effectiveRowHeight
     opacity: enabled ? 1.0 : Theme.disabledOpacity
 
     Rectangle {
@@ -85,40 +113,49 @@ FocusScope {
                 id: headerBar
 
                 Layout.fillWidth: true
-                Layout.preferredHeight: Theme.tableHeaderHeight
+                Layout.preferredHeight: root.effectiveHeaderHeight
                 color: Theme.surfaceAlt
 
                 Row {
                     anchors.fill: parent
 
                     Repeater {
-                        model: root.columns
+                        // By count: retranslating qsTr() titles must not rebuild the headers.
+                        model: root.columns.length
 
                         delegate: AbstractButton {
                             id: headerButton
 
-                            required property var modelData
                             required property int index
-                            readonly property bool sortable: modelData.sortable !== false
-                            readonly property bool sortedHere: root.sortRole === modelData.role
+                            readonly property var column: root.columns[index] ?? ({})
+                            readonly property bool sortable: column.sortable !== false
+                            readonly property bool sortedHere: root.sortRole === column.role
 
-                            width: root.columnWidth(modelData, headerBar.width)
+                            function requestSort() {
+                                const nextAsc = sortedHere ? !root.sortAscending : true;
+                                root.sortRole = column.role;
+                                root.sortAscending = nextAsc;
+                                root.sortRequested(column.role, nextAsc);
+                            }
+
+                            objectName: "header_" + column.role
+                            width: root.columnWidths[index] ?? 0
                             height: headerBar.height
                             enabled: sortable
-                            focusPolicy: Qt.NoFocus
+                            // Tab only: a click on a header leaves keyboard focus on the rows.
+                            focusPolicy: sortable ? Qt.TabFocus : Qt.NoFocus
                             hoverEnabled: true
-                            text: modelData.title ?? ""
+                            text: column.title ?? ""
                             Accessible.role: Accessible.ColumnHeader
                             Accessible.name: text
-                            onClicked: {
-                                const nextAsc = sortedHere ? !root.sortAscending : true;
-                                root.sortRole = modelData.role;
-                                root.sortAscending = nextAsc;
-                                root.sortRequested(modelData.role, nextAsc);
-                            }
+                            onClicked: requestSort()
+                            Keys.onReturnPressed: requestSort()
+                            Keys.onEnterPressed: requestSort()
 
                             background: Rectangle {
                                 color: headerButton.hovered && headerButton.sortable ? Theme.rowHover : "transparent"
+                                border.width: headerButton.activeFocus ? Theme.focusRingWidth : 0
+                                border.color: Theme.accent
                             }
 
                             contentItem: RowLayout {
@@ -133,7 +170,7 @@ FocusScope {
                                     color: headerButton.sortedHere ? Theme.text : Theme.textMuted
                                     font.pixelSize: Theme.fontSize.caption
                                     font.weight: Font.DemiBold
-                                    horizontalAlignment: headerButton.modelData.align ?? Text.AlignLeft
+                                    horizontalAlignment: headerButton.column.align ?? Text.AlignLeft
                                     verticalAlignment: Text.AlignVCenter
                                     elide: Text.ElideRight
                                 }
@@ -165,9 +202,11 @@ FocusScope {
                 ListView {
                     id: listView
 
+                    objectName: "tableRows"
                     anchors.fill: parent
                     clip: true
                     focus: true
+                    activeFocusOnTab: true
                     model: root.model
                     boundsBehavior: Flickable.StopAtBounds
                     Accessible.role: Accessible.Table
@@ -237,13 +276,13 @@ FocusScope {
 
                         contentItem: Row {
                             Repeater {
-                                model: root.columns
+                                model: root.columns.length
 
                                 delegate: Item {
                                     id: cell
 
-                                    required property var modelData
-                                    readonly property var columnData: modelData
+                                    required property int index
+                                    readonly property var columnData: root.columns[index] ?? ({})
                                     readonly property var cellValue: rowItem.record ? rowItem.record[columnData.role] : undefined
                                     readonly property bool hasCustomDelegate: columnData.delegate !== undefined && columnData.delegate !== null
 
@@ -257,7 +296,7 @@ FocusScope {
                                         custom.selected = rowItem.selected;
                                     }
 
-                                    width: root.columnWidth(columnData, rowItem.width)
+                                    width: root.columnWidths[index] ?? 0
                                     height: rowItem.height
                                     onCellValueChanged: syncCustomCell()
 

@@ -7,10 +7,13 @@ import QtQuick.Controls.Basic
 // Left/Right move the selection while the control has keyboard focus.
 // API:
 //   model: var           [{ value, text }], 2-5 entries
-//   currentValue: var    value of the selected option (undefined = none)
-//   currentIndex         read-only
+//   currentValue: var    input: value of the selected option (undefined = none); never assigned by
+//                        the control
+//   currentIndex         read-only: the shown option, `currentValue` or the user's last pick
 //   touch: bool          44 px hit targets
-//   activated(var value) the user picked an option (`currentValue` is already updated)
+//   activated(var value) the user picked an option
+// A pick stays inside the control, so a binding on `currentValue` survives it. Keep a viewmodel in
+// sync in activated; whenever `currentValue` changes the control shows it again.
 // Set Accessible.name to what the options choose (e.g. "Status filter").
 FocusScope {
     id: root
@@ -18,7 +21,7 @@ FocusScope {
     property var model: []
     property var currentValue
     property bool touch: false
-    readonly property int currentIndex: indexOfValue(currentValue)
+    readonly property int currentIndex: indexOfValue(internal.selectedValue)
 
     signal activated(var value)
 
@@ -33,18 +36,28 @@ FocusScope {
     function select(index) {
         if (index < 0 || index >= root.model.length || index === root.currentIndex)
             return;
-        root.currentValue = root.model[index].value;
-        root.activated(root.currentValue);
+        internal.selectedValue = root.model[index].value;
+        root.activated(internal.selectedValue);
     }
 
-    implicitWidth: row.implicitWidth + 2 * Theme.borderWidth
-    implicitHeight: (touch ? Theme.controlHeightTouch : Theme.controlHeight)
+    // The segments sit inside the focus ring, so the hit target decides the control's size.
+    implicitWidth: row.implicitWidth + 2 * Theme.focusRingWidth
+    implicitHeight: (touch ? Theme.hitTouch : Theme.hitMin) + 2 * Theme.focusRingWidth
     activeFocusOnTab: true
     opacity: enabled ? 1.0 : Theme.disabledOpacity
     Accessible.role: Accessible.Grouping
 
+    onCurrentValueChanged: internal.selectedValue = root.currentValue
+    Component.onCompleted: internal.selectedValue = root.currentValue
+
     Keys.onLeftPressed: root.select(root.currentIndex < 0 ? 0 : root.currentIndex - 1)
     Keys.onRightPressed: root.select(root.currentIndex + 1)
+
+    QtObject {
+        id: internal
+
+        property var selectedValue
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -61,18 +74,19 @@ FocusScope {
         anchors.margins: Theme.focusRingWidth
 
         Repeater {
-            model: root.model
+            // By count: retranslating a qsTr() model must not rebuild the segments.
+            model: root.model.length
 
             delegate: AbstractButton {
                 id: segment
 
-                required property var modelData
                 required property int index
                 readonly property bool selected: index === root.currentIndex
 
+                objectName: "segment" + index
                 height: row.height
                 implicitWidth: Math.max(root.touch ? Theme.hitTouch : Theme.hitMin, label.implicitWidth + 2 * Theme.spacing.l)
-                text: modelData.text
+                text: root.model[index]?.text ?? ""
                 checkable: true
                 checked: selected
                 focusPolicy: Qt.NoFocus

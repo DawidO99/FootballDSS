@@ -114,10 +114,10 @@ jobs:
 
       - name: Run tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        # On Linux qml_smoke runs in the next step; CTest would force the offscreen platform.
+        # On Linux the QML tests run in the next steps; CTest would force the offscreen platform.
         run: >-
           ctest --preset dev --output-on-failure --no-tests=error
-          ${{ runner.os == 'Linux' && '-E qml_smoke' || '' }}
+          ${{ runner.os == 'Linux' && '-E "qml_smoke|qml_components"' || '' }}
           2>&1 | tee build/ci-logs/ctest.log
 
       - name: Run qml_smoke (Linux, Xvfb + Mesa llvmpipe)
@@ -126,6 +126,13 @@ jobs:
           xvfb-run -a -s '-screen 0 1920x1080x24' \
             env QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 ./build/dev/tests/qml_smoke \
             2>&1 | tee build/ci-logs/qml-smoke-linux.log
+
+      - name: Run qml_components (Linux, Xvfb + Mesa llvmpipe)
+        if: ${{ runner.os == 'Linux' && !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          xvfb-run -a -s '-screen 0 1920x1080x24' \
+            env QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 ./build/dev/tests/qml_components \
+            2>&1 | tee build/ci-logs/qml-components-linux.log
 
       - name: Lint QML
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -245,7 +252,7 @@ jobs:
 
       - name: Run tests with sanitizers
         run: |
-          ctest --test-dir build/ci-sanitizers --output-on-failure --no-tests=error -E qml_smoke \
+          ctest --test-dir build/ci-sanitizers --output-on-failure --no-tests=error -E 'qml_smoke|qml_components' \
             2>&1 | tee build/ci-logs/ctest-sanitizers.log
 
       - name: Upload failure logs
