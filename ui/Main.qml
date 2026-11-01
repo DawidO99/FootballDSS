@@ -10,7 +10,10 @@ ApplicationWindow {
 
     // Exposed for tests (qml_smoke drives navigation through it).
     readonly property NavigationModel navigation: navigationModel
-    property alias sidebarCollapsed: sidebar.collapsed
+    // Exposed for tests: null unless a user is logged in.
+    readonly property Item shell: shellLoader.item as Item
+    // Lives here, not on the Sidebar, so it survives a logout.
+    property bool sidebarCollapsed: false
     // P03 spike: Ctrl+Shift+G shows the Qt Graphs spike view instead of the shell. Not part of
     // NavigationModel; goes away together with SpikeChartsView.qml.
     property bool spikeChartsOpen: false
@@ -64,43 +67,41 @@ ApplicationWindow {
         id: navigationModel
     }
 
-    RowLayout {
+    Connections {
+        target: AppState
+
+        function onStateChanged() {
+            // The next user starts on the dashboard: the section of the last one may be hidden.
+            if (AppState.state !== AppState.Ready)
+                navigationModel.activate("dashboard");
+        }
+
+        function onErrorOccurred(message: string) {
+            Toasts.error(message);
+        }
+    }
+
+    // The section views exist only for a logged-in user. Every login builds them anew, so their
+    // AppState.can() bindings are computed for that user, and a logout leaves none of the data of
+    // the last user in memory.
+    Loader {
+        id: shellLoader
+
         anchors.fill: parent
+        active: AppState.state === AppState.Ready
         visible: !window.spikeChartsOpen && !window.componentGalleryOpen
-        spacing: 0
+        sourceComponent: shellComponent
+    }
 
-        Sidebar {
-            id: sidebar
-
-            Layout.fillHeight: true
-            navigation: navigationModel
-        }
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            spacing: 0
-
-            TopBar {
-                Layout.fillWidth: true
-            }
-
-            StackLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                currentIndex: navigationModel.currentIndex
-
-                Repeater {
-                    model: navigationModel
-
-                    delegate: Loader {
-                        required property string key
-
-                        sourceComponent: window.viewComponents[key] ?? null
-                    }
-                }
-            }
-        }
+    // P07a: stands in for the wizard and the profile picker. P07b replaces it with the real views.
+    EmptyState {
+        anchors.fill: parent
+        visible: AppState.state !== AppState.Ready && !window.spikeChartsOpen && !window.componentGalleryOpen
+        iconName: "user"
+        title: AppState.state === AppState.NeedsSetup ? qsTr("Welcome to FootballDSS") : qsTr("Log in")
+        description: AppState.state === AppState.NeedsSetup ? qsTr("The setup wizard is not available in this version yet.") : qsTr("The profile picker is not available in this version yet.")
+        actionText: AppState.debugBuild ? qsTr("Create test club and log in as Coach") : ""
+        onActionTriggered: AppState.createTestClubAndLogin()
     }
 
     Shortcut {
@@ -145,10 +146,73 @@ ApplicationWindow {
     }
 
     Component {
+        id: shellComponent
+
+        RowLayout {
+            spacing: 0
+
+            Sidebar {
+                id: sidebar
+
+                Layout.fillHeight: true
+                navigation: navigationModel
+                onCollapsedChanged: window.sidebarCollapsed = collapsed
+            }
+
+            // Not a plain binding on the Sidebar: its toggle button writes the property and would
+            // end that binding.
+            Binding {
+                target: sidebar
+                property: "collapsed"
+                value: window.sidebarCollapsed
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 0
+
+                TopBar {
+                    Layout.fillWidth: true
+                }
+
+                StackLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    currentIndex: navigationModel.currentIndex
+
+                    Repeater {
+                        model: navigationModel
+
+                        delegate: Loader {
+                            id: sectionLoader
+
+                            required property string key
+
+                            sourceComponent: window.viewComponents[key] ?? null
+
+                            // All sections stay loaded; only the current one gets the arguments,
+                            // the others fall back to their default. A view reacts in
+                            // onNavigationArgsChanged: the order against its visible change is not
+                            // guaranteed.
+                            Binding {
+                                target: sectionLoader.item
+                                property: "navigationArgs"
+                                when: sectionLoader.status === Loader.Ready && navigationModel.currentKey === sectionLoader.key
+                                value: navigationModel.currentArgs
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Component {
         id: dashboardView
 
         DashboardView {
-            onNavigateRequested: key => navigationModel.activate(key)
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }
 
@@ -156,7 +220,7 @@ ApplicationWindow {
         id: squadView
 
         SquadView {
-            onNavigateRequested: key => navigationModel.activate(key)
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }
 
@@ -164,7 +228,7 @@ ApplicationWindow {
         id: calendarView
 
         CalendarView {
-            onNavigateRequested: key => navigationModel.activate(key)
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }
 
@@ -172,7 +236,7 @@ ApplicationWindow {
         id: trainingView
 
         TrainingView {
-            onNavigateRequested: key => navigationModel.activate(key)
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }
 
@@ -180,7 +244,7 @@ ApplicationWindow {
         id: preMatchView
 
         PreMatchView {
-            onNavigateRequested: key => navigationModel.activate(key)
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }
 
@@ -188,7 +252,7 @@ ApplicationWindow {
         id: matchDayView
 
         MatchDayView {
-            onNavigateRequested: key => navigationModel.activate(key)
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }
 
@@ -196,7 +260,7 @@ ApplicationWindow {
         id: loadView
 
         LoadView {
-            onNavigateRequested: key => navigationModel.activate(key)
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }
 
@@ -204,7 +268,7 @@ ApplicationWindow {
         id: importView
 
         ImportView {
-            onNavigateRequested: key => navigationModel.activate(key)
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }
 
@@ -212,7 +276,7 @@ ApplicationWindow {
         id: settingsView
 
         SettingsView {
-            onNavigateRequested: key => navigationModel.activate(key)
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }
 

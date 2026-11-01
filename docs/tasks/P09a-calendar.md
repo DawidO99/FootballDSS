@@ -9,7 +9,7 @@ The coach plans matches and training sessions and sees them in a list and a week
 
 ## Scope — files you may create or change
 - `src/services/CalendarService.hpp/.cpp` (+ one member and one construction line in
-  `ServiceRegistry`, `main.cpp`, `qml_smoke` — expected trivial conflicts with P08/P09b/P10)
+  `ServiceRegistry` — expected trivial conflicts with P08/P09b/P10)
 - `src/viewmodels/CalendarViewModel`, `MatchEditorViewModel`, `SessionEditorViewModel`,
   `OpponentListModel`
 - `ui/views/CalendarView.qml`, editors as components in `ui/components/` if reusable

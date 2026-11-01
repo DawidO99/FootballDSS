@@ -77,3 +77,77 @@ Q_PROPERTY(QVariantMap currentArgs READ currentArgs NOTIFY currentIndexChanged)
 - [ ] App still starts; with an empty database it shows the setup placeholder.
 
 ## Decisions (accepted plan)
+
+Accepted by the human on 2026-11-01. These override the packet text above (AGENTS §11).
+
+1. **PBKDF2 on the main thread.** `login()` is synchronous. This is an accepted exception to AGENTS §5
+   ("the UI thread never blocks on computation"), limited to PIN hashing. Measured on the dev machine
+   (Ryzen 7 260): 132–136 ms per hash at 120 000 iterations, inside the 0.1–0.3 s of ADR-007. Above
+   0.3 s locally the agent stops and reports. `changeOwnPin` hashes twice.
+2. **One place builds the services.** `ServiceRegistry::create(database, options)`; `main.cpp`,
+   `qml_smoke` and the viewmodel tests only call it. A new service is added only in `ServiceRegistry`.
+   Data types are only forward-declared in its header, so viewmodels reach nothing below the services.
+   AGENTS §5, the scopes of P07b, P08, P09a, P09b, P10 and `W1-plan.md` are updated.
+3. **`reset()` in `main.cpp` too.** The registry owns the database, so it has to go after the QML engine
+   and before `QGuiApplication`.
+4. **`PinCheck` instead of new error codes.** `login` and `changeOwnPin` return `Result<PinCheck>`: a
+   wrong PIN and a lockout are answers carrying the remaining attempts and the time left; `Error` stays
+   for failures. No change to `core`.
+5. **Beyond the agreed interfaces.** P07b has no services in its scope, and viewmodels may not use
+   repositories, so this packet also adds: `listActiveStaff`, `listAllStaff`, `lockRemaining` (a lockout
+   visible after a restart), `hashPin` (P10), `SetupService::clubContext`; `AppState`: `errorOccurred`,
+   `debugBuild`, `createTestClubAndLogin`, `roleDisplayName`; `ErrorPresenter::startupMessage` (its texts
+   speak of opening the file and would mislead after a failed save); `Session::require`.
+6. **The shell is a `Loader` on state `Ready`.** `can()` is a method without a notify signal, so a
+   binding on it does not update when the user changes. Rebuilding the section views at every login
+   makes it correct, and a logout leaves no data of the last user in memory, injury details included.
+   After a logout the navigation returns to `dashboard`. AGENTS §6 states the rule.
+7. **Changing your own account.** Changing the role of the session user or deactivating that user ends
+   the session (`NeedsLogin` after `refresh()`); renaming only updates it.
+8. **Rules of login and setup.**
+   - During a lockout an attempt costs no hash and does not extend it. After it, the user has 5 fresh
+     attempts. `now == locked_until` means unlocked.
+   - A `locked_until` more than 30 s ahead means the clock was moved back, and counts as expired;
+     otherwise the only Coach could stay locked out for as long as the clock was off.
+   - A malformed PIN is `InvalidInput` with field `pin` and is not counted. A deactivated user gets
+     `PermissionDenied`.
+   - A wrong current PIN in `changeOwnPin` counts towards the lockout, so it is no way around the limit.
+     `resetPin` and a successful change of PIN clear the counter and the lockout.
+   - A stored PIN is checked with its own `iterations`; a new hash uses the constructor parameter.
+   - `validate()` reports `name` for club, team and coach alike, so `completeSetup` reports `club_name`,
+     `team_name` and `coach_name`. The last active Coach gives `Conflict` with field `last_coach`.
+   - The current team is the first by id. `isSetupComplete` means a club, a team and an active Coach.
+9. **Sanitizers do not run tests that link `fdss_ui`.** `fdss_vm_tests`, `qml_smoke` and `qml_components`
+   have the CTest label `ui`; the job builds `fdss_tests` and runs `ctest -LE ui`. `fdss_vm_tests` uses a
+   plain `add_test`, not `gtest_discover_tests`: for a target that was not built, the latter registers a
+   `<target>_NOT_BUILT` test without any properties, which `-LE ui` would run and fail. The cost is one
+   CTest entry instead of one per test case; `--gtest_filter` on the binary still selects a single one.
+
+**Standing rules.**
+- Every service calls `validate()` before `create()`/`update()` in a repository: repositories do not
+  validate. `firstError()` in `services/ServiceSupport.hpp` turns the result into a `Status`.
+- A database write always runs on the main-thread connection in one `Transaction`; `QtConcurrent` is for
+  computation only. `AuthService` and `SetupService` hash a PIN before the transaction begins, so the
+  write lock is not held for the length of a hash.
+
+**Scope extension:** `src/viewmodels/StartupViewModel.hpp/.cpp` (requirement 7),
+`src/services/ServiceSupport.hpp`, `.github/workflows/ci.yml` (decision 9), `AGENTS.md`, the packets of
+decision 2, and in P07b the scope for removing the temporary `AppState` members. `ui/Main.qml` changes
+beyond the navigation signal (requirement 5, decision 6).
+
+**Found during implementation.**
+- An empty `std::vector` has a null `data()`, so through `bytesValue()` it binds `NULL` and the schema
+  refuses it. An empty `pin_hash` can therefore come only from a damaged or edited file; `AuthService`
+  treats it as matching nothing.
+- `QPasswordDigestor::deriveKeyPbkdf2` returns an empty key for `iterations = 0`; `hashPin` checks the
+  length of the key and returns `Internal`.
+- What a `Repeater` creates is not found by `findChildren()` from the window, so `qml_smoke` walks
+  `childItems()` to find a section view.
+
+**Known limitations.**
+- There is no way to recover the PIN of the only Coach (planned in W2).
+- Until P07b is merged, `NeedsSetup` and `NeedsLogin` are a dead end in a Release build, which has no test
+  club button: do not hand out a package between P07a and P07b.
+- `TopBar` still shows the fixed "My team" and "Coach": the user chip belongs to P07b.
+- A `can()` binding does not update during the life of a view. A change of own role ends the session, so
+  this cannot be observed today.

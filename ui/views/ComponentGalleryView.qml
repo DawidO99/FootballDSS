@@ -19,7 +19,7 @@ Item {
     property bool tableSortAscending: true
     readonly property bool dialogOpen: sampleDialog.visible
 
-    signal navigateRequested(string key)
+    signal navigateRequested(string key, var args)
 
     function triggerSampleUndoToast() {
         Toasts.show(qsTr("Player archived from squad."), qsTr("Undo"), function () {

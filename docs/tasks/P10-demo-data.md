@@ -11,7 +11,7 @@ B-klasa team, so every later screen (and the defense) has data to show.
 ## Scope — files you may create or change
 - `src/core/demo/DemoGenerator.hpp/.cpp` (pure, deterministic)
 - `src/services/DemoDataService.hpp/.cpp` (persists the generated data in one transaction;
-  + one member and one construction line in `ServiceRegistry`, `main.cpp`, `qml_smoke`)
+  + one member and one construction line in `ServiceRegistry`)
 - `src/viewmodels/SetupWizardViewModel.*` and `ui/views/SetupWizardView.qml`
   (only: the "Load demo data" choice on the last step)
 - `tests/core/DemoGeneratorTest.cpp`, `tests/services/*`, CMake lists, `i18n/*.ts`

@@ -15,8 +15,8 @@ P06b UI kit (parallel with P05/P06) ──────────────�
 ```
 
 Critical path: P05 → P06 → P07a. After P07a (and P06b), P07b, P08, P09a, P09b and the P10 generator
-can run in parallel worktrees. They share a few files with **trivial** conflicts: one line each in
-`ServiceRegistry`, `main.cpp`, `qml_smoke`, file lists in `CMakeLists.txt`, and the `.ts` files
+can run in parallel worktrees. They share a few files with **trivial** conflicts: one member and one
+construction line in `ServiceRegistry`, file lists in `CMakeLists.txt`, and the `.ts` files
 (AGENTS §6 rule). Merge one at a time and rebase the others.
 
 ## Who does what

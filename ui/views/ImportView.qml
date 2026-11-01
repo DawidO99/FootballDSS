@@ -5,7 +5,10 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    signal navigateRequested(string key)
+    // What the section was opened with, see NavigationModel::activate().
+    property var navigationArgs: ({})
+
+    signal navigateRequested(string key, var args)
 
     ColumnLayout {
         anchors.fill: parent
@@ -23,7 +26,7 @@ Item {
             iconName: "import"
             description: qsTr("Import squads, matches and training data from CSV or XLSX files.")
             actionText: qsTr("Back to the dashboard")
-            onActionTriggered: root.navigateRequested("dashboard")
+            onActionTriggered: root.navigateRequested("dashboard", {})
         }
     }
 }

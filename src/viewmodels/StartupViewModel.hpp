@@ -24,8 +24,8 @@ public:
 
     void setDatabaseError(const core::Error& error, const QString& databasePath);
 
-    // Translated explanation with a next step, per error code; never Error::detail. Temporary home
-    // of these texts: P07a moves them to ErrorPresenter.
+    // Translated explanation with a next step, per error code (ErrorPresenter); never
+    // Error::detail.
     [[nodiscard]] QString errorMessage() const;
     [[nodiscard]] QString databasePath() const;
 

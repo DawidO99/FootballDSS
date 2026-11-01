@@ -11,7 +11,7 @@ details respect roles.
 
 ## Scope — files you may create or change
 - `src/services/SquadService.hpp/.cpp` (thin: permission checks + repositories + validation;
-  + one member and one construction line in `ServiceRegistry`, `main.cpp`, `qml_smoke`)
+  + one member and one construction line in `ServiceRegistry`)
 - `src/viewmodels/SquadViewModel.hpp/.cpp` (list model + filter/sort/search),
   `PlayerEditorViewModel`, `PlayerCardViewModel`, `AvailabilityViewModel`
 - `ui/views/SquadView.qml`, `ui/views/PlayerCardView.qml` (or a component shown from SquadView),

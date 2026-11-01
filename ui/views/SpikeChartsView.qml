@@ -10,7 +10,7 @@ import QtGraphs
 Item {
     id: root
 
-    signal navigateRequested(string key)
+    signal navigateRequested(string key, var args)
 
     // 14 days of team load (sRPE, AU). Calendar days are plotted as UTC midnight because
     // DateTimeAxis labels are in UTC by default.

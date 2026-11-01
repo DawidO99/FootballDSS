@@ -62,6 +62,7 @@ void NavigationModel::setCurrentIndex(int index) {
         return;
     }
     m_currentIndex = index;
+    m_currentArgs.clear();
     emit currentIndexChanged();
 }
 
@@ -69,14 +70,22 @@ QString NavigationModel::currentKey() const {
     return m_items[static_cast<std::size_t>(m_currentIndex)].key;
 }
 
-void NavigationModel::activate(const QString& key) {
+QVariantMap NavigationModel::currentArgs() const { return m_currentArgs; }
+
+void NavigationModel::activate(const QString& key, const QVariantMap& args) {
     const auto it =
         std::ranges::find_if(m_items, [&key](const Item& item) { return item.key == key; });
     if (it == m_items.end()) {
         qWarning("NavigationModel: unknown section '%s'", qUtf8Printable(key));
         return;
     }
-    setCurrentIndex(static_cast<int>(std::distance(m_items.begin(), it)));
+    const int index = static_cast<int>(std::distance(m_items.begin(), it));
+    if (index == m_currentIndex && args == m_currentArgs) {
+        return;
+    }
+    m_currentIndex = index;
+    m_currentArgs = args;
+    emit currentIndexChanged();
 }
 
 bool NavigationModel::eventFilter(QObject* watched, QEvent* event) {
