@@ -1,10 +1,13 @@
 #include "viewmodels/ServiceRegistry.hpp"
 
 #include "data/db/DatabaseManager.hpp"
+#include "data/repositories/AvailabilityRepository.hpp"
 #include "data/repositories/ClubRepository.hpp"
+#include "data/repositories/PlayerRepository.hpp"
 #include "data/repositories/StaffRepository.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
+#include "services/SquadService.hpp"
 
 #include <QtGlobal>
 
@@ -51,11 +54,15 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
     : m_database(std::move(database)), m_clock(clockOrSystem(std::move(options.clock))),
       m_clubs(std::make_unique<data::ClubRepository>(*m_database)),
       m_staff(std::make_unique<data::StaffRepository>(*m_database)),
+      m_players(std::make_unique<data::PlayerRepository>(*m_database)),
+      m_availability(std::make_unique<data::AvailabilityRepository>(*m_database)),
       m_session(std::make_unique<services::Session>()),
       m_auth(std::make_unique<services::AuthService>(*m_database, *m_staff, *m_session, *m_clock,
                                                      options.pinIterations)),
       m_setup(std::make_unique<services::SetupService>(*m_database, *m_clubs, *m_staff, *m_auth,
-                                                       *m_session)) {}
+                                                       *m_session)),
+      m_squad(std::make_unique<services::SquadService>(*m_players, *m_availability, *m_session,
+                                                       *m_clock)) {}
 
 ServiceRegistry::~ServiceRegistry() = default;
 
@@ -66,5 +73,7 @@ services::Session& ServiceRegistry::session() { return *m_session; }
 services::AuthService& ServiceRegistry::auth() { return *m_auth; }
 
 services::SetupService& ServiceRegistry::setup() { return *m_setup; }
+
+services::SquadService& ServiceRegistry::squad() { return *m_squad; }
 
 } // namespace fdss::viewmodels

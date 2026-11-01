@@ -47,6 +47,7 @@ add_executable(fdss_tests
     services/ServiceFixture.hpp
     services/SessionTest.cpp
     services/SetupServiceTest.cpp
+    services/SquadServiceTest.cpp
 )
 # QXlsx is linked here only to prove the library itself (P03 spike); app code reaches it
 # through fdss_data.
@@ -65,12 +66,16 @@ add_executable(fdss_vm_tests
     test_main.cpp
     services/FakeClock.hpp
     viewmodels/AppStateTest.cpp
+    viewmodels/AvailabilityViewModelTest.cpp
     viewmodels/ChangePinViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
     viewmodels/NavigationModelTest.cpp
+    viewmodels/PlayerCardViewModelTest.cpp
+    viewmodels/PlayerEditorViewModelTest.cpp
     viewmodels/ProfilePickerViewModelTest.cpp
     viewmodels/ServiceRegistryTest.cpp
     viewmodels/SetupWizardViewModelTest.cpp
+    viewmodels/SquadViewModelTest.cpp
     viewmodels/StaffListModelTest.cpp
     viewmodels/StaffViewModelTest.cpp
     viewmodels/ViewModelFixture.hpp

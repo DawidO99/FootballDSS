@@ -80,6 +80,21 @@ TEST(ErrorPresenterTest, TheLastCoachHasItsOwnText) {
     EXPECT_NE(message(ErrorCode::Conflict, "last_coach"), message(ErrorCode::Conflict));
 }
 
+TEST(ErrorPresenterTest, EveryFieldOfTheSquadFormsHasItsOwnText) {
+    for (const char* field : {"first_name", "last_name", "shirt_number", "birth_year",
+                              "secondary_positions", "from_date", "expected_to", "actual_to"}) {
+        const QString text = message(ErrorCode::InvalidInput, field);
+        EXPECT_NE(text, message(ErrorCode::InvalidInput)) << field;
+        EXPECT_FALSE(text.contains(QLatin1StringView(field))) << field;
+    }
+    EXPECT_TRUE(message(ErrorCode::InvalidInput, "shirt_number").contains(QLatin1StringView("99")));
+    EXPECT_TRUE(message(ErrorCode::InvalidInput, "birth_year").contains(QLatin1StringView("1950")));
+}
+
+TEST(ErrorPresenterTest, ATakenShirtNumberHasItsOwnText) {
+    EXPECT_NE(message(ErrorCode::Conflict, "shirt_number"), message(ErrorCode::Conflict));
+}
+
 TEST(ErrorPresenterTest, AnUnknownFieldNeverShowsTheColumnName) {
     const QString invalid = message(ErrorCode::InvalidInput, "secret_column");
     const QString conflict = message(ErrorCode::Conflict, "secret_column");

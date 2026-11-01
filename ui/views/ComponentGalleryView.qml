@@ -538,6 +538,40 @@ Item {
                             }
                         }
 
+                        FormField {
+                            id: normalMultiSelectFormField
+
+                            Layout.fillWidth: true
+                            label: qsTr("Secondary positions")
+                            helpText: qsTr("Space opens the list and toggles an item, Enter closes it.")
+
+                            MultiSelectField {
+                                Layout.fillWidth: true
+                                model: root.samplePositions
+                                values: ["MF"]
+                                placeholderText: qsTr("None")
+                                Accessible.name: normalMultiSelectFormField.label
+                            }
+                        }
+
+                        FormField {
+                            id: normalTextAreaFormField
+
+                            Layout.fillWidth: true
+                            label: qsTr("Notes")
+                            helpText: qsTr("Shift+Enter: new line")
+
+                            TextAreaField {
+                                Layout.fillWidth: true
+                                Accessible.name: normalTextAreaFormField.label
+                            }
+                        }
+
+                        CheckBoxField {
+                            text: qsTr("Show archived")
+                            checked: true
+                        }
+
                         Item {
                             Layout.fillHeight: true
                         }

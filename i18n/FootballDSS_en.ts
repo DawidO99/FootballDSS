@@ -17,6 +17,45 @@
     </message>
 </context>
 <context>
+    <name>AvailabilityDialog</name>
+    <message>
+        <source>Add availability</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit availability</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expected return</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Available again from</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Leave it empty if the player has not returned after all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only the coach and the physio can read this. Shift+Enter: new line</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CalendarView</name>
     <message>
         <source>Calendar</source>
@@ -291,6 +330,26 @@
     </message>
     <message>
         <source>Search player or number…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Secondary positions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Space opens the list and toggles an item, Enter closes it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shift+Enter: new line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show archived</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -727,6 +786,192 @@
     </message>
 </context>
 <context>
+    <name>PlayerCardView</name>
+    <message>
+        <source>← Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back to the list (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, age %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This player could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Overview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Matches</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Secondary positions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Birth year</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preferred foot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not set</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Availability</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>From</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expected return</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Returned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The availability could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No availability entries</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Injuries, illnesses, suspensions and absences of this player will appear here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add availability</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mark as returned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The training load of this player will appear here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The matches, minutes and ratings of this player will appear here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dated notes about this player will appear here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Available again from</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The first day the player is available.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PlayerEditorDialog</name>
+    <message>
+        <source>Add player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shirt number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Birth year</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Primary position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Secondary positions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preferred foot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shift+Enter: new line</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PreMatchView</name>
     <message>
         <source>Pre-match</source>
@@ -1122,15 +1367,111 @@
 <context>
     <name>SquadView</name>
     <message>
+        <source>%1 was archived.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Squad</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Add your players by hand or import them from a CSV or XLSX file.</source>
+        <source>Add player</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Import players</source>
+        <source>Add player (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search by name or number…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search players</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status filter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position filter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show archived</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Age</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The squad could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No players match the filters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No active players yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change the search or the filters to see more players.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add the players of your team to start.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or an assistant to add the players.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear filters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Archive</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Restore</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1300,6 +1641,38 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Enter the first name, up to 50 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the last name, up to 50 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a shirt number from %1 to %2, or leave it empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a birth year from %1 on, or leave it empty. A player is at least %2 years old.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose each secondary position once, and not the primary one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the first day of the absence.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The expected return cannot be before the first day of the absence.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The return cannot be before the first day of the absence.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1313,6 +1686,10 @@
     </message>
     <message>
         <source>The club must keep an active coach. Make someone else a coach first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Another player already has this shirt number. Choose a different one.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1341,6 +1718,14 @@
     </message>
     <message>
         <source>The database could not be opened because of an unexpected error. Start the app again. If this repeats, close the app, replace the file with a copy from the backups folder and delete the files next to it that end in -wal and -shm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::IsoDates</name>
+    <message>
+        <source>dd/MM/yyyy</source>
+        <extracomment>Qt date format of the app language. Keep it the same as in DateField: dd.MM.yyyy in Polish.</extracomment>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1380,6 +1765,156 @@
     </message>
     <message>
         <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::SquadTexts</name>
+    <message>
+        <source>Goalkeeper</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Centre back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right wing-back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left wing-back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Defensive midfielder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Central midfielder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Attacking midfielder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right midfielder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left midfielder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right winger</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left winger</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Striker</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Both</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not known</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Injury</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Illness</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Suspension</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Absence</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Archived</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Injured</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Suspended</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Absent</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::SquadViewModel</name>
+    <message>
+        <source>Goalkeepers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Defenders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Midfielders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Forwards</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All positions</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

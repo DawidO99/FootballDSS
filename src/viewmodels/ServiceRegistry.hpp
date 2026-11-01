@@ -6,14 +6,17 @@
 #include <memory>
 
 namespace fdss::data {
+class AvailabilityRepository;
 class ClubRepository;
 class DatabaseManager;
+class PlayerRepository;
 class StaffRepository;
 } // namespace fdss::data
 
 namespace fdss::services {
 class Session;
 class SetupService;
+class SquadService;
 } // namespace fdss::services
 
 namespace fdss::viewmodels {
@@ -59,6 +62,7 @@ public:
     [[nodiscard]] services::Session& session();
     [[nodiscard]] services::AuthService& auth();
     [[nodiscard]] services::SetupService& setup();
+    [[nodiscard]] services::SquadService& squad();
 
 private:
     // Destroyed from the bottom up, the database last.
@@ -66,9 +70,12 @@ private:
     std::unique_ptr<services::Clock> m_clock;
     std::unique_ptr<data::ClubRepository> m_clubs;
     std::unique_ptr<data::StaffRepository> m_staff;
+    std::unique_ptr<data::PlayerRepository> m_players;
+    std::unique_ptr<data::AvailabilityRepository> m_availability;
     std::unique_ptr<services::Session> m_session;
     std::unique_ptr<services::AuthService> m_auth;
     std::unique_ptr<services::SetupService> m_setup;
+    std::unique_ptr<services::SquadService> m_squad;
 };
 
 } // namespace fdss::viewmodels

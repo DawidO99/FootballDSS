@@ -7,6 +7,8 @@ add_library(fdss_services STATIC
     Session.cpp
     SetupService.hpp
     SetupService.cpp
+    SquadService.hpp
+    SquadService.cpp
 )
 
 # Qt Network is here for QPasswordDigestor alone (ADR-007): the app opens no sockets. PRIVATE keeps
