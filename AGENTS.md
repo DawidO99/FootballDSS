@@ -112,8 +112,8 @@ CMake targets:
 - Every QObject subclass has `Q_OBJECT`. QML types use `QML_ELEMENT` / `QML_SINGLETON` /
   `QML_UNCREATABLE` with `qt_add_qml_module`. `qmlRegisterType` is FORBIDDEN.
 - List data for QML: `QAbstractListModel` with named roles, or `QRangeModel` for simple cases.
-- Long work (import, recalculation over many players) runs via `QtConcurrent`;
-  the UI thread never blocks on it.
+- Long work (parsing, validation, recalculation) runs via `QtConcurrent`; database writes stay on
+  the main-thread connection in one `Transaction`. The UI thread never blocks on parsing or computation.
 - Naming: `PascalCase` types, `camelCase` functions/variables, `m_` members, `kConstant`.
   Code identifiers and comments in English.
 - `fdss_core` compiles with warnings as errors. Code formatted with the repo `.clang-format`.
@@ -130,6 +130,8 @@ CMake targets:
 - Every user-visible string goes through `qsTr()`. Source strings in English; Polish lives in
   `i18n/FootballDSS_pl.ts`. Update `.ts` files when you add strings
   (`cmake --build --preset dev --target update_translations`, then fill every `unfinished` entry).
+  Only the Polish file is translated; entries in `FootballDSS_en.ts` stay `unfinished` because
+  English is the source language.
 - `.ts` merge conflicts (parallel branches always touch them): never hand-merge XML. Take the
   `main` version, re-run `update_translations`, then translate the entries that came back
   `unfinished`.

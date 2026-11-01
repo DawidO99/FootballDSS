@@ -1,13 +1,29 @@
 #include "core/util/Version.hpp"
+#include "data/db/AppPaths.hpp"
+#include "data/db/DatabaseManager.hpp"
 #include "viewmodels/LanguageManager.hpp"
+#include "viewmodels/StartupViewModel.hpp"
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QtQml/QQmlExtensionPlugin>
 
 #include <cstdlib>
+#include <memory>
 
 Q_IMPORT_QML_PLUGIN(FootballDSSPlugin)
+
+namespace {
+
+fdss::core::Result<std::unique_ptr<fdss::data::DatabaseManager>>
+openDatabase(const fdss::core::Result<QString>& path) {
+    if (!path) {
+        return std::unexpected(path.error());
+    }
+    return fdss::data::DatabaseManager::open(*path);
+}
+
+} // namespace
 
 int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
@@ -16,6 +32,10 @@ int main(int argc, char* argv[]) {
     QGuiApplication::setApplicationName(QStringLiteral("FootballDSS"));
     QGuiApplication::setApplicationVersion(
         QString::fromStdString(fdss::core::toString(fdss::core::currentVersion())));
+
+    // Declared before the engine, so the database outlives everything QML creates.
+    const auto databasePath = fdss::data::AppPaths::defaultDatabasePath();
+    const auto database = openDatabase(databasePath);
 
     QQmlApplicationEngine engine;
     QObject::connect(
@@ -27,6 +47,14 @@ int main(int argc, char* argv[]) {
     engine.singletonInstance<fdss::viewmodels::LanguageManager*>(QStringLiteral("FootballDSS"),
                                                                  QStringLiteral("LanguageManager"));
 
-    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (database) {
+        engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    } else {
+        qCritical("Cannot open the database: %s", database.error().detail.c_str());
+        auto* startup = engine.singletonInstance<fdss::viewmodels::StartupViewModel*>(
+            QStringLiteral("FootballDSS"), QStringLiteral("StartupViewModel"));
+        startup->setDatabaseError(database.error(), databasePath.value_or(QString{}));
+        engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("DatabaseErrorView"));
+    }
     return QGuiApplication::exec();
 }

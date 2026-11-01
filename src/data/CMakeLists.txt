@@ -39,10 +39,26 @@ set_target_properties(QXlsx PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
 set_property(TARGET QXlsx PROPERTY QT_EXCLUDE_FROM_TRANSLATION ON)
 
 add_library(fdss_data STATIC
-    DataPlaceholder.cpp
+    db/AppPaths.hpp
+    db/AppPaths.cpp
+    db/Backup.hpp
+    db/Backup.cpp
+    db/DatabaseManager.hpp
+    db/DatabaseManager.cpp
+    db/Migrations.hpp
+    db/Migrations.cpp
+    db/Transaction.hpp
+    db/Transaction.cpp
+)
+
+# Migrations are embedded in the binary; see db/Migrations.hpp for the file format.
+qt_add_resources(fdss_data "fdss_migrations"
+    PREFIX "/fdss"
+    FILES
+        migrations/0001_initial.sql
 )
 
 target_link_libraries(fdss_data
-    PUBLIC fdss_core
+    PUBLIC fdss_core Qt6::Core Qt6::Sql
     PRIVATE QXlsx::QXlsx
 )
