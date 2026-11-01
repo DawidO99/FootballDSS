@@ -10,7 +10,6 @@
 #include <QCoreApplication>
 #include <QEvent>
 
-#include <algorithm>
 #include <optional>
 #include <utility>
 
@@ -60,14 +59,6 @@ QString AppState::teamName() const { return m_teamName; }
 qint64 AppState::teamId() const { return m_teamId; }
 
 int AppState::sessionSerial() const { return m_sessionSerial; }
-
-bool AppState::debugBuild() const {
-#ifdef QT_NO_DEBUG
-    return false;
-#else
-    return true;
-#endif
-}
 
 bool AppState::can(const QString& permission) const {
     const auto parsed = core::permissionFromName(permission.toStdString());
@@ -133,46 +124,6 @@ void AppState::refresh() {
     if (!club) {
         report(club.error());
     }
-}
-
-void AppState::createTestClubAndLogin() {
-#ifdef QT_NO_DEBUG
-    qWarning("AppState: the test club exists only in debug builds");
-#else
-    constexpr auto kPin = "1234";
-    if (m_state == State::NeedsSetup) {
-        core::ClubDraft club;
-        club.name = "Test club";
-        core::TeamDraft team;
-        team.name = "Test team";
-        team.season = "2026/27";
-        if (const auto user = m_setup.completeSetup(club, team, "Test Coach", kPin); !user) {
-            report(user.error());
-            return;
-        }
-    } else if (m_state == State::NeedsLogin) {
-        const auto staff = m_auth.listActiveStaff();
-        if (!staff) {
-            report(staff.error());
-            return;
-        }
-        const auto coach = std::ranges::find(*staff, core::Role::Coach, &core::StaffUser::role);
-        if (coach == staff->end()) {
-            emit errorOccurred(tr("The test login needs a coach with PIN 1234."));
-            return;
-        }
-        const auto check = m_auth.login(coach->id, kPin);
-        if (!check) {
-            report(check.error());
-            return;
-        }
-        if (check->status != services::PinCheckStatus::Accepted) {
-            emit errorOccurred(tr("The test login needs a coach with PIN 1234."));
-            return;
-        }
-    }
-    refresh();
-#endif
 }
 
 QString AppState::roleDisplayName(core::Role role) {

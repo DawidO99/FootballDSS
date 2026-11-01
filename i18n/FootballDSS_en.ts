@@ -342,6 +342,42 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>PinField and PinPad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Digits only, masked.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>LanguageThemeSwitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ProfileTile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Jan Kowalski</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Coach</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Anna Nowak</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Physio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Filter by name or shirt number…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -605,6 +641,21 @@
     </message>
 </context>
 <context>
+    <name>LanguageThemeSwitch</name>
+    <message>
+        <source>Interface language: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to light theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to dark theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>LoadView</name>
     <message>
         <source>Load</source>
@@ -623,26 +674,6 @@
     <name>Main</name>
     <message>
         <source>FootballDSS</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Welcome to FootballDSS</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Log in</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>The setup wizard is not available in this version yet.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>The profile picker is not available in this version yet.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Create test club and log in as Coach</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -685,6 +716,17 @@
     </message>
 </context>
 <context>
+    <name>PinPad</name>
+    <message>
+        <source>Clear (Esc)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete the last digit</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PreMatchView</name>
     <message>
         <source>Pre-match</source>
@@ -696,6 +738,48 @@
     </message>
     <message>
         <source>Open the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ProfilePickerView</name>
+    <message>
+        <source>The staff list could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Who is using the app?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose your profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pick your tile, then enter your PIN.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Log in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (Enter)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ProfileTile</name>
+    <message>
+        <source>%1, %2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -721,11 +805,238 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Club details, staff and roles, custom metrics and backups will be configured here.</source>
+        <source>Club details, custom metrics and backups will be configured here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 was deactivated.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Staff</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add staff member</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Role</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Active</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Deactivated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The staff list could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Deactivate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You cannot deactivate your own account. Another coach has to do it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reactivate</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit staff member</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>If you change your own role, you will have to log in again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4 to 8 digits. Tell it to this person, who can change it later.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repeat the PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reset the PIN of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The PIN of %1 was reset.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4 to 8 digits. This also ends a lockout.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Back to the dashboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SetupWizardView</name>
+    <message>
+        <source>Welcome</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Club and team</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Coach account</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Summary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Seniors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>U19</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>U17</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>U15</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>U13</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>U11</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Other</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Step %1 of %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FootballDSS helps you plan training and matches and keep an eye on your squad. A few details and you can start.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Language</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Club name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Team name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Season</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>For example 2026/27.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Your name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>You will be the coach, who manages the staff and the settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4 to 8 digits. You will enter it at every start.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repeat the PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Club</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Team</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Coach</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (Enter)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -848,10 +1159,6 @@
 <context>
     <name>TopBar</name>
     <message>
-        <source>My team</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Search… (%1)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -860,19 +1167,35 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Interface language: %1</source>
+        <source>%1, %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Switch to light theme</source>
+        <source>Change PIN</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Switch to dark theme</source>
+        <source>Log out</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Coach</source>
+        <source>Your PIN was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Current PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4 to 8 digits.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repeat the PIN</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -893,10 +1216,6 @@
 </context>
 <context>
     <name>fdss::viewmodels::AppState</name>
-    <message>
-        <source>The test login needs a coach with PIN 1234.</source>
-        <translation type="unfinished"></translation>
-    </message>
     <message>
         <source>Coach</source>
         <translation type="unfinished"></translation>
@@ -953,6 +1272,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The PINs do not match. Enter the same PIN twice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The new PIN must differ from the current one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Enter the club name, up to 100 characters.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -974,6 +1301,14 @@
     </message>
     <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wrong PIN. Attempts left: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Too many wrong PINs. Try again in %1 s.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

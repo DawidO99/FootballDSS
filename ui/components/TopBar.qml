@@ -14,6 +14,14 @@ Rectangle {
         searchField.selectAll();
     }
 
+    function openUserMenu() {
+        userMenu.open();
+    }
+
+    function openChangePinDialog() {
+        changePinDialog.openEmpty();
+    }
+
     implicitHeight: 56
     color: Theme.surface
 
@@ -39,7 +47,7 @@ Rectangle {
         spacing: Theme.spacing.l
 
         Label {
-            text: qsTr("My team")
+            text: AppState.teamName
             color: Theme.text
             font.pixelSize: Theme.fontSize.title
             font.weight: Font.DemiBold
@@ -86,104 +94,172 @@ Rectangle {
             Layout.fillWidth: true
         }
 
-        Row {
-            spacing: Theme.spacing.xs
-
-            Repeater {
-                model: LanguageManager.availableLanguages
-
-                delegate: AbstractButton {
-                    id: languageButton
-
-                    required property string modelData
-                    readonly property bool selected: LanguageManager.language === modelData
-
-                    implicitWidth: Math.max(Theme.hitMin + Theme.spacing.s, implicitContentWidth)
-                    implicitHeight: Theme.hitMin
-                    text: modelData.toUpperCase()
-                    hoverEnabled: true
-                    Accessible.name: qsTr("Interface language: %1").arg(Qt.locale(modelData).nativeLanguageName)
-                    Keys.onReturnPressed: click()
-                    Keys.onEnterPressed: click()
-                    onClicked: LanguageManager.setLanguage(modelData)
-
-                    background: Rectangle {
-                        radius: Theme.radius.s
-                        color: languageButton.selected ? Theme.accent : languageButton.hovered ? Theme.surfaceAlt : "transparent"
-                        border.width: languageButton.visualFocus ? 2 : 1
-                        border.color: languageButton.visualFocus ? Theme.text : languageButton.selected ? Theme.accent : Theme.border
-                    }
-
-                    contentItem: Label {
-                        text: languageButton.text
-                        color: languageButton.selected ? Theme.accentText : Theme.textMuted
-                        font.pixelSize: Theme.fontSize.caption
-                        font.weight: Font.DemiBold
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                }
-            }
-        }
+        LanguageThemeSwitch {}
 
         AbstractButton {
-            id: themeToggle
+            id: userChip
 
-            implicitWidth: Theme.hitMin + Theme.spacing.xs
-            implicitHeight: Theme.hitMin + Theme.spacing.xs
+            implicitWidth: userRow.implicitWidth + 2 * Theme.spacing.m
+            implicitHeight: Theme.hitMin
             hoverEnabled: true
-            text: AppSettings.darkTheme ? qsTr("Switch to light theme") : qsTr("Switch to dark theme")
+            text: qsTr("%1, %2").arg(AppState.userName).arg(AppState.roleName)
+            Accessible.role: Accessible.ButtonMenu
             Accessible.name: text
-            ToolTip.visible: hovered
-            ToolTip.text: text
-            ToolTip.delay: 400
             Keys.onReturnPressed: click()
             Keys.onEnterPressed: click()
-            onClicked: AppSettings.darkTheme = !AppSettings.darkTheme
+            onClicked: root.openUserMenu()
 
             background: Rectangle {
-                radius: Theme.radius.m
-                color: themeToggle.hovered ? Theme.surfaceAlt : "transparent"
-                border.width: themeToggle.visualFocus ? 2 : 0
-                border.color: Theme.accent
+                radius: height / 2
+                color: userChip.hovered ? Theme.rowHover : Theme.surfaceAlt
+                border.width: userChip.visualFocus ? Theme.focusRingWidth : Theme.borderWidth
+                border.color: userChip.visualFocus ? Theme.accent : Theme.border
             }
 
             contentItem: Item {
-                Icon {
+                Row {
+                    id: userRow
+
                     anchors.centerIn: parent
-                    name: AppSettings.darkTheme ? "sun" : "moon"
-                    color: Theme.text
+                    spacing: Theme.spacing.s
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "user"
+                        size: 18
+                        color: Theme.textMuted
+                    }
+
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: AppState.userName
+                        color: Theme.text
+                        font.pixelSize: Theme.fontSize.body
+                    }
+
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: AppState.roleName
+                        color: Theme.textMuted
+                        font.pixelSize: Theme.fontSize.caption
+                    }
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "chevronDown"
+                        size: Theme.iconSize.s
+                        color: Theme.textMuted
+                    }
+                }
+            }
+
+            Menu {
+                id: userMenu
+
+                x: userChip.width - width
+                y: userChip.height + Theme.spacing.xs
+
+                MenuItem {
+                    text: qsTr("Change PIN")
+                    onTriggered: root.openChangePinDialog()
+                }
+
+                MenuItem {
+                    text: qsTr("Log out")
+                    onTriggered: AppState.logout()
                 }
             }
         }
+    }
 
-        Rectangle {
-            implicitWidth: userRow.implicitWidth + 2 * Theme.spacing.m
-            implicitHeight: Theme.hitMin
-            radius: height / 2
-            color: Theme.surfaceAlt
-            border.width: 1
-            border.color: Theme.border
+    ChangePinViewModel {
+        id: changePin
 
-            Row {
-                id: userRow
+        onErrorOccurred: message => Toasts.error(message)
+        onLockedChanged: {
+            if (changePin.locked)
+                currentPinInput.clear();
+            else if (changePinDialog.visible)
+                currentPinInput.forceActiveFocus(Qt.TabFocusReason);
+        }
+    }
 
-                anchors.centerIn: parent
-                spacing: Theme.spacing.s
+    AppDialog {
+        id: changePinDialog
 
-                Icon {
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: "user"
-                    size: 18
-                    color: Theme.textMuted
-                }
+        objectName: "changePinDialog"
 
-                Label {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("Coach")
-                    color: Theme.text
-                    font.pixelSize: Theme.fontSize.body
-                }
+        function openEmpty() {
+            changePin.clearErrors();
+            currentPinInput.clear();
+            newPinInput.clear();
+            pinRepeatInput.clear();
+            changePinDialog.open();
+            currentPinInput.forceActiveFocus(Qt.TabFocusReason);
+        }
+
+        size: AppDialog.Small
+        title: qsTr("Change PIN")
+        primaryText: qsTr("Change PIN")
+        primaryEnabled: !changePin.locked
+        onPrimaryClicked: {
+            if (changePin.change(currentPinInput.text, newPinInput.text, pinRepeatInput.text)) {
+                changePinDialog.close();
+                Toasts.info(qsTr("Your PIN was changed."));
+            }
+        }
+
+        FormField {
+            id: currentPinFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Current PIN")
+            mandatory: true
+            error: currentPinInput.effectiveError
+
+            PinField {
+                id: currentPinInput
+
+                objectName: "currentPinInput"
+                Layout.fillWidth: true
+                enabled: !changePin.locked
+                error: changePin.currentPinError
+                Accessible.name: currentPinFormField.label
+            }
+        }
+
+        FormField {
+            id: newPinFormField
+
+            Layout.fillWidth: true
+            label: qsTr("New PIN")
+            mandatory: true
+            helpText: qsTr("4 to 8 digits.")
+            error: newPinInput.effectiveError
+
+            PinField {
+                id: newPinInput
+
+                Layout.fillWidth: true
+                error: changePin.newPinError
+                Accessible.name: newPinFormField.label
+            }
+        }
+
+        FormField {
+            id: pinRepeatFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Repeat the PIN")
+            mandatory: true
+            error: pinRepeatInput.effectiveError
+
+            PinField {
+                id: pinRepeatInput
+
+                Layout.fillWidth: true
+                error: changePin.pinRepeatError
+                Accessible.name: pinRepeatFormField.label
             }
         }
     }

@@ -709,6 +709,66 @@ Item {
                             Layout.fillHeight: true
                         }
                     }
+
+                    Card {
+                        Layout.fillWidth: true
+                        title: qsTr("PinField and PinPad")
+
+                        FormField {
+                            id: samplePinFormField
+
+                            Layout.fillWidth: true
+                            label: qsTr("PIN")
+                            helpText: qsTr("Digits only, masked.")
+                            error: samplePinField.effectiveError
+
+                            PinField {
+                                id: samplePinField
+
+                                Layout.fillWidth: true
+                                Accessible.name: samplePinFormField.label
+                            }
+                        }
+
+                        PinPad {
+                            onDigitPressed: digit => samplePinField.insert(samplePinField.length, digit)
+                            onBackspacePressed: samplePinField.remove(samplePinField.length - 1, samplePinField.length)
+                            onClearPressed: samplePinField.clear()
+                        }
+                    }
+
+                    Card {
+                        Layout.fillWidth: true
+                        title: qsTr("LanguageThemeSwitch")
+
+                        LanguageThemeSwitch {}
+                    }
+
+                    Card {
+                        Layout.fillWidth: true
+                        title: qsTr("ProfileTile")
+
+                        Row {
+                            spacing: Theme.spacing.m
+
+                            ProfileTile {
+                                id: sampleProfileTile
+
+                                name: qsTr("Jan Kowalski")
+                                roleName: qsTr("Coach")
+                                initials: "JK"
+                                selected: true
+                                onClicked: sampleProfileTile.selected = !sampleProfileTile.selected
+                            }
+
+                            ProfileTile {
+                                name: qsTr("Anna Nowak")
+                                roleName: qsTr("Physio")
+                                initials: "AN"
+                                enabled: false
+                            }
+                        }
+                    }
                 }
             }
 

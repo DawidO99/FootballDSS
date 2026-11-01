@@ -7,6 +7,10 @@
 
 #include <string>
 
+namespace fdss::services {
+struct PinCheck;
+} // namespace fdss::services
+
 namespace fdss::viewmodels {
 
 // The one place that turns an Error into text for the user (AGENTS section 5). Never shows
@@ -22,9 +26,14 @@ public:
     // these texts speak of opening the file and of restarting, which would mislead after a failed
     // save.
     [[nodiscard]] static QString startupMessage(core::ErrorCode code);
+    // What the user got wrong in one input, for a viewmodel that checks it before calling a
+    // service.
+    [[nodiscard]] static QString invalidInputMessage(const std::string& field);
+    // A wrong PIN and a lockout are answers, not errors, but the user reads them the same way.
+    // Empty for an accepted PIN.
+    [[nodiscard]] static QString pinCheckMessage(const services::PinCheck& check);
 
 private:
-    [[nodiscard]] static QString invalidInputMessage(const std::string& field);
     [[nodiscard]] static QString conflictMessage(const std::string& field);
 };
 

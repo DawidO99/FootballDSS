@@ -11,12 +11,28 @@
 #include "services/SetupService.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 
+#include <QObject>
+
 #include <gtest/gtest.h>
 
 #include <memory>
 #include <utility>
 
 namespace fdss::tests {
+
+// How many times a signal was emitted, without linking Qt Test for QSignalSpy.
+class SignalCount {
+public:
+    template <class Sender, class Signal> SignalCount(const Sender* sender, Signal signal) {
+        QObject::connect(sender, signal, &m_context, [this] { ++m_count; });
+    }
+
+    [[nodiscard]] int count() const { return m_count; }
+
+private:
+    QObject m_context;
+    int m_count = 0;
+};
 
 class ViewModelTest : public ::testing::Test {
 protected:
@@ -30,7 +46,9 @@ protected:
 
         viewmodels::RegistryOptions options;
         options.pinIterations = kIterations;
-        options.clock = std::make_unique<FakeClock>();
+        auto clock = std::make_unique<FakeClock>();
+        m_clock = clock.get();
+        options.clock = std::move(clock);
         viewmodels::ServiceRegistry::install(
             viewmodels::ServiceRegistry::create(std::move(*opened), std::move(options)));
     }
@@ -65,6 +83,8 @@ protected:
 
     // Owned by the registry; for the tests that break the database on purpose.
     data::DatabaseManager* m_db = nullptr;
+    // Owned by the registry; for the tests that move time.
+    FakeClock* m_clock = nullptr;
 };
 
 } // namespace fdss::tests

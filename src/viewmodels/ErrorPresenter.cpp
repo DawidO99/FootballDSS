@@ -1,5 +1,7 @@
 #include "viewmodels/ErrorPresenter.hpp"
 
+#include "services/AuthService.hpp"
+
 namespace fdss::viewmodels {
 
 QString ErrorPresenter::message(const core::Error& error) {
@@ -38,6 +40,12 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     if (field == "pin") {
         return tr("A PIN has 4 to 8 digits.");
     }
+    if (field == "pin_repeat") {
+        return tr("The PINs do not match. Enter the same PIN twice.");
+    }
+    if (field == "pin_same") {
+        return tr("The new PIN must differ from the current one.");
+    }
     if (field == "club_name") {
         return tr("Enter the club name, up to 100 characters.");
     }
@@ -54,6 +62,18 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
         return tr("Enter the season in the form 2026/27.");
     }
     return tr("One of the values is not valid. Check what you entered and try again.");
+}
+
+QString ErrorPresenter::pinCheckMessage(const services::PinCheck& check) {
+    switch (check.status) {
+    case services::PinCheckStatus::Accepted:
+        break;
+    case services::PinCheckStatus::WrongPin:
+        return tr("Wrong PIN. Attempts left: %1.").arg(check.remainingAttempts);
+    case services::PinCheckStatus::LockedOut:
+        return tr("Too many wrong PINs. Try again in %1 s.").arg(check.lockedFor.count());
+    }
+    return {};
 }
 
 QString ErrorPresenter::conflictMessage(const std::string& field) {

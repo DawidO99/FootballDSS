@@ -97,6 +97,11 @@ QtObject {
     readonly property int dialogWidthM: 560
     readonly property int dialogWidthL: 800
     readonly property int toastWidth: 480
+    readonly property int setupCardWidth: 640
+    readonly property int profileTileWidth: 168
+    readonly property int profileTileHeight: 152
+    readonly property int avatarSize: 56
+    readonly property int pinKeyWidth: 72
     readonly property int borderWidth: 1
     readonly property int focusRingWidth: 2
     readonly property real disabledOpacity: 0.45
