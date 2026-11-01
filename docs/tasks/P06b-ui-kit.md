@@ -55,3 +55,31 @@ strings `qsTr()`, `hitMin` respected (and a `touch: bool` property where it matt
 - [ ] Section 3 passes.
 
 ## Decisions (accepted plan)
+1. Theme gets new size tokens (`controlHeight`, `controlHeightTouch`, `rowHeight`, `tableHeaderHeight`,
+   `fieldWidth`, `dialogWidthS/M/L`, `toastWidth`, `toastDuration`, `searchDebounce`, `tooltipDelay`,
+   `focusRingWidth`, `iconSize.s/m/l`) and four new colors for dark + light: `rowAlt`, `rowHover`,
+   `selection`, `scrim`.
+2. Input fields share one pattern: `error` (external, from the viewmodel), read-only `validationError`
+   (own parsing/range check) and `effectiveError` (either of them; drives the red border). Values are
+   bound from the viewmodel; user edits are reported through a separate signal (`valueModified`,
+   `dateEdited`, `valueActivated`, `activated`) to avoid binding loops.
+3. `FormField` uses `mandatory` instead of `required` (QML keyword).
+4. `SearchField` root is a `FocusScope` with a read-only, debounced `text` (so `textChanged` is
+   debounced); `clear()` and Esc clear it immediately.
+5. `DateField` display format: PL `dd.MM.yyyy`, EN uses en_GB `dd/MM/yyyy`; the year always has four
+   digits. The outside value is always ISO `yyyy-MM-dd`.
+6. Focused state in the gallery is shown by Tab navigation; the first field gets focus when the gallery
+   opens. The gallery is split into tabs (Buttons, Inputs, Table, Containers & feedback); `qml_smoke`
+   saves one screenshot per tab × language × theme, the last tab with the sample dialog and a toast.
+7. `qml_smoke` opens the gallery in every language × theme and checks automatically that toast undo
+   fires its callback (counter in the gallery + `Toasts.undo()`).
+8. `AppDialog`: the primary button does not close the dialog (the caller closes it after the viewmodel
+   accepts); Esc and the secondary button reject.
+9. `Toasts`: a new toast replaces the current one (its undo is dropped, the action stays done); the
+   10 s timer pauses while hovered; a callback that can no longer run is skipped without an error.
+10. `DataTable` columns always fit the table width (no horizontal scroll in W1); `emptyState` is a
+    `Component`; custom cells derive from `DataTableCell`.
+11. Existing components stay untouched except `PrimaryButton` (`touch`, `Theme.controlHeight`) and
+    `Icon` (new icons). `DatabaseErrorView`'s second button becomes a `SecondaryButton`; `TopBar` is
+    not changed (P07b).
+12. `touch` exists on the buttons, `SegmentedControl`, `NumberField` and `DataTable`.

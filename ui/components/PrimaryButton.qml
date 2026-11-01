@@ -2,15 +2,20 @@ import QtQuick
 import QtQuick.Controls.Basic
 
 // Main call to action: accent background, one per screen area.
+// API: text, touch (44 px hit target for Match Day / tactics board), clicked().
+// Enter/Return click it when focused.
 Button {
     id: control
 
-    implicitHeight: Math.max(Theme.hitMin + Theme.spacing.xs, implicitContentHeight + topPadding + bottomPadding)
+    property bool touch: false
+
+    implicitHeight: Math.max(control.touch ? Theme.controlHeightTouch : Theme.controlHeight, implicitContentHeight + topPadding + bottomPadding)
     leftPadding: Theme.spacing.l
     rightPadding: Theme.spacing.l
     hoverEnabled: true
     font.pixelSize: Theme.fontSize.body
     font.weight: Font.DemiBold
+    opacity: enabled ? 1.0 : Theme.disabledOpacity
     Accessible.name: text
     Keys.onReturnPressed: click()
     Keys.onEnterPressed: click()
@@ -18,8 +23,8 @@ Button {
     background: Rectangle {
         radius: Theme.radius.m
         color: Theme.accent
-        opacity: control.down ? 0.8 : control.hovered ? 0.9 : 1.0
-        border.width: control.visualFocus ? 2 : 0
+        opacity: control.down ? Theme.pressedOpacity : control.hovered ? Theme.hoverOpacity : 1.0
+        border.width: control.visualFocus ? Theme.focusRingWidth : 0
         border.color: Theme.text
     }
 

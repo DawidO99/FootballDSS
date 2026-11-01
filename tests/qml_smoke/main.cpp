@@ -12,8 +12,11 @@
 #include <QDirIterator>
 #include <QGuiApplication>
 #include <QImage>
+#include <QKeyEvent>
+#include <QMetaObject>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
+#include <QQuickItem>
 #include <QQuickWindow>
 #include <QSettings>
 #include <QtQml/QQmlExtensionPlugin>
@@ -114,6 +117,86 @@ void saveScreenshot(QQuickWindow* window, const QString& directory, const QStrin
     }
 }
 
+void exerciseComponentGallery(QQmlApplicationEngine& engine, QQuickWindow* window,
+                              const QString& language, const QString& theme,
+                              const QString& screenshotDirectory) {
+    constexpr std::array<const char*, 4> kTabNames{"buttons", "inputs", "table", "feedback"};
+
+    window->setProperty("componentGalleryOpen", true);
+    settle();
+
+    auto* gallery = window->property("componentGallery").value<QQuickItem*>();
+    if (gallery == nullptr) {
+        fail("Main.qml did not instantiate ComponentGalleryView");
+        window->setProperty("componentGalleryOpen", false);
+        return;
+    }
+    auto* toasts =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Toasts"));
+    if (toasts == nullptr) {
+        fail("Toasts singleton is not registered");
+        window->setProperty("componentGalleryOpen", false);
+        return;
+    }
+
+    const int tabCount = gallery->property("tabCount").toInt();
+    if (tabCount != static_cast<int>(kTabNames.size())) {
+        fail("unexpected tab count in ComponentGalleryView");
+    }
+
+    for (std::size_t tab = 0; tab < kTabNames.size(); ++tab) {
+        gallery->setProperty("currentTabIndex", static_cast<int>(tab));
+        settle();
+
+        if (tab == kTabNames.size() - 1) {
+            QMetaObject::invokeMethod(gallery, "openSampleDialog");
+            QMetaObject::invokeMethod(gallery, "triggerSampleUndoToast");
+            settle();
+            if (!gallery->property("dialogOpen").toBool()) {
+                fail("sample AppDialog did not open");
+            }
+            if (!toasts->property("active").toBool()) {
+                fail("sample undo toast is not active");
+            }
+        }
+
+        if (screenshotDirectory.isEmpty()) {
+            window->grabWindow();
+        } else {
+            saveScreenshot(window, screenshotDirectory,
+                           QStringLiteral("gallery-%1-%2-%3.png")
+                               .arg(QString::fromLatin1(kTabNames.at(tab)), language, theme));
+        }
+
+        if (tab == kTabNames.size() - 1) {
+            QKeyEvent press(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+            QKeyEvent release(QEvent::KeyRelease, Qt::Key_Escape, Qt::NoModifier);
+            QCoreApplication::sendEvent(window, &press);
+            QCoreApplication::sendEvent(window, &release);
+            settle();
+            if (gallery->property("dialogOpen").toBool()) {
+                fail("Esc did not close AppDialog");
+                QMetaObject::invokeMethod(gallery, "closeSampleDialog");
+                settle();
+            }
+
+            const int beforeUndo = gallery->property("undoCount").toInt();
+            QMetaObject::invokeMethod(toasts, "undo");
+            settle();
+            if (gallery->property("undoCount").toInt() != beforeUndo + 1) {
+                fail("toast undo did not invoke its callback");
+            }
+            if (toasts->property("active").toBool()) {
+                fail("toast remained active after undo");
+            }
+        }
+    }
+
+    gallery->setProperty("currentTabIndex", 0);
+    window->setProperty("componentGalleryOpen", false);
+    settle();
+}
+
 struct UiPreferences {
     QString language;
     bool darkTheme = true;
@@ -186,6 +269,7 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
                                QStringLiteral("spike-charts-%1-%2.png").arg(language, theme));
             }
             window->setProperty("spikeChartsOpen", false);
+            exerciseComponentGallery(engine, window, language, theme, screenshotDirectory);
         }
     }
 

@@ -62,3 +62,14 @@ qt_add_executable(qml_smoke
 target_link_libraries(qml_smoke PRIVATE fdss_ui fdss_uiplugin)
 add_test(NAME qml_smoke COMMAND qml_smoke)
 set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+find_package(Qt6 REQUIRED COMPONENTS QuickTest)
+qt_add_executable(qml_components
+    qml_components/main.cpp
+)
+target_link_libraries(qml_components PRIVATE fdss_ui fdss_uiplugin Qt6::QuickTest)
+target_compile_definitions(qml_components PRIVATE
+    FDSS_QML_TESTS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml_components"
+)
+add_test(NAME qml_components COMMAND qml_components)
+set_tests_properties(qml_components PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

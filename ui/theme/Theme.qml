@@ -45,6 +45,12 @@ QtObject {
         readonly property int display: 32
     }
 
+    component IconSizeScale: QtObject {
+        readonly property int s: 16
+        readonly property int m: 20
+        readonly property int l: 48
+    }
+
     // Persisted in AppSettings; toggles write AppSettings.darkTheme, never this property.
     readonly property bool dark: AppSettings.darkTheme
 
@@ -62,9 +68,16 @@ QtObject {
     readonly property color danger: dark ? "#EF4444" : "#B91C1C"
     readonly property color info: dark ? "#38BDF8" : "#0369A1"
 
+    // Tables, selection and modal overlays (UI kit, P06b).
+    readonly property color rowAlt: dark ? "#19223A" : "#F7F9FC"
+    readonly property color rowHover: dark ? "#243049" : "#EDF0F6"
+    readonly property color selection: dark ? "#33296B" : "#E6DEFB"
+    readonly property color scrim: dark ? "#B3060A12" : "#80111827"
+
     readonly property SpacingScale spacing: SpacingScale {}
     readonly property RadiusScale radius: RadiusScale {}
     readonly property FontSizeScale fontSize: FontSizeScale {}
+    readonly property IconSizeScale iconSize: IconSizeScale {}
     readonly property ChartStyle chart: ChartStyle {
         dark: theme.dark
     }
@@ -72,4 +85,26 @@ QtObject {
     // Minimum hit targets: mouse + keyboard screens / touch screens (Match Day, tactics board).
     readonly property int hitMin: 32
     readonly property int hitTouch: 44
+
+    // Controls (UI kit, P06b).
+    readonly property int controlHeight: hitMin + spacing.xs
+    readonly property int controlHeightTouch: hitTouch
+    readonly property int rowHeight: 36
+    readonly property int tableHeaderHeight: 40
+    readonly property int fieldWidth: 280
+    readonly property int popupMaxHeight: 320
+    readonly property int dialogWidthS: 400
+    readonly property int dialogWidthM: 560
+    readonly property int dialogWidthL: 800
+    readonly property int toastWidth: 480
+    readonly property int borderWidth: 1
+    readonly property int focusRingWidth: 2
+    readonly property real disabledOpacity: 0.45
+    readonly property real hoverOpacity: 0.9
+    readonly property real pressedOpacity: 0.8
+
+    // Timing in milliseconds.
+    readonly property int toastDuration: 10000
+    readonly property int searchDebounce: 200
+    readonly property int tooltipDelay: 400
 }

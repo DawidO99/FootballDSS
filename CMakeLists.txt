@@ -23,7 +23,11 @@ set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 # Shared by the app and qml_smoke.
 qt_add_library(fdss_ui STATIC)
 
-set_source_files_properties(ui/theme/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+set_source_files_properties(
+    ui/theme/Theme.qml
+    ui/components/Toasts.qml
+    PROPERTIES QT_QML_SINGLETON_TYPE TRUE
+)
 
 qt_add_qml_module(fdss_ui
     URI FootballDSS
@@ -31,15 +35,34 @@ qt_add_qml_module(fdss_ui
     QML_FILES
         ui/Main.qml
         ui/theme/Theme.qml
+        ui/components/AppDialog.qml
+        ui/components/AppTabs.qml
+        ui/components/Card.qml
+        ui/components/DangerButton.qml
+        ui/components/DataTable.qml
+        ui/components/DataTableCell.qml
+        ui/components/DateField.qml
         ui/components/EmptyState.qml
+        ui/components/FieldBackground.qml
+        ui/components/FormField.qml
         ui/components/Icon.qml
+        ui/components/IconButton.qml
+        ui/components/NumberField.qml
         ui/components/PageHeader.qml
         ui/components/PrimaryButton.qml
+        ui/components/SearchField.qml
+        ui/components/SecondaryButton.qml
+        ui/components/SegmentedControl.qml
+        ui/components/SelectField.qml
         ui/components/Sidebar.qml
         ui/components/SidebarButton.qml
         ui/components/StatusBadge.qml
+        ui/components/TextInputField.qml
+        ui/components/ToastHost.qml
+        ui/components/Toasts.qml
         ui/components/TopBar.qml
         ui/views/CalendarView.qml
+        ui/views/ComponentGalleryView.qml
         ui/views/DashboardView.qml
         ui/views/DatabaseErrorView.qml
         ui/views/ImportView.qml
