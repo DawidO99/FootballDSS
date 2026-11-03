@@ -424,12 +424,68 @@
         <translation>Zaplanowany</translation>
     </message>
     <message>
+        <source>Monday</source>
+        <translation>Poniedziałek</translation>
+    </message>
+    <message>
+        <source>Tuesday</source>
+        <translation>Wtorek</translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation>Sesja</translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation>Trening</translation>
+    </message>
+    <message>
+        <source>90 min</source>
+        <translation>90 min</translation>
+    </message>
+    <message>
+        <source>Wednesday</source>
+        <translation>Środa</translation>
+    </message>
+    <message>
+        <source>Thursday</source>
+        <translation>Czwartek</translation>
+    </message>
+    <message>
+        <source>Friday</source>
+        <translation>Piątek</translation>
+    </message>
+    <message>
+        <source>Saturday</source>
+        <translation>Sobota</translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation>Mecz</translation>
+    </message>
+    <message>
+        <source>Sample FC</source>
+        <translation>Przykładowy KS</translation>
+    </message>
+    <message>
+        <source>Home · League</source>
+        <translation>U siebie · Liga</translation>
+    </message>
+    <message>
+        <source>Sunday</source>
+        <translation>Niedziela</translation>
+    </message>
+    <message>
         <source>Live</source>
         <translation>W trakcie</translation>
     </message>
     <message>
         <source>Finished</source>
         <translation>Zakończony</translation>
+    </message>
+    <message>
+        <source>Hover: plain tooltip</source>
+        <translation>Najedź: zwykły tekst w podpowiedzi</translation>
     </message>
     <message>
         <source>Last gallery interaction: %1</source>
@@ -642,6 +698,10 @@
     <message>
         <source>Show all rows</source>
         <translation>Pokaż wszystkie wiersze</translation>
+    </message>
+    <message>
+        <source>Opened %1 %2</source>
+        <translation>Otwarto %1 %2</translation>
     </message>
     <message>
         <source>Sample squad table</source>

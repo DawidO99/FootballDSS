@@ -24,13 +24,12 @@ RowLayout {
         delegate: Rectangle {
             id: dayColumn
 
-            required property string date
-            required property string dayName
-            required property string dateText
-            required property bool today
-            required property var items
+            required property var model
+            // A row of a JavaScript array comes as modelData, a row of a model under its role names.
+            readonly property var record: model.modelData !== undefined ? model.modelData : model
+            readonly property bool today: record.today === true
 
-            objectName: "weekDay_" + date
+            objectName: "weekDay_" + record.date
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredWidth: 1
@@ -50,7 +49,7 @@ RowLayout {
 
                     Label {
                         Layout.fillWidth: true
-                        text: dayColumn.dayName
+                        text: dayColumn.record.dayName
                         color: dayColumn.today ? Theme.accent : Theme.text
                         font.pixelSize: Theme.fontSize.body
                         font.weight: Font.DemiBold
@@ -60,7 +59,7 @@ RowLayout {
                     // The word too: the border of today is not enough on its own (AGENTS section 6).
                     Label {
                         Layout.fillWidth: true
-                        text: dayColumn.today ? qsTr("%1 · Today").arg(dayColumn.dateText) : dayColumn.dateText
+                        text: dayColumn.today ? qsTr("%1 · Today").arg(dayColumn.record.dateText) : dayColumn.record.dateText
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontSize.caption
                         elide: Text.ElideRight
@@ -81,7 +80,7 @@ RowLayout {
                         spacing: Theme.spacing.xs
 
                         Repeater {
-                            model: dayColumn.items
+                            model: dayColumn.record.items
 
                             delegate: AbstractButton {
                                 id: itemButton
@@ -94,12 +93,16 @@ RowLayout {
                                 hoverEnabled: true
                                 Accessible.role: Accessible.Button
                                 Accessible.name: [modelData.kindText, modelData.time, modelData.title, modelData.details, modelData.statusText].filter(part => part.length > 0).join(", ")
-                                ToolTip.visible: hovered
-                                ToolTip.text: Accessible.name
-                                ToolTip.delay: Theme.tooltipDelay
                                 Keys.onReturnPressed: click()
                                 Keys.onEnterPressed: click()
                                 onClicked: root.itemActivated(modelData.kind, modelData.itemId)
+
+                                PlainToolTip {
+                                    objectName: "itemToolTip"
+                                    visible: itemButton.hovered
+                                    text: itemButton.Accessible.name
+                                    delay: Theme.tooltipDelay
+                                }
 
                                 background: Rectangle {
                                     radius: Theme.radius.s

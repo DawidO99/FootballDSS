@@ -905,6 +905,27 @@ void exerciseCalendar(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     capture("calendar-empty");
     expectFlag(addShortcut, "enabled", true, "the coach has no Ctrl+N in the calendar");
 
+    // The week has the same empty state as the list, with its button for the coach.
+    view->setProperty("mode", QStringLiteral("week"));
+    capture("calendar-week-empty");
+    auto* weekEmptyState = findByObjectName(view, QStringLiteral("weekEmptyState"));
+    auto* weekGrid = findByObjectName(view, QStringLiteral("weekGrid"));
+    if (weekEmptyState == nullptr || weekGrid == nullptr) {
+        fail("the week page is not all there");
+        return;
+    }
+    expectFlag(weekEmptyState, "active", true, "an empty calendar has no empty state in the week");
+    expectFlag(weekGrid, "visible", false, "an empty calendar shows an empty grid");
+    if (weekEmptyState->property("item")
+            .value<QObject*>()
+            ->property("actionText")
+            .toString()
+            .isEmpty()) {
+        fail("the empty week has no button for the coach");
+    }
+    view->setProperty("mode", QStringLiteral("list"));
+    settle();
+
     // Done when: a match from the keyboard, with the first opponent added on the way.
     // The squad test moved the clock on, so these dates are well ahead of it: a Saturday and the
     // Tuesday before it, in the week of Monday 2030-01-07.
@@ -989,8 +1010,41 @@ void exerciseCalendar(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     navigation->activate(QStringLiteral("calendar"));
     settle();
 
+    // Text a field refused is not in the viewmodel, so `dirty` cannot see it: Save and the way to
+    // the sheet both stay off, or it would be lost without a word.
+    const auto openSession = [&] {
+        QMetaObject::invokeMethod(view, "openItem", Q_ARG(QVariant, QStringLiteral("session")),
+                                  Q_ARG(QVariant, double(sessionId)));
+        settle();
+        expectFlag(openSheet, "enabled", true, "an untouched session has no way to its sheet");
+    };
+    const auto expectSheetOffAndLeave = [&](const char* reason) {
+        expectFlag(openSheet, "enabled", false, reason);
+        expectFlag(find("saveFirstHint"), "visible", true, "a refused text gives no hint");
+        expectFlag(sessionDialog, "primaryEnabled", false, "Save stays on over a refused text");
+        pressKey(window, Qt::Key_Escape);
+        expectFlag(sessionDialog, "visible", false, "Esc did not close the session form");
+    };
+    openSession();
+    pressKey(window, Qt::Key_Backspace);
+    expectSheetOffAndLeave("the sheet stays on over a date that is not a date");
+    openSession();
+    find("startTimeInput")->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("1"));
+    expectSheetOffAndLeave("the sheet stays on over an unfinished time");
+    openSession();
+    find("durationInput")->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("0"));
+    expectSheetOffAndLeave("the sheet stays on over a duration out of range");
+    // Leaving the form dropped what was typed.
+    openSession();
+    pressKey(window, Qt::Key_Escape);
+
     view->setProperty("mode", QStringLiteral("week"));
     capture("calendar-week");
+    expectFlag(weekEmptyState, "active", false,
+               "the empty state stayed over a calendar with items");
+    expectFlag(weekGrid, "visible", true, "the grid did not come back with the items");
     auto* weekItem = findByObjectName(view, QStringLiteral("weekItem_match_%1").arg(matchId));
     if (weekItem == nullptr) {
         fail("the week does not show the match as a button");
@@ -1183,6 +1237,25 @@ void exerciseCalendar(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     }
     expectFlag(find("openSheetButton"), "enabled", true, "the physio has no way to the sheet");
     pressKey(window, Qt::Key_Escape);
+
+    // An empty calendar in the week: the text alone, as this role has no next step of its own.
+    if (!training.remove(fdss::core::TrainingSessionId{backAgainId}) ||
+        !matches.setResult(fdss::core::MatchId{currentMatchId}, std::nullopt, std::nullopt,
+                           fdss::core::MatchStatus::Planned) ||
+        !matches.removePlanned(fdss::core::MatchId{currentMatchId})) {
+        fail("the calendar test cannot empty the calendar");
+        return;
+    }
+    physioCalendar->reload();
+    physioView->setProperty("mode", QStringLiteral("week"));
+    capture("calendar-week-empty-read-only");
+    auto* physioEmptyState = findByObjectName(physioView, QStringLiteral("weekEmptyState"));
+    expectFlag(physioEmptyState, "active", true, "the physio has no empty state in the week");
+    const auto* physioEmpty = physioEmptyState->property("item").value<QObject*>();
+    if (!physioEmpty->property("actionText").toString().isEmpty() ||
+        physioEmpty->property("description").toString().isEmpty()) {
+        fail("the empty week of the physio should be text without a button");
+    }
 
     if (!auth.login(coach, "1234")) {
         fail("the coach cannot log in again");

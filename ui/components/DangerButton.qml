@@ -2,7 +2,8 @@ import QtQuick
 import QtQuick.Controls.Basic
 
 // Destructive action (Delete, Archive all). Single destructive actions run immediately with an
-// undo toast; a confirm dialog with a DangerButton is only for bulk actions (AGENTS.md section 6).
+// undo toast; a confirm dialog with a DangerButton is for bulk actions and for deleting an item that
+// carries user-entered data (AGENTS.md section 6).
 // API: text, touch (44 px hit target), clicked(). Enter/Return click it when focused.
 Button {
     id: control

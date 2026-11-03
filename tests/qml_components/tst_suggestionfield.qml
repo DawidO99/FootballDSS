@@ -17,6 +17,7 @@ TestCase {
 
         FocusScope {
             property string source
+            property var variants: ["Liga okręgowa", "Puchar Polski", "Sparing", "Łódzka liga"]
             property int returnsSeen: 0
             property int escapesSeen: 0
             property alias field: suggestionField
@@ -32,7 +33,7 @@ TestCase {
 
                 width: parent.width
                 text: parent.source
-                suggestions: ["Liga okręgowa", "Puchar Polski", "Sparing", "Łódzka liga"]
+                suggestions: parent.variants
             }
 
             TextInputField {
@@ -86,8 +87,17 @@ TestCase {
     }
 
     function test_a_suggestion_equal_to_the_text_is_not_offered() {
-        const host = createHost({ "source": "sparing" });
+        const host = createHost({ "source": "Sparing" });
         compare(host.field.matches, []);
+    }
+
+    function test_a_suggestion_that_differs_in_case_stays_and_can_be_picked() {
+        const host = createHost({ "source": "liga", "variants": ["Liga", "liga"] });
+        compare(host.field.matches, ["Liga"]);
+        keyClick(Qt.Key_Down);
+        keyClick(Qt.Key_Down);
+        keyClick(Qt.Key_Return);
+        compare(host.field.text, "Liga");
     }
 
     function test_down_opens_every_suggestion_of_an_empty_field() {

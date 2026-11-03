@@ -71,6 +71,8 @@ QString CalendarViewModel::weekTitle() const {
 
 bool CalendarViewModel::showsCurrentWeek() const { return m_monday == mondayOf(m_today); }
 
+bool CalendarViewModel::empty() const { return m_entries.empty(); }
+
 QString CalendarViewModel::loadError() const {
     return m_loadFailure ? ErrorPresenter::message(*m_loadFailure) : QString{};
 }
@@ -99,6 +101,7 @@ void CalendarViewModel::reload() {
     }
     m_items->setEntries(m_entries, m_today);
     refreshWeek();
+    emit emptyChanged();
     emit loadErrorChanged();
 }
 

@@ -295,6 +295,46 @@ TEST_F(CalendarViewModelTest, AViewOnAnotherWeekStaysThereOverMidnight) {
     EXPECT_EQ(calendar.weekStart(), QStringLiteral("2027-03-08"));
 }
 
+TEST_F(CalendarViewModelTest, AReadErrorIsShownAndTryingAgainClearsIt) {
+    addSession(kToday);
+    CalendarViewModel calendar;
+    calendar.setTeamId(m_team.value);
+    ASSERT_TRUE(calendar.loadError().isEmpty());
+    ASSERT_EQ(calendar.items()->rowCount(), 1);
+
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE training_session RENAME TO session_gone"), "test")
+            .has_value());
+    SignalCount changed(&calendar, &CalendarViewModel::loadErrorChanged);
+    calendar.reload();
+    EXPECT_FALSE(calendar.loadError().isEmpty());
+    EXPECT_EQ(calendar.items()->rowCount(), 0);
+    EXPECT_GE(changed.count(), 1);
+
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE session_gone RENAME TO training_session"), "test")
+            .has_value());
+    calendar.reload();
+    EXPECT_TRUE(calendar.loadError().isEmpty());
+    EXPECT_EQ(calendar.items()->rowCount(), 1);
+}
+
+TEST_F(CalendarViewModelTest, EmptyMeansNothingInAnyWeek) {
+    CalendarViewModel calendar;
+    calendar.setTeamId(m_team.value);
+    EXPECT_TRUE(calendar.empty());
+    SignalCount changed(&calendar, &CalendarViewModel::emptyChanged);
+
+    // Far from the shown week, so that week alone has nothing to show.
+    const TrainingSessionId session = addSession("2027-06-01");
+    calendar.reload();
+    EXPECT_FALSE(calendar.empty());
+    EXPECT_GE(changed.count(), 1);
+
+    ASSERT_TRUE(calendar.deleteSession(session.value));
+    EXPECT_TRUE(calendar.empty());
+}
+
 TEST_F(CalendarViewModelTest, WithoutATeamTheCalendarIsEmpty) {
     addSession(kToday);
     CalendarViewModel calendar;

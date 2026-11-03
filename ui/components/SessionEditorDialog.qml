@@ -15,6 +15,8 @@ AppDialog {
     id: root
 
     readonly property alias viewModel: editor
+    // No field holds text it refused. Such text is not in the viewmodel, so `dirty` cannot see it.
+    readonly property bool fieldsValid: dateInput.validationError.length === 0 && !startInput.hasInvalidText && durationInput.validationError.length === 0
 
     signal saved(double sessionId, string date)
     signal deleteRequested(double sessionId)
@@ -52,7 +54,7 @@ AppDialog {
     primaryText: editor.readOnly ? "" : qsTr("Save")
     secondaryText: editor.readOnly ? qsTr("Close") : qsTr("Cancel")
     dangerText: editor.adding || editor.readOnly ? "" : qsTr("Delete session")
-    primaryEnabled: dateInput.validationError.length === 0 && !startInput.hasInvalidText && durationInput.validationError.length === 0
+    primaryEnabled: root.fieldsValid
     onPrimaryClicked: {
         if (editor.save())
             root.close();
@@ -200,14 +202,15 @@ AppDialog {
 
         SecondaryButton {
             objectName: "openSheetButton"
-            enabled: !editor.dirty
+            enabled: !editor.dirty && root.fieldsValid
             text: qsTr("Open training sheet")
             onClicked: root.openSheetRequested(editor.sessionId)
         }
 
         Label {
+            objectName: "saveFirstHint"
             Layout.fillWidth: true
-            visible: editor.dirty
+            visible: editor.dirty || !root.fieldsValid
             text: qsTr("Save the changes first.")
             color: Theme.textMuted
             font.pixelSize: Theme.fontSize.caption

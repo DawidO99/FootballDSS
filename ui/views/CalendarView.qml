@@ -280,19 +280,19 @@ Item {
                 CalendarWeekGrid {
                     objectName: "weekGrid"
                     anchors.fill: parent
-                    visible: !root.failed
+                    visible: !weekEmptyState.active
                     model: calendar.week
                     onItemActivated: (kind, itemId) => root.openItem(kind, itemId)
                 }
 
-                EmptyState {
+                // A week with nothing in it is normal; a calendar with nothing in it needs a next step.
+                Loader {
+                    id: weekEmptyState
+
+                    objectName: "weekEmptyState"
                     anchors.fill: parent
-                    visible: root.failed
-                    iconName: "calendar"
-                    title: qsTr("The calendar could not be read")
-                    description: calendar.loadError
-                    actionText: qsTr("Try again")
-                    onActionTriggered: calendar.reload()
+                    active: root.failed || calendar.empty
+                    sourceComponent: itemsEmptyState
                 }
             }
         }
@@ -345,6 +345,7 @@ Item {
         id: itemsEmptyState
 
         EmptyState {
+            objectName: "calendarEmptyState"
             iconName: "calendar"
             title: root.failed ? qsTr("The calendar could not be read") : qsTr("No matches or sessions yet")
             description: root.failed ? calendar.loadError : root.canEdit ? qsTr("Add a match or a training session to start planning.") : qsTr("Ask the coach or an assistant to plan the matches and sessions.")

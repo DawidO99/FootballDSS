@@ -416,11 +416,67 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Monday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tuesday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>90 min</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wednesday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thursday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Friday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saturday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample FC</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Home · League</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sunday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Live</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hover: plain tooltip</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -633,6 +689,10 @@
     </message>
     <message>
         <source>Show all rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opened %1 %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

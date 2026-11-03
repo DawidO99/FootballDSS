@@ -99,3 +99,21 @@ Accepted by the human on 2026-11-03. These override the packet text above (AGENT
 `SessionEditorDialog.qml`,
 `DataTable.qml` (optional `sectionRole`), `ui/views/ComponentGalleryView.qml`,
 `tests/qml_components/*`, `tests/qml_smoke/main.cpp`, `docs/BACKLOG.md`.
+
+**Decisions after the review.**
+- **A tooltip with user data is a `PlainToolTip`,** new in the kit and the gallery: the attached
+  `ToolTip.text` guesses rich text, so `<a href='x'>Club</a>` became a link. The rule is in AGENTS §6. The only
+  tooltip of `ui/` that shows user data is the item of the week. The position tooltip of P08 holds translated
+  names only and uses it too, so one way stays; the other attached tooltips are fixed texts.
+- **"Open training sheet" also stays off while a field holds text it refused** (date, time, duration), with the
+  same hint. Such text is not in the viewmodel, so `dirty` cannot see it.
+- **`SuggestionField` hides only the suggestion identical to the text.** "Liga" stays when "liga" is typed.
+- **The items of a day in `CalendarWeekModel` stay a `QVariantList`:** an accepted exception to AGENTS §5, for
+  2–3 read-only items.
+- **The week shows the same empty state as the list** when the whole calendar is empty, with a button for
+  `EditCalendar` and the text alone without. A single empty week stays a grid. `CalendarViewModel::empty` is new.
+- **Decision 9 is now a rule of AGENTS §6,** no longer an exception.
+- **`CalendarWeekGrid` takes a JavaScript array too,** so the gallery and the tests need no model.
+
+**Scope extension of the review:** `AGENTS.md`, `ui/components/PlainToolTip.qml`, `DangerButton.qml`,
+`ui/views/SquadView.qml`.

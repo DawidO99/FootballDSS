@@ -8,6 +8,7 @@ TestCase {
     id: testCase
 
     readonly property string markup: "<b>x</b><img src=\"http://example.invalid/a.png\">"
+    readonly property string opponent: "<a href='x'>Club</a>"
 
     name: "PlainText"
     width: 800
@@ -96,6 +97,48 @@ TestCase {
     }
 
     Component {
+        id: weekGridComponent
+
+        CalendarWeekGrid {
+            width: 800
+            height: 300
+            model: [
+                {
+                    "date": "2026-11-02",
+                    "dayName": "Monday",
+                    "dateText": "02.11.2026",
+                    "items": [
+                        {
+                            "kind": "match",
+                            "itemId": 1,
+                            "time": "18:00",
+                            "kindText": "Match",
+                            "title": testCase.opponent,
+                            "details": testCase.markup,
+                            "statusText": "Planned"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+
+    Component {
+        id: toolTipComponent
+
+        Item {
+            width: 100
+            height: 40
+
+            PlainToolTip {
+                objectName: "tip"
+                text: testCase.markup
+                visible: true
+            }
+        }
+    }
+
+    Component {
         id: toastComponent
 
         ToastHost {
@@ -143,7 +186,8 @@ TestCase {
             { "tag": "MultiSelectField", "component": multiSelectComponent },
             { "tag": "TextAreaField", "component": textAreaComponent },
             { "tag": "SelectField", "component": selectComponent },
-            { "tag": "DataTable", "component": tableComponent }
+            { "tag": "DataTable", "component": tableComponent },
+            { "tag": "CalendarWeekGrid", "component": weekGridComponent }
         ];
     }
 
@@ -172,6 +216,27 @@ TestCase {
         Toasts.info(testCase.markup);
         verify(expectPlain(host) > 0);
         Toasts.dismiss();
+    }
+
+    function test_plainToolTip() {
+        const host = create(toolTipComponent);
+        const tip = findChild(host, "tip");
+        verify(tip !== null);
+        compare(tip.contentItem.textFormat, Text.PlainText);
+        compare(tip.contentItem.text, testCase.markup);
+    }
+
+    function test_weekItemToolTipShowsTheNameLiterally() {
+        const grid = create(weekGridComponent);
+        const button = findChild(grid, "weekItem_match_1");
+        verify(button !== null);
+        const tip = findChild(button, "itemToolTip");
+        verify(tip !== null);
+        mouseMove(button, button.width / 2, button.height / 2);
+        tryVerify(() => tip.opened);
+        compare(tip.contentItem.textFormat, Text.PlainText);
+        verify(tip.contentItem.text.indexOf(testCase.opponent) >= 0, tip.contentItem.text);
+        mouseMove(grid, 0, 0);
     }
 
     function test_dialogTitle() {

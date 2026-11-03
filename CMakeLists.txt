@@ -59,6 +59,7 @@ qt_add_qml_module(fdss_ui
         ui/components/PageHeader.qml
         ui/components/PinField.qml
         ui/components/PinPad.qml
+        ui/components/PlainToolTip.qml
         ui/components/PlayerEditorDialog.qml
         ui/components/PlayerStatusBadge.qml
         ui/components/PrimaryButton.qml

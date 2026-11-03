@@ -38,6 +38,8 @@ class CalendarViewModel : public QObject {
     Q_PROPERTY(QString weekTitle READ weekTitle NOTIFY weekChanged FINAL)
     Q_PROPERTY(bool showsCurrentWeek READ showsCurrentWeek NOTIFY weekChanged FINAL)
     // Why the calendar could not be read; the view offers to try again. Empty: it is fine.
+    // The team has no matches and no sessions at all, in any week.
+    Q_PROPERTY(bool empty READ empty NOTIFY emptyChanged FINAL)
     Q_PROPERTY(QString loadError READ loadError NOTIFY loadErrorChanged FINAL)
 
 public:
@@ -51,6 +53,7 @@ public:
     [[nodiscard]] QString weekEnd() const;
     [[nodiscard]] QString weekTitle() const;
     [[nodiscard]] bool showsCurrentWeek() const;
+    [[nodiscard]] bool empty() const;
     [[nodiscard]] QString loadError() const;
 
     Q_INVOKABLE void reload();
@@ -79,6 +82,7 @@ public:
 signals:
     void teamIdChanged();
     void weekChanged();
+    void emptyChanged();
     void loadErrorChanged();
     // A translated text for the user; the view shows it in a toast.
     void errorOccurred(const QString& message);

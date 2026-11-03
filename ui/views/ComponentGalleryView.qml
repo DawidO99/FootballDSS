@@ -45,6 +45,37 @@ Item {
             firstPrimaryButton.forceActiveFocus(Qt.TabFocusReason);
     }
 
+    readonly property var sampleWeek: {
+        const day = (date, dayName, dateText, items, today) => ({
+                    "date": date,
+                    "dayName": dayName,
+                    "dateText": dateText,
+                    "today": today === true,
+                    "items": items
+                });
+        return [day("2026-11-02", qsTr("Monday"), "02.11.2026", []), day("2026-11-03", qsTr("Tuesday"), "03.11.2026", [
+                        {
+                            "kind": "session",
+                            "itemId": 1,
+                            "time": "18:00",
+                            "kindText": qsTr("Session"),
+                            "title": qsTr("Training"),
+                            "details": qsTr("90 min"),
+                            "statusText": ""
+                        }
+                    ], true), day("2026-11-04", qsTr("Wednesday"), "04.11.2026", []), day("2026-11-05", qsTr("Thursday"), "05.11.2026", []), day("2026-11-06", qsTr("Friday"), "06.11.2026", []), day("2026-11-07", qsTr("Saturday"), "07.11.2026", [
+                        {
+                            "kind": "match",
+                            "itemId": 2,
+                            "time": "15:00",
+                            "kindText": qsTr("Match"),
+                            "title": qsTr("Sample FC"),
+                            "details": qsTr("Home · League"),
+                            "statusText": qsTr("Planned")
+                        }
+                    ]), day("2026-11-08", qsTr("Sunday"), "08.11.2026", [])];
+    }
+
     readonly property var samplePositions: [
         {
             "value": "GK",
@@ -467,6 +498,18 @@ Item {
                                 MatchStatusBadge {
                                     statusKey: "finished"
                                     text: qsTr("Finished")
+                                }
+
+                                SecondaryButton {
+                                    id: plainTipSample
+
+                                    text: qsTr("Hover: plain tooltip")
+
+                                    PlainToolTip {
+                                        visible: plainTipSample.hovered
+                                        text: "<b>Sample</b> <a href='x'>Club</a>"
+                                        delay: Theme.tooltipDelay
+                                    }
                                 }
                             }
 
@@ -999,6 +1042,14 @@ Item {
                             root.tableFilterValue = "all";
                         }
                     }
+                }
+
+                CalendarWeekGrid {
+                    objectName: "sampleWeekGrid"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 4 * Theme.rowHeight
+                    model: root.sampleWeek
+                    onItemActivated: (kind, itemId) => root.lastActionText = qsTr("Opened %1 %2").arg(kind).arg(itemId)
                 }
 
                 DataTable {

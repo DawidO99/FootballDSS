@@ -192,16 +192,20 @@ TEST_F(CalendarServiceTest, OnlyCoachAndAssistantMayEdit) {
     EXPECT_EQ(count("SELECT COUNT(*) FROM training_session"), 1);
 }
 
-TEST_F(CalendarServiceTest, CoachAndAssistantMayDoEveryEdit) {
-    for (const Role role : {Role::Coach, Role::Assistant}) {
-        SCOPED_TRACE(toDbText(role));
-        logInAs(role);
-        for (const GuardedCall& call : everyEditCall()) {
-            if (const Status status = call.run(*m_calendar); !status) {
-                // The second round finds the first one's opponent, and the deleted rows are gone.
-                EXPECT_NE(status.error().code, ErrorCode::PermissionDenied) << call.name;
-            }
-        }
+TEST_F(CalendarServiceTest, ACoachSucceedsInEveryEdit) {
+    logInAs(Role::Coach);
+    // In order: each call leaves what the next one needs.
+    for (const GuardedCall& call : everyEditCall()) {
+        const Status status = call.run(*m_calendar);
+        EXPECT_TRUE(status.has_value()) << call.name << ": " << status.error().detail;
+    }
+}
+
+TEST_F(CalendarServiceTest, AnAssistantSucceedsInEveryEdit) {
+    logInAs(Role::Assistant);
+    for (const GuardedCall& call : everyEditCall()) {
+        const Status status = call.run(*m_calendar);
+        EXPECT_TRUE(status.has_value()) << call.name << ": " << status.error().detail;
     }
 }
 
@@ -434,6 +438,27 @@ TEST_F(CalendarServiceTest, RestoredMatchHasItsFieldsAndChildRowsUnderANewId) {
     ASSERT_TRUE(restoredEvents.has_value());
     ASSERT_EQ(restoredEvents->size(), 1U);
     EXPECT_EQ(restoredEvents->front().minute, 12);
+}
+
+TEST_F(CalendarServiceTest, MatchRestoreIsAtomic) {
+    logInAs(Role::Coach);
+    auto deleted = m_calendar->deleteMatch(kMatch);
+    ASSERT_TRUE(deleted.has_value());
+    AppearanceDraft appearance;
+    appearance.playerId = kPlayer;
+    deleted->appearances.push_back(appearance);
+    // The last step fails, after the match and its appearances were written.
+    MatchEventDraft event;
+    event.minute = 12;
+    event.type = MatchEventType::Goal;
+    event.playerId = kNoPlayer;
+    deleted->events.push_back(event);
+
+    EXPECT_FALSE(m_calendar->restoreMatch(*deleted).has_value());
+
+    EXPECT_EQ(count("SELECT COUNT(*) FROM match"), 0);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM appearance"), 0);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM match_event"), 0);
 }
 
 TEST_F(CalendarServiceTest, DeletingWhatIsGoneIsNotFound) {

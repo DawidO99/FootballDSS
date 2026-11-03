@@ -294,9 +294,11 @@ Item {
                         }
                     }
 
-                    ToolTip.visible: positionHover.hovered
-                    ToolTip.text: cell.rowData ? cell.rowData.positionTooltip : ""
-                    ToolTip.delay: Theme.tooltipDelay
+                    PlainToolTip {
+                        visible: positionHover.hovered
+                        text: cell.rowData ? cell.rowData.positionTooltip : ""
+                        delay: Theme.tooltipDelay
+                    }
                 }
             }
 

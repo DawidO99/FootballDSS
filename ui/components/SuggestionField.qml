@@ -10,7 +10,8 @@ import QtQuick.Controls.Basic
 // API:
 //   text, placeholderText, error, effectiveError   (see TextInputField)
 //   suggestions: var        [string]
-//   matches                 read-only: the suggestions that fit the text, without the text itself
+//   matches                 read-only: the suggestions that fit the text, without the very same text;
+//                           one that differs in case stays, so "Liga" can be picked over "liga"
 //   popupOpen               read-only
 //   highlightedIndex        the suggestion Enter would take, in `matches`; -1 = none
 // A picked suggestion changes `text` without breaking a binding on it; keep a viewmodel in sync in
@@ -26,11 +27,9 @@ TextInputField {
     property int highlightedIndex: -1
 
     function matchesOf(text) {
-        const typed = text.trim().toLocaleLowerCase();
-        return control.suggestions.filter(suggestion => {
-            const candidate = suggestion.toLocaleLowerCase();
-            return candidate !== typed && candidate.includes(typed);
-        });
+        const typed = text.trim();
+        const folded = typed.toLocaleLowerCase();
+        return control.suggestions.filter(suggestion => suggestion !== typed && suggestion.toLocaleLowerCase().includes(folded));
     }
 
     function pick(suggestion) {
