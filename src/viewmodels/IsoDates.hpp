@@ -23,6 +23,10 @@ public:
     // In the format of the app language, the same as DateField. Empty for no date. Follows the
     // language on the next call.
     [[nodiscard]] static QString displayText(const std::optional<core::Date>& date);
+    // HH:mm. Empty for no time.
+    [[nodiscard]] static QString timeToIso(const std::optional<core::TimeOfDay>& time);
+    // nullopt for anything but a real time in the form HH:mm.
+    [[nodiscard]] static std::optional<core::TimeOfDay> parseTime(const QString& text);
 };
 
 } // namespace fdss::viewmodels

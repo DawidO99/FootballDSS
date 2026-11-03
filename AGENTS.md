@@ -163,9 +163,12 @@ CMake targets:
 - Keyboard: every form and grid is fully usable with Tab/Enter; shortcuts per the spec.
 - Empty states always tell the user what to do next, with a button.
 - Destructive actions execute immediately with a 10 s "Undo" toast (confirm dialog only for bulk).
+  Deleting an item that carries user-entered data (e.g. a session with attendance) also asks first; the
+  undo toast stays.
 - Status is never color-only: color + icon + word.
-- Text that comes from user data is always shown with `textFormat: Text.PlainText` (no rich text, no
-  network requests from markup).
+- Text that comes from user data, including tooltips, is always shown with `textFormat: Text.PlainText`
+  (no rich text, no network requests from markup). A tooltip with such text is a `PlainToolTip`: the
+  attached `ToolTip.text` guesses rich text.
 - Reusable pieces go to `ui/components/`. One view per file in `ui/views/`.
 - Use `required property` for delegates and `pragma ComponentBehavior: Bound` in files whose
   delegates reference outer ids.

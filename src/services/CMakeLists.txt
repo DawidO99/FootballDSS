@@ -1,6 +1,8 @@
 add_library(fdss_services STATIC
     AuthService.hpp
     AuthService.cpp
+    CalendarService.hpp
+    CalendarService.cpp
     Clock.hpp
     ServiceSupport.hpp
     Session.hpp

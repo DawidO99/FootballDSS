@@ -38,6 +38,7 @@ qt_add_qml_module(fdss_ui
         ui/components/AppDialog.qml
         ui/components/AppTabs.qml
         ui/components/AvailabilityDialog.qml
+        ui/components/CalendarWeekGrid.qml
         ui/components/Card.qml
         ui/components/CheckBoxField.qml
         ui/components/DangerButton.qml
@@ -51,11 +52,14 @@ qt_add_qml_module(fdss_ui
         ui/components/Icon.qml
         ui/components/IconButton.qml
         ui/components/LanguageThemeSwitch.qml
+        ui/components/MatchEditorDialog.qml
+        ui/components/MatchStatusBadge.qml
         ui/components/MultiSelectField.qml
         ui/components/NumberField.qml
         ui/components/PageHeader.qml
         ui/components/PinField.qml
         ui/components/PinPad.qml
+        ui/components/PlainToolTip.qml
         ui/components/PlayerEditorDialog.qml
         ui/components/PlayerStatusBadge.qml
         ui/components/PrimaryButton.qml
@@ -64,11 +68,14 @@ qt_add_qml_module(fdss_ui
         ui/components/SecondaryButton.qml
         ui/components/SegmentedControl.qml
         ui/components/SelectField.qml
+        ui/components/SessionEditorDialog.qml
         ui/components/Sidebar.qml
         ui/components/SidebarButton.qml
         ui/components/StatusBadge.qml
+        ui/components/SuggestionField.qml
         ui/components/TextAreaField.qml
         ui/components/TextInputField.qml
+        ui/components/TimeField.qml
         ui/components/ToastHost.qml
         ui/components/Toasts.qml
         ui/components/TopBar.qml
@@ -96,6 +103,14 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/AvailabilityListModel.cpp
         src/viewmodels/AvailabilityViewModel.hpp
         src/viewmodels/AvailabilityViewModel.cpp
+        src/viewmodels/CalendarListModel.hpp
+        src/viewmodels/CalendarListModel.cpp
+        src/viewmodels/CalendarTexts.hpp
+        src/viewmodels/CalendarTexts.cpp
+        src/viewmodels/CalendarViewModel.hpp
+        src/viewmodels/CalendarViewModel.cpp
+        src/viewmodels/CalendarWeekModel.hpp
+        src/viewmodels/CalendarWeekModel.cpp
         src/viewmodels/ChangePinViewModel.hpp
         src/viewmodels/ChangePinViewModel.cpp
         src/viewmodels/ErrorPresenter.hpp
@@ -106,8 +121,12 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/LanguageManager.cpp
         src/viewmodels/LockCountdown.hpp
         src/viewmodels/LockCountdown.cpp
+        src/viewmodels/MatchEditorViewModel.hpp
+        src/viewmodels/MatchEditorViewModel.cpp
         src/viewmodels/NavigationModel.hpp
         src/viewmodels/NavigationModel.cpp
+        src/viewmodels/OpponentListModel.hpp
+        src/viewmodels/OpponentListModel.cpp
         src/viewmodels/PlayerCardViewModel.hpp
         src/viewmodels/PlayerCardViewModel.cpp
         src/viewmodels/PlayerEditorViewModel.hpp
@@ -116,6 +135,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/ProfilePickerViewModel.cpp
         src/viewmodels/ServiceRegistry.hpp
         src/viewmodels/ServiceRegistry.cpp
+        src/viewmodels/SessionEditorViewModel.hpp
+        src/viewmodels/SessionEditorViewModel.cpp
         src/viewmodels/SetupWizardViewModel.hpp
         src/viewmodels/SetupWizardViewModel.cpp
         src/viewmodels/SquadFilterModel.hpp

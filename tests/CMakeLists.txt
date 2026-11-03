@@ -43,6 +43,7 @@ add_executable(fdss_tests
     data/TransactionTest.cpp
     data/XlsxSpikeTest.cpp
     services/AuthServiceTest.cpp
+    services/CalendarServiceTest.cpp
     services/FakeClock.hpp
     services/ServiceFixture.hpp
     services/SessionTest.cpp
@@ -67,13 +68,16 @@ add_executable(fdss_vm_tests
     services/FakeClock.hpp
     viewmodels/AppStateTest.cpp
     viewmodels/AvailabilityViewModelTest.cpp
+    viewmodels/CalendarViewModelTest.cpp
     viewmodels/ChangePinViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
+    viewmodels/MatchEditorViewModelTest.cpp
     viewmodels/NavigationModelTest.cpp
     viewmodels/PlayerCardViewModelTest.cpp
     viewmodels/PlayerEditorViewModelTest.cpp
     viewmodels/ProfilePickerViewModelTest.cpp
     viewmodels/ServiceRegistryTest.cpp
+    viewmodels/SessionEditorViewModelTest.cpp
     viewmodels/SetupWizardViewModelTest.cpp
     viewmodels/SquadViewModelTest.cpp
     viewmodels/StaffListModelTest.cpp

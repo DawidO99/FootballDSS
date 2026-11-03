@@ -58,15 +58,130 @@
 <context>
     <name>CalendarView</name>
     <message>
+        <source>The match against %1 was deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The session was deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Calendar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Matches and training sessions will be listed here.</source>
+        <source>Add match</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Import a schedule</source>
+        <source>Add match (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add session (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Week</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Calendar view</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Previous week (←)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next week (→)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Today</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kind</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent or type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The calendar could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No matches or sessions yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add a match or a training session to start planning.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or an assistant to plan the matches and sessions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>What do you want to add?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete session</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>CalendarWeekGrid</name>
+    <message>
+        <source>%1 · Today</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -297,6 +412,74 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Planned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Monday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tuesday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>90 min</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wednesday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thursday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Friday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saturday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample FC</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Home · League</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sunday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Live</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Hover: plain tooltip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Last gallery interaction: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -326,6 +509,30 @@
     </message>
     <message>
         <source>Alt+↓ or the calendar button opens the popup.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kick-off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Competition</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type, or press ↓ for the suggestions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>League</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Friendly</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -482,6 +689,10 @@
     </message>
     <message>
         <source>Show all rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opened %1 %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -764,6 +975,77 @@
     </message>
     <message>
         <source>Prepare the lineup</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MatchEditorDialog</name>
+    <message>
+        <source>Add match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the opponent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add new opponent…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New opponent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kick-off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Venue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Competition</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1056,6 +1338,69 @@
     </message>
     <message>
         <source>Clear search</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SessionEditorDialog</name>
+    <message>
+        <source>Add session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Session details</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duration (min)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shift+Enter: new line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open training sheet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the changes first.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1504,6 +1849,18 @@
     </message>
 </context>
 <context>
+    <name>TimeField</name>
+    <message>
+        <source>HH:mm</source>
+        <extracomment>What a time looks like: hours and minutes, as a hint in an empty field.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the time as HH:mm, for example 18:30.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>ToastHost</name>
     <message>
         <source>Error</source>
@@ -1592,6 +1949,115 @@
     </message>
     <message>
         <source>Analyst</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::CalendarListModel</name>
+    <message>
+        <source>Upcoming</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Past</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::CalendarTexts</name>
+    <message>
+        <source>Home</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Away</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Neutral</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match preparation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recovery</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Gym</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Other</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Planned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Live</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Monday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tuesday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Wednesday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Thursday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Friday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saturday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sunday</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 min</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::CalendarViewModel</name>
+    <message>
+        <source>This session has saved attendance for 1 player. Delete it together with the attendance?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This session has saved attendance for %1 players. Delete it together with the attendance?</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1694,6 +2160,26 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Enter the opponent&apos;s name, up to 100 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the opponent, or add a new one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the date.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the time as HH:mm, for example 18:30, or leave it empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a duration from %1 to %2 minutes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1711,6 +2197,22 @@
     </message>
     <message>
         <source>Another player already has this shirt number. Choose a different one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This opponent already exists. Choose it from the list.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match has already started or finished, so it cannot be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match has data attached to it, such as a lineup or metrics, so it cannot be deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This session has metric values attached to it, so it cannot be deleted.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

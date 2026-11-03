@@ -11,6 +11,10 @@
 - Keyboard shortcut overview on F1
 - Column chooser in the squad table, SPEC section 4 (P08)
 - Deleting an availability entry entered by mistake; the repository already has `remove` (P08)
+- Undo of a calendar delete gives the item a new id and loses `import_id` and `formation`: the
+  repository `create()` cannot set them. Matters once imports and the pre-match screen write them (P09a)
+- Correcting the name of an opponent added by mistake, on the Opponents screen; the repository already
+  has `update` (P09a)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,

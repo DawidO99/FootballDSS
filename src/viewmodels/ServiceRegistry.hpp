@@ -9,11 +9,15 @@ namespace fdss::data {
 class AvailabilityRepository;
 class ClubRepository;
 class DatabaseManager;
+class MatchRepository;
+class OpponentRepository;
 class PlayerRepository;
 class StaffRepository;
+class TrainingRepository;
 } // namespace fdss::data
 
 namespace fdss::services {
+class CalendarService;
 class Session;
 class SetupService;
 class SquadService;
@@ -63,6 +67,7 @@ public:
     [[nodiscard]] services::AuthService& auth();
     [[nodiscard]] services::SetupService& setup();
     [[nodiscard]] services::SquadService& squad();
+    [[nodiscard]] services::CalendarService& calendar();
 
 private:
     // Destroyed from the bottom up, the database last.
@@ -72,10 +77,14 @@ private:
     std::unique_ptr<data::StaffRepository> m_staff;
     std::unique_ptr<data::PlayerRepository> m_players;
     std::unique_ptr<data::AvailabilityRepository> m_availability;
+    std::unique_ptr<data::OpponentRepository> m_opponents;
+    std::unique_ptr<data::MatchRepository> m_matches;
+    std::unique_ptr<data::TrainingRepository> m_training;
     std::unique_ptr<services::Session> m_session;
     std::unique_ptr<services::AuthService> m_auth;
     std::unique_ptr<services::SetupService> m_setup;
     std::unique_ptr<services::SquadService> m_squad;
+    std::unique_ptr<services::CalendarService> m_calendar;
 };
 
 } // namespace fdss::viewmodels

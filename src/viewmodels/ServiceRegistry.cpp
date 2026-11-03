@@ -3,8 +3,12 @@
 #include "data/db/DatabaseManager.hpp"
 #include "data/repositories/AvailabilityRepository.hpp"
 #include "data/repositories/ClubRepository.hpp"
+#include "data/repositories/MatchRepository.hpp"
+#include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
 #include "data/repositories/StaffRepository.hpp"
+#include "data/repositories/TrainingRepository.hpp"
+#include "services/CalendarService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
@@ -56,13 +60,18 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
       m_staff(std::make_unique<data::StaffRepository>(*m_database)),
       m_players(std::make_unique<data::PlayerRepository>(*m_database)),
       m_availability(std::make_unique<data::AvailabilityRepository>(*m_database)),
+      m_opponents(std::make_unique<data::OpponentRepository>(*m_database)),
+      m_matches(std::make_unique<data::MatchRepository>(*m_database)),
+      m_training(std::make_unique<data::TrainingRepository>(*m_database)),
       m_session(std::make_unique<services::Session>()),
       m_auth(std::make_unique<services::AuthService>(*m_database, *m_staff, *m_session, *m_clock,
                                                      options.pinIterations)),
       m_setup(std::make_unique<services::SetupService>(*m_database, *m_clubs, *m_staff, *m_auth,
                                                        *m_session)),
       m_squad(std::make_unique<services::SquadService>(*m_players, *m_availability, *m_session,
-                                                       *m_clock)) {}
+                                                       *m_clock)),
+      m_calendar(std::make_unique<services::CalendarService>(*m_database, *m_opponents, *m_matches,
+                                                             *m_training, *m_session)) {}
 
 ServiceRegistry::~ServiceRegistry() = default;
 
@@ -75,5 +84,7 @@ services::AuthService& ServiceRegistry::auth() { return *m_auth; }
 services::SetupService& ServiceRegistry::setup() { return *m_setup; }
 
 services::SquadService& ServiceRegistry::squad() { return *m_squad; }
+
+services::CalendarService& ServiceRegistry::calendar() { return *m_calendar; }
 
 } // namespace fdss::viewmodels
