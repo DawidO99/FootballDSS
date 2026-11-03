@@ -450,6 +450,26 @@ Item {
                                 }
                             }
 
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacing.m
+
+                                MatchStatusBadge {
+                                    statusKey: "planned"
+                                    text: qsTr("Planned")
+                                }
+
+                                MatchStatusBadge {
+                                    statusKey: "live"
+                                    text: qsTr("Live")
+                                }
+
+                                MatchStatusBadge {
+                                    statusKey: "finished"
+                                    text: qsTr("Finished")
+                                }
+                            }
+
                             Label {
                                 Layout.fillWidth: true
                                 text: qsTr("Last gallery interaction: %1").arg(root.lastActionText)
@@ -540,6 +560,36 @@ Item {
                                 minimumDate: "2026-01-01"
                                 maximumDate: "2027-12-31"
                                 Accessible.name: normalDateFormField.label
+                            }
+                        }
+
+                        FormField {
+                            id: normalTimeFormField
+
+                            Layout.fillWidth: true
+                            label: qsTr("Kick-off")
+                            error: normalTimeField.effectiveError
+
+                            TimeField {
+                                id: normalTimeField
+
+                                Layout.fillWidth: true
+                                time: "18:30"
+                                Accessible.name: normalTimeFormField.label
+                            }
+                        }
+
+                        FormField {
+                            id: normalSuggestionFormField
+
+                            Layout.fillWidth: true
+                            label: qsTr("Competition")
+                            helpText: qsTr("Type, or press ↓ for the suggestions.")
+
+                            SuggestionField {
+                                Layout.fillWidth: true
+                                suggestions: [qsTr("League"), qsTr("Cup"), qsTr("Friendly")]
+                                Accessible.name: normalSuggestionFormField.label
                             }
                         }
 

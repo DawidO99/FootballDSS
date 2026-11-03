@@ -91,6 +91,23 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     if (field == "actual_to") {
         return tr("The return cannot be before the first day of the absence.");
     }
+    if (field == "opponent_name") {
+        return tr("Enter the opponent's name, up to 100 characters.");
+    }
+    if (field == "opponent_id") {
+        return tr("Choose the opponent, or add a new one.");
+    }
+    if (field == "date") {
+        return tr("Enter the date.");
+    }
+    if (field == "kickoff_time" || field == "start_time") {
+        return tr("Enter the time as HH:mm, for example 18:30, or leave it empty.");
+    }
+    if (field == "duration_min") {
+        return tr("Enter a duration from %1 to %2 minutes.")
+            .arg(core::kMinSessionDuration)
+            .arg(core::kMaxSessionDuration);
+    }
     return tr("One of the values is not valid. Check what you entered and try again.");
 }
 
@@ -112,6 +129,20 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
     }
     if (field == "shirt_number") {
         return tr("Another player already has this shirt number. Choose a different one.");
+    }
+    if (field == "opponent_name") {
+        return tr("This opponent already exists. Choose it from the list.");
+    }
+    if (field == "match_not_planned") {
+        return tr("This match has already started or finished, so it cannot be changed here.");
+    }
+    if (field == "match_in_use") {
+        return tr(
+            "This match has data attached to it, such as a lineup or metrics, so it cannot be "
+            "deleted.");
+    }
+    if (field == "session_in_use") {
+        return tr("This session has metric values attached to it, so it cannot be deleted.");
     }
     return tr("This conflicts with data that already exists. Change the value and try again.");
 }

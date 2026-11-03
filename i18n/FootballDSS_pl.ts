@@ -58,16 +58,139 @@
 <context>
     <name>CalendarView</name>
     <message>
+        <source>The match against %1 was deleted.</source>
+        <translation>Mecz z %1 został usunięty.</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>Cofnij</translation>
+    </message>
+    <message>
+        <source>The session was deleted.</source>
+        <translation>Sesja została usunięta.</translation>
+    </message>
+    <message>
         <source>Calendar</source>
         <translation>Kalendarz</translation>
     </message>
     <message>
+        <source>Add match</source>
+        <translation>Dodaj mecz</translation>
+    </message>
+    <message>
+        <source>Add match (%1)</source>
+        <translation>Dodaj mecz (%1)</translation>
+    </message>
+    <message>
+        <source>Add session</source>
+        <translation>Dodaj sesję</translation>
+    </message>
+    <message>
+        <source>Add session (%1)</source>
+        <translation>Dodaj sesję (%1)</translation>
+    </message>
+    <message>
+        <source>List</source>
+        <translation>Lista</translation>
+    </message>
+    <message>
+        <source>Week</source>
+        <translation>Tydzień</translation>
+    </message>
+    <message>
+        <source>Calendar view</source>
+        <translation>Widok kalendarza</translation>
+    </message>
+    <message>
+        <source>Previous week (←)</source>
+        <translation>Poprzedni tydzień (←)</translation>
+    </message>
+    <message>
+        <source>Next week (→)</source>
+        <translation>Następny tydzień (→)</translation>
+    </message>
+    <message>
+        <source>Today</source>
+        <translation>Dziś</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Data</translation>
+    </message>
+    <message>
+        <source>Time</source>
+        <translation>Godzina</translation>
+    </message>
+    <message>
+        <source>Kind</source>
+        <translation>Rodzaj</translation>
+    </message>
+    <message>
+        <source>Opponent or type</source>
+        <translation>Przeciwnik lub typ</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Szczegóły</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>The calendar could not be read</source>
+        <translation>Nie udało się odczytać kalendarza</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>No matches or sessions yet</source>
+        <translation>Nie ma jeszcze meczów ani sesji</translation>
+    </message>
+    <message>
+        <source>Add a match or a training session to start planning.</source>
+        <translation>Dodaj mecz lub sesję treningową, aby zacząć planować.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or an assistant to plan the matches and sessions.</source>
+        <translation>Poproś trenera lub asystenta o zaplanowanie meczów i sesji.</translation>
+    </message>
+    <message>
+        <source>What do you want to add?</source>
+        <translation>Co chcesz dodać?</translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation>Mecz</translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation>Sesja</translation>
+    </message>
+    <message>
+        <source>Delete session</source>
+        <translation>Usuń sesję</translation>
+    </message>
+    <message>
         <source>Matches and training sessions will be listed here.</source>
-        <translation>Tu pojawią się mecze i treningi.</translation>
+        <translation type="vanished">Tu pojawią się mecze i treningi.</translation>
     </message>
     <message>
         <source>Import a schedule</source>
-        <translation>Importuj terminarz</translation>
+        <translation type="vanished">Importuj terminarz</translation>
+    </message>
+</context>
+<context>
+    <name>CalendarWeekGrid</name>
+    <message>
+        <source>%1 · Today</source>
+        <translation>%1 · dziś</translation>
+    </message>
+    <message>
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
     </message>
 </context>
 <context>
@@ -297,6 +420,18 @@
         <translation>Zarchiwizowany</translation>
     </message>
     <message>
+        <source>Planned</source>
+        <translation>Zaplanowany</translation>
+    </message>
+    <message>
+        <source>Live</source>
+        <translation>W trakcie</translation>
+    </message>
+    <message>
+        <source>Finished</source>
+        <translation>Zakończony</translation>
+    </message>
+    <message>
         <source>Last gallery interaction: %1</source>
         <translation>Ostatnia akcja w galerii: %1</translation>
     </message>
@@ -327,6 +462,30 @@
     <message>
         <source>Alt+↓ or the calendar button opens the popup.</source>
         <translation>Alt+↓ lub przycisk kalendarza otwiera okienko wyboru.</translation>
+    </message>
+    <message>
+        <source>Kick-off</source>
+        <translation>Godzina rozpoczęcia</translation>
+    </message>
+    <message>
+        <source>Competition</source>
+        <translation>Rozgrywki</translation>
+    </message>
+    <message>
+        <source>Type, or press ↓ for the suggestions.</source>
+        <translation>Wpisz nazwę lub naciśnij ↓, aby zobaczyć podpowiedzi.</translation>
+    </message>
+    <message>
+        <source>League</source>
+        <translation>Liga</translation>
+    </message>
+    <message>
+        <source>Cup</source>
+        <translation>Puchar</translation>
+    </message>
+    <message>
+        <source>Friendly</source>
+        <translation>Sparing</translation>
     </message>
     <message>
         <source>Primary position</source>
@@ -768,6 +927,77 @@
     </message>
 </context>
 <context>
+    <name>MatchEditorDialog</name>
+    <message>
+        <source>Add match</source>
+        <translation>Dodaj mecz</translation>
+    </message>
+    <message>
+        <source>Match details</source>
+        <translation>Szczegóły meczu</translation>
+    </message>
+    <message>
+        <source>Edit match</source>
+        <translation>Edytuj mecz</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Zamknij</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Anuluj</translation>
+    </message>
+    <message>
+        <source>Delete match</source>
+        <translation>Usuń mecz</translation>
+    </message>
+    <message>
+        <source>Opponent</source>
+        <translation>Przeciwnik</translation>
+    </message>
+    <message>
+        <source>Choose the opponent</source>
+        <translation>Wybierz przeciwnika</translation>
+    </message>
+    <message>
+        <source>Add new opponent…</source>
+        <translation>Dodaj nowego przeciwnika…</translation>
+    </message>
+    <message>
+        <source>New opponent</source>
+        <translation>Nowy przeciwnik</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Dodaj</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Data</translation>
+    </message>
+    <message>
+        <source>Kick-off</source>
+        <translation>Godzina rozpoczęcia</translation>
+    </message>
+    <message>
+        <source>Venue</source>
+        <translation>Miejsce</translation>
+    </message>
+    <message>
+        <source>Competition</source>
+        <translation>Rozgrywki</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+</context>
+<context>
     <name>NumberField</name>
     <message>
         <source>Enter a number.</source>
@@ -1057,6 +1287,69 @@
     <message>
         <source>Clear search</source>
         <translation>Wyczyść wyszukiwanie</translation>
+    </message>
+</context>
+<context>
+    <name>SessionEditorDialog</name>
+    <message>
+        <source>Add session</source>
+        <translation>Dodaj sesję</translation>
+    </message>
+    <message>
+        <source>Session details</source>
+        <translation>Szczegóły sesji</translation>
+    </message>
+    <message>
+        <source>Edit session</source>
+        <translation>Edytuj sesję</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Zamknij</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Anuluj</translation>
+    </message>
+    <message>
+        <source>Delete session</source>
+        <translation>Usuń sesję</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Data</translation>
+    </message>
+    <message>
+        <source>Start time</source>
+        <translation>Godzina rozpoczęcia</translation>
+    </message>
+    <message>
+        <source>Duration (min)</source>
+        <translation>Czas trwania (min)</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Typ</translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation>Notatka</translation>
+    </message>
+    <message>
+        <source>Shift+Enter: new line</source>
+        <translation>Shift+Enter: nowa linia</translation>
+    </message>
+    <message>
+        <source>Open training sheet</source>
+        <translation>Otwórz arkusz treningu</translation>
+    </message>
+    <message>
+        <source>Save the changes first.</source>
+        <translation>Najpierw zapisz zmiany.</translation>
     </message>
 </context>
 <context>
@@ -1504,6 +1797,18 @@
     </message>
 </context>
 <context>
+    <name>TimeField</name>
+    <message>
+        <source>HH:mm</source>
+        <extracomment>What a time looks like: hours and minutes, as a hint in an empty field.</extracomment>
+        <translation>GG:MM</translation>
+    </message>
+    <message>
+        <source>Enter the time as HH:mm, for example 18:30.</source>
+        <translation>Wpisz godzinę w formacie GG:MM, na przykład 18:30.</translation>
+    </message>
+</context>
+<context>
     <name>ToastHost</name>
     <message>
         <source>Error</source>
@@ -1593,6 +1898,115 @@
     <message>
         <source>Analyst</source>
         <translation>Analityk</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::CalendarListModel</name>
+    <message>
+        <source>Upcoming</source>
+        <translation>Nadchodzące</translation>
+    </message>
+    <message>
+        <source>Past</source>
+        <translation>Minione</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::CalendarTexts</name>
+    <message>
+        <source>Home</source>
+        <translation>U siebie</translation>
+    </message>
+    <message>
+        <source>Away</source>
+        <translation>Na wyjeździe</translation>
+    </message>
+    <message>
+        <source>Neutral</source>
+        <translation>Teren neutralny</translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation>Trening</translation>
+    </message>
+    <message>
+        <source>Match preparation</source>
+        <translation>Przygotowanie do meczu</translation>
+    </message>
+    <message>
+        <source>Recovery</source>
+        <translation>Regeneracja</translation>
+    </message>
+    <message>
+        <source>Gym</source>
+        <translation>Siłownia</translation>
+    </message>
+    <message>
+        <source>Other</source>
+        <translation>Inna</translation>
+    </message>
+    <message>
+        <source>Planned</source>
+        <translation>Zaplanowany</translation>
+    </message>
+    <message>
+        <source>Live</source>
+        <translation>W trakcie</translation>
+    </message>
+    <message>
+        <source>Finished</source>
+        <translation>Zakończony</translation>
+    </message>
+    <message>
+        <source>Monday</source>
+        <translation>Poniedziałek</translation>
+    </message>
+    <message>
+        <source>Tuesday</source>
+        <translation>Wtorek</translation>
+    </message>
+    <message>
+        <source>Wednesday</source>
+        <translation>Środa</translation>
+    </message>
+    <message>
+        <source>Thursday</source>
+        <translation>Czwartek</translation>
+    </message>
+    <message>
+        <source>Friday</source>
+        <translation>Piątek</translation>
+    </message>
+    <message>
+        <source>Saturday</source>
+        <translation>Sobota</translation>
+    </message>
+    <message>
+        <source>Sunday</source>
+        <translation>Niedziela</translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation>Mecz</translation>
+    </message>
+    <message>
+        <source>Session</source>
+        <translation>Sesja</translation>
+    </message>
+    <message>
+        <source>%1 min</source>
+        <translation>%1 min</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::CalendarViewModel</name>
+    <message>
+        <source>This session has saved attendance for 1 player. Delete it together with the attendance?</source>
+        <translation>Ta sesja ma zapisaną frekwencję 1 zawodnika. Usunąć ją razem z frekwencją?</translation>
+    </message>
+    <message>
+        <source>This session has saved attendance for %1 players. Delete it together with the attendance?</source>
+        <translation>Ta sesja ma zapisaną frekwencję %1 zawodników. Usunąć ją razem z frekwencją?</translation>
     </message>
 </context>
 <context>
@@ -1694,6 +2108,26 @@
         <translation>Powrót nie może być wcześniejszy niż pierwszy dzień nieobecności.</translation>
     </message>
     <message>
+        <source>Enter the opponent&apos;s name, up to 100 characters.</source>
+        <translation>Wpisz nazwę przeciwnika, do 100 znaków.</translation>
+    </message>
+    <message>
+        <source>Choose the opponent, or add a new one.</source>
+        <translation>Wybierz przeciwnika lub dodaj nowego.</translation>
+    </message>
+    <message>
+        <source>Enter the date.</source>
+        <translation>Wpisz datę.</translation>
+    </message>
+    <message>
+        <source>Enter the time as HH:mm, for example 18:30, or leave it empty.</source>
+        <translation>Wpisz godzinę w formacie GG:MM, na przykład 18:30, albo zostaw puste pole.</translation>
+    </message>
+    <message>
+        <source>Enter a duration from %1 to %2 minutes.</source>
+        <translation>Wpisz czas trwania od %1 do %2 minut.</translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation>Jedna z wartości jest niepoprawna. Sprawdź, co zostało wpisane, i spróbuj ponownie.</translation>
     </message>
@@ -1712,6 +2146,22 @@
     <message>
         <source>Another player already has this shirt number. Choose a different one.</source>
         <translation>Inny zawodnik ma już ten numer. Wybierz inny.</translation>
+    </message>
+    <message>
+        <source>This opponent already exists. Choose it from the list.</source>
+        <translation>Ten przeciwnik już istnieje. Wybierz go z listy.</translation>
+    </message>
+    <message>
+        <source>This match has already started or finished, so it cannot be changed here.</source>
+        <translation>Ten mecz już się rozpoczął lub zakończył, więc nie można go tu zmienić.</translation>
+    </message>
+    <message>
+        <source>This match has data attached to it, such as a lineup or metrics, so it cannot be deleted.</source>
+        <translation>Z tym meczem są powiązane dane, na przykład skład lub metryki, więc nie można go usunąć.</translation>
+    </message>
+    <message>
+        <source>This session has metric values attached to it, so it cannot be deleted.</source>
+        <translation>Z tą sesją są powiązane wartości metryk, więc nie można jej usunąć.</translation>
     </message>
     <message>
         <source>This conflicts with data that already exists. Change the value and try again.</source>

@@ -91,6 +91,25 @@ TEST(ErrorPresenterTest, EveryFieldOfTheSquadFormsHasItsOwnText) {
     EXPECT_TRUE(message(ErrorCode::InvalidInput, "birth_year").contains(QLatin1StringView("1950")));
 }
 
+TEST(ErrorPresenterTest, EveryFieldOfTheCalendarFormsHasItsOwnText) {
+    for (const char* field :
+         {"opponent_name", "opponent_id", "date", "kickoff_time", "start_time", "duration_min"}) {
+        const QString text = message(ErrorCode::InvalidInput, field);
+        EXPECT_NE(text, message(ErrorCode::InvalidInput)) << field;
+    }
+    EXPECT_TRUE(
+        message(ErrorCode::InvalidInput, "opponent_name").contains(QLatin1StringView("100")));
+    EXPECT_TRUE(
+        message(ErrorCode::InvalidInput, "duration_min").contains(QLatin1StringView("240")));
+}
+
+TEST(ErrorPresenterTest, EveryCalendarConflictHasItsOwnText) {
+    for (const char* field :
+         {"opponent_name", "match_not_planned", "match_in_use", "session_in_use"}) {
+        EXPECT_NE(message(ErrorCode::Conflict, field), message(ErrorCode::Conflict)) << field;
+    }
+}
+
 TEST(ErrorPresenterTest, ATakenShirtNumberHasItsOwnText) {
     EXPECT_NE(message(ErrorCode::Conflict, "shirt_number"), message(ErrorCode::Conflict));
 }

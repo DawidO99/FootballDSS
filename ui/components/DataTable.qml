@@ -22,6 +22,8 @@ import QtQuick.Layouts
 //                           user's last request since they changed
 //   emptyState: Component   empty state shown when count === 0
 //   touch: bool             44 px header and row height
+//   sectionRole: string     role that groups the rows under a heading; the rows must come grouped.
+//                           Empty = no headings
 //   count: int              read-only row count
 //   columnWidths: var       read-only width of each column in px
 //   sortRequested(string role, bool ascending)
@@ -37,6 +39,7 @@ FocusScope {
     property string sortRole
     property bool sortAscending: true
     property Component emptyState
+    property string sectionRole
     property bool touch: false
     readonly property int count: listView.count
     readonly property string currentSortRole: internal.sortRole
@@ -252,6 +255,31 @@ FocusScope {
                                 root.activated(listView.currentIndex);
                                 event.accepted = true;
                             }
+                        }
+                    }
+
+                    section.property: root.sectionRole
+                    section.delegate: Rectangle {
+                        id: sectionHeading
+
+                        required property string section
+
+                        objectName: "section_" + section
+                        width: listView.width
+                        height: root.effectiveHeaderHeight
+                        color: Theme.surfaceAlt
+
+                        Label {
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.spacing.m
+                            anchors.rightMargin: Theme.spacing.m
+                            text: sectionHeading.section
+                            textFormat: Text.PlainText
+                            color: Theme.text
+                            font.pixelSize: Theme.fontSize.caption
+                            font.weight: Font.DemiBold
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
                         }
                     }
 

@@ -41,3 +41,61 @@ duration bounds. Viewmodel: week boundaries (Monday start, year change), list or
 - [ ] Section 3 passes.
 
 ## Decisions (accepted plan)
+
+Accepted by the human on 2026-11-03. These override the packet text above (AGENTS §11).
+
+1. **`ServiceRegistry` gets four members:** `m_opponents`, `m_matches`, `m_training` and `m_calendar`, like
+   P08 decision 14. P09b and P10 use these repositories instead of adding their own.
+2. **Undo of a delete writes a kept copy back.** The delete runs at once (AGENTS §6); `CalendarViewModel`
+   keeps a copy of the last deleted item, and Undo saves it again in one transaction with its child rows.
+3. **Matches can be deleted too,** with the same undo toast, only while `planned`.
+4. **A match that is not `planned` opens read-only,** with its status and without "Delete". No score: the
+   packet does not list it.
+5. **A new opponent is saved at once** by "Add", and becomes the selected one. Cancelling the match does not
+   undo it.
+6. **An empty calendar without `EditCalendar` shows text only,** the same exception to AGENTS §6 as P08
+   decision 3. The "Import a schedule" button of the placeholder goes.
+7. **"Open training sheet" is there for every role,** in read-only mode too. It is disabled while the form
+   has unsaved changes, with a visible hint.
+8. **←/→ are visible buttons with their keys in the tooltip.** The keys go through `Keys` on the view and
+   only in the week mode, because `SegmentedControl` and `DateField` use the same keys themselves.
+9. **Deleting a session with attendance asks first.** "This session has saved attendance for N players" in
+   an `AppDialog` with a danger button, then the delete and the undo toast as in decision 2. A session
+   without attendance goes straight to the toast. An accepted exception to AGENTS §6 (confirm only for bulk):
+   attendance takes a coach minutes to enter. N comes from the service, in a read before the delete;
+   `deleteSession` does not change.
+10. **The opponents in `SelectField` are sorted with `QCollator`** (Polish letters), like the surnames of P08.
+11. **The limitations of decisions 2 and 5 go to `docs/BACKLOG.md`:** a new id after Undo, `import_id` and
+    `formation` lost by it, no way to correct an opponent's name.
+
+**Defaults accepted with the plan.**
+- "Upcoming" is a date on or after today, also when today's kick-off has passed. A past match that is still
+  `planned` stays under "Past" and reads "Planned".
+- The date of a new item is today, or the Monday of the shown week when that week does not hold today. After
+  a save the view moves to the week of the saved item.
+- Ctrl+N is a small dialog with the choice Match / Session (Tab, Enter). Both buttons show Ctrl+N in the tooltip.
+- Competition has no length limit, because SPEC gives none. "Liga" and "liga" are two different suggestions:
+  the column has no `name_key`.
+- The duration steps by 15 minutes with the arrows; any value from 15 to 240 can be typed.
+- Reading the calendar needs a logged-in user of any role, like P08 decision 10.
+
+**Beyond the accepted plan.**
+- `ui/components/MatchStatusBadge.qml`: the list needs the status as color + icon + word, the same way as
+  `PlayerStatusBadge`.
+- `CalendarService::attendanceCount()`, `CalendarViewModel::attendanceCount()` and
+  `deleteConfirmationText()`, for decision 9. The text has two forms, because "1 zawodnika" and
+  "%1 zawodników" split the same way as "1 player" and "%1 players", and the English `.ts` stays unfinished.
+- `CalendarViewModel::rowOf()`, so the list selects the saved item, which may be far down.
+- `MatchEditorViewModel::opponentName` and `clearNewOpponentError()`, and
+  `SessionEditorViewModel::durationStep`, so these are not logic or magic numbers in QML.
+- `OpponentListModel` has no `reload()`: `MatchEditorViewModel` reads the opponents and hands them over, like
+  `SquadListModel`. `CalendarViewModel` has no `itemsReloaded`: nothing needs it.
+- `TimeField` has no `optional`: both uses are optional, so it always is. `hasInvalidText` and `showTime()`
+  were added: Enter must not save text that is not a time yet as "no time".
+
+**Scope extension:** `src/viewmodels/CalendarListModel`, `CalendarWeekModel`, `CalendarTexts`, `IsoDates`,
+`ErrorPresenter`, `src/core/domain/Validation.hpp/.cpp`, `ui/components/TimeField.qml`,
+`SuggestionField.qml`, `MatchStatusBadge.qml`, `CalendarWeekGrid.qml`, `MatchEditorDialog.qml`,
+`SessionEditorDialog.qml`,
+`DataTable.qml` (optional `sectionRole`), `ui/views/ComponentGalleryView.qml`,
+`tests/qml_components/*`, `tests/qml_smoke/main.cpp`, `docs/BACKLOG.md`.

@@ -262,6 +262,27 @@ TestCase {
         compare(host.table.currentSortAscending, false);
     }
 
+    function test_no_section_role_means_no_headings() {
+        const table = createTable();
+        waitForItemPolished(table);
+        compare(findChild(table, "section_"), null);
+    }
+
+    function test_section_role_shows_a_heading_per_group() {
+        const table = createTable({
+            "sectionRole": "group",
+            "model": [
+                { "a": 1, "b": 2, "c": 3, "group": "Upcoming" },
+                { "a": 4, "b": 5, "c": 6, "group": "Upcoming" },
+                { "a": 7, "b": 8, "c": 9, "group": "Past" }
+            ]
+        });
+        waitForItemPolished(table);
+        tryVerify(() => findChild(table, "section_Upcoming") !== null);
+        tryVerify(() => findChild(table, "section_Past") !== null);
+        compare(table.count, 3);
+    }
+
     // Regression for review item 6.
 
     function test_touch_header_meets_touch_hit_target() {

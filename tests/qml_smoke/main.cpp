@@ -10,25 +10,33 @@
 #include "core/domain/Validation.hpp"
 #include "core/util/Error.hpp"
 #include "data/db/DatabaseManager.hpp"
+#include "data/repositories/MatchRepository.hpp"
+#include "data/repositories/TrainingRepository.hpp"
 #include "services/AuthService.hpp"
+#include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
 #include "viewmodels/AppSettings.hpp"
 #include "viewmodels/AppState.hpp"
 #include "viewmodels/AvailabilityViewModel.hpp"
+#include "viewmodels/CalendarViewModel.hpp"
+#include "viewmodels/CalendarWeekModel.hpp"
 #include "viewmodels/ChangePinViewModel.hpp"
 #include "viewmodels/LanguageManager.hpp"
+#include "viewmodels/MatchEditorViewModel.hpp"
 #include "viewmodels/NavigationModel.hpp"
 #include "viewmodels/PlayerCardViewModel.hpp"
 #include "viewmodels/PlayerEditorViewModel.hpp"
 #include "viewmodels/ProfilePickerViewModel.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
+#include "viewmodels/SessionEditorViewModel.hpp"
 #include "viewmodels/SetupWizardViewModel.hpp"
 #include "viewmodels/SquadViewModel.hpp"
 #include "viewmodels/StaffViewModel.hpp"
 #include "viewmodels/StartupViewModel.hpp"
 
 #include <QColor>
+#include <QDate>
 #include <QDir>
 #include <QDirIterator>
 #include <QGuiApplication>
@@ -63,13 +71,16 @@ Q_IMPORT_QML_PLUGIN(FootballDSSPlugin)
 using fdss::viewmodels::AppSettings;
 using fdss::viewmodels::AppState;
 using fdss::viewmodels::AvailabilityViewModel;
+using fdss::viewmodels::CalendarViewModel;
 using fdss::viewmodels::ChangePinViewModel;
 using fdss::viewmodels::LanguageManager;
+using fdss::viewmodels::MatchEditorViewModel;
 using fdss::viewmodels::NavigationModel;
 using fdss::viewmodels::PlayerCardViewModel;
 using fdss::viewmodels::PlayerEditorViewModel;
 using fdss::viewmodels::ProfilePickerViewModel;
 using fdss::viewmodels::ServiceRegistry;
+using fdss::viewmodels::SessionEditorViewModel;
 using fdss::viewmodels::SetupWizardViewModel;
 using fdss::viewmodels::SquadViewModel;
 using fdss::viewmodels::StaffViewModel;
@@ -822,6 +833,363 @@ void exerciseSquad(QQmlApplicationEngine& engine, const QString& screenshotDirec
 
     exerciseMinimumWindow(window, navigation, view, card, squad, screenshotDirectory);
 
+    navigation->setCurrentIndex(0);
+    settle();
+}
+
+// Replaces the text of a DateField, which has the focus, from the keyboard only.
+void retypeDate(QQuickWindow* window, const QQuickItem* field, const QDate& date) {
+    const qsizetype length = field->property("displayText").toString().size();
+    for (qsizetype i = 0; i < length; ++i) {
+        pressKey(window, Qt::Key_Backspace);
+    }
+    typeText(window, date.toString(field->property("displayFormat").toString()));
+}
+
+// The items of one day of the shown week, by the day from Monday.
+QVariantList itemsOfDay(const CalendarViewModel* calendar, int day) {
+    return calendar->week()
+        ->index(day)
+        .data(fdss::viewmodels::CalendarWeekModel::ItemsRole)
+        .toList();
+}
+
+void exerciseCalendar(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database,
+                      const QString& screenshotDirectory) {
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* toasts =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Toasts"));
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    navigation->activate(QStringLiteral("calendar"));
+    settle();
+
+    auto* view = findQmlItem(window->contentItem(), "CalendarView");
+    if (view == nullptr) {
+        fail("the calendar view is not loaded");
+        return;
+    }
+    auto* calendar = view->property("viewModel").value<CalendarViewModel*>();
+    auto* matchDialog = view->property("matchEditor").value<QObject*>();
+    auto* sessionDialog = view->property("sessionEditor").value<QObject*>();
+    auto* choiceDialog = view->property("addChoiceDialog").value<QObject*>();
+    auto* deleteDialog = view->property("deleteSessionDialog").value<QObject*>();
+    auto* addShortcut = view->findChild<QObject*>(QStringLiteral("addShortcut"));
+    if (calendar == nullptr || matchDialog == nullptr || sessionDialog == nullptr ||
+        choiceDialog == nullptr || deleteDialog == nullptr || addShortcut == nullptr) {
+        fail("the calendar view is not all there");
+        return;
+    }
+    auto* matchEditor = matchDialog->property("viewModel").value<MatchEditorViewModel*>();
+    auto* sessionEditor = sessionDialog->property("viewModel").value<SessionEditorViewModel*>();
+    const auto find = [&](const char* name) {
+        return findByObjectName(window->contentItem(), QString::fromLatin1(name));
+    };
+    const auto capture = [&](const char* name) {
+        settle();
+        grabOrSave(window, screenshotDirectory, QString::fromLatin1(name) + QStringLiteral(".png"));
+    };
+    const auto chooseFromShortcut = [&](bool session) {
+        QMetaObject::invokeMethod(addShortcut, "activated");
+        settle();
+        expectFlag(choiceDialog, "visible", true, "Ctrl+N did not ask which item to add");
+        expectFlag(addShortcut, "enabled", false, "Ctrl+N stays on over the choice");
+        if (session) {
+            pressKey(window, Qt::Key_Tab);
+        }
+        pressKey(window, Qt::Key_Return);
+        expectFlag(choiceDialog, "visible", false, "the choice did not close");
+    };
+
+    capture("calendar-empty");
+    expectFlag(addShortcut, "enabled", true, "the coach has no Ctrl+N in the calendar");
+
+    // Done when: a match from the keyboard, with the first opponent added on the way.
+    // The squad test moved the clock on, so these dates are well ahead of it: a Saturday and the
+    // Tuesday before it, in the week of Monday 2030-01-07.
+    chooseFromShortcut(false);
+    expectFlag(matchDialog, "visible", true, "the choice did not open the match form");
+    expectFlag(matchDialog, "newOpponentShown", true, "no opponents, and no field to add one");
+    typeText(window, QStringLiteral("Lech"));
+    pressKey(window, Qt::Key_Return);
+    expectFlag(matchDialog, "visible", true, "Enter in the new opponent field left the form");
+    expectFlag(matchDialog, "newOpponentShown", false, "the added opponent left its field open");
+    if (matchEditor->opponentName() != QLatin1StringView("Lech")) {
+        fail("the new opponent was not chosen");
+    }
+    if (find("opponentInput")->property("currentText").toString() != QLatin1StringView("Lech")) {
+        fail("the field does not show the new opponent");
+    }
+    find("matchDateInput")->forceActiveFocus(Qt::TabFocusReason);
+    retypeDate(window, find("matchDateInput"), QDate(2030, 1, 12));
+    find("kickoffInput")->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("1830"));
+    find("competitionInput")->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("Liga"));
+    capture("calendar-match-editor");
+    pressKey(window, Qt::Key_Return);
+    expectFlag(matchDialog, "visible", false, "Enter did not save the match");
+
+    // Done when: a session from the keyboard.
+    chooseFromShortcut(true);
+    expectFlag(sessionDialog, "visible", true, "the choice did not open the session form");
+    retypeDate(window, find("sessionDateInput"), QDate(2030, 1, 8));
+    capture("calendar-session-editor");
+    pressKey(window, Qt::Key_Return);
+    expectFlag(sessionDialog, "visible", false, "Enter did not save the session");
+
+    // Done when: both on the right days, in both modes.
+    if (calendar->items()->rowCount() != 2) {
+        fail("the keyboard did not add a match and a session");
+        return;
+    }
+    if (calendar->rowAt(0).value(QStringLiteral("date")).toString() !=
+            QLatin1StringView("2030-01-08") ||
+        calendar->rowAt(1).value(QStringLiteral("date")).toString() !=
+            QLatin1StringView("2030-01-12") ||
+        calendar->rowAt(1).value(QStringLiteral("time")).toString() != QLatin1StringView("18:30")) {
+        fail("the list does not show the items on their days");
+    }
+    capture("calendar-list");
+    if (calendar->weekStart() != QLatin1StringView("2030-01-07")) {
+        fail("a save did not move to the week of the saved item");
+    }
+    if (itemsOfDay(calendar, 1).size() != 1 || itemsOfDay(calendar, 5).size() != 1) {
+        fail("the week does not show the items on their days");
+    }
+    const QVariantMap matchRow = calendar->rowAt(1);
+    const QVariantMap sessionRow = calendar->rowAt(0);
+    const qint64 matchId = matchRow.value(QStringLiteral("itemId")).toLongLong();
+    const qint64 sessionId = sessionRow.value(QStringLiteral("itemId")).toLongLong();
+    if (!expectFollowsLanguage(engine, [calendar] {
+            return calendar->rowAt(0).value(QStringLiteral("dateText")).toString();
+        })) {
+        fail("the date in the calendar list stayed in the old language");
+    }
+
+    // Enter on the selected row opens it, and the sheet of a saved session is one button away.
+    pressKey(window, Qt::Key_Return);
+    expectFlag(sessionDialog, "visible", true, "Enter did not open the selected session");
+    auto* openSheet = find("openSheetButton");
+    expectFlag(openSheet, "enabled", true, "a saved session has no way to its sheet");
+    sessionEditor->setNote(QStringLiteral("Zmiana"));
+    settle();
+    expectFlag(openSheet, "enabled", false,
+               "unsaved changes would be lost on the way to the sheet");
+    sessionEditor->setNote(QString{});
+    settle();
+    QMetaObject::invokeMethod(openSheet, "click");
+    settle();
+    expectFlag(sessionDialog, "visible", false, "the sheet opened under the form");
+    if (navigation->currentKey() != QLatin1StringView("training") ||
+        navigation->currentArgs().value(QStringLiteral("sessionId")).toLongLong() != sessionId) {
+        fail("Open training sheet did not pass the session on");
+    }
+    navigation->activate(QStringLiteral("calendar"));
+    settle();
+
+    view->setProperty("mode", QStringLiteral("week"));
+    capture("calendar-week");
+    auto* weekItem = findByObjectName(view, QStringLiteral("weekItem_match_%1").arg(matchId));
+    if (weekItem == nullptr) {
+        fail("the week does not show the match as a button");
+        return;
+    }
+    QMetaObject::invokeMethod(weekItem, "click");
+    settle();
+    expectFlag(matchDialog, "visible", true, "the week item did not open the match");
+    pressKey(window, Qt::Key_Escape);
+    expectFlag(matchDialog, "visible", false, "Esc did not close the match form");
+    pressKey(window, Qt::Key_Right);
+    if (calendar->weekStart() != QLatin1StringView("2030-01-14")) {
+        fail("the Right key did not go to the next week");
+    }
+    pressKey(window, Qt::Key_Left);
+    if (calendar->weekStart() != QLatin1StringView("2030-01-07")) {
+        fail("the Left key did not go to the previous week");
+    }
+    QMetaObject::invokeMethod(find("todayButton"), "click");
+    settle();
+    expectFlag(calendar, "showsCurrentWeek", true, "Today did not come back to the current week");
+    view->setProperty("mode", QStringLiteral("list"));
+    settle();
+
+    // A suggestion from the keyboard does not save the form, and a duplicate stays in its field.
+    chooseFromShortcut(false);
+    QMetaObject::invokeMethod(find("showNewOpponentButton"), "click");
+    settle();
+    find("newOpponentInput")->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("LECH"));
+    pressKey(window, Qt::Key_Return);
+    expectFlag(matchDialog, "newOpponentShown", true, "a duplicate opponent closed its field");
+    if (matchEditor->newOpponentError().isEmpty()) {
+        fail("a duplicate opponent shows no error on the field");
+    }
+    capture("calendar-opponent-duplicate");
+    pressKey(window, Qt::Key_Escape);
+    expectFlag(matchDialog, "newOpponentShown", false, "Esc did not leave the new opponent field");
+    expectFlag(matchDialog, "visible", true, "Esc in the new opponent field closed the form");
+    find("competitionInput")->forceActiveFocus(Qt::TabFocusReason);
+    pressKey(window, Qt::Key_Down);
+    pressKey(window, Qt::Key_Down);
+    pressKey(window, Qt::Key_Return);
+    expectFlag(matchDialog, "visible", true, "picking a suggestion saved the form");
+    if (matchEditor->competition() != QLatin1StringView("Liga")) {
+        fail("the picked suggestion did not reach the viewmodel");
+    }
+    // A time that is not finished must not be saved as no time.
+    find("kickoffInput")->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("1"));
+    expectFlag(matchDialog, "primaryEnabled", false, "Save stays on over an unfinished time");
+    pressKey(window, Qt::Key_Escape);
+    expectFlag(matchDialog, "visible", false, "Esc did not close the match form");
+
+    // Deleting a match goes straight to the toast, and undo brings it back.
+    QMetaObject::invokeMethod(view, "openItem", Q_ARG(QVariant, QStringLiteral("match")),
+                              Q_ARG(QVariant, double(matchId)));
+    settle();
+    QMetaObject::invokeMethod(matchDialog, "dangerClicked");
+    settle();
+    expectFlag(matchDialog, "visible", false, "deleting the match left its form open");
+    expectFlag(toasts, "active", true, "deleting the match shows no undo toast");
+    if (calendar->items()->rowCount() != 1) {
+        fail("the match was not deleted");
+    }
+    QMetaObject::invokeMethod(toasts, "undo");
+    settle();
+    if (calendar->items()->rowCount() != 2) {
+        fail("undo did not bring the match back");
+    }
+
+    // Decision 9: a session without attendance asks nothing.
+    QMetaObject::invokeMethod(view, "openItem", Q_ARG(QVariant, QStringLiteral("session")),
+                              Q_ARG(QVariant, double(sessionId)));
+    settle();
+    QMetaObject::invokeMethod(sessionDialog, "dangerClicked");
+    settle();
+    expectFlag(deleteDialog, "visible", false, "a session without attendance asked first");
+    expectFlag(toasts, "active", true, "deleting the session shows no undo toast");
+    QMetaObject::invokeMethod(toasts, "undo");
+    settle();
+    if (calendar->items()->rowCount() != 2) {
+        fail("undo did not bring the session back");
+        return;
+    }
+
+    // Decision 9: a session with attendance asks, and undo brings the attendance back too.
+    // Undo above gave the session a new id, and it is the first row.
+    const qint64 restoredSessionId =
+        calendar->rowAt(0).value(QStringLiteral("itemId")).toLongLong();
+    fdss::data::TrainingRepository training(database);
+    const auto players =
+        ServiceRegistry::instance().squad().listPlayers(fdss::core::TeamId{appState->teamId()});
+    if (!players || players->empty()) {
+        fail("the calendar test has no players");
+        return;
+    }
+    fdss::core::AttendanceDraft row;
+    row.playerId = players->front().player.id;
+    const std::vector<fdss::core::AttendanceDraft> rows{row};
+    if (!training.saveAttendance(fdss::core::TrainingSessionId{restoredSessionId}, rows)) {
+        fail("the calendar test cannot save attendance");
+        return;
+    }
+    QMetaObject::invokeMethod(view, "openItem", Q_ARG(QVariant, QStringLiteral("session")),
+                              Q_ARG(QVariant, double(restoredSessionId)));
+    settle();
+    QMetaObject::invokeMethod(sessionDialog, "dangerClicked");
+    settle();
+    expectFlag(deleteDialog, "visible", true, "a session with attendance did not ask first");
+    expectFlag(sessionDialog, "visible", true, "the question closed the form under it");
+    capture("calendar-delete-question");
+    pressKey(window, Qt::Key_Escape);
+    expectFlag(deleteDialog, "visible", false, "Esc did not close the question");
+    if (calendar->items()->rowCount() != 2) {
+        fail("cancelling the question deleted the session");
+    }
+    QMetaObject::invokeMethod(sessionDialog, "dangerClicked");
+    settle();
+    QMetaObject::invokeMethod(deleteDialog, "dangerClicked");
+    settle();
+    expectFlag(deleteDialog, "visible", false, "the question stayed after the delete");
+    expectFlag(sessionDialog, "visible", false, "the form stayed after the delete");
+    expectFlag(toasts, "active", true, "the delete after the question shows no undo toast");
+    if (calendar->items()->rowCount() != 1) {
+        fail("the question did not lead to the delete");
+    }
+    QMetaObject::invokeMethod(toasts, "undo");
+    settle();
+    const qint64 backAgainId = calendar->rowAt(0).value(QStringLiteral("itemId")).toLongLong();
+    if (calendar->attendanceCount(backAgainId) != 1) {
+        fail("undo did not bring the attendance back");
+    }
+
+    // A match that is not planned opens read-only, without a way to change it.
+    fdss::data::MatchRepository matches(database);
+    const qint64 currentMatchId = calendar->rowAt(1).value(QStringLiteral("itemId")).toLongLong();
+    if (!matches.setResult(fdss::core::MatchId{currentMatchId}, 2, 1,
+                           fdss::core::MatchStatus::Finished)) {
+        fail("the calendar test cannot finish the match");
+        return;
+    }
+    calendar->reload();
+    settle();
+    QMetaObject::invokeMethod(view, "openItem", Q_ARG(QVariant, QStringLiteral("match")),
+                              Q_ARG(QVariant, double(currentMatchId)));
+    capture("calendar-match-finished");
+    expectFlag(matchDialog, "visible", true, "a finished match did not open");
+    if (!matchDialog->property("primaryText").toString().isEmpty() ||
+        !matchDialog->property("dangerText").toString().isEmpty()) {
+        fail("a finished match can still be saved or deleted");
+    }
+    pressKey(window, Qt::Key_Escape);
+
+    // A role without EditCalendar reads the calendar and reaches the training sheet.
+    auto& auth = ServiceRegistry::instance().auth();
+    const fdss::core::StaffUserId coach = ServiceRegistry::instance().session().user()->id;
+    fdss::core::StaffUserDraft physioDraft;
+    physioDraft.name = "Piotr Fizjo";
+    physioDraft.role = fdss::core::Role::Physio;
+    const auto physio = auth.addStaff(physioDraft, "1234");
+    if (!physio || !auth.login(*physio, "1234")) {
+        fail("the physio cannot log in");
+        return;
+    }
+    appState->refresh();
+    settle();
+    navigation->activate(QStringLiteral("calendar"));
+    settle();
+    auto* physioView = findQmlItem(window->contentItem(), "CalendarView");
+    if (physioView == nullptr) {
+        fail("the physio has no calendar");
+        return;
+    }
+    auto* physioCalendar = physioView->property("viewModel").value<CalendarViewModel*>();
+    auto* physioSession = physioView->property("sessionEditor").value<QObject*>();
+    expectFlag(physioView, "canEdit", false, "the physio may edit the calendar");
+    expectFlag(physioView->findChild<QObject*>(QStringLiteral("addShortcut")), "enabled", false,
+               "the physio has Ctrl+N in the calendar");
+    expectFlag(find("addMatchButton"), "visible", false, "the physio sees Add match");
+    if (physioCalendar->items()->rowCount() != 2) {
+        fail("the physio does not see the calendar");
+    }
+    QMetaObject::invokeMethod(physioView, "openItem", Q_ARG(QVariant, QStringLiteral("session")),
+                              Q_ARG(QVariant, double(backAgainId)));
+    capture("calendar-session-read-only");
+    if (!physioSession->property("primaryText").toString().isEmpty() ||
+        !physioSession->property("dangerText").toString().isEmpty()) {
+        fail("the physio can still save or delete a session");
+    }
+    expectFlag(find("openSheetButton"), "enabled", true, "the physio has no way to the sheet");
+    pressKey(window, Qt::Key_Escape);
+
+    if (!auth.login(coach, "1234")) {
+        fail("the coach cannot log in again");
+        return;
+    }
+    appState->refresh();
+    settle();
     navigation->setCurrentIndex(0);
     settle();
 }
@@ -1754,6 +2122,7 @@ int main(int argc, char* argv[]) {
                 }
                 if (state == AppState::State::Ready) {
                     exerciseSquad(engine, screenshotDirectory);
+                    exerciseCalendar(engine, *database, screenshotDirectory);
                     exerciseDatabaseErrorView(engine, screenshotDirectory);
                     viewCount = instantiateEveryView(engine);
                     exerciseLoginOverSession(engine);
