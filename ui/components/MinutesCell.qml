@@ -27,7 +27,7 @@ FocusScope {
     }
 
     // Text being typed stays when it already means this value, or when it is empty: an empty field
-    // means the duration of the session, so the value does not say what to show until the user leaves.
+    // means the duration of the session, and the label over it shows that number.
     function showValue() {
         if (input.activeFocus && (input.text.length === 0 || Number(input.text) === root.value))
             return;
@@ -83,5 +83,18 @@ FocusScope {
             hasError: root.hasError
             hovered: input.hovered
         }
+    }
+
+    // What an empty field counts as, so the screen never differs from what a save writes.
+    Label {
+        objectName: "minutesDefault"
+        anchors.fill: parent
+        visible: input.text.length === 0
+        text: root.textOf(root.value)
+        textFormat: Text.PlainText
+        color: Theme.textMuted
+        font.pixelSize: Theme.fontSize.body
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
     }
 }

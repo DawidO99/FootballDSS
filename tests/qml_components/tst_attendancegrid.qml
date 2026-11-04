@@ -217,6 +217,19 @@ TestCase {
         compare(cell(host, "minutesCell_0").displayText, "90");
     }
 
+    function test_an_empty_field_shows_what_it_counts_as() {
+        const host = createHost();
+        const minutes = cell(host, "minutesCell_0");
+        const label = findChild(minutes, "minutesDefault");
+        verify(label);
+        verify(!label.visible);
+        host.grid.focusCell(0, TrainingSessionViewModel.MinutesColumn);
+        keyClick(Qt.Key_Backspace);
+        compare(minutes.displayText, "");
+        verify(label.visible);
+        compare(label.text, "90");
+    }
+
     function test_esc_shows_the_value_again_in_minutes() {
         const host = createHost();
         host.grid.focusCell(0, TrainingSessionViewModel.MinutesColumn);

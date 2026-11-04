@@ -109,3 +109,14 @@ Accepted by the human on 2026-11-04. These override the packet text above (AGENT
 
 **Scope extension of the implementation:** `ui/components/AttendanceGridRow.qml`, `AttendanceGridHeading.qml`,
 `ui/components/Sidebar.qml` (an `objectName` for the test only), `tests/viewmodels/ErrorPresenterTest.cpp`.
+
+**Decisions after the review.** These replace decision 2 and the "Saved" part of "Beyond the accepted plan".
+- **What a row shows is what a save writes.** The state of the session is set before the rows, because a reset
+  creates the delegates while it is emitted: they read 0 minutes on a sheet opened from the sidebar, and the old
+  duration after a change of the squad and the duration. An empty minutes field also shows, in a muted label, the
+  number it counts as.
+- **The save state is per row.** `canSave` holds whenever a row has no saved attendance or was changed, for a role
+  with `EditTraining`. The badge reads "Saved" only with nothing left, otherwise "Not saved: N players", in color,
+  icon and word. The question on leaving still depends on `dirty` alone.
+- **Any session opened from the field gives the first enabled RPE the focus:** the mouse, Enter in the list and the
+  arrows on a closed list. So one arrow press opens one session; to look further the list has to be opened.

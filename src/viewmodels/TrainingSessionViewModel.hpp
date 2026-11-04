@@ -40,9 +40,13 @@ class TrainingSessionViewModel : public QAbstractListModel {
     Q_PROPERTY(bool readOnly READ readOnly NOTIFY sessionChanged FINAL)
     // The user changed something, so leaving must ask.
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged FINAL)
-    // A sheet that was never saved has something to save even when nothing changed: without this,
-    // "everyone present" could not be saved at all.
+    // There is something to save, also with nothing changed: a row with no saved attendance holds a
+    // default, and without this "everyone present" could not be saved at all.
     Q_PROPERTY(bool canSave READ canSave NOTIFY dirtyChanged FINAL)
+    // Rows that a save would write: with no saved attendance, or changed since it was saved.
+    Q_PROPERTY(int unsavedCount READ unsavedCount NOTIFY unsavedChanged FINAL)
+    // How many, in words; empty when none.
+    Q_PROPERTY(QString unsavedText READ unsavedText NOTIFY unsavedChanged FINAL)
     Q_PROPERTY(int maxRpe READ maxRpe CONSTANT FINAL)
     Q_PROPERTY(int maxMinutes READ maxMinutes CONSTANT FINAL)
     // [{ value, text }] for the status of a row.
@@ -86,6 +90,8 @@ public:
     [[nodiscard]] bool readOnly() const;
     [[nodiscard]] bool dirty() const;
     [[nodiscard]] bool canSave() const;
+    [[nodiscard]] int unsavedCount() const;
+    [[nodiscard]] QString unsavedText() const;
     [[nodiscard]] int maxRpe() const;
     [[nodiscard]] int maxMinutes() const;
     [[nodiscard]] QVariantList statusOptions() const;
@@ -129,6 +135,7 @@ signals:
     void sessionChanged();
     void sessionsChanged();
     void dirtyChanged();
+    void unsavedChanged();
     void optionsChanged();
     void loadErrorChanged();
     void saved();
@@ -145,6 +152,8 @@ private:
         QString name;
         core::AttendanceDraft draft;
         core::AttendanceStatus defaultStatus = core::AttendanceStatus::Present;
+        // The database holds a row for this player.
+        bool saved = false;
         // Kept as an error, not as text, so the message follows the language.
         std::optional<core::Error> saveError;
     };
@@ -187,9 +196,9 @@ private:
     int m_durationMin = 0;
     std::vector<Row> m_rows;
     std::vector<core::AttendanceDraft> m_baseline;
-    bool m_hasSavedRows = false;
     bool m_dirty = false;
     bool m_canSave = false;
+    int m_unsavedCount = 0;
     std::optional<RememberedCell> m_remembered;
     std::optional<LastOne> m_lastOne;
     std::optional<core::Error> m_loadFailure;

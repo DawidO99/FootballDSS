@@ -13,6 +13,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <optional>
@@ -111,6 +112,110 @@ protected:
     PlayerId m_first;
     PlayerId m_second;
 };
+
+// A delegate reads the model while the signal is emitted: a reset creates it right then, so what it
+// reads must already be the new session. Returns the minutes of the first row at every signal.
+class MinutesWatcher {
+public:
+    explicit MinutesWatcher(const VM& sheet) : m_sheet(sheet) {
+        const auto record = [this] {
+            if (m_sheet.rowCount() > 0) {
+                m_seen.push_back(m_sheet.index(0).data(VM::MinutesRole).toInt());
+                m_durations.push_back(m_sheet.durationMin());
+            }
+        };
+        QObject::connect(&sheet, &QAbstractItemModel::modelReset, &m_context, record);
+        QObject::connect(&sheet, &QAbstractItemModel::dataChanged, &m_context, record);
+    }
+
+    void expectOnlyEver(int minutes) const {
+        ASSERT_FALSE(m_seen.empty());
+        for (const int seen : m_seen) {
+            EXPECT_EQ(seen, minutes);
+        }
+        for (const int duration : m_durations) {
+            EXPECT_EQ(duration, minutes);
+        }
+    }
+
+    void clear() {
+        m_seen.clear();
+        m_durations.clear();
+    }
+
+private:
+    const VM& m_sheet;
+    QObject m_context;
+    std::vector<int> m_seen;
+    std::vector<int> m_durations;
+};
+
+TEST_F(TrainingSessionViewModelTest, FirstLoadShowsTheDurationFromTheStart) {
+    seedSheet();
+    VM sheet;
+    const MinutesWatcher watcher(sheet);
+    sheet.setTeamId(m_team.value);
+    watcher.expectOnlyEver(kDuration);
+}
+
+TEST_F(TrainingSessionViewModelTest, SheetFilledByAReloadShowsTheDurationFromTheStart) {
+    // The sidebar way: the view is loaded before the first session exists.
+    m_first = addPlayer("Jan", "Kowalski", 7);
+    VM sheet;
+    sheet.setTeamId(m_team.value);
+    ASSERT_EQ(sheet.count(), 0);
+    MinutesWatcher watcher(sheet);
+    addSession(kToday);
+    sheet.reload();
+    ASSERT_EQ(sheet.count(), 1);
+    watcher.expectOnlyEver(kDuration);
+}
+
+TEST_F(TrainingSessionViewModelTest, AnotherSessionShowsItsDurationFromTheStart) {
+    seedSheet();
+    const TrainingSessionId shorter = addSession(kLastWeek, 45);
+    VM sheet;
+    sheet.setTeamId(m_team.value);
+    MinutesWatcher watcher(sheet);
+    sheet.openSession(shorter.value);
+    watcher.expectOnlyEver(45);
+}
+
+TEST_F(TrainingSessionViewModelTest, NewSquadAndDurationShowFromTheStart) {
+    seedSheet();
+    VM sheet;
+    sheet.setTeamId(m_team.value);
+    MinutesWatcher watcher(sheet);
+    addPlayer("Ewa", "Zych", 11);
+    TrainingSessionDraft draft;
+    draft.date = kToday;
+    draft.durationMin = 60;
+    ASSERT_TRUE(registry().calendar().updateSession(m_session, draft).has_value());
+    sheet.reload();
+    ASSERT_EQ(sheet.count(), 3);
+    watcher.expectOnlyEver(60);
+    EXPECT_EQ(sheet.index(2).data(VM::MinutesRole).toInt(), 60);
+}
+
+TEST_F(TrainingSessionViewModelTest, WhatTheRowShowsIsWhatASaveWrites) {
+    seedSheet();
+    VM sheet;
+    sheet.setTeamId(m_team.value);
+    addPlayer("Ewa", "Zych", 11);
+    TrainingSessionDraft draft;
+    draft.date = kToday;
+    draft.durationMin = 60;
+    ASSERT_TRUE(registry().calendar().updateSession(m_session, draft).has_value());
+    sheet.reload();
+    sheet.enterRpeDigit(2, 5);
+    EXPECT_EQ(sheet.index(2).data(VM::LoadRole).toInt(), 5 * 60);
+    ASSERT_TRUE(sheet.save());
+    const auto stored = registry().training().sheet(m_session);
+    ASSERT_TRUE(stored.has_value());
+    // No override: the load counts the duration of the session, the same as the row showed.
+    EXPECT_FALSE(stored->rows[2].draft.minutesOverride.has_value());
+    EXPECT_EQ(stored->session.durationMin, 60);
+}
 
 TEST_F(TrainingSessionViewModelTest, NoSessionsMeansAnEmptySheet) {
     addPlayer("Jan", "Kowalski", 7);
@@ -558,6 +663,105 @@ TEST_F(TrainingSessionViewModelTest, SavedSheetCanOnlyBeSavedAfterAChange) {
     sheet->enterRpeDigit(0, 5);
     EXPECT_TRUE(sheet->canSave());
     sheet->clearRpe(0);
+    EXPECT_FALSE(sheet->canSave());
+}
+
+TEST_F(TrainingSessionViewModelTest, PlayerAddedAfterTheSaveMakesTheSheetUnsaved) {
+    seedSheet();
+    {
+        const auto sheet = makeSheet();
+        ASSERT_TRUE(sheet->save());
+        EXPECT_EQ(sheet->unsavedCount(), 0);
+        EXPECT_TRUE(sheet->unsavedText().isEmpty());
+    }
+    addPlayer("Ewa", "Zych", 11);
+    const auto sheet = makeSheet();
+    ASSERT_EQ(sheet->count(), 3);
+    EXPECT_EQ(sheet->unsavedCount(), 1);
+    EXPECT_EQ(sheet->unsavedText(), QStringLiteral("Not saved: 1 player"));
+    EXPECT_TRUE(sheet->canSave());
+    // A default is nothing the user did: leaving does not ask.
+    EXPECT_FALSE(sheet->dirty());
+
+    ASSERT_TRUE(sheet->save());
+    EXPECT_EQ(sheet->unsavedCount(), 0);
+    EXPECT_FALSE(sheet->canSave());
+    const auto stored = registry().training().sheet(m_session);
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_TRUE(std::ranges::all_of(stored->rows, [](const auto& row) { return row.saved; }));
+}
+
+TEST_F(TrainingSessionViewModelTest, PlayerAddedWhileTheSheetIsOpenCountsAfterAReload) {
+    seedSheet();
+    const auto sheet = makeSheet();
+    ASSERT_TRUE(sheet->save());
+    addPlayer("Ewa", "Zych", 11);
+    sheet->reload();
+    EXPECT_EQ(sheet->unsavedCount(), 1);
+    EXPECT_TRUE(sheet->canSave());
+    EXPECT_FALSE(sheet->dirty());
+}
+
+TEST_F(TrainingSessionViewModelTest, PartlySavedSheetCountsTheRestAndCanBeSaved) {
+    seedSheet();
+    addPlayer("Ewa", "Zych", 11);
+    AttendanceDraft saved;
+    saved.playerId = m_first;
+    saved.rpe = 6;
+    const std::vector<AttendanceDraft> rows{saved};
+    ASSERT_TRUE(registry().training().saveAttendance(m_session, rows).has_value());
+
+    const auto sheet = makeSheet();
+    EXPECT_EQ(rpe(*sheet, 0).toInt(), 6);
+    EXPECT_EQ(sheet->unsavedCount(), 2);
+    EXPECT_EQ(sheet->unsavedText(), QStringLiteral("Not saved: 2 players"));
+    EXPECT_TRUE(sheet->canSave());
+    EXPECT_FALSE(sheet->dirty());
+
+    ASSERT_TRUE(sheet->save());
+    EXPECT_EQ(sheet->unsavedCount(), 0);
+    EXPECT_EQ(rpe(*sheet, 0).toInt(), 6);
+}
+
+TEST_F(TrainingSessionViewModelTest, ChangedRowsCountAsUnsavedAndGoBackWithEsc) {
+    seedSheet();
+    const auto sheet = makeSheet();
+    EXPECT_EQ(sheet->unsavedCount(), 2);
+    ASSERT_TRUE(sheet->save());
+    const SignalCount notified(sheet.get(), &VM::unsavedChanged);
+    sheet->rememberCell(0, VM::RpeColumn);
+    sheet->enterRpeDigit(0, 5);
+    EXPECT_EQ(sheet->unsavedCount(), 1);
+    EXPECT_EQ(notified.count(), 1);
+    sheet->revertCell(0, VM::RpeColumn);
+    EXPECT_EQ(sheet->unsavedCount(), 0);
+    EXPECT_EQ(notified.count(), 2);
+    EXPECT_FALSE(sheet->canSave());
+}
+
+TEST_F(TrainingSessionViewModelTest, DiscardLeavesRowsWithoutASaveUnsaved) {
+    seedSheet();
+    const auto sheet = makeSheet();
+    sheet->enterRpeDigit(0, 5);
+    sheet->discardChanges();
+    EXPECT_FALSE(sheet->dirty());
+    EXPECT_EQ(sheet->unsavedCount(), 2);
+    EXPECT_TRUE(sheet->canSave());
+}
+
+TEST_F(TrainingSessionViewModelTest, FailedSaveMarksNothingAsSaved) {
+    seedSheet();
+    const auto sheet = makeSheet();
+    sheet->setMinutesText(0, QStringLiteral("300"));
+    EXPECT_FALSE(sheet->save());
+    EXPECT_EQ(sheet->unsavedCount(), 2);
+}
+
+TEST_F(TrainingSessionViewModelTest, ReadOnlyRoleCannotSaveAnUnsavedSheet) {
+    seedSheet();
+    logInAs(Role::Analyst);
+    const auto sheet = makeSheet();
+    EXPECT_EQ(sheet->unsavedCount(), 2);
     EXPECT_FALSE(sheet->canSave());
 }
 

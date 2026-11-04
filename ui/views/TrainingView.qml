@@ -13,8 +13,6 @@ Item {
     property var navigationArgs: ({})
     // The session chosen in the field, waiting for the answer to the question about the changes.
     property double pendingSessionId: 0
-    // The session when the list of the field opened.
-    property double sessionAtPopupOpen: 0
     property int lastRow: -1
     property int lastColumn: TrainingSessionViewModel.RpeColumn
     readonly property bool canEditCalendar: AppState.can("EditCalendar")
@@ -70,6 +68,8 @@ Item {
             return;
         }
         sheet.openSession(sessionId);
+        // The later call lets the field finish with its list, whichever way the pick came.
+        Qt.callLater(root.focusContent);
     }
 
     function finishLeaving() {
@@ -87,11 +87,6 @@ Item {
         root.pendingSessionId = 0;
         sessionField.showValue();
         root.leaveCancelled();
-    }
-
-    function focusAfterPopup() {
-        if (sheet.sessionId !== root.sessionAtPopupOpen && !leaveQuestion.visible)
-            root.focusContent();
     }
 
     // Not from the visible change: the order against it is not guaranteed, see Main.qml.
@@ -137,10 +132,10 @@ Item {
             // Not a toast: the focus stays in the grid after a save, and a toast would cover its last
             // rows for 10 s.
             StatusBadge {
-                objectName: "savedBadge"
-                visible: sheet.hasSessions && sheet.count > 0 && !sheet.readOnly && !sheet.canSave
-                kind: StatusBadge.Ok
-                text: qsTr("Saved")
+                objectName: "saveStateBadge"
+                visible: sheet.hasSessions && sheet.count > 0 && !sheet.readOnly
+                kind: sheet.unsavedCount > 0 ? StatusBadge.Warn : StatusBadge.Ok
+                text: sheet.unsavedCount > 0 ? sheet.unsavedText : qsTr("Saved")
             }
 
             SelectField {
@@ -154,18 +149,6 @@ Item {
                 value: sheet.sessionId
                 Accessible.name: qsTr("Training session")
                 onValueActivated: value => root.chooseSession(value)
-
-                Connections {
-                    target: sessionField.popup
-
-                    function onOpened() {
-                        root.sessionAtPopupOpen = sheet.sessionId;
-                    }
-
-                    function onClosed() {
-                        Qt.callLater(root.focusAfterPopup);
-                    }
-                }
             }
 
             SecondaryButton {

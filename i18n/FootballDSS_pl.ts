@@ -2638,6 +2638,14 @@
         <translation>Kontuzjowany</translation>
     </message>
     <message>
+        <source>Not saved: 1 player</source>
+        <translation>Bez zapisu: 1 zawodnik</translation>
+    </message>
+    <message>
+        <source>Not saved: %1 players</source>
+        <translation>Bez zapisu: %1 zawodników</translation>
+    </message>
+    <message>
         <source>Nothing was saved. Correct the rows marked with an error.</source>
         <translation>Nic nie zapisano. Popraw wiersze oznaczone błędem.</translation>
     </message>

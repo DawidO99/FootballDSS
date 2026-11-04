@@ -2626,6 +2626,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Not saved: 1 player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not saved: %1 players</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Nothing was saved. Correct the rows marked with an error.</source>
         <translation type="unfinished"></translation>
     </message>

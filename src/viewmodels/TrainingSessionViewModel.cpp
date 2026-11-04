@@ -151,6 +151,16 @@ bool TrainingSessionViewModel::dirty() const { return m_dirty; }
 
 bool TrainingSessionViewModel::canSave() const { return m_canSave; }
 
+int TrainingSessionViewModel::unsavedCount() const { return m_unsavedCount; }
+
+QString TrainingSessionViewModel::unsavedText() const {
+    if (m_unsavedCount == 0) {
+        return {};
+    }
+    return m_unsavedCount == 1 ? tr("Not saved: 1 player")
+                               : tr("Not saved: %1 players").arg(m_unsavedCount);
+}
+
 int TrainingSessionViewModel::maxRpe() const { return core::kMaxRpe; }
 
 int TrainingSessionViewModel::maxMinutes() const { return core::kMaxAttendanceMinutes; }
@@ -359,7 +369,9 @@ bool TrainingSessionViewModel::save() {
         return false;
     }
     m_baseline = std::move(drafts);
-    m_hasSavedRows = !m_rows.empty();
+    for (Row& row : m_rows) {
+        row.saved = true;
+    }
     // Esc after a save must not bring back what came before it.
     if (m_remembered && m_remembered->row < rowCount()) {
         m_remembered->draft = m_rows[static_cast<std::size_t>(m_remembered->row)].draft;
@@ -395,6 +407,7 @@ bool TrainingSessionViewModel::eventFilter(QObject* watched, QEvent* event) {
     if (event->type() == QEvent::LanguageChange) {
         emit optionsChanged();
         emit loadErrorChanged();
+        emit unsavedChanged();
         if (!m_rows.empty()) {
             emit dataChanged(index(0), index(rowCount() - 1), {RowErrorRole});
         }
@@ -442,10 +455,8 @@ void TrainingSessionViewModel::applySheet(services::AttendanceSheet sheet) {
     std::vector<core::AttendanceDraft> baseline;
     rows.reserve(sheet.rows.size());
     baseline.reserve(sheet.rows.size());
-    bool hasSavedRows = false;
     for (services::AttendanceSheetRow& source : sheet.rows) {
         normalize(source.draft, sheet.session.durationMin);
-        hasSavedRows = hasSavedRows || source.saved;
         baseline.push_back(source.draft);
         Row row;
         row.playerId = source.player.id;
@@ -453,41 +464,42 @@ void TrainingSessionViewModel::applySheet(services::AttendanceSheet sheet) {
         row.name = SquadTexts::displayName(source.player);
         row.draft = source.draft;
         row.defaultStatus = source.defaultStatus;
+        row.saved = source.saved;
         rows.push_back(std::move(row));
     }
 
-    const bool samePlayers = std::ranges::equal(
-        rows, m_rows, [](const Row& a, const Row& b) { return a.playerId == b.playerId; });
-    if (samePlayers) {
-        m_rows = std::move(rows);
-    } else {
-        beginResetModel();
-        m_rows = std::move(rows);
-        endResetModel();
-    }
+    // Everything the rows read comes first: a reset creates the delegates while it is emitted, and
+    // they read the model right then.
     m_baseline = std::move(baseline);
-    m_hasSavedRows = hasSavedRows;
     m_sessionId = sheet.session.id.value;
     m_durationMin = sheet.session.durationMin;
     m_remembered.reset();
     m_lastOne.reset();
-    if (samePlayers && !m_rows.empty()) {
-        emit dataChanged(index(0), index(rowCount() - 1));
+    const bool samePlayers = std::ranges::equal(
+        rows, m_rows, [](const Row& a, const Row& b) { return a.playerId == b.playerId; });
+    if (samePlayers) {
+        m_rows = std::move(rows);
+        if (!m_rows.empty()) {
+            emit dataChanged(index(0), index(rowCount() - 1));
+        }
+    } else {
+        beginResetModel();
+        m_rows = std::move(rows);
+        endResetModel();
     }
     emit sessionChanged();
     updateDirty();
 }
 
 void TrainingSessionViewModel::clearSheet() {
-    beginResetModel();
-    m_rows.clear();
-    endResetModel();
     m_baseline.clear();
-    m_hasSavedRows = false;
     m_sessionId = 0;
     m_durationMin = 0;
     m_remembered.reset();
     m_lastOne.reset();
+    beginResetModel();
+    m_rows.clear();
+    endResetModel();
     emit sessionChanged();
     updateDirty();
 }
@@ -520,17 +532,25 @@ void TrainingSessionViewModel::afterRowEdit(int row) {
 }
 
 void TrainingSessionViewModel::updateDirty() {
-    const bool dirty = !std::ranges::equal(
-        m_rows, m_baseline,
-        [](const Row& row, const core::AttendanceDraft& stored) { return row.draft == stored; });
-    const bool canSave =
-        !readOnly() && m_sessionId != 0 && !m_rows.empty() && (dirty || !m_hasSavedRows);
-    if (dirty == m_dirty && canSave == m_canSave) {
-        return;
+    int unsaved = 0;
+    bool dirty = false;
+    for (std::size_t row = 0; row < m_rows.size(); ++row) {
+        const bool changed = m_rows[row].draft != m_baseline[row];
+        dirty = dirty || changed;
+        if (changed || !m_rows[row].saved) {
+            ++unsaved;
+        }
     }
-    m_dirty = dirty;
-    m_canSave = canSave;
-    emit dirtyChanged();
+    const bool canSave = !readOnly() && unsaved > 0;
+    if (unsaved != m_unsavedCount) {
+        m_unsavedCount = unsaved;
+        emit unsavedChanged();
+    }
+    if (dirty != m_dirty || canSave != m_canSave) {
+        m_dirty = dirty;
+        m_canSave = canSave;
+        emit dirtyChanged();
+    }
 }
 
 void TrainingSessionViewModel::setLoadFailure(std::optional<core::Error> failure) {
