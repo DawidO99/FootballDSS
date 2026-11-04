@@ -15,6 +15,9 @@
   repository `create()` cannot set them. Matters once imports and the pre-match screen write them (P09a)
 - Correcting the name of an opponent added by mistake, on the Opponents screen; the repository already
   has `update` (P09a)
+- CI: compiler cache (sccache/ccache) for Windows and Linux builds; Windows build is ~14 min (P09a)
+- qml_smoke: CTest TIMEOUT (600 s) and per-scenario progress output, so a hang fails fast with a name
+- Squad position column: show at most 3 secondary codes + "+N"; codes matching the active filter first (P08 manual test)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,
