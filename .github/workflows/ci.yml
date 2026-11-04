@@ -38,7 +38,7 @@ jobs:
   build-test:
     name: Build and test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -194,7 +194,7 @@ jobs:
     name: ASan and UBSan (Linux, Debug)
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       CC: gcc-14
       CXX: g++-14
