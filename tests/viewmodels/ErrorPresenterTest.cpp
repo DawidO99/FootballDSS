@@ -1,5 +1,6 @@
 #include "viewmodels/ErrorPresenter.hpp"
 
+#include "core/domain/Validation.hpp"
 #include "services/AuthService.hpp"
 
 #include <gtest/gtest.h>
@@ -49,6 +50,16 @@ TEST(ErrorPresenterTest, EveryFieldOfAuthAndSetupHasItsOwnText) {
                               "coach_name", "name", "season"}) {
         EXPECT_NE(message(ErrorCode::InvalidInput, field), generic) << field;
     }
+}
+
+TEST(ErrorPresenterTest, EveryFieldOfTheTrainingSheetHasItsOwnText) {
+    const QString generic = message(ErrorCode::InvalidInput);
+    for (const char* field : {"rpe", "minutes_override", "player_id"}) {
+        EXPECT_NE(message(ErrorCode::InvalidInput, field), generic) << field;
+    }
+    EXPECT_TRUE(message(ErrorCode::InvalidInput, "rpe").contains(QString::number(kMaxRpe)));
+    EXPECT_TRUE(message(ErrorCode::InvalidInput, "minutes_override")
+                    .contains(QString::number(kMaxAttendanceMinutes)));
 }
 
 TEST(ErrorPresenterTest, AWrongPinNamesTheAttemptsLeft) {

@@ -12,6 +12,7 @@
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
+#include "services/TrainingService.hpp"
 
 #include <QtGlobal>
 
@@ -71,7 +72,9 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
       m_squad(std::make_unique<services::SquadService>(*m_players, *m_availability, *m_session,
                                                        *m_clock)),
       m_calendar(std::make_unique<services::CalendarService>(*m_database, *m_opponents, *m_matches,
-                                                             *m_training, *m_session)) {}
+                                                             *m_training, *m_session)),
+      m_trainingService(std::make_unique<services::TrainingService>(
+          *m_database, *m_training, *m_players, *m_availability, *m_session)) {}
 
 ServiceRegistry::~ServiceRegistry() = default;
 
@@ -86,5 +89,7 @@ services::SetupService& ServiceRegistry::setup() { return *m_setup; }
 services::SquadService& ServiceRegistry::squad() { return *m_squad; }
 
 services::CalendarService& ServiceRegistry::calendar() { return *m_calendar; }
+
+services::TrainingService& ServiceRegistry::training() { return *m_trainingService; }
 
 } // namespace fdss::viewmodels

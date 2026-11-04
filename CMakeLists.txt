@@ -37,6 +37,9 @@ qt_add_qml_module(fdss_ui
         ui/theme/Theme.qml
         ui/components/AppDialog.qml
         ui/components/AppTabs.qml
+        ui/components/AttendanceGrid.qml
+        ui/components/AttendanceGridHeading.qml
+        ui/components/AttendanceGridRow.qml
         ui/components/AvailabilityDialog.qml
         ui/components/CalendarWeekGrid.qml
         ui/components/Card.qml
@@ -54,6 +57,7 @@ qt_add_qml_module(fdss_ui
         ui/components/LanguageThemeSwitch.qml
         ui/components/MatchEditorDialog.qml
         ui/components/MatchStatusBadge.qml
+        ui/components/MinutesCell.qml
         ui/components/MultiSelectField.qml
         ui/components/NumberField.qml
         ui/components/PageHeader.qml
@@ -64,6 +68,7 @@ qt_add_qml_module(fdss_ui
         ui/components/PlayerStatusBadge.qml
         ui/components/PrimaryButton.qml
         ui/components/ProfileTile.qml
+        ui/components/RpeCell.qml
         ui/components/SearchField.qml
         ui/components/SecondaryButton.qml
         ui/components/SegmentedControl.qml
@@ -137,6 +142,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/ServiceRegistry.cpp
         src/viewmodels/SessionEditorViewModel.hpp
         src/viewmodels/SessionEditorViewModel.cpp
+        src/viewmodels/SessionPickerModel.hpp
+        src/viewmodels/SessionPickerModel.cpp
         src/viewmodels/SetupWizardViewModel.hpp
         src/viewmodels/SetupWizardViewModel.cpp
         src/viewmodels/SquadFilterModel.hpp
@@ -153,6 +160,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/StaffViewModel.cpp
         src/viewmodels/StartupViewModel.hpp
         src/viewmodels/StartupViewModel.cpp
+        src/viewmodels/TrainingSessionViewModel.hpp
+        src/viewmodels/TrainingSessionViewModel.cpp
 )
 
 target_link_libraries(fdss_ui PUBLIC fdss_services Qt6::Quick Qt6::QuickControls2 Qt6::Graphs)

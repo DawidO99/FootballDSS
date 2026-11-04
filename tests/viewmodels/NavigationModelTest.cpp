@@ -83,6 +83,78 @@ TEST_F(NavigationModelTest, WritingTheSameIndexBackKeepsTheArguments) {
     EXPECT_EQ(m_notifications, 1);
 }
 
+TEST_F(NavigationModelTest, GuardStopsTheSidebarAndActivate) {
+    m_model.activate(QStringLiteral("training"), kSession);
+    const int training = m_model.currentIndex();
+    int requests = 0;
+    QObject::connect(&m_model, &NavigationModel::leaveRequested, &m_model, [&] { ++requests; });
+    m_model.setLeaveGuard(true);
+
+    m_model.setCurrentIndex(0);
+    EXPECT_EQ(requests, 1);
+    m_model.activate(QStringLiteral("squad"), kOtherSession);
+    EXPECT_EQ(requests, 2);
+
+    EXPECT_EQ(m_model.currentIndex(), training);
+    EXPECT_EQ(m_model.currentArgs(), kSession);
+    EXPECT_EQ(m_notifications, 1);
+}
+
+TEST_F(NavigationModelTest, ResumeGoesToTheLastTargetAndEndsTheGuard) {
+    m_model.activate(QStringLiteral("training"), kSession);
+    m_model.setLeaveGuard(true);
+    m_model.activate(QStringLiteral("squad"), kOtherSession);
+
+    m_model.resumeLeave();
+
+    EXPECT_FALSE(m_model.leaveGuard());
+    EXPECT_EQ(m_model.currentKey(), QStringLiteral("squad"));
+    EXPECT_EQ(m_model.currentArgs(), kOtherSession);
+}
+
+// A save or a discard turns the guard off before the view answers the question.
+TEST_F(NavigationModelTest, TurningTheGuardOffKeepsTheTargetForResume) {
+    m_model.activate(QStringLiteral("training"));
+    m_model.setLeaveGuard(true);
+    m_model.setCurrentIndex(0);
+
+    m_model.setLeaveGuard(false);
+    EXPECT_EQ(m_model.currentKey(), QStringLiteral("training"));
+
+    m_model.resumeLeave();
+    EXPECT_EQ(m_model.currentKey(), QStringLiteral("dashboard"));
+}
+
+TEST_F(NavigationModelTest, CancelStaysAndNotifiesTheSidebar) {
+    m_model.activate(QStringLiteral("training"), kSession);
+    m_model.setLeaveGuard(true);
+    m_model.setCurrentIndex(0);
+    const int before = m_notifications;
+
+    m_model.cancelLeave();
+
+    EXPECT_TRUE(m_model.leaveGuard());
+    EXPECT_EQ(m_model.currentKey(), QStringLiteral("training"));
+    EXPECT_EQ(m_model.currentArgs(), kSession);
+    EXPECT_EQ(m_notifications, before + 1);
+
+    // Nothing left to go to.
+    m_model.resumeLeave();
+    EXPECT_EQ(m_model.currentKey(), QStringLiteral("training"));
+}
+
+TEST_F(NavigationModelTest, GuardAsksNothingWithoutAMove) {
+    m_model.activate(QStringLiteral("training"), kSession);
+    int requests = 0;
+    QObject::connect(&m_model, &NavigationModel::leaveRequested, &m_model, [&] { ++requests; });
+    m_model.setLeaveGuard(true);
+
+    m_model.setCurrentIndex(m_model.currentIndex());
+    m_model.activate(QStringLiteral("training"), kSession);
+
+    EXPECT_EQ(requests, 0);
+}
+
 TEST_F(NavigationModelTest, UnknownSectionChangesNothing) {
     m_model.activate(QStringLiteral("training"), kSession);
 

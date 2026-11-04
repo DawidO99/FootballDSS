@@ -4,6 +4,7 @@
 #include <QEvent>
 
 #include <algorithm>
+#include <utility>
 
 namespace fdss::viewmodels {
 
@@ -61,9 +62,7 @@ void NavigationModel::setCurrentIndex(int index) {
         qWarning("NavigationModel: index %d out of range [0, %d)", index, rowCount());
         return;
     }
-    m_currentIndex = index;
-    m_currentArgs.clear();
-    emit currentIndexChanged();
+    moveTo(index, {});
 }
 
 QString NavigationModel::currentKey() const {
@@ -81,6 +80,39 @@ void NavigationModel::activate(const QString& key, const QVariantMap& args) {
     }
     const int index = static_cast<int>(std::distance(m_items.begin(), it));
     if (index == m_currentIndex && args == m_currentArgs) {
+        return;
+    }
+    moveTo(index, args);
+}
+
+bool NavigationModel::leaveGuard() const { return m_leaveGuard; }
+
+void NavigationModel::setLeaveGuard(bool guard) {
+    if (guard == m_leaveGuard) {
+        return;
+    }
+    m_leaveGuard = guard;
+    emit leaveGuardChanged();
+}
+
+void NavigationModel::resumeLeave() {
+    setLeaveGuard(false);
+    if (!m_pendingTarget) {
+        return;
+    }
+    const Target target = std::exchange(m_pendingTarget, std::nullopt).value();
+    moveTo(target.index, target.args);
+}
+
+void NavigationModel::cancelLeave() {
+    m_pendingTarget.reset();
+    emit currentIndexChanged();
+}
+
+void NavigationModel::moveTo(int index, const QVariantMap& args) {
+    if (m_leaveGuard) {
+        m_pendingTarget = Target{index, args};
+        emit leaveRequested();
         return;
     }
     m_currentIndex = index;

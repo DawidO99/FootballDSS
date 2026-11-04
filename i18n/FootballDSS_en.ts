@@ -17,6 +17,52 @@
     </message>
 </context>
 <context>
+    <name>AttendanceGrid</name>
+    <message>
+        <source>No.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RPE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minutes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>AttendanceGridRow</name>
+    <message>
+        <source>Status of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RPE of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minutes of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>—</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>AvailabilityDialog</name>
     <message>
         <source>Add availability</source>
@@ -637,6 +683,30 @@
     </message>
     <message>
         <source>LanguageThemeSwitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AttendanceGrid (Tab, Enter, Esc, digits)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Adam Nowak</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Piotr Zych</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter minutes from 0 to 240.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample attendance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Excused</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1925,7 +1995,83 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>After each session you will record attendance and RPE for the whole squad here.</source>
+        <source>Saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Mark all present</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Everyone present, except players with an injury, illness or absence on the day of the session. Those can be changed one by one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Attendance and RPE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The training sheet could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No sessions yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add one in Calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add one in Calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No players yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add players in Squad to record their attendance.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add players in Squad.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the changes?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Discard changes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The attendance of this session has changes that are not saved.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2177,6 +2323,18 @@
     </message>
     <message>
         <source>Enter a duration from %1 to %2 minutes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter an RPE from 0 to %1, only for a player who was present.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter minutes from 0 to %1, only for a player who was present.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This player cannot be saved in this session. Open the session again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2446,6 +2604,29 @@
     </message>
     <message>
         <source>All positions</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::TrainingSessionViewModel</name>
+    <message>
+        <source>Present</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Absent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Excused</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Injured</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing was saved. Correct the rows marked with an error.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

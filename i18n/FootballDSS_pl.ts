@@ -17,6 +17,52 @@
     </message>
 </context>
 <context>
+    <name>AttendanceGrid</name>
+    <message>
+        <source>No.</source>
+        <translation>Nr</translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation>Zawodnik</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>RPE</source>
+        <translation>RPE</translation>
+    </message>
+    <message>
+        <source>Minutes</source>
+        <translation>Minuty</translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation>Obciążenie</translation>
+    </message>
+</context>
+<context>
+    <name>AttendanceGridRow</name>
+    <message>
+        <source>Status of %1</source>
+        <translation>Status: %1</translation>
+    </message>
+    <message>
+        <source>RPE of %1</source>
+        <translation>RPE: %1</translation>
+    </message>
+    <message>
+        <source>Minutes of %1</source>
+        <translation>Minuty: %1</translation>
+    </message>
+    <message>
+        <source>—</source>
+        <translation>—</translation>
+    </message>
+</context>
+<context>
     <name>AvailabilityDialog</name>
     <message>
         <source>Add availability</source>
@@ -646,6 +692,30 @@
     <message>
         <source>LanguageThemeSwitch</source>
         <translation>LanguageThemeSwitch</translation>
+    </message>
+    <message>
+        <source>AttendanceGrid (Tab, Enter, Esc, digits)</source>
+        <translation>AttendanceGrid (Tab, Enter, Esc, cyfry)</translation>
+    </message>
+    <message>
+        <source>Adam Nowak</source>
+        <translation>Adam Nowak</translation>
+    </message>
+    <message>
+        <source>Piotr Zych</source>
+        <translation>Piotr Zych</translation>
+    </message>
+    <message>
+        <source>Enter minutes from 0 to 240.</source>
+        <translation>Wpisz minuty od 0 do 240.</translation>
+    </message>
+    <message>
+        <source>Sample attendance</source>
+        <translation>Przykładowa frekwencja</translation>
+    </message>
+    <message>
+        <source>Excused</source>
+        <translation>Usprawiedliwiony</translation>
     </message>
     <message>
         <source>ProfileTile</source>
@@ -1933,8 +2003,88 @@
         <translation>Trening</translation>
     </message>
     <message>
+        <source>Saved</source>
+        <translation>Zapisano</translation>
+    </message>
+    <message>
+        <source>Training session</source>
+        <translation>Sesja treningowa</translation>
+    </message>
+    <message>
+        <source>Mark all present</source>
+        <translation>Wszyscy obecni</translation>
+    </message>
+    <message>
+        <source>Everyone present, except players with an injury, illness or absence on the day of the session. Those can be changed one by one.</source>
+        <translation>Wszyscy obecni, oprócz zawodników z kontuzją, chorobą lub nieobecnością w dniu sesji. Ich status można zmienić pojedynczo.</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>Save (%1)</source>
+        <translation>Zapisz (%1)</translation>
+    </message>
+    <message>
+        <source>Attendance and RPE</source>
+        <translation>Frekwencja i RPE</translation>
+    </message>
+    <message>
+        <source>The training sheet could not be read</source>
+        <translation>Nie udało się odczytać arkusza treningu</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>No sessions yet</source>
+        <translation>Nie ma jeszcze sesji</translation>
+    </message>
+    <message>
+        <source>Add one in Calendar.</source>
+        <translation>Dodaj sesję w kalendarzu.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add one in Calendar.</source>
+        <translation>Poproś trenera lub asystenta o dodanie sesji w kalendarzu.</translation>
+    </message>
+    <message>
+        <source>No players yet</source>
+        <translation>Nie ma jeszcze zawodników</translation>
+    </message>
+    <message>
+        <source>Add players in Squad to record their attendance.</source>
+        <translation>Dodaj zawodników w kadrze, aby zapisywać ich frekwencję.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add players in Squad.</source>
+        <translation>Poproś trenera lub asystenta o dodanie zawodników w kadrze.</translation>
+    </message>
+    <message>
+        <source>Open the squad</source>
+        <translation>Otwórz kadrę</translation>
+    </message>
+    <message>
+        <source>Save the changes?</source>
+        <translation>Zapisać zmiany?</translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation>Zostań</translation>
+    </message>
+    <message>
+        <source>Discard changes</source>
+        <translation>Odrzuć zmiany</translation>
+    </message>
+    <message>
+        <source>The attendance of this session has changes that are not saved.</source>
+        <translation>Frekwencja tej sesji ma niezapisane zmiany.</translation>
+    </message>
+    <message>
         <source>After each session you will record attendance and RPE for the whole squad here.</source>
-        <translation>Po każdym treningu zapiszesz tu obecność i RPE całej kadry.</translation>
+        <translation type="vanished">Po każdym treningu zapiszesz tu obecność i RPE całej kadry.</translation>
     </message>
     <message>
         <source>Open the calendar</source>
@@ -2186,6 +2336,18 @@
     <message>
         <source>Enter a duration from %1 to %2 minutes.</source>
         <translation>Wpisz czas trwania od %1 do %2 minut.</translation>
+    </message>
+    <message>
+        <source>Enter an RPE from 0 to %1, only for a player who was present.</source>
+        <translation>Wpisz RPE od 0 do %1, tylko dla obecnego zawodnika.</translation>
+    </message>
+    <message>
+        <source>Enter minutes from 0 to %1, only for a player who was present.</source>
+        <translation>Wpisz minuty od 0 do %1, tylko dla obecnego zawodnika.</translation>
+    </message>
+    <message>
+        <source>This player cannot be saved in this session. Open the session again.</source>
+        <translation>Nie można zapisać tego zawodnika w tej sesji. Otwórz sesję ponownie.</translation>
     </message>
     <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
@@ -2455,6 +2617,29 @@
     <message>
         <source>All positions</source>
         <translation>Wszystkie pozycje</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::TrainingSessionViewModel</name>
+    <message>
+        <source>Present</source>
+        <translation>Obecny</translation>
+    </message>
+    <message>
+        <source>Absent</source>
+        <translation>Nieobecny</translation>
+    </message>
+    <message>
+        <source>Excused</source>
+        <translation>Usprawiedliwiony</translation>
+    </message>
+    <message>
+        <source>Injured</source>
+        <translation>Kontuzjowany</translation>
+    </message>
+    <message>
+        <source>Nothing was saved. Correct the rows marked with an error.</source>
+        <translation>Nic nie zapisano. Popraw wiersze oznaczone błędem.</translation>
     </message>
 </context>
 </TS>

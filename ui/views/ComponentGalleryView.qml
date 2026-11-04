@@ -940,6 +940,62 @@ Item {
 
                     Card {
                         Layout.fillWidth: true
+                        title: qsTr("AttendanceGrid (Tab, Enter, Esc, digits)")
+
+                        ListModel {
+                            id: sampleAttendance
+
+                            ListElement {
+                                shirtNumber: 7
+                                playerName: qsTr("Jan Kowalski")
+                                status: "present"
+                                rpe: 6
+                                minutes: 90
+                                load: 540
+                                cellsEnabled: true
+                                rowError: ""
+                                minutesHasError: false
+                            }
+                            ListElement {
+                                shirtNumber: 9
+                                playerName: qsTr("Adam Nowak")
+                                status: "injured"
+                                rpe: 0
+                                minutes: 0
+                                load: 0
+                                cellsEnabled: false
+                                rowError: ""
+                                minutesHasError: false
+                            }
+                            ListElement {
+                                shirtNumber: 10
+                                playerName: qsTr("Piotr Zych")
+                                status: "present"
+                                rpe: 4
+                                minutes: 300
+                                load: 0
+                                cellsEnabled: true
+                                rowError: qsTr("Enter minutes from 0 to 240.")
+                                minutesHasError: true
+                            }
+                        }
+
+                        AttendanceGrid {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Theme.tableHeaderHeight + 4 * Theme.rowHeight
+                            Accessible.name: qsTr("Sample attendance")
+                            model: sampleAttendance
+                            statusOptions: [
+                                { "value": "present", "text": qsTr("Present") },
+                                { "value": "absent", "text": qsTr("Absent") },
+                                { "value": "excused", "text": qsTr("Excused") },
+                                { "value": "injured", "text": qsTr("Injured") }
+                            ]
+                        }
+                    }
+
+                    Card {
+                        Layout.fillWidth: true
                         title: qsTr("ProfileTile")
 
                         Row {
