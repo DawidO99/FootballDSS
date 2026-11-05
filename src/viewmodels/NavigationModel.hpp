@@ -4,6 +4,7 @@
 #include <QVariantMap>
 #include <QtQmlIntegration/qqmlintegration.h>
 
+#include <optional>
 #include <vector>
 
 namespace fdss::viewmodels {
@@ -16,6 +17,10 @@ class NavigationModel : public QAbstractListModel {
         int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged FINAL)
     Q_PROPERTY(QString currentKey READ currentKey NOTIFY currentIndexChanged FINAL)
     Q_PROPERTY(QVariantMap currentArgs READ currentArgs NOTIFY currentIndexChanged FINAL)
+    // A view holds changes that are not saved. While on, moving elsewhere only remembers the target
+    // and emits leaveRequested(), whichever way the move came: the sidebar writes currentIndex
+    // directly, so a view could not stop it on its own.
+    Q_PROPERTY(bool leaveGuard READ leaveGuard WRITE setLeaveGuard NOTIFY leaveGuardChanged FINAL)
 
 public:
     // QML uses the role names from roleNames(); the enum is for C++ callers.
@@ -38,8 +43,19 @@ public:
     // signal of currentArgs.
     Q_INVOKABLE void activate(const QString& key, const QVariantMap& args = {});
 
+    [[nodiscard]] bool leaveGuard() const;
+    // Turning it off keeps a remembered target, for resumeLeave() after the save that ended the
+    // guard.
+    void setLeaveGuard(bool guard);
+    // Turns the guard off and goes to the remembered target.
+    Q_INVOKABLE void resumeLeave();
+    // Forgets the target. Notifies, so a sidebar that has already moved its own index comes back.
+    Q_INVOKABLE void cancelLeave();
+
 signals:
     void currentIndexChanged();
+    void leaveGuardChanged();
+    void leaveRequested();
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -51,9 +67,19 @@ private:
         QString iconName;
     };
 
+    struct Target {
+        int index = 0;
+        QVariantMap args;
+    };
+
+    // Moves there, or remembers it while the guard is on.
+    void moveTo(int index, const QVariantMap& args);
+
     std::vector<Item> m_items;
     int m_currentIndex = 0;
     QVariantMap m_currentArgs;
+    bool m_leaveGuard = false;
+    std::optional<Target> m_pendingTarget;
 };
 
 } // namespace fdss::viewmodels

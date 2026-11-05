@@ -108,6 +108,17 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
             .arg(core::kMinSessionDuration)
             .arg(core::kMaxSessionDuration);
     }
+    if (field == "rpe") {
+        return tr("Enter an RPE from 0 to %1, only for a player who was present.")
+            .arg(core::kMaxRpe);
+    }
+    if (field == "minutes_override") {
+        return tr("Enter minutes from 0 to %1, only for a player who was present.")
+            .arg(core::kMaxAttendanceMinutes);
+    }
+    if (field == "player_id") {
+        return tr("This player cannot be saved in this session. Open the session again.");
+    }
     return tr("One of the values is not valid. Check what you entered and try again.");
 }
 

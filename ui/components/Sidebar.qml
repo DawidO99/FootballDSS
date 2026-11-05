@@ -43,6 +43,7 @@ Rectangle {
 
             Layout.fillWidth: true
             Layout.fillHeight: true
+            objectName: "sidebarList"
             model: root.navigation
             currentIndex: root.navigation.currentIndex
             onCurrentIndexChanged: root.navigation.currentIndex = currentIndex

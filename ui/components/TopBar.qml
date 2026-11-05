@@ -9,6 +9,9 @@ import FootballDSS
 Rectangle {
     id: root
 
+    // Main.qml logs out, after asking about changes that are not saved.
+    signal logoutRequested
+
     function focusSearch() {
         searchField.forceActiveFocus(Qt.ShortcutFocusReason);
         searchField.selectAll();
@@ -168,7 +171,7 @@ Rectangle {
 
                 MenuItem {
                     text: qsTr("Log out")
-                    onTriggered: AppState.logout()
+                    onTriggered: root.logoutRequested()
                 }
             }
         }

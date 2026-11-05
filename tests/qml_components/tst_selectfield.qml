@@ -192,6 +192,19 @@ TestCase {
         compare(host.field.currentValue, "b");
     }
 
+    function test_show_value_undoes_a_pick_the_owner_did_not_accept() {
+        const host = createHost(listModelHostComponent);
+        host.rows.append({ "value": "b", "text": "B" });
+        host.source = "b";
+        tryCompare(host.field, "currentValue", "b");
+        host.field.currentIndex = 0;
+        host.field.activated(0);
+        compare(host.field.currentValue, "a");
+        // `value` never changed, so nothing would bring the field back on its own.
+        host.field.showValue();
+        compare(host.field.currentValue, "b");
+    }
+
     function test_user_pick_survives_model_change() {
         const host = createHost(listModelHostComponent);
         host.source = "a";

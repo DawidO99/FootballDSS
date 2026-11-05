@@ -12,8 +12,6 @@ constexpr std::size_t kMaxOrganisationNameLength = 100;
 constexpr int kMaxMatchMinute = 130;
 constexpr int kMinRating = 1;
 constexpr int kMaxRating = 10;
-constexpr int kMaxRpe = 10;
-constexpr int kMaxAttendanceMinutes = 240;
 constexpr std::chrono::minutes kMinutesPerDay{24 * 60};
 constexpr std::string_view kAsciiWhitespace = " \t\n\v\f\r";
 

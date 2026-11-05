@@ -10,6 +10,7 @@ import QtQuick.Controls.Basic
 //   placeholderText         shown while nothing is selected
 //   error: string           external message, empty = valid (red border)
 //   valueActivated(var value)   the user picked an item (read it from `currentValue` too)
+//   showValue()             shows `value` again after a pick the owner did not accept
 // A pick stays inside the field, so a binding on `value` survives it. Keep a viewmodel in sync in
 // valueActivated; whenever `value` changes the field shows it again. The selection is looked up
 // again when the model changes, so rows may arrive after the value.
@@ -27,6 +28,12 @@ ComboBox {
     function syncIndex() {
         const selected = internal.selectedValue;
         control.currentIndex = selected === undefined || selected === null ? -1 : control.indexOfValue(selected);
+    }
+
+    // Shows `value` again, for a pick that the owner did not accept: `value` itself did not change.
+    function showValue() {
+        internal.selectedValue = control.value;
+        syncIndex();
     }
 
     implicitWidth: Theme.fieldWidth

@@ -30,6 +30,8 @@ inline constexpr int kMinBirthYear = 1950;
 inline constexpr int kYoungestPlayerAge = 4;
 inline constexpr int kMinSessionDuration = 15;
 inline constexpr int kMaxSessionDuration = 240;
+inline constexpr int kMaxRpe = 10;
+inline constexpr int kMaxAttendanceMinutes = 240;
 
 struct ValidationError {
     std::string field;

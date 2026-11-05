@@ -13,9 +13,11 @@
 #include "data/repositories/MatchRepository.hpp"
 #include "data/repositories/TrainingRepository.hpp"
 #include "services/AuthService.hpp"
+#include "services/CalendarService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
+#include "services/TrainingService.hpp"
 #include "viewmodels/AppSettings.hpp"
 #include "viewmodels/AppState.hpp"
 #include "viewmodels/AvailabilityViewModel.hpp"
@@ -34,15 +36,19 @@
 #include "viewmodels/SquadViewModel.hpp"
 #include "viewmodels/StaffViewModel.hpp"
 #include "viewmodels/StartupViewModel.hpp"
+#include "viewmodels/TrainingSessionViewModel.hpp"
 
 #include <QColor>
 #include <QDate>
 #include <QDir>
 #include <QDirIterator>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QGuiApplication>
 #include <QImage>
 #include <QKeyEvent>
 #include <QMetaObject>
+#include <QMouseEvent>
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
@@ -51,6 +57,7 @@
 #include <QRectF>
 #include <QSet>
 #include <QSettings>
+#include <QThread>
 #include <QVariantMap>
 #include <QtQml/QQmlExtensionPlugin>
 
@@ -60,6 +67,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -85,6 +93,7 @@ using fdss::viewmodels::SetupWizardViewModel;
 using fdss::viewmodels::SquadViewModel;
 using fdss::viewmodels::StaffViewModel;
 using fdss::viewmodels::StartupViewModel;
+using fdss::viewmodels::TrainingSessionViewModel;
 
 namespace {
 
@@ -2141,6 +2150,821 @@ int instantiateEveryView(QQmlEngine& engine) {
     return viewCount;
 }
 
+// Every wait below ends, with the condition or with the reason: nothing may hang on a Windows
+// runner.
+template <class Condition> bool waitUntil(Condition condition, const char* reason) {
+    constexpr qint64 kLimitMs = 5000;
+    QElapsedTimer timer;
+    timer.start();
+    while (!condition()) {
+        if (timer.elapsed() > kLimitMs) {
+            fail(reason);
+            return false;
+        }
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QThread::msleep(1);
+    }
+    return true;
+}
+
+fdss::core::TeamId smokeTeam() {
+    return ServiceRegistry::instance().setup().clubContext()->team.id;
+}
+
+// A session on the day of the FakeClock, and players numbered from 1, in rows from 0. Row 2 is
+// injured and row 4 away on that day; row 6 is suspended, which keeps nobody from training.
+constexpr fdss::core::Date kSheetDay{std::chrono::year{2026}, std::chrono::November,
+                                     std::chrono::day{1}};
+constexpr int kInjuredRow = 2;
+constexpr int kAwayRow = 4;
+constexpr int kSuspendedRow = 6;
+
+std::optional<fdss::core::TrainingSessionId> seedSheet(int playerCount) {
+    auto& registry = ServiceRegistry::instance();
+    fdss::core::TrainingSessionDraft session;
+    session.date = kSheetDay;
+    const auto sessionId = registry.calendar().addSession(smokeTeam(), session);
+    if (!sessionId) {
+        fail("the training test cannot add a session");
+        return std::nullopt;
+    }
+    for (int row = 0; row < playerCount; ++row) {
+        fdss::core::PlayerDraft draft;
+        draft.firstName = "Zawodnik";
+        draft.lastName = QStringLiteral("Numer %1").arg(row + 1).toStdString();
+        draft.shirtNumber = row + 1;
+        const auto player = registry.squad().addPlayer(smokeTeam(), draft);
+        if (!player) {
+            fail("the training test cannot add a player");
+            return std::nullopt;
+        }
+        fdss::core::AvailabilityDraft entry;
+        entry.fromDate = kSheetDay;
+        entry.expectedTo = kSheetDay;
+        if (row == kInjuredRow || row == kAwayRow || row == kSuspendedRow) {
+            entry.type = row == kInjuredRow ? fdss::core::AvailabilityType::Injury
+                         : row == kAwayRow  ? fdss::core::AvailabilityType::Absence
+                                            : fdss::core::AvailabilityType::Suspension;
+            if (!registry.squad().addAvailability(*player, entry)) {
+                fail("the training test cannot add an availability entry");
+                return std::nullopt;
+            }
+        }
+    }
+    return *sessionId;
+}
+
+struct TrainingScreen {
+    QQuickWindow* window = nullptr;
+    NavigationModel* navigation = nullptr;
+    QQuickItem* view = nullptr;
+    TrainingSessionViewModel* sheet = nullptr;
+    QObject* question = nullptr;
+
+    [[nodiscard]] QQuickItem* find(const QString& name) const {
+        return findByObjectName(window->contentItem(), name);
+    }
+    [[nodiscard]] QQuickItem* cell(const char* kind, int row) const {
+        return find(QStringLiteral("%1_%2").arg(QString::fromLatin1(kind)).arg(row));
+    }
+    [[nodiscard]] bool focused(const char* kind, int row) const {
+        const QQuickItem* item = cell(kind, row);
+        return item != nullptr && item->hasActiveFocus();
+    }
+    [[nodiscard]] QVariant value(int row, TrainingSessionViewModel::DataRole role) const {
+        return sheet->index(row).data(role);
+    }
+};
+
+// Goes to the section, and finds it anew: a login builds the views again.
+std::optional<TrainingScreen> openTrainingScreen(QQmlApplicationEngine& engine) {
+    TrainingScreen screen;
+    screen.window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    screen.navigation = screen.window->property("navigation").value<NavigationModel*>();
+    screen.navigation->activate(QStringLiteral("training"));
+    settle();
+    screen.view = findQmlItem(screen.window->contentItem(), "TrainingView");
+    if (screen.view == nullptr) {
+        fail("the training view is not loaded");
+        return std::nullopt;
+    }
+    screen.sheet = screen.view->property("viewModel").value<TrainingSessionViewModel*>();
+    screen.question = screen.view->property("leaveDialog").value<QObject*>();
+    if (screen.sheet == nullptr || screen.question == nullptr) {
+        fail("the training view is not all there");
+        return std::nullopt;
+    }
+    return screen;
+}
+
+bool logInAgain(QQmlApplicationEngine& engine, fdss::core::StaffUserId user) {
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    if (!ServiceRegistry::instance().auth().login(user, "1234")) {
+        fail("the training test cannot log in");
+        return false;
+    }
+    appState->refresh();
+    settle();
+    return true;
+}
+
+std::optional<fdss::core::StaffUserId> addSmokeStaff(const char* name, fdss::core::Role role) {
+    fdss::core::StaffUserDraft draft;
+    draft.name = name;
+    draft.role = role;
+    const auto user = ServiceRegistry::instance().auth().addStaff(draft, "1234");
+    if (!user) {
+        fail("the training test cannot add a staff member");
+        return std::nullopt;
+    }
+    return *user;
+}
+
+void pressDigit(QQuickWindow* window, int digit) {
+    pressKey(window, static_cast<Qt::Key>(Qt::Key_0 + digit), QString::number(digit));
+}
+
+// The way of the empty states: what comes next depends on what the role may do.
+void exerciseTrainingEmptyStates(QQmlApplicationEngine& engine) {
+    const fdss::core::StaffUserId coach = ServiceRegistry::instance().session().user()->id;
+    auto screen = openTrainingScreen(engine);
+    if (!screen) {
+        return;
+    }
+    auto* noSessions = screen->find(QStringLiteral("noSessionsState"));
+    if (noSessions == nullptr) {
+        fail("the training view has no empty state");
+        return;
+    }
+    expectFlag(noSessions, "visible", true, "no sessions, and no empty state");
+    if (noSessions->property("actionText").toString().isEmpty()) {
+        fail("the empty sheet has no button to the calendar for the coach");
+    }
+    QMetaObject::invokeMethod(noSessions, "actionTriggered");
+    settle();
+    if (screen->navigation->currentKey() != QLatin1StringView("calendar")) {
+        fail("the button of the empty sheet does not lead to the calendar");
+    }
+
+    const auto physio = addSmokeStaff("Piotr Fizjo", fdss::core::Role::Physio);
+    if (!physio || !logInAgain(engine, *physio)) {
+        return;
+    }
+    screen = openTrainingScreen(engine);
+    if (!screen) {
+        return;
+    }
+    noSessions = screen->find(QStringLiteral("noSessionsState"));
+    expectFlag(noSessions, "visible", true, "no sessions, and no empty state for the physio");
+    if (!noSessions->property("actionText").toString().isEmpty()) {
+        fail("the physio is offered a button to a calendar they cannot add to");
+    }
+    logInAgain(engine, coach);
+}
+
+// Done when: 20 players from the keyboard only, saved, with the same values after reading them
+// again.
+void exerciseTrainingKeyboard(TrainingScreen& screen, fdss::core::TrainingSessionId session,
+                              const QString& screenshotDirectory) {
+    constexpr int kPlayers = 20;
+    QQuickWindow* window = screen.window;
+    TrainingSessionViewModel* sheet = screen.sheet;
+    using VM = TrainingSessionViewModel;
+    const auto capture = [&](const char* name) {
+        settle();
+        grabOrSave(window, screenshotDirectory, QString::fromLatin1(name) + QStringLiteral(".png"));
+    };
+
+    if (sheet->count() != kPlayers) {
+        fail("the sheet does not show the squad");
+        return;
+    }
+    if (screen.value(kInjuredRow, VM::StatusRole).toString() != QLatin1StringView("injured") ||
+        screen.value(kAwayRow, VM::StatusRole).toString() != QLatin1StringView("excused") ||
+        screen.value(kSuspendedRow, VM::StatusRole).toString() != QLatin1StringView("present")) {
+        fail("the availability did not decide the default statuses");
+    }
+    auto* saveButton = screen.find(QStringLiteral("saveButton"));
+    auto* saveShortcut = screen.view->findChild<QObject*>(QStringLiteral("saveShortcut"));
+    if (saveButton == nullptr || saveShortcut == nullptr) {
+        fail("the sheet has no way to save");
+        return;
+    }
+    expectFlag(saveButton, "enabled", true, "a sheet never saved cannot be saved");
+    auto* saveState = screen.find(QStringLiteral("saveStateBadge"));
+    if (saveState == nullptr) {
+        fail("the sheet does not say whether it is saved");
+        return;
+    }
+    if (saveState->property("text").toString() != sheet->unsavedText() ||
+        sheet->unsavedCount() != 20) {
+        fail("a sheet never saved does not say how many players are not saved");
+    }
+    expectFlag(sheet, "dirty", false, "opening a sheet counts as a change");
+    if (!waitUntil([&] { return screen.focused("rpeCell", 0); },
+                   "the first RPE has no focus when the sheet opens")) {
+        return;
+    }
+    capture("training-sheet");
+
+    for (int row = 0; row < kPlayers; ++row) {
+        if (row == kInjuredRow || row == kAwayRow) {
+            continue;
+        }
+        if (!screen.focused("rpeCell", row)) {
+            fail("Enter did not lead to the next enabled RPE");
+            return;
+        }
+        pressDigit(window, 2 + (row % 8));
+        pressKey(window, Qt::Key_Return);
+    }
+    if (!screen.focused("rpeCell", kPlayers - 1)) {
+        fail("Enter on the last row moved the focus away");
+    }
+    expectFlag(saveShortcut, "enabled", true, "Ctrl+S is off over changes");
+    QMetaObject::invokeMethod(saveShortcut, "activated");
+    settle();
+    expectFlag(sheet, "dirty", false, "the save left changes behind");
+    expectFlag(saveButton, "enabled", false, "Save stays on with nothing changed");
+    expectFlag(saveShortcut, "enabled", false, "Ctrl+S stays on with nothing changed");
+    if (saveState->property("text").toString() == sheet->unsavedText() ||
+        sheet->unsavedCount() != 0) {
+        fail("a save does not say that the sheet is saved");
+    }
+
+    // A player who comes later is not saved, and the sheet says so; nothing asks before leaving.
+    fdss::core::PlayerDraft late;
+    late.firstName = "Zawodnik";
+    late.lastName = "Spozniony";
+    late.shirtNumber = kPlayers + 1;
+    const auto latePlayer = ServiceRegistry::instance().squad().addPlayer(smokeTeam(), late);
+    if (!latePlayer) {
+        fail("the training test cannot add a late player");
+        return;
+    }
+    sheet->reload();
+    settle();
+    expectFlag(saveButton, "enabled", true, "a player not saved cannot be saved");
+    expectFlag(sheet, "dirty", false, "a player not saved counts as a change");
+    if (saveState->property("text").toString() != sheet->unsavedText() ||
+        sheet->unsavedCount() != 1) {
+        fail("the sheet does not say that a player is not saved");
+    }
+    capture("training-sheet-partly-saved");
+    QMetaObject::invokeMethod(saveShortcut, "activated");
+    settle();
+    if (sheet->unsavedCount() != 0) {
+        fail("the save left a player unsaved");
+    }
+    if (!ServiceRegistry::instance().squad().archivePlayer(*latePlayer)) {
+        fail("the training test cannot archive the late player");
+        return;
+    }
+    sheet->reload();
+    settle();
+    screen.cell("rpeCell", kPlayers - 1)->forceActiveFocus(Qt::TabFocusReason);
+    settle();
+    if (!screen.focused("rpeCell", kPlayers - 1)) {
+        fail("the save took the focus out of the grid");
+    }
+    capture("training-sheet-saved");
+
+    // Read again, straight from the service and through the viewmodel.
+    const auto stored = ServiceRegistry::instance().training().sheet(session);
+    if (!stored || std::ssize(stored->rows) != kPlayers) {
+        fail("the saved sheet cannot be read");
+        return;
+    }
+    sheet->reload();
+    settle();
+    for (int row = 0; row < kPlayers; ++row) {
+        const bool out = row == kInjuredRow || row == kAwayRow;
+        const QVariant rpe = screen.value(row, VM::RpeRole);
+        if (out ? rpe.isValid() : rpe.toInt() != 2 + (row % 8)) {
+            fail("a saved RPE did not come back");
+        }
+    }
+
+    // Tab goes through the columns and past what is disabled; Esc takes back what was typed.
+    screen.cell("rpeCell", 0)->forceActiveFocus(Qt::TabFocusReason);
+    pressKey(window, Qt::Key_Tab);
+    if (!screen.focused("minutesCell", 0)) {
+        fail("Tab did not lead from RPE to the minutes");
+    }
+    typeText(window, QStringLiteral("60"));
+    if (screen.value(0, VM::LoadRole).toInt() != screen.value(0, VM::RpeRole).toInt() * 60) {
+        fail("typed minutes did not change the load");
+    }
+    pressKey(window, Qt::Key_Escape);
+    if (screen.value(0, VM::MinutesRole).toInt() != sheet->durationMin() ||
+        screen.cell("minutesCell", 0)->property("displayText").toString() !=
+            QString::number(sheet->durationMin())) {
+        fail("Esc did not take the minutes back");
+    }
+    expectFlag(sheet, "dirty", false, "Esc left a change behind");
+    pressKey(window, Qt::Key_Return);
+    if (!screen.focused("minutesCell", 1)) {
+        fail("Enter did not lead to the minutes of the next row");
+    }
+    pressKey(window, Qt::Key_Tab);
+    if (!screen.focused("statusCell", kInjuredRow)) {
+        fail("Tab did not lead from the minutes to the status of the next row");
+    }
+    pressKey(window, Qt::Key_Tab);
+    if (!screen.focused("statusCell", kInjuredRow + 1)) {
+        fail("Tab did not skip the disabled cells of an injured player");
+    }
+    const QVariant rpeBefore = screen.value(kInjuredRow + 1, VM::RpeRole);
+    pressKey(window, Qt::Key_Right);
+    if (screen.value(kInjuredRow + 1, VM::StatusRole).toString() != QLatin1StringView("absent") ||
+        screen.value(kInjuredRow + 1, VM::RpeRole).isValid()) {
+        fail("the Right key did not change the status and clear the RPE");
+    }
+    capture("training-sheet-absent");
+    pressKey(window, Qt::Key_Escape);
+    if (screen.value(kInjuredRow + 1, VM::RpeRole) != rpeBefore) {
+        fail("Esc on the status did not bring the RPE back");
+    }
+    expectFlag(sheet, "dirty", false, "Esc on the status left a change behind");
+
+    // Minutes out of range: the error is in the row, the save refuses, and nothing changes.
+    screen.cell("minutesCell", 1)->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("300"));
+    expectFlag(screen.cell("rowError", 1), "visible", true, "minutes out of range show no error");
+    capture("training-sheet-error");
+    QMetaObject::invokeMethod(saveShortcut, "activated");
+    settle();
+    expectFlag(sheet, "dirty", true, "a refused save lost the changes");
+    if (!screen.focused("minutesCell", 1)) {
+        fail("a refused save did not lead to the row with the error");
+    }
+    pressKey(window, Qt::Key_Escape);
+    expectFlag(sheet, "dirty", false, "Esc did not take the refused minutes back");
+
+    // Clicked, the button takes the focus; the save brings it back to the grid.
+    screen.cell("rpeCell", 7)->forceActiveFocus(Qt::TabFocusReason);
+    pressDigit(window, 8);
+    saveButton->forceActiveFocus(Qt::MouseFocusReason);
+    QMetaObject::invokeMethod(saveButton, "click");
+    settle();
+    if (!screen.focused("rpeCell", 7)) {
+        fail("Save did not bring the focus back to the grid");
+    }
+
+    // Mark all present leaves those whom the availability keeps out.
+    sheet->setStatus(kSuspendedRow, QStringLiteral("absent"));
+    QMetaObject::invokeMethod(screen.find(QStringLiteral("markAllPresentButton")), "click");
+    settle();
+    if (screen.value(kSuspendedRow, VM::StatusRole).toString() != QLatin1StringView("present") ||
+        screen.value(kInjuredRow, VM::StatusRole).toString() != QLatin1StringView("injured") ||
+        screen.value(kAwayRow, VM::StatusRole).toString() != QLatin1StringView("excused")) {
+        fail("Mark all present did not follow the availability");
+    }
+    sheet->discardChanges();
+    settle();
+}
+
+// B of the decisions: the statuses in Polish, in the smallest window, the widest word selected.
+void exerciseTrainingMinimumWindow(QQmlApplicationEngine& engine, TrainingScreen& screen,
+                                   const QString& screenshotDirectory) {
+    constexpr int kMinimumWidth = 1280;
+    constexpr int kMinimumHeight = 720;
+    constexpr int kWidestStatusRow = 9;
+    constexpr qreal kMinimumNameWidth = 120;
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    const QString language = languages->language();
+    const QSize originalSize = screen.window->size();
+    screen.window->resize(kMinimumWidth, kMinimumHeight);
+    screen.sheet->setStatus(kWidestStatusRow, QStringLiteral("excused"));
+    for (const char* code : {"pl", "en"}) {
+        languages->setLanguage(QString::fromLatin1(code));
+        settle();
+        grabOrSave(screen.window, screenshotDirectory,
+                   QStringLiteral("training-sheet-minimum-%1.png").arg(QString::fromLatin1(code)));
+        auto* grid = screen.find(QStringLiteral("attendanceGrid"));
+        for (const int row : {0, kInjuredRow, kAwayRow, kWidestStatusRow}) {
+            auto* status = screen.cell("statusCell", row);
+            auto* rpe = screen.cell("rpeCell", row);
+            auto* load = screen.cell("loadCell", row);
+            const qreal statusRight = status->mapToItem(grid, QPointF(status->width(), 0)).x();
+            const qreal rpeLeft = rpe->mapToItem(grid, QPointF(0, 0)).x();
+            const qreal loadRight = load->mapToItem(grid, QPointF(load->width(), 0)).x();
+            if (statusRight > rpeLeft) {
+                fail("the status runs into the RPE at the minimum window");
+            }
+            if (loadRight > grid->width()) {
+                fail("the load leaves the grid at the minimum window");
+            }
+        }
+        // The name is what gives way, and it must stay readable.
+        const qreal nameLeft = screen.cell("rpeCell", 0)->mapToItem(grid, QPointF(0, 0)).x() -
+                               grid->property("statusWidth").toReal();
+        if (nameLeft - grid->property("numberWidth").toReal() < kMinimumNameWidth) {
+            fail("the statuses leave no room for the names at the minimum window");
+        }
+    }
+    // Tab never leaves the focus out of sight: the last row scrolls into the small window.
+    auto* lastRow = screen.cell("rpeCell", screen.sheet->count() - 1);
+    lastRow->forceActiveFocus(Qt::TabFocusReason);
+    settle();
+    auto* page = screen.find(QStringLiteral("attendanceRows"));
+    if (lastRow->mapToItem(page, QPointF(0, lastRow->height())).y() > page->height()) {
+        fail("the focused last row stays out of sight");
+    }
+    languages->setLanguage(language);
+    screen.sheet->discardChanges();
+    screen.window->resize(originalSize);
+    settle();
+}
+
+// C of the review: however a session is opened from the field, the first RPE gets the focus.
+void exerciseTrainingSessionField(TrainingScreen& screen, fdss::core::TrainingSessionId session) {
+    QQuickWindow* window = screen.window;
+    TrainingSessionViewModel* sheet = screen.sheet;
+    fdss::core::TrainingSessionDraft other;
+    other.date = kSheetDay - std::chrono::months{2};
+    const auto otherId = ServiceRegistry::instance().calendar().addSession(smokeTeam(), other);
+    if (!otherId) {
+        fail("the training test cannot add another session");
+        return;
+    }
+    sheet->reload();
+    settle();
+    auto* field = screen.find(QStringLiteral("sessionField"));
+    if (field == nullptr) {
+        fail("the session field is not there");
+        return;
+    }
+    const auto expectOpenedWithFocus = [&](qint64 sessionId, const char* wrongSession,
+                                           const char* noFocus) {
+        settle();
+        if (sheet->sessionId() != sessionId) {
+            fail(wrongSession);
+            return;
+        }
+        waitUntil([&] { return screen.focused("rpeCell", 0); }, noFocus);
+    };
+
+    // The arrows on a closed list.
+    field->forceActiveFocus(Qt::TabFocusReason);
+    pressKey(window, Qt::Key_Down);
+    expectOpenedWithFocus(otherId->value, "the Down key did not open the session",
+                          "the Down key left the focus on the field");
+    field->forceActiveFocus(Qt::TabFocusReason);
+    pressKey(window, Qt::Key_Up);
+    expectOpenedWithFocus(session.value, "the Up key did not open the session",
+                          "the Up key left the focus on the field");
+
+    // Enter in the open list.
+    const auto popup = field->property("popup").value<QObject*>();
+    field->forceActiveFocus(Qt::TabFocusReason);
+    pressKey(window, Qt::Key_Space, QStringLiteral(" "));
+    waitUntil([&] { return popup->property("visible").toBool(); }, "Space did not open the list");
+    pressKey(window, Qt::Key_Down);
+    pressKey(window, Qt::Key_Return);
+    waitUntil([&] { return !popup->property("visible").toBool(); }, "Enter did not close the list");
+    expectOpenedWithFocus(otherId->value, "Enter in the list did not open the session",
+                          "Enter in the list left the focus on the field");
+
+    // The mouse on an item of the open list.
+    field->forceActiveFocus(Qt::TabFocusReason);
+    pressKey(window, Qt::Key_Space, QStringLiteral(" "));
+    waitUntil([&] { return popup->property("opened").toBool(); }, "Space did not open the list");
+    settle();
+    // A ListView makes its delegates when it is polished, on the way to a frame.
+    window->grabWindow();
+    auto* list = popup->property("contentItem").value<QQuickItem*>();
+    QQuickItem* item = nullptr;
+    if (list != nullptr) {
+        QMetaObject::invokeMethod(list, "itemAtIndex", Q_RETURN_ARG(QQuickItem*, item),
+                                  Q_ARG(int, 0));
+    }
+    if (item == nullptr) {
+        fail("the open list has no items");
+        return;
+    }
+    const QPointF center = item->mapToScene(QPointF(item->width() / 2, item->height() / 2));
+    const QPointF global = window->mapToGlobal(center);
+    QMouseEvent press(QEvent::MouseButtonPress, center, center, global, Qt::LeftButton,
+                      Qt::LeftButton, Qt::NoModifier);
+    QMouseEvent release(QEvent::MouseButtonRelease, center, center, global, Qt::LeftButton,
+                        Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(window, &press);
+    QCoreApplication::sendEvent(window, &release);
+    waitUntil([&] { return !popup->property("visible").toBool(); },
+              "a click did not close the list");
+    expectOpenedWithFocus(session.value, "a click in the list did not open the session",
+                          "a click in the list left the focus on the field");
+}
+
+// One question per attempt to leave, whichever way it comes.
+void exerciseTrainingLeaving(QQmlApplicationEngine& engine, TrainingScreen& screen,
+                             fdss::core::TrainingSessionId session) {
+    QQuickWindow* window = screen.window;
+    NavigationModel* navigation = screen.navigation;
+    TrainingSessionViewModel* sheet = screen.sheet;
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    constexpr int kRow = 1;
+    const auto change = [&](int digit) {
+        sheet->enterRpeDigitAt(kRow, digit, 0);
+        settle();
+        expectFlag(navigation, "leaveGuard", true, "a change did not turn the guard on");
+    };
+
+    // Nothing changed: nothing asks.
+    expectFlag(navigation, "leaveGuard", false, "an untouched sheet has the guard on");
+    navigation->setCurrentIndex(0);
+    settle();
+    expectFlag(screen.question, "visible", false, "leaving an untouched sheet asked");
+    if (navigation->currentKey() != QLatin1StringView("dashboard")) {
+        fail("an untouched sheet could not be left");
+    }
+    navigation->activate(QStringLiteral("training"));
+    settle();
+
+    // The sidebar, and Stay.
+    change(7);
+    navigation->setCurrentIndex(0);
+    settle();
+    expectFlag(screen.question, "visible", true, "leaving with changes did not ask");
+    if (navigation->currentKey() != QLatin1StringView("training")) {
+        fail("the question did not wait for the answer");
+    }
+    pressKey(window, Qt::Key_Escape);
+    expectFlag(screen.question, "visible", false, "Esc did not close the question");
+    expectFlag(sheet, "dirty", true, "Stay lost the changes");
+    if (navigation->currentKey() != QLatin1StringView("training")) {
+        fail("Stay left the section");
+    }
+
+    // The keys of the sidebar move its own index first: Stay must bring it back.
+    auto* sidebar = screen.find(QStringLiteral("sidebarList"));
+    if (sidebar == nullptr) {
+        fail("the sidebar list is not there");
+        return;
+    }
+    const int trainingIndex = navigation->currentIndex();
+    sidebar->forceActiveFocus(Qt::TabFocusReason);
+    pressKey(window, Qt::Key_Down);
+    expectFlag(screen.question, "visible", true, "the keys of the sidebar left without asking");
+    pressKey(window, Qt::Key_Escape);
+    if (sidebar->property("currentIndex").toInt() != trainingIndex ||
+        navigation->currentIndex() != trainingIndex) {
+        fail("Stay did not bring the sidebar back");
+    }
+
+    // The sidebar, and Discard: the move goes on, and no second question comes.
+    navigation->activate(QStringLiteral("squad"));
+    settle();
+    QMetaObject::invokeMethod(screen.question, "dangerClicked");
+    settle();
+    expectFlag(screen.question, "visible", false, "Discard left the question open");
+    expectFlag(sheet, "dirty", false, "Discard kept the changes");
+    if (navigation->currentKey() != QLatin1StringView("squad")) {
+        fail("Discard did not go on to the section asked for");
+    }
+    navigation->activate(QStringLiteral("training"));
+    settle();
+
+    // The sidebar, and Save.
+    change(4);
+    navigation->setCurrentIndex(0);
+    settle();
+    QMetaObject::invokeMethod(screen.question, "primaryClicked");
+    settle();
+    expectFlag(sheet, "dirty", false, "Save in the question left changes behind");
+    if (navigation->currentKey() != QLatin1StringView("dashboard")) {
+        fail("Save in the question did not go on to the section asked for");
+    }
+    const auto stored = ServiceRegistry::instance().training().sheet(session);
+    if (!stored || !stored->rows[kRow].saved || stored->rows[kRow].draft.rpe != 4) {
+        fail("Save in the question did not save");
+    }
+    navigation->activate(QStringLiteral("training"));
+    settle();
+
+    // A save that fails stays on the sheet with the error in the row.
+    screen.cell("minutesCell", kRow)->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("300"));
+    navigation->setCurrentIndex(0);
+    settle();
+    QMetaObject::invokeMethod(screen.question, "primaryClicked");
+    settle();
+    expectFlag(screen.question, "visible", false, "the failed save left the question open");
+    if (navigation->currentKey() != QLatin1StringView("training")) {
+        fail("a failed save left the section");
+    }
+    expectFlag(screen.cell("rowError", kRow), "visible", true, "a failed save shows no row error");
+    sheet->discardChanges();
+    settle();
+
+    // Another session in the field.
+    fdss::core::TrainingSessionDraft older;
+    older.date = kSheetDay - std::chrono::months{1};
+    const auto olderId = ServiceRegistry::instance().calendar().addSession(smokeTeam(), older);
+    if (!olderId) {
+        fail("the training test cannot add another session");
+        return;
+    }
+    sheet->reload();
+    settle();
+    auto* field = screen.find(QStringLiteral("sessionField"));
+    const auto pickOlder = [&] {
+        field->setProperty("currentIndex", 1);
+        QMetaObject::invokeMethod(field, "activated", Q_ARG(int, 1));
+        settle();
+    };
+    change(5);
+    pickOlder();
+    expectFlag(screen.question, "visible", true, "another session with changes did not ask");
+    if (sheet->sessionId() != session.value) {
+        fail("another session opened before the answer");
+    }
+    pressKey(window, Qt::Key_Escape);
+    if (field->property("currentValue").toLongLong() != session.value) {
+        fail("Stay left the field on the session that was not opened");
+    }
+    expectFlag(sheet, "dirty", true, "Stay in the field lost the changes");
+    pickOlder();
+    QMetaObject::invokeMethod(screen.question, "dangerClicked");
+    settle();
+    if (sheet->sessionId() != olderId->value) {
+        fail("Discard did not open the session asked for");
+    }
+    expectFlag(navigation, "leaveGuard", false, "Discard left the guard on");
+    if (navigation->currentKey() != QLatin1StringView("training")) {
+        fail("another session left the section");
+    }
+    sheet->openSession(session.value);
+    settle();
+
+    // A logout: Stay keeps the user, Discard goes on.
+    auto* topBar = findQmlItem(window->contentItem(), "TopBar");
+    if (topBar == nullptr) {
+        fail("the top bar is not there");
+        return;
+    }
+    change(6);
+    QMetaObject::invokeMethod(topBar, "logoutRequested");
+    settle();
+    expectFlag(screen.question, "visible", true, "a logout with changes did not ask");
+    if (appState->state() != AppState::State::Ready) {
+        fail("the logout did not wait for the answer");
+    }
+    pressKey(window, Qt::Key_Escape);
+    if (appState->state() != AppState::State::Ready) {
+        fail("Stay logged out");
+    }
+    QMetaObject::invokeMethod(topBar, "logoutRequested");
+    settle();
+    QMetaObject::invokeMethod(screen.question, "dangerClicked");
+    settle();
+    if (appState->state() != AppState::State::NeedsLogin) {
+        fail("Discard did not go on with the logout");
+    }
+    expectFlag(navigation, "leaveGuard", false, "the guard survived the logout");
+}
+
+void exerciseTrainingReadOnly(QQmlApplicationEngine& engine) {
+    const fdss::core::StaffUserId coach = ServiceRegistry::instance().session().user()->id;
+    const auto analyst = addSmokeStaff("Anna Analityk", fdss::core::Role::Analyst);
+    if (!analyst || !logInAgain(engine, *analyst)) {
+        return;
+    }
+    auto screen = openTrainingScreen(engine);
+    if (!screen) {
+        return;
+    }
+    expectFlag(screen->sheet, "readOnly", true, "the analyst may edit the sheet");
+    expectFlag(screen->find(QStringLiteral("saveButton")), "visible", false,
+               "the analyst sees Save");
+    expectFlag(screen->find(QStringLiteral("markAllPresentButton")), "visible", false,
+               "the analyst sees Mark all present");
+    expectFlag(screen->cell("statusCell", 0), "enabled", false, "the analyst can pick a status");
+    expectFlag(screen->cell("rpeCell", 0), "enabled", false, "the analyst can enter an RPE");
+    expectFlag(screen->view->findChild<QObject*>(QStringLiteral("saveShortcut")), "enabled", false,
+               "the analyst has Ctrl+S");
+    logInAgain(engine, coach);
+}
+
+void exerciseTraining(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    settle();
+    exerciseTrainingEmptyStates(engine);
+    const auto session = seedSheet(20);
+    if (!session) {
+        return;
+    }
+    auto screen = openTrainingScreen(engine);
+    if (!screen) {
+        return;
+    }
+    // The sidebar way, on a view that was loaded before the session existed.
+    if (screen->sheet->count() != 20) {
+        fail("the sidebar did not bring the new session");
+        return;
+    }
+    if (screen->cell("minutesCell", 0)->property("displayText").toString() !=
+        QLatin1StringView("90")) {
+        fail("the minutes cell shows something else than the duration after the sidebar");
+    }
+    // The way through the calendar: the sheet was left for it above.
+    screen->navigation->activate(QStringLiteral("calendar"));
+    settle();
+    screen->navigation->activate(
+        QStringLiteral("training"),
+        QVariantMap{{QStringLiteral("sessionId"), qint64{session->value}}});
+    settle();
+    if (screen->sheet->sessionId() != session->value) {
+        fail("navigationArgs.sessionId did not open the session");
+    }
+    exerciseTrainingKeyboard(*screen, *session, screenshotDirectory);
+    exerciseTrainingMinimumWindow(engine, *screen, screenshotDirectory);
+    exerciseTrainingSessionField(*screen, *session);
+    exerciseTrainingReadOnly(engine);
+    screen = openTrainingScreen(engine);
+    if (!screen) {
+        return;
+    }
+    exerciseTrainingLeaving(engine, *screen, *session);
+}
+
+// A: closing the window asks only with changes, and without them it closes at once. Each way has a
+// window of its own, because a closed one is gone.
+enum class CloseCase { Clean, StayThenDiscard, Save, FailedSaveThenDiscard };
+
+void exerciseWindowClosing(CloseCase closeCase) {
+    if (installRegistry(AppState::State::Ready) == nullptr) {
+        fail("cannot install the service registry");
+        return;
+    }
+    {
+        const auto session = seedSheet(3);
+        QQmlApplicationEngine engine;
+        engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+        if (!session || engine.rootObjects().isEmpty()) {
+            fail("the closing test has no window");
+        } else if (auto screen = openTrainingScreen(engine)) {
+            QQuickWindow* window = screen->window;
+            const auto closesAtLast = [&](const char* reason) {
+                waitUntil([&] { return !window->isVisible(); }, reason);
+            };
+            const auto closeAndExpectQuestion = [&](const char* reason) {
+                window->close();
+                settle();
+                expectFlag(screen->question, "visible", true, reason);
+                expectFlag(window, "visible", true, "the window closed before the answer");
+            };
+            if (closeCase == CloseCase::Clean) {
+                window->close();
+                closesAtLast("a window without changes did not close");
+                expectFlag(screen->question, "visible", false,
+                           "closing a window without changes asked");
+            } else if (closeCase == CloseCase::StayThenDiscard) {
+                screen->sheet->enterRpeDigit(0, 5);
+                settle();
+                closeAndExpectQuestion("closing with changes did not ask");
+                pressKey(window, Qt::Key_Escape);
+                expectFlag(window, "visible", true, "Stay closed the window");
+                expectFlag(screen->sheet, "dirty", true, "Stay lost the changes");
+                closeAndExpectQuestion("closing again with changes did not ask");
+                QMetaObject::invokeMethod(screen->question, "dangerClicked");
+                closesAtLast("Discard did not close the window");
+            } else if (closeCase == CloseCase::Save) {
+                screen->sheet->enterRpeDigit(0, 5);
+                settle();
+                closeAndExpectQuestion("closing with changes did not ask");
+                QMetaObject::invokeMethod(screen->question, "primaryClicked");
+                closesAtLast("Save did not close the window");
+                const auto stored = ServiceRegistry::instance().training().sheet(*session);
+                if (!stored || stored->rows[0].draft.rpe != 5) {
+                    fail("Save on closing did not save");
+                }
+            } else {
+                screen->sheet->setMinutesText(0, QStringLiteral("300"));
+                settle();
+                closeAndExpectQuestion("closing with changes did not ask");
+                QMetaObject::invokeMethod(screen->question, "primaryClicked");
+                settle();
+                expectFlag(window, "visible", true, "a failed save closed the window");
+                closeAndExpectQuestion("closing after a failed save did not ask");
+                QMetaObject::invokeMethod(screen->question, "dangerClicked");
+                closesAtLast("Discard after a failed save did not close the window");
+            }
+        }
+    }
+    settle();
+    ServiceRegistry::reset();
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -2205,6 +3029,23 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
+        if (installRegistry(AppState::State::Ready) == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                exerciseTraining(engine, screenshotDirectory);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        // A closed window must not end the application: the next scenario still has to run.
+        QGuiApplication::setQuitOnLastWindowClosed(false);
+        for (const CloseCase closeCase : {CloseCase::Clean, CloseCase::StayThenDiscard,
+                                          CloseCase::Save, CloseCase::FailedSaveThenDiscard}) {
+            exerciseWindowClosing(closeCase);
+        }
+        QGuiApplication::setQuitOnLastWindowClosed(true);
         if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
             fail("cannot install the service registry");
         } else {

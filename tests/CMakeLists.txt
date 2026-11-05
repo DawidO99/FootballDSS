@@ -49,6 +49,7 @@ add_executable(fdss_tests
     services/SessionTest.cpp
     services/SetupServiceTest.cpp
     services/SquadServiceTest.cpp
+    services/TrainingServiceTest.cpp
 )
 # QXlsx is linked here only to prove the library itself (P03 spike); app code reaches it
 # through fdss_data.
@@ -82,6 +83,7 @@ add_executable(fdss_vm_tests
     viewmodels/SquadViewModelTest.cpp
     viewmodels/StaffListModelTest.cpp
     viewmodels/StaffViewModelTest.cpp
+    viewmodels/TrainingSessionViewModelTest.cpp
     viewmodels/ViewModelFixture.hpp
 )
 target_link_libraries(fdss_vm_tests PRIVATE fdss_ui GTest::gtest)
