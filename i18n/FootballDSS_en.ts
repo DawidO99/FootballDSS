@@ -1660,6 +1660,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Set by the demo data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Season</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1697,6 +1701,34 @@
     </message>
     <message>
         <source>Coach</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start with</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>An empty club: you add the players and the calendar yourself.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A fictional B-klasa team with half a season of sessions and matches. Category and season become Seniors and the current season; the club and team names stay as typed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load demo data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The demo also adds these staff profiles:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (%2), PIN %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2446,6 +2478,13 @@
     </message>
     <message>
         <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::SetupWizardViewModel</name>
+    <message>
+        <source>Demo data could not be loaded. The club starts empty.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

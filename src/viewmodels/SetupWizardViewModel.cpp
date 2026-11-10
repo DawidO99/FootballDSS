@@ -1,5 +1,6 @@
 #include "viewmodels/SetupWizardViewModel.hpp"
 
+#include "core/demo/DemoGenerator.hpp"
 #include "core/domain/Club.hpp"
 #include "core/domain/Enums.hpp"
 #include "core/domain/StaffUser.hpp"
@@ -7,12 +8,15 @@
 #include "core/domain/Validation.hpp"
 #include "services/AuthService.hpp"
 #include "services/Clock.hpp"
+#include "services/DemoDataService.hpp"
 #include "services/SetupService.hpp"
+#include "viewmodels/AppState.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 
 #include <QCoreApplication>
 #include <QEvent>
+#include <QVariantMap>
 
 #include <algorithm>
 #include <chrono>
@@ -58,8 +62,10 @@ core::TeamDraft teamDraft(const QString& name, const QString& season) {
 
 SetupWizardViewModel::SetupWizardViewModel(QObject* parent)
     : QObject(parent), m_setup(ServiceRegistry::instance().setup()),
+      m_demo(ServiceRegistry::instance().demoData()),
+      m_currentSeason(defaultSeason(ServiceRegistry::instance().clock().today())),
       m_category(QString::fromUtf8(core::toDbText(core::TeamCategory::Senior))),
-      m_season(defaultSeason(ServiceRegistry::instance().clock().today())) {
+      m_season(m_currentSeason) {
     // Installing a translator sends QEvent::LanguageChange to the application object only.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
@@ -82,19 +88,24 @@ void SetupWizardViewModel::setTeamName(const QString& value) {
     setField(m_teamName, value, m_teamNameError);
 }
 
-QString SetupWizardViewModel::category() const { return m_category; }
+QString SetupWizardViewModel::category() const {
+    return m_loadDemoData ? QString::fromUtf8(core::toDbText(core::TeamCategory::Senior))
+                          : m_category;
+}
 
 void SetupWizardViewModel::setCategory(const QString& value) {
-    if (m_category != value) {
+    if (!m_loadDemoData && m_category != value) {
         m_category = value;
         emit fieldsChanged();
     }
 }
 
-QString SetupWizardViewModel::season() const { return m_season; }
+QString SetupWizardViewModel::season() const { return m_loadDemoData ? m_currentSeason : m_season; }
 
 void SetupWizardViewModel::setSeason(const QString& value) {
-    setField(m_season, value, m_seasonError);
+    if (!m_loadDemoData) {
+        setField(m_season, value, m_seasonError);
+    }
 }
 
 QString SetupWizardViewModel::coachName() const { return m_coachName; }
@@ -124,6 +135,35 @@ QString SetupWizardViewModel::coachNameError() const { return m_coachNameError; 
 QString SetupWizardViewModel::pinError() const { return m_pinError; }
 
 QString SetupWizardViewModel::pinRepeatError() const { return m_pinRepeatError; }
+
+bool SetupWizardViewModel::loadDemoData() const { return m_loadDemoData; }
+
+void SetupWizardViewModel::setLoadDemoData(bool value) {
+    if (m_loadDemoData == value) {
+        return;
+    }
+    m_loadDemoData = value;
+    emit fieldsChanged();
+    // The season shown changes, so an error about the one typed before no longer applies.
+    if (!m_seasonError.isEmpty()) {
+        m_seasonError.clear();
+        emit errorsChanged();
+    }
+}
+
+QVariantList SetupWizardViewModel::demoStaff() const {
+    QVariantList result;
+    for (const core::demo::DemoStaff& member : core::demo::kDemoStaff) {
+        result.append(QVariantMap{
+            {QStringLiteral("name"),
+             QString::fromUtf8(member.name.data(), static_cast<qsizetype>(member.name.size()))},
+            {QStringLiteral("role"), AppState::roleDisplayName(member.role)},
+            {QStringLiteral("pin"),
+             QString::fromUtf8(core::demo::kDemoStaffPin.data(),
+                               static_cast<qsizetype>(core::demo::kDemoStaffPin.size()))}});
+    }
+    return result;
+}
 
 bool SetupWizardViewModel::next() {
     if (!validateStep(m_currentStep)) {
@@ -155,13 +195,13 @@ bool SetupWizardViewModel::create() {
             return false;
         }
     }
-    const auto category = core::fromDbText<core::TeamCategory>(m_category.toStdString());
-    if (!category) {
-        report(category.error());
+    const auto teamCategory = core::fromDbText<core::TeamCategory>(category().toStdString());
+    if (!teamCategory) {
+        report(teamCategory.error());
         return false;
     }
-    core::TeamDraft team = teamDraft(m_teamName, m_season);
-    team.category = *category;
+    core::TeamDraft team = teamDraft(m_teamName, season());
+    team.category = *teamCategory;
     const auto coach = m_setup.completeSetup(clubDraft(m_clubName), team, m_coachName.toStdString(),
                                              m_pin.toStdString());
     if (!coach) {
@@ -171,6 +211,9 @@ bool SetupWizardViewModel::create() {
     m_pin.clear();
     m_pinRepeat.clear();
     emit fieldsChanged();
+    if (m_loadDemoData) {
+        loadDemo();
+    }
     emit completed();
     return true;
 }
@@ -181,7 +224,23 @@ QString SetupWizardViewModel::defaultSeason(core::Date today) {
     return QStringLiteral("%1/%2").arg(start).arg((start + 1) % 100, 2, 10, QLatin1Char('0'));
 }
 
+void SetupWizardViewModel::loadDemo() {
+    auto context = m_setup.clubContext();
+    if (!context) {
+        qCritical("SetupWizardViewModel: %s", context.error().detail.c_str());
+        emit errorOccurred(tr("Demo data could not be loaded. The club starts empty."));
+        return;
+    }
+    if (const auto loaded = m_demo.load(context->team.id); !loaded) {
+        qCritical("SetupWizardViewModel: %s", loaded.error().detail.c_str());
+        emit errorOccurred(tr("Demo data could not be loaded. The club starts empty."));
+    }
+}
+
 bool SetupWizardViewModel::eventFilter(QObject* watched, QEvent* event) {
+    if (event->type() == QEvent::LanguageChange) {
+        emit demoStaffChanged();
+    }
     // The errors are texts made by the check, so the check makes them anew in the new language.
     if (event->type() == QEvent::LanguageChange &&
         !(m_clubNameError.isEmpty() && m_teamNameError.isEmpty() && m_seasonError.isEmpty() &&
@@ -195,7 +254,7 @@ bool SetupWizardViewModel::validateStep(int step) {
     bool valid = true;
     if (step == kClubStep) {
         const auto club = core::validate(clubDraft(m_clubName));
-        const auto team = core::validate(teamDraft(m_teamName, m_season));
+        const auto team = core::validate(teamDraft(m_teamName, season()));
         m_clubNameError = errorText(club, "name", "club_name");
         m_teamNameError = errorText(team, "name", "team_name");
         m_seasonError = errorText(team, "season", "season");

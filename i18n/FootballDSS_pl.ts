@@ -1668,6 +1668,10 @@
         <translation>Kategoria</translation>
     </message>
     <message>
+        <source>Set by the demo data.</source>
+        <translation>Ustalone przez dane demo.</translation>
+    </message>
+    <message>
         <source>Season</source>
         <translation>Sezon</translation>
     </message>
@@ -1706,6 +1710,34 @@
     <message>
         <source>Coach</source>
         <translation>Trener</translation>
+    </message>
+    <message>
+        <source>Start with</source>
+        <translation>Na start</translation>
+    </message>
+    <message>
+        <source>An empty club: you add the players and the calendar yourself.</source>
+        <translation>Pusty klub: zawodników i kalendarz dodajesz samodzielnie.</translation>
+    </message>
+    <message>
+        <source>A fictional B-klasa team with half a season of sessions and matches. Category and season become Seniors and the current season; the club and team names stay as typed.</source>
+        <translation>Fikcyjna drużyna B-klasy z połową rundy treningów i meczów. Kategoria i sezon zmieniają się na Seniorzy i bieżący sezon; nazwy klubu i drużyny zostają takie, jak wpisano.</translation>
+    </message>
+    <message>
+        <source>Start empty</source>
+        <translation>Zacznij od zera</translation>
+    </message>
+    <message>
+        <source>Load demo data</source>
+        <translation>Wczytaj dane demo</translation>
+    </message>
+    <message>
+        <source>The demo also adds these staff profiles:</source>
+        <translation>Demo dodaje też te profile sztabu:</translation>
+    </message>
+    <message>
+        <source>%1 (%2), PIN %3</source>
+        <translation>%1 (%2), PIN %3</translation>
     </message>
     <message>
         <source>Back</source>
@@ -2459,6 +2491,13 @@
     <message>
         <source>Settings</source>
         <translation>Ustawienia</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::SetupWizardViewModel</name>
+    <message>
+        <source>Demo data could not be loaded. The club starts empty.</source>
+        <translation>Nie udało się wczytać danych demo. Klub startuje pusty.</translation>
     </message>
 </context>
 <context>

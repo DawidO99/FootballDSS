@@ -61,6 +61,7 @@
 #include <QVariantMap>
 #include <QtQml/QQmlExtensionPlugin>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -429,6 +430,19 @@ QQuickItem* findByObjectName(QQuickItem* item, const QString& name) {
         }
     }
     return nullptr;
+}
+
+// A left click in the middle of the item, through the window like a real mouse.
+void clickItem(QQuickWindow* window, QQuickItem* item) {
+    const QPointF center = item->mapToScene(QPointF(item->width() / 2, item->height() / 2));
+    const QPointF global = window->mapToGlobal(center);
+    QMouseEvent press(QEvent::MouseButtonPress, center, center, global, Qt::LeftButton,
+                      Qt::LeftButton, Qt::NoModifier);
+    QMouseEvent release(QEvent::MouseButtonRelease, center, center, global, Qt::LeftButton,
+                        Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(window, &press);
+    QCoreApplication::sendEvent(window, &release);
+    settle();
 }
 
 // The label wraps inside its width, a word too long for a line included.
@@ -1355,6 +1369,9 @@ void exerciseWizardSteps(QQuickWindow* window, const QString& language, const QS
         fail("the wizard did not accept the coach step");
     }
     capture(QStringLiteral("4-summary"));
+    wizard->setLoadDemoData(true);
+    capture(QStringLiteral("4-summary-demo"));
+    wizard->setLoadDemoData(false);
 
     for (int step = wizard->currentStep(); step > 0; --step) {
         wizard->back();
@@ -1790,6 +1807,10 @@ void exerciseTileScrolling(QQmlApplicationEngine& engine) {
     auth.logout();
     picker->reload();
     settle();
+    // The Flow places the new tiles, and the layout sizes the area, when the window is polished on
+    // the way to a frame. processEvents() alone reaches that frame only sometimes: whether the
+    // tiles "fit" depended on the timing of the render loop.
+    window->grabWindow();
 
     auto* view = window->property("profilePicker").value<QQuickItem*>();
     auto* area = view->findChild<QQuickItem*>(QStringLiteral("tilesArea"));
@@ -2967,6 +2988,77 @@ void exerciseWindowClosing(CloseCase closeCase) {
 
 } // namespace
 
+// The first run with the demo: "Load demo data" picked with the mouse on the summary step, Enter
+// creates the club, and the squad of the new club has its 22 active players.
+void exerciseDemoSetup(QQmlApplicationEngine& engine) {
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    settle();
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load for the demo setup");
+        return;
+    }
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* wizard = wizardOf(window);
+    if (wizard == nullptr || appState == nullptr) {
+        fail("the wizard is not there for the demo setup");
+        return;
+    }
+    wizard->setClubName(QStringLiteral("KS Demo"));
+    wizard->setTeamName(QStringLiteral("Seniorzy"));
+    wizard->setCoachName(QStringLiteral("Jan Trener"));
+    wizard->setPin(QStringLiteral("1234"));
+    wizard->setPinRepeat(QStringLiteral("1234"));
+    for (int step = 0; step < 3; ++step) {
+        if (!wizard->next()) {
+            fail("the wizard did not reach the summary for the demo setup");
+            return;
+        }
+    }
+    settle();
+    window->grabWindow(); // the summary step is laid out on the way to a frame
+
+    auto* view = window->property("setupWizard").value<QQuickItem*>();
+    QQuickItem* choice =
+        view != nullptr ? findByObjectName(view, QStringLiteral("demoChoice")) : nullptr;
+    QQuickItem* demoSegment =
+        choice != nullptr ? findByObjectName(choice, QStringLiteral("segment1")) : nullptr;
+    if (demoSegment == nullptr) {
+        fail("the demo choice is not on the summary step");
+        return;
+    }
+    clickItem(window, demoSegment);
+    if (!wizard->loadDemoData()) {
+        fail("a click on Load demo data did not choose the demo");
+        return;
+    }
+    if (wizard->category() != QStringLiteral("senior")) {
+        fail("the demo did not show the senior category");
+    }
+
+    pressKey(window, Qt::Key_Return);
+    if (!waitUntil([&] { return appState->state() == AppState::State::Ready; },
+                   "Enter on the summary did not create the demo club")) {
+        return;
+    }
+    const auto context = ServiceRegistry::instance().setup().clubContext();
+    if (!context) {
+        fail("the demo club is not there");
+        return;
+    }
+    const auto players = ServiceRegistry::instance().squad().listPlayers(context->team.id);
+    if (!players) {
+        fail("the squad of the demo club cannot be read");
+        return;
+    }
+    const auto active = std::ranges::count_if(
+        *players, [](const auto& entry) { return !entry.player.archivedAt.has_value(); });
+    if (active != 22) {
+        fail("the demo club does not have 22 active players");
+    }
+}
+
 int main(int argc, char* argv[]) {
     // Deterministic offscreen rendering without a GPU.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
@@ -3054,6 +3146,16 @@ int main(int argc, char* argv[]) {
                 engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
                 settle();
                 exerciseUserMarkup(engine);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                exerciseDemoSetup(engine);
             }
             settle();
             ServiceRegistry::reset();
