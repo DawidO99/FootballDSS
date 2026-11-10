@@ -1660,6 +1660,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Set by the demo data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Season</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1704,11 +1708,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>A fictional B-klasa team with half a season of sessions and matches. The category becomes Seniors; the club and team names stay as typed.</source>
+        <source>An empty club: you add the players and the calendar yourself.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>An empty club: you add the players and the calendar yourself.</source>
+        <source>A fictional B-klasa team with half a season of sessions and matches. Category and season become Seniors and the current season; the club and team names stay as typed.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

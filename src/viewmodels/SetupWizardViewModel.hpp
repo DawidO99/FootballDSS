@@ -24,8 +24,9 @@ class SetupWizardViewModel : public QObject {
     Q_PROPERTY(int stepCount READ stepCount CONSTANT FINAL)
     Q_PROPERTY(QString clubName READ clubName WRITE setClubName NOTIFY fieldsChanged FINAL)
     Q_PROPERTY(QString teamName READ teamName WRITE setTeamName NOTIFY fieldsChanged FINAL)
-    // The database text of a core TeamCategory.
+    // The database text of a core TeamCategory. With loadDemoData: "senior", read-only.
     Q_PROPERTY(QString category READ category WRITE setCategory NOTIFY fieldsChanged FINAL)
+    // With loadDemoData: the season of today, read-only.
     Q_PROPERTY(QString season READ season WRITE setSeason NOTIFY fieldsChanged FINAL)
     Q_PROPERTY(QString coachName READ coachName WRITE setCoachName NOTIFY fieldsChanged FINAL)
     Q_PROPERTY(QString pin READ pin WRITE setPin NOTIFY fieldsChanged FINAL)
@@ -36,8 +37,9 @@ class SetupWizardViewModel : public QObject {
     Q_PROPERTY(QString coachNameError READ coachNameError NOTIFY errorsChanged FINAL)
     Q_PROPERTY(QString pinError READ pinError NOTIFY errorsChanged FINAL)
     Q_PROPERTY(QString pinRepeatError READ pinRepeatError NOTIFY errorsChanged FINAL)
-    // The summary step: start empty (default) or with the demo club. Demo data makes the category
-    // senior and keeps the typed club and team names.
+    // The summary step: start empty (default) or with the demo club. While it is on, category and
+    // season show and save "senior" and the season of today; the values chosen before stay and
+    // come back when it is turned off. The typed club and team names are kept either way.
     Q_PROPERTY(bool loadDemoData READ loadDemoData WRITE setLoadDemoData NOTIFY fieldsChanged FINAL)
     // The staff the demo adds, for the summary: [{ name, role, pin }], role translated.
     Q_PROPERTY(QVariantList demoStaff READ demoStaff NOTIFY demoStaffChanged FINAL)
@@ -107,6 +109,8 @@ private:
 
     services::SetupService& m_setup;
     services::DemoDataService& m_demo;
+    // Of today; the demo data is dated around today, so it belongs to this season.
+    QString m_currentSeason;
 
     int m_currentStep = 0;
     QString m_clubName;

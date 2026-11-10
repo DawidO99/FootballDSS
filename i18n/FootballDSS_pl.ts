@@ -1668,6 +1668,10 @@
         <translation>Kategoria</translation>
     </message>
     <message>
+        <source>Set by the demo data.</source>
+        <translation>Ustalone przez dane demo.</translation>
+    </message>
+    <message>
         <source>Season</source>
         <translation>Sezon</translation>
     </message>
@@ -1712,12 +1716,12 @@
         <translation>Na start</translation>
     </message>
     <message>
-        <source>A fictional B-klasa team with half a season of sessions and matches. The category becomes Seniors; the club and team names stay as typed.</source>
-        <translation>Fikcyjna drużyna B-klasy z połową rundy treningów i meczów. Kategoria zmienia się na Seniorzy; nazwy klubu i drużyny zostają takie, jak wpisano.</translation>
-    </message>
-    <message>
         <source>An empty club: you add the players and the calendar yourself.</source>
         <translation>Pusty klub: zawodników i kalendarz dodajesz samodzielnie.</translation>
+    </message>
+    <message>
+        <source>A fictional B-klasa team with half a season of sessions and matches. Category and season become Seniors and the current season; the club and team names stay as typed.</source>
+        <translation>Fikcyjna drużyna B-klasy z połową rundy treningów i meczów. Kategoria i sezon zmieniają się na Seniorzy i bieżący sezon; nazwy klubu i drużyny zostają takie, jak wpisano.</translation>
     </message>
     <message>
         <source>Start empty</source>

@@ -63,8 +63,9 @@ core::TeamDraft teamDraft(const QString& name, const QString& season) {
 SetupWizardViewModel::SetupWizardViewModel(QObject* parent)
     : QObject(parent), m_setup(ServiceRegistry::instance().setup()),
       m_demo(ServiceRegistry::instance().demoData()),
+      m_currentSeason(defaultSeason(ServiceRegistry::instance().clock().today())),
       m_category(QString::fromUtf8(core::toDbText(core::TeamCategory::Senior))),
-      m_season(defaultSeason(ServiceRegistry::instance().clock().today())) {
+      m_season(m_currentSeason) {
     // Installing a translator sends QEvent::LanguageChange to the application object only.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
@@ -87,19 +88,24 @@ void SetupWizardViewModel::setTeamName(const QString& value) {
     setField(m_teamName, value, m_teamNameError);
 }
 
-QString SetupWizardViewModel::category() const { return m_category; }
+QString SetupWizardViewModel::category() const {
+    return m_loadDemoData ? QString::fromUtf8(core::toDbText(core::TeamCategory::Senior))
+                          : m_category;
+}
 
 void SetupWizardViewModel::setCategory(const QString& value) {
-    if (m_category != value) {
+    if (!m_loadDemoData && m_category != value) {
         m_category = value;
         emit fieldsChanged();
     }
 }
 
-QString SetupWizardViewModel::season() const { return m_season; }
+QString SetupWizardViewModel::season() const { return m_loadDemoData ? m_currentSeason : m_season; }
 
 void SetupWizardViewModel::setSeason(const QString& value) {
-    setField(m_season, value, m_seasonError);
+    if (!m_loadDemoData) {
+        setField(m_season, value, m_seasonError);
+    }
 }
 
 QString SetupWizardViewModel::coachName() const { return m_coachName; }
@@ -137,11 +143,12 @@ void SetupWizardViewModel::setLoadDemoData(bool value) {
         return;
     }
     m_loadDemoData = value;
-    // The demo club is a senior B-klasa team.
-    if (value) {
-        m_category = QString::fromUtf8(core::toDbText(core::TeamCategory::Senior));
-    }
     emit fieldsChanged();
+    // The season shown changes, so an error about the one typed before no longer applies.
+    if (!m_seasonError.isEmpty()) {
+        m_seasonError.clear();
+        emit errorsChanged();
+    }
 }
 
 QVariantList SetupWizardViewModel::demoStaff() const {
@@ -188,13 +195,13 @@ bool SetupWizardViewModel::create() {
             return false;
         }
     }
-    const auto category = core::fromDbText<core::TeamCategory>(m_category.toStdString());
-    if (!category) {
-        report(category.error());
+    const auto teamCategory = core::fromDbText<core::TeamCategory>(category().toStdString());
+    if (!teamCategory) {
+        report(teamCategory.error());
         return false;
     }
-    core::TeamDraft team = teamDraft(m_teamName, m_season);
-    team.category = m_loadDemoData ? core::TeamCategory::Senior : *category;
+    core::TeamDraft team = teamDraft(m_teamName, season());
+    team.category = *teamCategory;
     const auto coach = m_setup.completeSetup(clubDraft(m_clubName), team, m_coachName.toStdString(),
                                              m_pin.toStdString());
     if (!coach) {
@@ -247,7 +254,7 @@ bool SetupWizardViewModel::validateStep(int step) {
     bool valid = true;
     if (step == kClubStep) {
         const auto club = core::validate(clubDraft(m_clubName));
-        const auto team = core::validate(teamDraft(m_teamName, m_season));
+        const auto team = core::validate(teamDraft(m_teamName, season()));
         m_clubNameError = errorText(club, "name", "club_name");
         m_teamNameError = errorText(team, "name", "team_name");
         m_seasonError = errorText(team, "season", "season");

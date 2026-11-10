@@ -212,9 +212,12 @@ FocusScope {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignTop
                         label: qsTr("Category")
+                        helpText: wizard.loadDemoData ? qsTr("Set by the demo data.") : ""
 
                         SelectField {
+                            objectName: "categoryInput"
                             Layout.fillWidth: true
+                            enabled: !wizard.loadDemoData
                             textRole: "text"
                             valueRole: "value"
                             model: root.categoryOptions
@@ -231,13 +234,15 @@ FocusScope {
                         Layout.alignment: Qt.AlignTop
                         label: qsTr("Season")
                         mandatory: true
-                        helpText: qsTr("For example 2026/27.")
+                        helpText: wizard.loadDemoData ? qsTr("Set by the demo data.") : qsTr("For example 2026/27.")
                         error: seasonInput.effectiveError
 
                         TextInputField {
                             id: seasonInput
 
+                            objectName: "seasonInput"
                             Layout.fillWidth: true
+                            enabled: !wizard.loadDemoData
                             text: wizard.season
                             error: wizard.seasonError
                             Accessible.name: seasonFormField.label
@@ -384,7 +389,7 @@ FocusScope {
                     Layout.fillWidth: true
                     Layout.topMargin: Theme.spacing.m
                     label: qsTr("Start with")
-                    helpText: wizard.loadDemoData ? qsTr("A fictional B-klasa team with half a season of sessions and matches. The category becomes Seniors; the club and team names stay as typed.") : qsTr("An empty club: you add the players and the calendar yourself.")
+                    helpText: wizard.loadDemoData ? qsTr("A fictional B-klasa team with half a season of sessions and matches. Category and season become Seniors and the current season; the club and team names stay as typed.") : qsTr("An empty club: you add the players and the calendar yourself.")
 
                     SegmentedControl {
                         objectName: "demoChoice"

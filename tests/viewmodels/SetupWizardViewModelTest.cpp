@@ -397,3 +397,68 @@ TEST_F(SetupWizardViewModelTest, AFailedDemoLeavesAnEmptyClubAndSaysSo) {
     EXPECT_EQ(count("SELECT count(*) FROM staff_user"), 1);
     EXPECT_TRUE(registry().session().user().has_value());
 }
+
+TEST_F(SetupWizardViewModelTest,
+       DemoShowsSeniorAndTheCurrentSeasonAndTurningItOffRestoresTheChoice) {
+    SetupWizardViewModel wizard;
+    wizard.setCategory(QStringLiteral("u19"));
+    wizard.setSeason(QStringLiteral("2020/21"));
+
+    wizard.setLoadDemoData(true);
+    EXPECT_EQ(wizard.category(), QStringLiteral("senior"));
+    EXPECT_EQ(wizard.season(), QStringLiteral("2026/27")); // FakeClock: 2026-11-01
+    // Locked while the demo is on.
+    wizard.setCategory(QStringLiteral("u15"));
+    wizard.setSeason(QStringLiteral("2019/20"));
+    EXPECT_EQ(wizard.category(), QStringLiteral("senior"));
+    EXPECT_EQ(wizard.season(), QStringLiteral("2026/27"));
+
+    wizard.setLoadDemoData(false);
+    EXPECT_EQ(wizard.category(), QStringLiteral("u19"));
+    EXPECT_EQ(wizard.season(), QStringLiteral("2020/21"));
+}
+
+TEST_F(SetupWizardViewModelTest, U19ThenDemoThenStartEmptySavesU19) {
+    SetupWizardViewModel wizard;
+    fillClubStep(wizard);
+    fillCoachStep(wizard);
+    wizard.setCategory(QStringLiteral("u19"));
+    wizard.setLoadDemoData(true);
+    wizard.setLoadDemoData(false);
+
+    ASSERT_TRUE(wizard.create());
+
+    const auto context = registry().setup().clubContext();
+    ASSERT_TRUE(context.has_value());
+    EXPECT_EQ(context->team.category, TeamCategory::U19);
+    EXPECT_EQ(count("SELECT count(*) FROM player"), 0);
+}
+
+TEST_F(SetupWizardViewModelTest, DemoSavesTheCurrentSeasonOverTheTypedOne) {
+    SetupWizardViewModel wizard;
+    fillClubStep(wizard);
+    fillCoachStep(wizard);
+    wizard.setSeason(QStringLiteral("2020/21"));
+    wizard.setLoadDemoData(true);
+
+    ASSERT_TRUE(wizard.create());
+
+    const auto context = registry().setup().clubContext();
+    ASSERT_TRUE(context.has_value());
+    EXPECT_EQ(context->team.season, "2026/27");
+    EXPECT_EQ(context->team.category, TeamCategory::Senior);
+}
+
+TEST_F(SetupWizardViewModelTest, DemoClearsAnErrorAboutTheTypedSeason) {
+    SetupWizardViewModel wizard;
+    fillClubStep(wizard);
+    wizard.setSeason(QStringLiteral("abc"));
+    ASSERT_TRUE(wizard.next());
+    EXPECT_FALSE(wizard.next());
+    ASSERT_FALSE(wizard.seasonError().isEmpty());
+
+    wizard.setLoadDemoData(true);
+
+    EXPECT_TRUE(wizard.seasonError().isEmpty());
+    EXPECT_TRUE(wizard.next());
+}

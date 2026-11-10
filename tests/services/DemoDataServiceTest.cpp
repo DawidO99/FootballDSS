@@ -154,3 +154,26 @@ TEST_F(DemoDataServiceTest, FailureWritesNothing) {
     expectNoDemoData();
     EXPECT_EQ(count("SELECT count(*) FROM opponent"), 1);
 }
+
+TEST_F(DemoDataServiceTest, ALateFailureRollsBackEverything) {
+    // The Physio is the last row the demo writes: matches, appearances, events, sessions and
+    // attendance are all in by then.
+    ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_late BEFORE INSERT ON staff_user "
+                    "WHEN NEW.role = 'physio' BEGIN SELECT RAISE(ABORT, 'late failure'); END"));
+    logIn(m_coach);
+
+    const auto result = m_demo->load(kTeam);
+
+    ASSERT_FALSE(result.has_value());
+    EXPECT_NE(result.error().detail.find("late failure"), std::string::npos)
+        << result.error().detail;
+    expectNoDemoData();
+    EXPECT_EQ(count("SELECT count(*) FROM opponent"), 0);
+    EXPECT_EQ(count("SELECT count(*) FROM appearance"), 0);
+    EXPECT_EQ(count("SELECT count(*) FROM match_event"), 0);
+    EXPECT_EQ(count("SELECT count(*) FROM attendance"), 0);
+
+    // Nothing is left half-open: the next attempt works once the cause is gone.
+    ASSERT_TRUE(sql("DROP TRIGGER fail_late"));
+    EXPECT_TRUE(m_demo->load(kTeam).has_value());
+}
