@@ -6,6 +6,7 @@
 #include "services/Session.hpp"
 #include "services/SquadService.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
+#include "viewmodels/QmlValues.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/SquadTexts.hpp"
 
@@ -33,11 +34,6 @@ std::optional<int> toOptionalInt(const QVariant& value) {
 
 QVariant fromOptionalInt(const std::optional<int>& value) {
     return value ? QVariant(*value) : QVariant{};
-}
-
-// JavaScript sends null, undefined or a number, whose exact type does not matter here.
-QVariant numberOrNull(const QVariant& value) {
-    return value.isValid() && !value.isNull() ? QVariant(value.toInt()) : QVariant{};
 }
 
 bool isEditorField(std::string_view field) {

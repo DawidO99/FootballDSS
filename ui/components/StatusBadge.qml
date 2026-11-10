@@ -41,10 +41,10 @@ Rectangle {
     }
 
     implicitWidth: row.implicitWidth + 2 * Theme.spacing.s
-    implicitHeight: Math.max(24, row.implicitHeight + 2 * Theme.spacing.xs)
+    implicitHeight: Math.max(Theme.badgeHeight, row.implicitHeight + 2 * Theme.spacing.xs)
     radius: height / 2
     color: "transparent"
-    border.width: 1
+    border.width: Theme.borderWidth
     border.color: tone
 
     Accessible.role: Accessible.StaticText
@@ -59,7 +59,7 @@ Rectangle {
         Icon {
             anchors.verticalCenter: parent.verticalCenter
             name: root.iconName
-            size: 14
+            size: Theme.iconSize.xs
             color: root.tone
         }
 

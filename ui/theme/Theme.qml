@@ -16,6 +16,7 @@ QtObject {
     }
 
     component RadiusScale: QtObject {
+        readonly property int xs: 2
         readonly property int s: 4
         readonly property int m: 8
         readonly property int l: 12
@@ -37,6 +38,14 @@ QtObject {
         readonly property int markerSize: 8
     }
 
+    // The size a window opens with and the smallest it can be made.
+    component WindowSize: QtObject {
+        required property int width
+        required property int height
+        required property int minimumWidth
+        required property int minimumHeight
+    }
+
     component FontSizeScale: QtObject {
         readonly property int caption: 12
         readonly property int body: 14
@@ -46,7 +55,9 @@ QtObject {
     }
 
     component IconSizeScale: QtObject {
+        readonly property int xs: 14
         readonly property int s: 16
+        readonly property int sm: 18
         readonly property int m: 20
         readonly property int l: 48
     }
@@ -78,6 +89,19 @@ QtObject {
     readonly property RadiusScale radius: RadiusScale {}
     readonly property FontSizeScale fontSize: FontSizeScale {}
     readonly property IconSizeScale iconSize: IconSizeScale {}
+    readonly property WindowSize mainWindow: WindowSize {
+        width: 1600
+        height: 900
+        minimumWidth: 1280
+        minimumHeight: 720
+    }
+    // The database error screen, which opens instead of the main window.
+    readonly property WindowSize errorWindow: WindowSize {
+        width: 720
+        height: 420
+        minimumWidth: 560
+        minimumHeight: 360
+    }
     readonly property ChartStyle chart: ChartStyle {
         dark: theme.dark
     }
@@ -102,6 +126,17 @@ QtObject {
     readonly property int profileTileHeight: 152
     readonly property int avatarSize: 56
     readonly property int pinKeyWidth: 72
+    readonly property int topBarHeight: 56
+    readonly property int topBarSearchWidth: 360
+    readonly property int sidebarWidth: 220
+    readonly property int sidebarCollapsedWidth: 64
+    // The bar beside the current section of the sidebar.
+    readonly property int sidebarMarkerWidth: 3
+    readonly property int badgeHeight: 24
+    readonly property int emptyStateWidth: 480
+    // Icon.qml draws its paths on a square of this side and scales it to the size asked for.
+    readonly property int iconGrid: 24
+    readonly property int iconStrokeWidth: 2
     readonly property int borderWidth: 1
     readonly property int focusRingWidth: 2
     readonly property real disabledOpacity: 0.45
@@ -112,4 +147,5 @@ QtObject {
     readonly property int toastDuration: 10000
     readonly property int searchDebounce: 200
     readonly property int tooltipDelay: 400
+    readonly property int sidebarAnimation: 120
 }

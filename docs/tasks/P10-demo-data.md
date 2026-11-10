@@ -47,7 +47,7 @@ substitutions, no RPE for absent players, injuries do not overlap attendance as 
 
 ## Done when
 - [ ] Fresh install → wizard → "Load demo data" → squad and calendar are full and plausible.
-- [ ] Section 3 passes.
+- [x] Section 3 passes.
 
 ## Decisions (accepted plan)
 1. **Atomicity**: `SetupService::completeSetup` runs first (its own transaction, the Coach logs in),

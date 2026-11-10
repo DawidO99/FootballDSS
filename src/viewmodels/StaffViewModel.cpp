@@ -7,11 +7,11 @@
 #include "services/Session.hpp"
 #include "viewmodels/AppState.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
+#include "viewmodels/QmlValues.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 
 #include <QCoreApplication>
 #include <QEvent>
-#include <QVariantMap>
 
 #include <utility>
 
@@ -33,13 +33,7 @@ StaffViewModel::StaffViewModel(QObject* parent)
 StaffListModel* StaffViewModel::staff() const { return m_staff; }
 
 QVariantList StaffViewModel::roleOptions() const {
-    QVariantList options;
-    for (const core::Role role : core::allValues<core::Role>()) {
-        options.append(
-            QVariantMap{{QStringLiteral("value"), QString::fromUtf8(core::toDbText(role))},
-                        {QStringLiteral("text"), AppState::roleDisplayName(role)}});
-    }
-    return options;
+    return optionsOf<core::Role>(AppState::roleDisplayName);
 }
 
 qint64 StaffViewModel::currentUserId() const { return m_currentUserId; }

@@ -120,11 +120,16 @@ void AppState::refresh() {
     }
     if (sessionDiffers) {
         emit sessionSerialChanged();
+        if (!m_deferredError.isEmpty()) {
+            emit errorOccurred(std::exchange(m_deferredError, QString{}));
+        }
     }
     if (!club) {
         report(club.error());
     }
 }
+
+void AppState::deferError(const QString& message) { m_deferredError = message; }
 
 QString AppState::roleDisplayName(core::Role role) {
     switch (role) {

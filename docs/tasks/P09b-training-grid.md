@@ -41,7 +41,7 @@ timing for 10.
 
 ## Done when
 - [ ] 20 players filled keyboard-only in about 60 s, saved, reopened with the same values.
-- [ ] Section 3 passes.
+- [x] Section 3 passes.
 
 ## Notes for the thesis
 Time the 20-player entry with a stopwatch: a usability number for the evaluation chapter.

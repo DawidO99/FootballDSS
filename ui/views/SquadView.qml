@@ -81,6 +81,11 @@ Item {
     onNavigationArgsChanged: {
         if (navigationArgs.playerId !== undefined)
             root.openCard(navigationArgs.playerId);
+        // From the search of the top bar: the field shows it and keeps the focus for more typing.
+        if (navigationArgs.search !== undefined) {
+            searchField.setText(navigationArgs.search);
+            Qt.callLater(searchField.forceInputFocus);
+        }
     }
     // All views stay loaded, and the status of today may have changed since this one was seen.
     onVisibleChanged: {

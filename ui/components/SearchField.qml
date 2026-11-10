@@ -7,6 +7,7 @@ import QtQuick.Controls.Basic
 //   text: string (read-only, debounced), placeholderText
 //   accepted()            Enter pressed (text is flushed first)
 //   clear(), forceInputFocus()
+//   setText(text)         shows and commits `text` at once, as if typed and settled
 // Esc clears a non-empty field; on an empty field it is passed on (e.g. to close a dialog).
 FocusScope {
     id: root
@@ -20,6 +21,12 @@ FocusScope {
         input.clear();
         debounce.stop();
         internal.committedText = "";
+    }
+
+    function setText(value) {
+        input.text = value;
+        debounce.stop();
+        internal.committedText = value;
     }
 
     function forceInputFocus() {

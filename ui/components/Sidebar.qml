@@ -11,8 +11,8 @@ Rectangle {
     required property NavigationModel navigation
     property bool collapsed: false
 
-    readonly property int expandedWidth: 220
-    readonly property int collapsedWidth: 64
+    readonly property int expandedWidth: Theme.sidebarWidth
+    readonly property int collapsedWidth: Theme.sidebarCollapsedWidth
 
     implicitWidth: collapsed ? collapsedWidth : expandedWidth
     color: Theme.surface
@@ -20,7 +20,7 @@ Rectangle {
 
     Behavior on implicitWidth {
         NumberAnimation {
-            duration: 120
+            duration: Theme.sidebarAnimation
             easing.type: Easing.OutCubic
         }
     }
@@ -29,7 +29,7 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        width: 1
+        width: Theme.borderWidth
         color: Theme.border
     }
 

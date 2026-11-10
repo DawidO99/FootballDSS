@@ -19,7 +19,6 @@ AppDialog {
     property string fromDate
     property string expectedTo
     property string actualTo
-    property string descriptionText
     readonly property bool adding: entryId === 0
 
     function showForm() {
@@ -38,7 +37,6 @@ AppDialog {
         root.fromDate = root.viewModel.today;
         root.expectedTo = "";
         root.actualTo = "";
-        root.descriptionText = "";
         descriptionInput.text = "";
         root.showForm();
     }
@@ -49,7 +47,6 @@ AppDialog {
         root.fromDate = entry.fromDate;
         root.expectedTo = entry.expectedTo;
         root.actualTo = entry.actualTo;
-        root.descriptionText = entry.description;
         descriptionInput.text = entry.description;
         root.showForm();
     }

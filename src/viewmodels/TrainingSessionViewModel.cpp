@@ -6,6 +6,7 @@
 #include "services/Session.hpp"
 #include "services/TrainingService.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
+#include "viewmodels/QmlValues.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/SquadTexts.hpp"
 
@@ -13,7 +14,6 @@
 #include <QCoreApplication>
 #include <QEvent>
 #include <QLocale>
-#include <QVariantMap>
 
 #include <algorithm>
 #include <iterator>
@@ -161,18 +161,8 @@ QString TrainingSessionViewModel::unsavedText() const {
                                : tr("Not saved: %1 players").arg(m_unsavedCount);
 }
 
-int TrainingSessionViewModel::maxRpe() const { return core::kMaxRpe; }
-
-int TrainingSessionViewModel::maxMinutes() const { return core::kMaxAttendanceMinutes; }
-
 QVariantList TrainingSessionViewModel::statusOptions() const {
-    QVariantList options;
-    for (const core::AttendanceStatus status : core::allValues<core::AttendanceStatus>()) {
-        options.append(
-            QVariantMap{{QStringLiteral("value"), QString::fromUtf8(core::toDbText(status))},
-                        {QStringLiteral("text"), statusName(status)}});
-    }
-    return options;
+    return optionsOf<core::AttendanceStatus>(statusName);
 }
 
 QString TrainingSessionViewModel::loadError() const {
@@ -205,6 +195,11 @@ void TrainingSessionViewModel::openSession(qint64 sessionId) {
     }
     if (failure.code != core::ErrorCode::NotFound) {
         qCritical("TrainingSessionViewModel: %s", failure.detail.c_str());
+        if (m_sessionId != 0 && !m_loadFailure) {
+            // The open sheet stays on the screen; the view shows its session in the picker again.
+            emit errorOccurred(ErrorPresenter::message(failure));
+            return;
+        }
         setLoadFailure(failure);
         return;
     }
@@ -338,7 +333,7 @@ void TrainingSessionViewModel::markAllPresent() {
 }
 
 bool TrainingSessionViewModel::save() {
-    if (!checkAllowed() || m_sessionId == 0) {
+    if (!checkAllowed() || m_sessionId == 0 || m_loadFailure) {
         return false;
     }
     std::vector<core::AttendanceDraft> drafts;
@@ -541,7 +536,7 @@ void TrainingSessionViewModel::updateDirty() {
             ++unsaved;
         }
     }
-    const bool canSave = !readOnly() && unsaved > 0;
+    const bool canSave = !readOnly() && unsaved > 0 && !m_loadFailure;
     if (unsaved != m_unsavedCount) {
         m_unsavedCount = unsaved;
         emit unsavedChanged();
@@ -558,6 +553,7 @@ void TrainingSessionViewModel::setLoadFailure(std::optional<core::Error> failure
     m_loadFailure = std::move(failure);
     if (changed) {
         emit loadErrorChanged();
+        updateDirty();
     }
 }
 

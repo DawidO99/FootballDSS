@@ -385,13 +385,16 @@ TEST_F(SetupWizardViewModelTest, AFailedDemoLeavesAnEmptyClubAndSaysSo) {
     int completed = 0;
     QString message;
     QObject::connect(&wizard, &SetupWizardViewModel::completed, &wizard, [&] { ++completed; });
-    QObject::connect(&wizard, &SetupWizardViewModel::errorOccurred, &wizard,
+    QObject::connect(&wizard, &SetupWizardViewModel::demoFailed, &wizard,
                      [&](const QString& text) { message = text; });
+    int errors = 0;
+    QObject::connect(&wizard, &SetupWizardViewModel::errorOccurred, &wizard, [&] { ++errors; });
 
     EXPECT_TRUE(wizard.create());
 
     EXPECT_EQ(completed, 1);
     EXPECT_FALSE(message.isEmpty());
+    EXPECT_EQ(errors, 0);
     EXPECT_EQ(count("SELECT count(*) FROM club"), 1);
     EXPECT_EQ(count("SELECT count(*) FROM player"), 0);
     EXPECT_EQ(count("SELECT count(*) FROM staff_user"), 1);
@@ -461,4 +464,36 @@ TEST_F(SetupWizardViewModelTest, DemoClearsAnErrorAboutTheTypedSeason) {
 
     EXPECT_TRUE(wizard.seasonError().isEmpty());
     EXPECT_TRUE(wizard.next());
+}
+
+// The wiring of SetupWizardView: the login after the setup dismisses every toast, so the failure of
+// the demo comes back from AppState after that, and only once.
+TEST_F(SetupWizardViewModelTest, AFailedDemoIsSaidAfterTheLoginThatFollows) {
+    const Date start{std::chrono::sys_days{m_clock->today()} - std::chrono::days{demo::kDemoDays}};
+    const auto opponents = demo::generate(demo::kDemoSeed, start).opponents;
+    ASSERT_TRUE(fdss::data::OpponentRepository(*m_db).create(opponents.front()).has_value());
+    AppState appState;
+    ASSERT_EQ(appState.state(), AppState::State::NeedsSetup);
+    SetupWizardViewModel wizard;
+    QObject::connect(&wizard, &SetupWizardViewModel::demoFailed, &appState, &AppState::deferError);
+    QObject::connect(&wizard, &SetupWizardViewModel::completed, &appState, &AppState::refresh);
+    QStringList order;
+    QObject::connect(&appState, &AppState::sessionSerialChanged, &appState,
+                     [&] { order.append(QStringLiteral("session")); });
+    QObject::connect(&appState, &AppState::errorOccurred, &appState,
+                     [&](const QString& text) { order.append(text); });
+    fillClubStep(wizard);
+    fillCoachStep(wizard);
+    wizard.setLoadDemoData(true);
+
+    ASSERT_TRUE(wizard.create());
+
+    EXPECT_EQ(appState.state(), AppState::State::Ready);
+    ASSERT_EQ(order.size(), 2);
+    EXPECT_EQ(order.at(0), QStringLiteral("session"));
+    EXPECT_EQ(order.at(1), QStringLiteral("Demo data could not be loaded. The club starts empty."));
+
+    order.clear();
+    appState.logout();
+    EXPECT_EQ(order, QStringList{QStringLiteral("session")});
 }

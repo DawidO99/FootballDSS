@@ -228,12 +228,12 @@ void SetupWizardViewModel::loadDemo() {
     auto context = m_setup.clubContext();
     if (!context) {
         qCritical("SetupWizardViewModel: %s", context.error().detail.c_str());
-        emit errorOccurred(tr("Demo data could not be loaded. The club starts empty."));
+        emit demoFailed(tr("Demo data could not be loaded. The club starts empty."));
         return;
     }
     if (const auto loaded = m_demo.load(context->team.id); !loaded) {
         qCritical("SetupWizardViewModel: %s", loaded.error().detail.c_str());
-        emit errorOccurred(tr("Demo data could not be loaded. The club starts empty."));
+        emit demoFailed(tr("Demo data could not be loaded. The club starts empty."));
     }
 }
 

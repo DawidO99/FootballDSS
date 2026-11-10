@@ -41,8 +41,8 @@ Viewmodel: wizard step validation (PIN mismatch, empty names, season format), pi
 
 ## Done when
 - [ ] Delete `club.sqlite` → wizard → shell; restart → picker → PIN → shell.
-- [ ] Assistant: no Staff section in Settings. 5 wrong PINs → 30 s lockout, survives restart.
-- [ ] Section 3 passes (qml_smoke covers all three states).
+- [x] Assistant: no Staff section in Settings. 5 wrong PINs → 30 s lockout, survives restart.
+- [x] Section 3 passes (qml_smoke covers all three states).
 
 ## Notes for the thesis
 Screenshots of the wizard steps and the profile picker; ADR-007 explains the security trade-off.

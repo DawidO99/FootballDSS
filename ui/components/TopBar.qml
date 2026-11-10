@@ -11,6 +11,8 @@ Rectangle {
 
     // Main.qml logs out, after asking about changes that are not saved.
     signal logoutRequested
+    // Enter in the search field: Main.qml opens the squad with this text in its search.
+    signal searchRequested(string text)
 
     function focusSearch() {
         searchField.forceActiveFocus(Qt.ShortcutFocusReason);
@@ -25,7 +27,7 @@ Rectangle {
         changePinDialog.openEmpty();
     }
 
-    implicitHeight: 56
+    implicitHeight: Theme.topBarHeight
     color: Theme.surface
 
     Shortcut {
@@ -39,7 +41,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        height: 1
+        height: Theme.borderWidth
         color: Theme.border
     }
 
@@ -60,7 +62,8 @@ Rectangle {
         TextField {
             id: searchField
 
-            Layout.preferredWidth: 360
+            objectName: "globalSearch"
+            Layout.preferredWidth: Theme.topBarSearchWidth
             implicitHeight: Theme.hitMin + Theme.spacing.xs
             leftPadding: Theme.spacing.s + searchIcon.width + Theme.spacing.s
             color: Theme.text
@@ -70,6 +73,14 @@ Rectangle {
             selectedTextColor: Theme.accentText
             font.pixelSize: Theme.fontSize.body
             Accessible.name: qsTr("Search")
+            onAccepted: {
+                const query = text.trim();
+                if (query.length === 0)
+                    return;
+                text = "";
+                focus = false;
+                root.searchRequested(query);
+            }
             Keys.onEscapePressed: {
                 text = "";
                 focus = false;
@@ -78,7 +89,7 @@ Rectangle {
             background: Rectangle {
                 radius: Theme.radius.m
                 color: Theme.surfaceAlt
-                border.width: searchField.activeFocus ? 2 : 1
+                border.width: searchField.activeFocus ? Theme.focusRingWidth : Theme.borderWidth
                 border.color: searchField.activeFocus ? Theme.accent : Theme.border
             }
 
@@ -89,7 +100,7 @@ Rectangle {
                 anchors.leftMargin: Theme.spacing.s
                 anchors.verticalCenter: parent.verticalCenter
                 name: "search"
-                size: 18
+                size: Theme.iconSize.sm
                 color: Theme.textMuted
             }
         }
@@ -130,7 +141,7 @@ Rectangle {
                     Icon {
                         anchors.verticalCenter: parent.verticalCenter
                         name: "user"
-                        size: 18
+                        size: Theme.iconSize.sm
                         color: Theme.textMuted
                     }
 

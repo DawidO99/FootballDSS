@@ -121,7 +121,7 @@ database returns `Internal`.
 ## Done when
 - [ ] App starts as before with a new `club.sqlite` in the AppData folder.
 - [ ] Replacing `club.sqlite` with a text file shows the error screen with the path.
-- [ ] All tests above exist and pass; section 3 passes.
+- [x] All tests above exist and pass; section 3 passes.
 
 ## Notes for the thesis
 ERD can be generated from 0001 later; keep table and column names exactly as in SPEC §6.

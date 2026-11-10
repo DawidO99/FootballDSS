@@ -67,7 +67,14 @@ Item {
             leaveQuestion.open();
             return;
         }
+        root.openChosen(sessionId);
+    }
+
+    // A session that cannot be read leaves the open one on the screen, so the field shows that one
+    // again: a save writes the session the field names.
+    function openChosen(sessionId) {
         sheet.openSession(sessionId);
+        sessionField.showValue();
         // The later call lets the field finish with its list, whichever way the pick came.
         Qt.callLater(root.focusContent);
     }
@@ -79,8 +86,7 @@ Item {
             root.leaveAccepted();
             return;
         }
-        sheet.openSession(sessionId);
-        Qt.callLater(root.focusContent);
+        root.openChosen(sessionId);
     }
 
     function stay() {

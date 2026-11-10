@@ -136,6 +136,7 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/PlayerCardViewModel.cpp
         src/viewmodels/PlayerEditorViewModel.hpp
         src/viewmodels/PlayerEditorViewModel.cpp
+        src/viewmodels/QmlValues.hpp
         src/viewmodels/ProfilePickerViewModel.hpp
         src/viewmodels/ProfilePickerViewModel.cpp
         src/viewmodels/ServiceRegistry.hpp

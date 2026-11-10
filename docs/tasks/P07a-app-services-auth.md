@@ -73,8 +73,8 @@ Q_PROPERTY(QVariantMap currentArgs READ currentArgs NOTIFY currentIndexChanged)
 7. Move the startup error texts from `StartupViewModel` to `ErrorPresenter`.
 
 ## Done when
-- [ ] Section 3 passes; `fdss_vm_tests` runs in CTest.
-- [ ] App still starts; with an empty database it shows the setup placeholder.
+- [x] Section 3 passes; `fdss_vm_tests` runs in CTest.
+- [x] App still starts; with an empty database it shows the setup placeholder.
 
 ## Decisions (accepted plan)
 

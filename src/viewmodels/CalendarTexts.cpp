@@ -1,22 +1,12 @@
 #include "viewmodels/CalendarTexts.hpp"
 
-#include <QVariantMap>
+#include "viewmodels/QmlValues.hpp"
 
 #include <chrono>
 
 namespace fdss::viewmodels {
 
 namespace {
-
-template <class E, class TextOf> QVariantList optionsOf(TextOf textOf) {
-    QVariantList options;
-    for (const E value : core::allValues<E>()) {
-        options.append(
-            QVariantMap{{QStringLiteral("value"), QString::fromUtf8(core::toDbText(value))},
-                        {QStringLiteral("text"), textOf(value)}});
-    }
-    return options;
-}
 
 const services::CalendarMatch* asMatch(const CalendarEntry& entry) {
     return std::get_if<services::CalendarMatch>(&entry);

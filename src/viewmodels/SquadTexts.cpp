@@ -1,23 +1,11 @@
 #include "viewmodels/SquadTexts.hpp"
 
+#include "viewmodels/QmlValues.hpp"
+
 #include <QStringList>
 #include <QVariantMap>
 
 namespace fdss::viewmodels {
-
-namespace {
-
-template <class E, class TextOf> QVariantList optionsOf(TextOf textOf) {
-    QVariantList options;
-    for (const E value : core::allValues<E>()) {
-        options.append(
-            QVariantMap{{QStringLiteral("value"), QString::fromUtf8(core::toDbText(value))},
-                        {QStringLiteral("text"), textOf(value)}});
-    }
-    return options;
-}
-
-} // namespace
 
 QString SquadTexts::positionCode(core::Position position) {
     return QString::fromUtf8(core::toDbText(position)).toUpper();

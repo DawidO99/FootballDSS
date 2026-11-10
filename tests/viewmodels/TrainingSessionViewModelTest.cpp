@@ -844,6 +844,60 @@ TEST_F(TrainingSessionViewModelTest, ReloadMovesOnWhenTheSessionIsGone) {
     EXPECT_EQ(sheet->sessionId(), m_session.value);
 }
 
+// The picker in the view goes back to the open session (showValue), so what is on the screen and
+// what a save writes stay the same session.
+TEST_F(TrainingSessionViewModelTest, ASessionThatCannotBeReadLeavesTheOpenOne) {
+    seedSheet();
+    const TrainingSessionId older = addSession(kLastWeek);
+    const auto sheet = makeSheet();
+    ASSERT_EQ(sheet->sessionId(), m_session.value);
+    const SignalCount errors(sheet.get(), &VM::errorOccurred);
+    const SignalCount resets(sheet.get(), &QAbstractItemModel::modelReset);
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE attendance RENAME TO attendance_gone"), "test")
+            .has_value());
+
+    sheet->openSession(older.value);
+
+    EXPECT_EQ(errors.count(), 1);
+    EXPECT_EQ(sheet->sessionId(), m_session.value);
+    EXPECT_TRUE(sheet->loadError().isEmpty());
+    EXPECT_EQ(sheet->count(), 2);
+    EXPECT_EQ(resets.count(), 0);
+
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE attendance_gone RENAME TO attendance"), "test")
+            .has_value());
+    sheet->enterRpeDigit(0, 7);
+    ASSERT_TRUE(sheet->save());
+    const auto shown = registry().training().sheet(m_session);
+    ASSERT_TRUE(shown.has_value());
+    EXPECT_TRUE(std::ranges::all_of(shown->rows, [](const auto& row) { return row.saved; }));
+    const auto other = registry().training().sheet(older);
+    ASSERT_TRUE(other.has_value());
+    EXPECT_TRUE(std::ranges::none_of(other->rows, [](const auto& row) { return row.saved; }));
+}
+
+TEST_F(TrainingSessionViewModelTest, NothingIsSavedWhileTheSheetCannotBeRead) {
+    seedSheet();
+    const auto sheet = makeSheet();
+    ASSERT_TRUE(sheet->canSave());
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE attendance RENAME TO attendance_gone"), "test")
+            .has_value());
+    sheet->reload();
+    ASSERT_FALSE(sheet->loadError().isEmpty());
+    EXPECT_FALSE(sheet->canSave());
+    EXPECT_FALSE(sheet->save());
+
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE attendance_gone RENAME TO attendance"), "test")
+            .has_value());
+    sheet->reload();
+    EXPECT_TRUE(sheet->loadError().isEmpty());
+    EXPECT_TRUE(sheet->canSave());
+}
+
 TEST_F(TrainingSessionViewModelTest, OpeningAnotherSessionDropsTheChanges) {
     seedSheet();
     const TrainingSessionId older = addSession(kLastWeek);
