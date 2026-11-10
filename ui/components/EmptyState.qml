@@ -20,13 +20,13 @@ Item {
         id: column
 
         anchors.centerIn: parent
-        width: Math.min(root.width, 480)
+        width: Math.min(root.width, Theme.emptyStateWidth)
         spacing: Theme.spacing.m
 
         Icon {
             Layout.alignment: Qt.AlignHCenter
             name: root.iconName
-            size: 48
+            size: Theme.iconSize.l
             color: Theme.textMuted
         }
 

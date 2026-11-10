@@ -120,6 +120,7 @@ CMake targets:
 - Every QObject subclass has `Q_OBJECT`. QML types use `QML_ELEMENT` / `QML_SINGLETON` /
   `QML_UNCREATABLE` with `qt_add_qml_module`. `qmlRegisterType` is FORBIDDEN.
 - List data for QML: `QAbstractListModel` with named roles, or `QRangeModel` for simple cases.
+  Small fixed or nested read-only lists (a few items) may be a `QVariantList`.
 - Long work (parsing, validation, recalculation) runs via `QtConcurrent`; database writes stay on
   the main-thread connection in one `Transaction`. The UI thread never blocks on parsing or computation.
 - Naming: `PascalCase` types, `camelCase` functions/variables, `m_` members, `kConstant`.
@@ -161,7 +162,8 @@ CMake targets:
   or magic numbers in views/components. Allowed keywords: "transparent".
 - Hit targets: min 32 px; min 44 px on Match Day and the tactics board.
 - Keyboard: every form and grid is fully usable with Tab/Enter; shortcuts per the spec.
-- Empty states always tell the user what to do next, with a button.
+- Empty states always tell the user what to do next, with a button when the current role can act;
+  otherwise the text says who can (e.g. ask the coach).
 - Destructive actions execute immediately with a 10 s "Undo" toast (confirm dialog only for bulk).
   Deleting an item that carries user-entered data (e.g. a session with attendance) also asks first; the
   undo toast stays.

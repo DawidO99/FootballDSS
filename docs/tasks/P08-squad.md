@@ -49,10 +49,10 @@ Assistant at the service boundary (the returned DTO has no description), not onl
 Viewmodel: filter + search + sort combination over a small seeded model.
 
 ## Done when
-- [ ] Add 3 players from the keyboard only (Ctrl+N, Tab, Enter).
-- [ ] Duplicate shirt number shows a field error; archive + undo works.
-- [ ] Physio sees an injury description, Assistant does not.
-- [ ] Section 3 passes.
+- [x] Add 3 players from the keyboard only (Ctrl+N, Tab, Enter).
+- [x] Duplicate shirt number shows a field error; archive + undo works.
+- [x] Physio sees an injury description, Assistant does not.
+- [x] Section 3 passes.
 
 ## Decisions (accepted plan)
 

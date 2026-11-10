@@ -99,6 +99,8 @@ FocusScope {
         onCurrentStepChanged: root.focusCurrentStep()
         onCompleted: AppState.refresh()
         onErrorOccurred: message => Toasts.error(message)
+        // The login that completed() leads to dismisses every toast; AppState shows it after that.
+        onDemoFailed: message => AppState.deferError(message)
     }
 
     LanguageThemeSwitch {

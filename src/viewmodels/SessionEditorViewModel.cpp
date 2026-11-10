@@ -7,6 +7,7 @@
 #include "viewmodels/CalendarTexts.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
 #include "viewmodels/IsoDates.hpp"
+#include "viewmodels/QmlValues.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 
 #include <QCoreApplication>
@@ -26,11 +27,6 @@ constexpr int kDurationStep = 15;
 
 bool isEditorField(std::string_view field) {
     return field == kDate || field == kStartTime || field == kDuration;
-}
-
-// JavaScript sends null, undefined or a number, whose exact type does not matter here.
-QVariant numberOrNull(const QVariant& value) {
-    return value.isValid() && !value.isNull() ? QVariant(value.toInt()) : QVariant{};
 }
 
 } // namespace

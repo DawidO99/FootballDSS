@@ -50,9 +50,9 @@ strings `qsTr()`, `hitMin` respected (and a `touch: bool` property where it matt
 3. No business logic, no C++.
 
 ## Done when
-- [ ] Gallery screenshots (dark/light × PL/EN) in the report or saved by `qml_smoke --screenshots`.
+- [x] Gallery screenshots (dark/light × PL/EN) in the report or saved by `qml_smoke --screenshots`.
 - [ ] Tab order through the gallery is sensible; Esc closes the dialog; toast undo fires its callback.
-- [ ] Section 3 passes.
+- [x] Section 3 passes.
 
 ## Decisions (accepted plan)
 1. Theme gets new size tokens (`controlHeight`, `controlHeightTouch`, `rowHeight`, `tableHeaderHeight`,

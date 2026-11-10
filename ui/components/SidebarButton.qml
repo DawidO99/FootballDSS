@@ -21,7 +21,7 @@ AbstractButton {
     Accessible.name: text
     ToolTip.visible: collapsed && hovered
     ToolTip.text: text
-    ToolTip.delay: 400
+    ToolTip.delay: Theme.tooltipDelay
 
     Keys.onReturnPressed: click()
     Keys.onEnterPressed: click()
@@ -29,13 +29,13 @@ AbstractButton {
     background: Rectangle {
         radius: Theme.radius.m
         color: control.current || control.hovered ? Theme.surfaceAlt : "transparent"
-        border.width: control.showFocusRing ? 2 : 0
+        border.width: control.showFocusRing ? Theme.focusRingWidth : 0
         border.color: Theme.accent
 
         Rectangle {
             visible: control.current
-            width: 3
-            radius: 2
+            width: Theme.sidebarMarkerWidth
+            radius: Theme.radius.xs
             color: Theme.accent
             anchors.left: parent.left
             anchors.top: parent.top

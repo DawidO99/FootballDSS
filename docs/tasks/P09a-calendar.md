@@ -37,8 +37,8 @@ Service: permission per role, opponent uniqueness with Polish letters, session d
 duration bounds. Viewmodel: week boundaries (Monday start, year change), list ordering.
 
 ## Done when
-- [ ] A match and a session created from the keyboard appear on the right days in both modes.
-- [ ] Section 3 passes.
+- [x] A match and a session created from the keyboard appear on the right days in both modes.
+- [x] Section 3 passes.
 
 ## Decisions (accepted plan)
 

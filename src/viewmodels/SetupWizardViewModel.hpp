@@ -79,7 +79,7 @@ public:
     Q_INVOKABLE void back();
     // Checks every step, going to the first one that is not valid, then creates the club and logs
     // the Coach in. Emits completed(). With loadDemoData the demo club follows in its own
-    // transaction; if that fails the club stays empty, errorOccurred() says so and completed() is
+    // transaction; if that fails the club stays empty, demoFailed() says so and completed() is
     // still emitted.
     Q_INVOKABLE bool create();
 
@@ -95,6 +95,9 @@ signals:
     void completed();
     // A translated text for the user; the view shows it in a toast.
     void errorOccurred(const QString& message);
+    // Emitted before completed(). Translated; the login that follows dismisses every toast, so the
+    // view hands it to AppState.deferError().
+    void demoFailed(const QString& message);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;

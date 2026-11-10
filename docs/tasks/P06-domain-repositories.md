@@ -69,7 +69,7 @@ Services, viewmodels, QML, demo data, PIN hashing (P07; the repository only stor
 
 ## Done when
 - [ ] Section 3 passes; test count and coverage of every repository method listed in the report.
-- [ ] No QML or viewmodel changes.
+- [x] No QML or viewmodel changes.
 
 ## Decisions (accepted plan)
 

@@ -59,6 +59,9 @@ public:
     // club; only Ready goes without a session, which lives in memory. All values are in place
     // before the first signal.
     Q_INVOKABLE void refresh();
+    // For a message that the next session change would dismiss with every other toast, as the
+    // first login after the setup does: errorOccurred brings it right after sessionSerialChanged.
+    Q_INVOKABLE void deferError(const QString& message);
 
     [[nodiscard]] static QString roleDisplayName(core::Role role);
 
@@ -87,6 +90,7 @@ private:
     QString m_teamName;
     qint64 m_teamId = 0;
     int m_sessionSerial = 0;
+    QString m_deferredError;
 };
 
 } // namespace fdss::viewmodels

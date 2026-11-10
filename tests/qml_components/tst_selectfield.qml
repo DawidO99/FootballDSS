@@ -111,6 +111,39 @@ TestCase {
         }
     }
 
+    // The owner cannot open what was picked and keeps what it has, like the training sheet with a
+    // session that cannot be read.
+    Component {
+        id: refusingHostComponent
+
+        Item {
+            property var source: "b"
+            property int refused: 0
+            property alias field: selectField
+
+            width: 300
+            height: 44
+
+            SelectField {
+                id: selectField
+
+                width: parent.width
+                textRole: "text"
+                valueRole: "value"
+                model: [
+                    { "value": "a", "text": "A" },
+                    { "value": "b", "text": "B" },
+                    { "value": "c", "text": "C" }
+                ]
+                value: parent.source
+                onValueActivated: {
+                    parent.refused += 1;
+                    selectField.showValue();
+                }
+            }
+        }
+    }
+
     function createHost(component) {
         const host = createTemporaryObject(component, testCase);
         verify(host);
@@ -217,5 +250,17 @@ TestCase {
         tryCompare(host.field, "count", 3);
         wait(0);
         compare(host.field.currentValue, "b");
+    }
+
+    function test_refused_keyboard_pick_shows_the_value_and_keeps_the_binding() {
+        const host = createHost(refusingHostComponent);
+        host.field.forceActiveFocus();
+        keyClick(Qt.Key_Down);
+        compare(host.refused, 1);
+        compare(host.field.currentValue, "b");
+        compare(host.field.displayText, "B");
+        host.source = "a";
+        compare(host.field.currentValue, "a");
+        compare(host.field.displayText, "A");
     }
 }

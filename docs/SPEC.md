@@ -91,6 +91,7 @@ Checked in ViewModels (hide/disable action) AND in services (reject).
 
 | Permission | Coach | Assistant | Physio | Analyst |
 | --- | --- | --- | --- | --- |
+| View squad, calendar and training sheet (every role) | yes | yes | yes | yes |
 | Manage staff and settings (`ManageStaff`, `ManageSettings`) | yes | no | no | no |
 | Edit squad (`EditSquad`) | yes | yes | no | no |
 | Add/edit availability entries (`EditAvailability`) | yes | yes | yes | no |
@@ -153,6 +154,11 @@ Availability status: `actual_to` is the first available day; with `actual_to` em
 `absence` stay active through `expected_to` inclusive, while for `injury` and `illness` `expected_to`
 does not affect the status. Overlapping entries resolve as `injury` > `illness` > `suspension` >
 `absence`.
+
+Training sheet default status: a player with no saved attendance row for a session gets a status from
+the availability active on the session day: `injury` or `illness` → `injured`, `absence` → `excused`,
+`suspension` → `present` (a suspension is about matches, not training). Only rows with nothing saved
+get a default; a saved row shows what was saved.
 
 All tables are `STRICT` (SQLite 3.37 or newer), so column types are enforced. Every table has
 `id INTEGER PRIMARY KEY` except where noted. Columns are `NOT NULL` unless marked *null*. `import_id` is always *null* and references `import_log`: it marks rows an import created, so

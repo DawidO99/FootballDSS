@@ -67,10 +67,10 @@ ApplicationWindow {
             "settings": settingsView
         })
 
-    width: 1600
-    height: 900
-    minimumWidth: 1280
-    minimumHeight: 720
+    width: Theme.mainWindow.width
+    height: Theme.mainWindow.height
+    minimumWidth: Theme.mainWindow.minimumWidth
+    minimumHeight: Theme.mainWindow.minimumHeight
     visible: true
     title: qsTr("FootballDSS")
     color: Theme.bg
@@ -245,6 +245,9 @@ ApplicationWindow {
                 TopBar {
                     Layout.fillWidth: true
                     onLogoutRequested: window.runGuarded(() => AppState.logout())
+                    onSearchRequested: text => navigationModel.activate("squad", {
+                            "search": text
+                        })
                 }
 
                 StackLayout {

@@ -856,6 +856,30 @@ void exerciseSquad(QQmlApplicationEngine& engine, const QString& screenshotDirec
 
     exerciseMinimumWindow(window, navigation, view, card, squad, screenshotDirectory);
 
+    // Enter in the search of the top bar, from another section: the squad opens with the text in
+    // its own search field, and the top bar is empty for the next one.
+    navigation->setCurrentIndex(0);
+    settle();
+    auto* globalSearch = findByObjectName(window->contentItem(), QStringLiteral("globalSearch"));
+    if (globalSearch == nullptr) {
+        fail("the top bar has no search field");
+        return;
+    }
+    globalSearch->forceActiveFocus(Qt::ShortcutFocusReason);
+    typeText(window, QStringLiteral("Lis"));
+    pressKey(window, Qt::Key_Return);
+    settle();
+    if (navigation->currentKey() != QLatin1StringView("squad")) {
+        fail("Enter in the top bar search did not open the squad");
+    }
+    if (squad->searchText() != QLatin1StringView("Lis")) {
+        fail("the squad did not search for the text of the top bar");
+    }
+    if (!globalSearch->property("text").toString().isEmpty()) {
+        fail("the top bar search kept its text");
+    }
+    QMetaObject::invokeMethod(view, "clearFilters");
+
     navigation->setCurrentIndex(0);
     settle();
 }
@@ -2988,22 +3012,20 @@ void exerciseWindowClosing(CloseCase closeCase) {
 
 } // namespace
 
-// The first run with the demo: "Load demo data" picked with the mouse on the summary step, Enter
-// creates the club, and the squad of the new club has its 22 active players.
-void exerciseDemoSetup(QQmlApplicationEngine& engine) {
+// Main.qml on the summary step of the wizard, with the club and the Coach filled in. Null when it
+// is not there; the failure is already reported.
+QQuickWindow* openWizardSummary(QQmlApplicationEngine& engine) {
     engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
     settle();
     if (engine.rootObjects().isEmpty()) {
         fail("Main.qml did not load for the demo setup");
-        return;
+        return nullptr;
     }
     auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
-    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
-                                                         QStringLiteral("AppState"));
     auto* wizard = wizardOf(window);
-    if (wizard == nullptr || appState == nullptr) {
+    if (wizard == nullptr) {
         fail("the wizard is not there for the demo setup");
-        return;
+        return nullptr;
     }
     wizard->setClubName(QStringLiteral("KS Demo"));
     wizard->setTeamName(QStringLiteral("Seniorzy"));
@@ -3013,12 +3035,24 @@ void exerciseDemoSetup(QQmlApplicationEngine& engine) {
     for (int step = 0; step < 3; ++step) {
         if (!wizard->next()) {
             fail("the wizard did not reach the summary for the demo setup");
-            return;
+            return nullptr;
         }
     }
     settle();
     window->grabWindow(); // the summary step is laid out on the way to a frame
+    return window;
+}
 
+// The first run with the demo: "Load demo data" picked with the mouse on the summary step, Enter
+// creates the club, and the squad of the new club has its 22 active players.
+void exerciseDemoSetup(QQmlApplicationEngine& engine) {
+    QQuickWindow* window = openWizardSummary(engine);
+    if (window == nullptr) {
+        return;
+    }
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* wizard = wizardOf(window);
     auto* view = window->property("setupWizard").value<QQuickItem*>();
     QQuickItem* choice =
         view != nullptr ? findByObjectName(view, QStringLiteral("demoChoice")) : nullptr;
@@ -3056,6 +3090,58 @@ void exerciseDemoSetup(QQmlApplicationEngine& engine) {
         *players, [](const auto& entry) { return !entry.player.archivedAt.has_value(); });
     if (active != 22) {
         fail("the demo club does not have 22 active players");
+    }
+}
+
+// A demo that fails at its last row: the login after the setup dismisses every toast, and the
+// message about the empty club still has to be there once the shell is.
+void exerciseFailedDemoSetup(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database) {
+    if (const auto broken = database.execSql(
+            QStringLiteral(
+                "CREATE TEMP TRIGGER fail_demo BEFORE INSERT ON staff_user "
+                "WHEN NEW.role = 'physio' BEGIN SELECT RAISE(ABORT, 'demo failure'); END"),
+            "break the demo");
+        !broken) {
+        fail("the demo cannot be made to fail");
+        return;
+    }
+    QQuickWindow* window = openWizardSummary(engine);
+    if (window == nullptr) {
+        return;
+    }
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* toasts =
+        engine.singletonInstance<QObject*>(QStringLiteral("FootballDSS"), QStringLiteral("Toasts"));
+    wizardOf(window)->setLoadDemoData(true);
+    settle();
+    {
+        const std::lock_guard lock(g_messagesMutex);
+        g_expectedCritical = "demo failure";
+        g_expectedCriticalCount = 0;
+    }
+    pressKey(window, Qt::Key_Return);
+    const bool ready = waitUntil([&] { return appState->state() == AppState::State::Ready; },
+                                 "Enter on the summary did not create the club");
+    settle();
+    {
+        const std::lock_guard lock(g_messagesMutex);
+        g_expectedCritical = nullptr;
+        if (g_expectedCriticalCount != 1) {
+            fail("the failed demo was not logged exactly once");
+        }
+    }
+    if (!ready) {
+        return;
+    }
+    if (window->property("shell").value<QQuickItem*>() == nullptr) {
+        fail("the shell is not there after the failed demo");
+    }
+    const QString expected =
+        QCoreApplication::translate("fdss::viewmodels::SetupWizardViewModel",
+                                    "Demo data could not be loaded. The club starts empty.");
+    if (!toasts->property("active").toBool() || toasts->property("text").toString() != expected) {
+        fail("the failed demo is not said once the shell is there");
     }
 }
 
@@ -3156,6 +3242,16 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 exerciseDemoSetup(engine);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (auto* database = installRegistry(AppState::State::NeedsSetup); database == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                exerciseFailedDemoSetup(engine, *database);
             }
             settle();
             ServiceRegistry::reset();

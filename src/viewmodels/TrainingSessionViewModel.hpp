@@ -41,14 +41,13 @@ class TrainingSessionViewModel : public QAbstractListModel {
     // The user changed something, so leaving must ask.
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged FINAL)
     // There is something to save, also with nothing changed: a row with no saved attendance holds a
-    // default, and without this "everyone present" could not be saved at all.
+    // default, and without this "everyone present" could not be saved at all. Never while loadError
+    // is shown: the rows behind it are not on the screen.
     Q_PROPERTY(bool canSave READ canSave NOTIFY dirtyChanged FINAL)
     // Rows that a save would write: with no saved attendance, or changed since it was saved.
     Q_PROPERTY(int unsavedCount READ unsavedCount NOTIFY unsavedChanged FINAL)
     // How many, in words; empty when none.
     Q_PROPERTY(QString unsavedText READ unsavedText NOTIFY unsavedChanged FINAL)
-    Q_PROPERTY(int maxRpe READ maxRpe CONSTANT FINAL)
-    Q_PROPERTY(int maxMinutes READ maxMinutes CONSTANT FINAL)
     // [{ value, text }] for the status of a row.
     Q_PROPERTY(QVariantList statusOptions READ statusOptions NOTIFY optionsChanged FINAL)
     // Why the sheet could not be read; the view offers to try again. Empty: it is fine.
@@ -92,15 +91,14 @@ public:
     [[nodiscard]] bool canSave() const;
     [[nodiscard]] int unsavedCount() const;
     [[nodiscard]] QString unsavedText() const;
-    [[nodiscard]] int maxRpe() const;
-    [[nodiscard]] int maxMinutes() const;
     [[nodiscard]] QVariantList statusOptions() const;
     [[nodiscard]] QString loadError() const;
 
     // Reads the sessions and the open sheet again. Rows with changes of the user stay as they are.
     Q_INVOKABLE void reload();
     // Drops changes that were not saved. A session that does not exist: errorOccurred, and the
-    // default session.
+    // default session. One that cannot be read while another is open: errorOccurred, and the open
+    // one stays, so a save never writes another session than the one on the screen.
     Q_INVOKABLE void openSession(qint64 sessionId);
     // The most recent session on or before today, see SessionPickerModel::defaultSessionId().
     Q_INVOKABLE void openDefaultSession();

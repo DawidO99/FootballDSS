@@ -7,10 +7,10 @@ import FootballDSS
 ApplicationWindow {
     id: window
 
-    width: 720
-    height: 420
-    minimumWidth: 560
-    minimumHeight: 360
+    width: Theme.errorWindow.width
+    height: Theme.errorWindow.height
+    minimumWidth: Theme.errorWindow.minimumWidth
+    minimumHeight: Theme.errorWindow.minimumHeight
     visible: true
     title: qsTr("FootballDSS")
     color: Theme.bg
@@ -34,6 +34,7 @@ ApplicationWindow {
             Label {
                 Layout.fillWidth: true
                 text: qsTr("The database could not be opened")
+                textFormat: Text.PlainText
                 color: Theme.text
                 font.pixelSize: Theme.fontSize.h1
                 font.weight: Font.DemiBold
@@ -44,6 +45,7 @@ ApplicationWindow {
         Label {
             Layout.fillWidth: true
             text: StartupViewModel.errorMessage
+            textFormat: Text.PlainText
             color: Theme.text
             wrapMode: Text.WordWrap
         }
@@ -56,6 +58,7 @@ ApplicationWindow {
             Label {
                 Layout.fillWidth: true
                 text: qsTr("Database file")
+                textFormat: Text.PlainText
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontSize.caption
             }
@@ -63,6 +66,7 @@ ApplicationWindow {
             Label {
                 Layout.fillWidth: true
                 text: StartupViewModel.databasePath
+                textFormat: Text.PlainText
                 color: Theme.text
                 wrapMode: Text.WrapAnywhere
             }
