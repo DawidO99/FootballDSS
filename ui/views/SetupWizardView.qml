@@ -378,6 +378,65 @@ FocusScope {
                     }
                 }
 
+                FormField {
+                    id: startField
+
+                    Layout.fillWidth: true
+                    Layout.topMargin: Theme.spacing.m
+                    label: qsTr("Start with")
+                    helpText: wizard.loadDemoData ? qsTr("A fictional B-klasa team with half a season of sessions and matches. The category becomes Seniors; the club and team names stay as typed.") : qsTr("An empty club: you add the players and the calendar yourself.")
+
+                    SegmentedControl {
+                        objectName: "demoChoice"
+                        Accessible.name: startField.label
+                        model: [
+                            {
+                                "value": false,
+                                "text": qsTr("Start empty")
+                            },
+                            {
+                                "value": true,
+                                "text": qsTr("Load demo data")
+                            }
+                        ]
+                        currentValue: wizard.loadDemoData
+                        onActivated: value => wizard.loadDemoData = value
+                    }
+                }
+
+                ColumnLayout {
+                    objectName: "demoStaffNote"
+                    Layout.fillWidth: true
+                    visible: wizard.loadDemoData
+                    spacing: Theme.spacing.xs
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("The demo also adds these staff profiles:")
+                        color: Theme.textMuted
+                        font.pixelSize: Theme.fontSize.body
+                        wrapMode: Text.Wrap
+                    }
+
+                    Repeater {
+                        model: wizard.demoStaff
+
+                        delegate: Label {
+                            id: staffRow
+
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            text: qsTr("%1 (%2), PIN %3").arg(staffRow.modelData.name).arg(staffRow.modelData.role).arg(staffRow.modelData.pin)
+                            textFormat: Text.PlainText
+                            color: Theme.text
+                            font.pixelSize: Theme.fontSize.body
+                            font.weight: Font.DemiBold
+                            wrapMode: Text.Wrap
+                        }
+                    }
+                }
+
                 Item {
                     Layout.fillHeight: true
                 }

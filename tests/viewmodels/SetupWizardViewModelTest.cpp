@@ -1,11 +1,16 @@
 #include "viewmodels/SetupWizardViewModel.hpp"
 
 #include "ViewModelFixture.hpp"
+#include "core/demo/DemoGenerator.hpp"
+#include "data/db/DatabaseManager.hpp"
+#include "data/repositories/OpponentRepository.hpp"
 #include "services/Session.hpp"
 #include "viewmodels/AppState.hpp"
 
 #include <QCoreApplication>
 #include <QEvent>
+#include <QSqlQuery>
+#include <QVariantMap>
 
 #include <gtest/gtest.h>
 
@@ -37,6 +42,13 @@ protected:
         wizard.setCoachName(QStringLiteral("Jan Trener"));
         wizard.setPin(QStringLiteral("1234"));
         wizard.setPinRepeat(QStringLiteral("1234"));
+    }
+
+    [[nodiscard]] int count(const char* statement) const {
+        QSqlQuery query(m_db->database());
+        EXPECT_TRUE(query.exec(QString::fromUtf8(statement)));
+        EXPECT_TRUE(query.next());
+        return query.value(0).toInt();
     }
 
     static void goToCoachStep(SetupWizardViewModel& wizard) {
@@ -306,4 +318,82 @@ TEST_F(SetupWizardViewModelTest, ASecondSetupIsReportedAndIsNoCompletion) {
     EXPECT_FALSE(message.isEmpty());
     EXPECT_EQ(completed, 0);
     EXPECT_EQ(wizard.pin(), QStringLiteral("1234"));
+}
+
+TEST_F(SetupWizardViewModelTest, StartsEmptyByDefault) {
+    SetupWizardViewModel wizard;
+    EXPECT_FALSE(wizard.loadDemoData());
+    fillClubStep(wizard);
+    fillCoachStep(wizard);
+
+    ASSERT_TRUE(wizard.create());
+
+    EXPECT_EQ(count("SELECT count(*) FROM player"), 0);
+    EXPECT_EQ(count("SELECT count(*) FROM staff_user"), 1);
+}
+
+TEST_F(SetupWizardViewModelTest, TheSummaryNamesTheDemoStaffAndTheirPin) {
+    const SetupWizardViewModel wizard;
+    const QVariantList staff = wizard.demoStaff();
+
+    ASSERT_EQ(staff.size(), 2);
+    for (const QVariant& member : staff) {
+        const QVariantMap map = member.toMap();
+        EXPECT_FALSE(map.value(QStringLiteral("name")).toString().isEmpty());
+        EXPECT_FALSE(map.value(QStringLiteral("role")).toString().isEmpty());
+        EXPECT_EQ(map.value(QStringLiteral("pin")).toString(), QStringLiteral("1234"));
+    }
+}
+
+TEST_F(SetupWizardViewModelTest, DemoDataFillsTheClubAndKeepsTheTypedNames) {
+    SetupWizardViewModel wizard;
+    fillClubStep(wizard);
+    fillCoachStep(wizard);
+    wizard.setCategory(QStringLiteral("u19"));
+    int completed = 0;
+    QString message;
+    QObject::connect(&wizard, &SetupWizardViewModel::completed, &wizard, [&] { ++completed; });
+    QObject::connect(&wizard, &SetupWizardViewModel::errorOccurred, &wizard,
+                     [&](const QString& text) { message = text; });
+
+    wizard.setLoadDemoData(true);
+    EXPECT_EQ(wizard.category(), QStringLiteral("senior"));
+    ASSERT_TRUE(wizard.create());
+
+    EXPECT_EQ(completed, 1);
+    EXPECT_TRUE(message.isEmpty()) << message.toStdString();
+    const auto context = registry().setup().clubContext();
+    ASSERT_TRUE(context.has_value());
+    EXPECT_EQ(context->club.name, "KS Łączna");
+    EXPECT_EQ(context->team.name, "Seniorzy");
+    EXPECT_EQ(context->team.category, TeamCategory::Senior);
+    EXPECT_EQ(count("SELECT count(*) FROM player WHERE archived_at IS NULL"), 22);
+    EXPECT_EQ(count("SELECT count(*) FROM staff_user"), 3);
+    EXPECT_EQ(count("SELECT count(*) FROM match"), 13);
+    EXPECT_EQ(registry().session().user()->name, "Jan Trener");
+}
+
+TEST_F(SetupWizardViewModelTest, AFailedDemoLeavesAnEmptyClubAndSaysSo) {
+    // An opponent of the demo already exists, so the demo stops half-way.
+    const Date start{std::chrono::sys_days{m_clock->today()} - std::chrono::days{demo::kDemoDays}};
+    const auto opponents = demo::generate(demo::kDemoSeed, start).opponents;
+    ASSERT_TRUE(fdss::data::OpponentRepository(*m_db).create(opponents.front()).has_value());
+    SetupWizardViewModel wizard;
+    fillClubStep(wizard);
+    fillCoachStep(wizard);
+    wizard.setLoadDemoData(true);
+    int completed = 0;
+    QString message;
+    QObject::connect(&wizard, &SetupWizardViewModel::completed, &wizard, [&] { ++completed; });
+    QObject::connect(&wizard, &SetupWizardViewModel::errorOccurred, &wizard,
+                     [&](const QString& text) { message = text; });
+
+    EXPECT_TRUE(wizard.create());
+
+    EXPECT_EQ(completed, 1);
+    EXPECT_FALSE(message.isEmpty());
+    EXPECT_EQ(count("SELECT count(*) FROM club"), 1);
+    EXPECT_EQ(count("SELECT count(*) FROM player"), 0);
+    EXPECT_EQ(count("SELECT count(*) FROM staff_user"), 1);
+    EXPECT_TRUE(registry().session().user().has_value());
 }

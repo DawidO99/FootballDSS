@@ -9,6 +9,8 @@ add_library(fdss_services STATIC
     Session.cpp
     SetupService.hpp
     SetupService.cpp
+    DemoDataService.hpp
+    DemoDataService.cpp
     SquadService.hpp
     SquadService.cpp
     TrainingService.hpp

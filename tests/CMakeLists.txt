@@ -18,6 +18,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(fdss_tests
     test_main.cpp
     core/AvailabilityTest.cpp
+    core/DemoGeneratorTest.cpp
     core/EnumsTest.cpp
     core/ErrorTest.cpp
     core/PermissionsTest.cpp
@@ -44,6 +45,7 @@ add_executable(fdss_tests
     data/XlsxSpikeTest.cpp
     services/AuthServiceTest.cpp
     services/CalendarServiceTest.cpp
+    services/DemoDataServiceTest.cpp
     services/FakeClock.hpp
     services/ServiceFixture.hpp
     services/SessionTest.cpp

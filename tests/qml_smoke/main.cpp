@@ -1355,6 +1355,9 @@ void exerciseWizardSteps(QQuickWindow* window, const QString& language, const QS
         fail("the wizard did not accept the coach step");
     }
     capture(QStringLiteral("4-summary"));
+    wizard->setLoadDemoData(true);
+    capture(QStringLiteral("4-summary-demo"));
+    wizard->setLoadDemoData(false);
 
     for (int step = wizard->currentStep(); step > 0; --step) {
         wizard->back();

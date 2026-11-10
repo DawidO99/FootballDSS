@@ -23,6 +23,8 @@ add_library(fdss_core STATIC
     util/Error.cpp
     util/Version.hpp
     util/Version.cpp
+    demo/DemoGenerator.hpp
+    demo/DemoGenerator.cpp
 )
 
 target_include_directories(fdss_core PUBLIC "${PROJECT_SOURCE_DIR}/src")

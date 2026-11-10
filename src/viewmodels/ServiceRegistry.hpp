@@ -18,6 +18,7 @@ class TrainingRepository;
 
 namespace fdss::services {
 class CalendarService;
+class DemoDataService;
 class Session;
 class SetupService;
 class SquadService;
@@ -70,6 +71,7 @@ public:
     [[nodiscard]] services::SquadService& squad();
     [[nodiscard]] services::CalendarService& calendar();
     [[nodiscard]] services::TrainingService& training();
+    [[nodiscard]] services::DemoDataService& demoData();
 
 private:
     // Destroyed from the bottom up, the database last.
@@ -88,6 +90,7 @@ private:
     std::unique_ptr<services::SquadService> m_squad;
     std::unique_ptr<services::CalendarService> m_calendar;
     std::unique_ptr<services::TrainingService> m_trainingService;
+    std::unique_ptr<services::DemoDataService> m_demoData;
 };
 
 } // namespace fdss::viewmodels
