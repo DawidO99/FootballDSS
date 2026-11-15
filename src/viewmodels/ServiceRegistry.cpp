@@ -10,6 +10,7 @@
 #include "data/repositories/TrainingRepository.hpp"
 #include "services/CalendarService.hpp"
 #include "services/DemoDataService.hpp"
+#include "services/LoadService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
@@ -78,7 +79,9 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
           *m_database, *m_training, *m_players, *m_availability, *m_session)),
       m_demoData(std::make_unique<services::DemoDataService>(
           *m_database, *m_players, *m_availability, *m_opponents, *m_matches, *m_training, *m_staff,
-          *m_auth, *m_session, *m_clock)) {}
+          *m_auth, *m_session, *m_clock)),
+      m_load(std::make_unique<services::LoadService>(*m_players, *m_training, *m_matches,
+                                                     *m_session, *m_clock)) {}
 
 ServiceRegistry::~ServiceRegistry() = default;
 
@@ -97,5 +100,7 @@ services::CalendarService& ServiceRegistry::calendar() { return *m_calendar; }
 services::TrainingService& ServiceRegistry::training() { return *m_trainingService; }
 
 services::DemoDataService& ServiceRegistry::demoData() { return *m_demoData; }
+
+services::LoadService& ServiceRegistry::load() { return *m_load; }
 
 } // namespace fdss::viewmodels

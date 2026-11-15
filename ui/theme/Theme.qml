@@ -36,6 +36,20 @@ QtObject {
 
         readonly property int lineWidth: 2
         readonly property int markerSize: 8
+
+        // The ratio bands of the load chart: the status colors (ok, warn, danger) at low alpha, so
+        // the line on top stays readable. The legend names each band with its numbers too.
+        readonly property color bandNormal: dark ? "#3322C55E" : "#2615803D"
+        readonly property color bandElevated: dark ? "#40F59E0B" : "#33B45309"
+        readonly property color bandHigh: dark ? "#40EF4444" : "#2EB91C1C"
+        // The ratio line, drawn over the bands.
+        readonly property color ratioLine: dark ? "#E7ECF4" : "#111827"
+        // Legend swatch of a line and a band; width of the tooltip; the day marker under the mouse.
+        readonly property int legendSwatchWidth: 18
+        readonly property int tooltipWidth: 240
+        readonly property int hoverMarkerWidth: 1
+        // Share of a day taken by its bar.
+        readonly property real barWidth: 0.7
     }
 
     // The size a window opens with and the smallest it can be made.

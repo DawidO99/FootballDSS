@@ -66,3 +66,53 @@ Screenshot of the team table and of the overloaded player's chart. Write the for
 EWMA after Williams et al. 2017) and why the UI avoids "injury risk" (Impellizzeri et al. 2020).
 
 ## Decisions (accepted plan)
+1. **Scope extensions**: `src/core/demo/DemoGenerator.cpp` and `tests/core/DemoGeneratorTest.cpp` (story
+   parameters for the load patterns, new FNV golden constant explained in the test);
+   `ui/components/StatusBadge.qml` (a `Neutral` kind for grey); `ui/components/PlayerLoadPanel.qml` (the
+   same panel on the Load screen and the player card); `ui/theme/Theme.qml` (new tokens only);
+   `src/viewmodels/LoadTexts.*`, `LoadListModel`, `LoadFilterModel`; `AGENTS.md` §4 (service name
+   `LoadService`); `docs/BACKLOG.md` (item for P19).
+2. **Demo expectations** (replace the Tests paragraph on demo data), checked for 7 consecutive start dates
+   (today = Mon … Sun): `loadSpike` red on at least 5 of the 7 days and at least yellow on the others (if
+   that cannot be reached, the report gives the best distribution reached); `returned` may be red or
+   yellow: a fast return after a break with a low chronic load is a correct signal, and the explanation
+   names it ("chronic load low after a break"); nobody else is red on any of the 7 days; yellow and
+   underloaded are allowed.
+3. **Known limitation of the method** (thesis material): the EWMA ratio with λ = 2/(N+1) and daily
+   resolution follows the weekly microcycle. The same week of training gives a different ratio on Monday
+   (after the match) than on Thursday (after a rest day), about ±20 % for a typical player, so a one-week
+   load spike is red on some weekdays and yellow on others.
+4. **"Today"**: the series ends today when the player has an RPE entry today (session or match),
+   otherwise yesterday, because the day is not over (attendance saved before the session, RPE still to
+   come, does not pull the status down). The "as of" date is shown.
+5. **Boundaries**: green 0.8 ≤ ratio ≤ 1.3; yellow 1.3 < ratio ≤ 1.5 or monotony > 2; red ratio > 1.5;
+   underloaded ratio < 0.8. Precedence red > yellow > underloaded > green; a yellow status lists every
+   reason that applies. Grey while RPE was entered on fewer than 14 distinct days (sessions and matches
+   together, RPE 0 counts) or `asOf − first entry < 28` days; chronic = 0 is grey too.
+6. **Service name**: `LoadService` (AGENTS.md §4 updated). Reads on the main thread (the last 365 days
+   through today; the weight of an older seed is below 10⁻¹¹), computes through `QtConcurrent::run`, returns
+   `Result<QFuture<…>>`. Thresholds: `LoadThresholds{}` from the service until P19.
+7. **Exception to AGENTS §5 (list data for QML)**: the chart series of `PlayerLoadViewModel` (56 values
+   per series) are `QList<qreal>` / `QList<QPointF>` properties that go straight into `BarSet.values` and
+   `LineSeries.replace()`; the tooltip reads one day by index through `dayAt(index)`. They are chart data,
+   not rows of a list view.
+8. **Matches**: only `finished` matches up to the evaluation day. Minutes = `minute_off − minute_on`
+   (a starter from 0). No `minute_off`, or a substitute without `minute_on`: did not play, adds nothing and
+   is not missing RPE. Played without RPE: a missing match RPE.
+9. **Missing RPE**: sessions (present) and matches (played) without RPE in the last 28 days, shown in the
+   player panel.
+10. **SpikeChartsView and Ctrl+Shift+G** stay; their removal (ADR-006) goes to `docs/BACKLOG.md` for P19.
+11. **Chart** (spike done, no plan B): one `GraphsView` for the load (stacked `BarSeries` on a hidden
+    `BarCategoryAxis`; `LineSeries` on their own `ValueAxis` per series (Qt 6.10+) from −0.5 to days − 0.5,
+    so day i of a line sits on bar i; ticks every 7 days anchored on today with `tickAnchor`, labels through
+    `labelDelegate`), and a second one below for the ratio over three `AreaSeries` bands. Matches are
+    outlined bars (`barDelegate`, which gets `barLabel`/`barIndex`, not the `BarSet`), the chronic line is
+    dashed (`strokeStyle`, Qt 6.11+). The tooltip finds the day from the pointer and `plotArea`, by index.
+    The ratio axis has whole-number ticks so it stays readable in a low panel.
+12. **Monotony** uses the population SD of the 7 daily loads (the week is the whole window, not a sample).
+13. **Counted texts** put the number after a colon ("Days with RPE still needed: 11."), so they are correct
+    for every number in both languages without plural forms (`FootballDSS_en.ts` stays unfinished,
+    AGENTS §6).
+14. **Load screen**: the selected player's panel hides the row of numbers (the table row shows them); the
+    player card shows them. `PlayerCardView` gets a `navigateRequested` signal for the empty state of its
+    Load tab, forwarded by one line in `SquadView.qml`.

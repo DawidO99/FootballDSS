@@ -20,15 +20,19 @@ Item {
     readonly property alias availabilityModel: availability
     readonly property alias availabilityEditor: availabilityDialog
     readonly property alias returnEditor: returnDialog
+    readonly property alias loadPanel: cardLoadPanel
 
     signal backRequested
     signal editRequested(double playerId)
     // After a change of availability, which changes the status in the list too.
     signal squadChanged
+    // The Load tab leads to the training sheet.
+    signal navigateRequested(string key, var args)
 
     function reload() {
         card.reload();
         availability.reload();
+        cardLoadPanel.reload();
     }
 
     function focusFirst() {
@@ -390,10 +394,12 @@ Item {
                 }
             }
 
-            EmptyState {
-                iconName: "load"
-                title: qsTr("Load")
-                description: qsTr("The training load of this player will appear here.")
+            PlayerLoadPanel {
+                id: cardLoadPanel
+
+                objectName: "cardLoadPanel"
+                playerId: root.playerId
+                onNavigateRequested: (key, args) => root.navigateRequested(key, args)
             }
 
             EmptyState {

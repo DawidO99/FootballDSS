@@ -388,6 +388,7 @@ Item {
             onBackRequested: root.closeCard()
             onEditRequested: playerId => editorDialog.openForEditing(playerId)
             onSquadChanged: squad.reload()
+            onNavigateRequested: (key, args) => root.navigateRequested(key, args)
         }
     }
 

@@ -514,6 +514,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Charts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Live</source>
         <translation type="unfinished"></translation>
     </message>
@@ -798,6 +802,66 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>LoadStatusBadge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elevated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Underloaded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not enough data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Outlined bar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dashed line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Band</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ChartTooltip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acute load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>LoadChart (sample data, hover a day)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Card with header actions</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1012,13 +1076,133 @@
     </message>
 </context>
 <context>
+    <name>LoadChart</name>
+    <message>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acute load (7 days)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Chronic load (28 days)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio acute:chronic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In range %1–%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elevated %1–%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High above %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>LoadView</name>
     <message>
         <source>Load</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Signals to talk to the player appear after a few weeks of RPE entries.</source>
+        <source>Calculating the load…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status filter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A status compares the load of the last 7 days with the last 28 days. Yellow and red are signals to talk to the player.</source>
+        <extracomment>Explains every status of the Load screen.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load of the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acute</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Chronic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Monotony</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>7 days</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select a player in the table to see the load chart.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The load could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No active players yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No player has this status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add the players of your team, then enter RPE after each training session.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or an assistant to add the players.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose another status to see more players.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add players</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show all</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1268,10 +1452,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The training load of this player will appear here.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>The matches, minutes and ratings of this player will appear here.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1336,6 +1516,65 @@
     </message>
     <message>
         <source>Shift+Enter: new line</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>PlayerLoadPanel</name>
+    <message>
+        <source>Calculating the load…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acute load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Chronic load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Monotony</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Strain</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last 7 days</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Building the baseline: the chronic load and the ratio appear with enough data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No RPE for this player yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The load appears when RPE is entered for this player in a training session.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The load appears when RPE is entered for this player in a training session. Ask the coach, the assistant or the physio to enter it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Record a training session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The load could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2443,6 +2682,114 @@
     </message>
 </context>
 <context>
+    <name>fdss::viewmodels::LoadTexts</name>
+    <message>
+        <source>High load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elevated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Underloaded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Building the baseline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not enough data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>.</source>
+        <extracomment>Decimal separator of the app language, used in the load ratio and monotony.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No RPE entered yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Days with RPE: %1 of the %2 a status needs.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The baseline is still being built: a comparison needs %1 days since the first entry.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No load in the last weeks to compare with.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acute load %1 is %2 × the chronic load %3, above %4.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The chronic load is low after a break (days without load: %1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Monotony %1 is above %2: the days of the last week were much alike.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acute load %1 is %2 × the chronic load %3, below %4: less than the player is used to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acute load %1 is %2 × the chronic load %3, between %4 and %5: in line with what the player is used to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A signal to talk to the player.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Days with RPE still needed: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Full comparison from %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the RPE of the next sessions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Without RPE in the last %1 days: sessions %2, matches %3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>As of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MM/dd</source>
+        <extracomment>Qt date format of a day on the load chart axis: day and month. dd.MM in Polish.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::LoadViewModel</name>
+    <message>
+        <source>%1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>fdss::viewmodels::NavigationModel</name>
     <message>
         <source>Dashboard</source>
@@ -2478,6 +2825,37 @@
     </message>
     <message>
         <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::PlayerLoadViewModel</name>
+    <message>
+        <source>No data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 AU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acute load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Chronic load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

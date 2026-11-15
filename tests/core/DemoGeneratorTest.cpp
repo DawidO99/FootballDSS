@@ -24,7 +24,11 @@ constexpr Date kStart{std::chrono::year{2026}, std::chrono::August, std::chrono:
 
 // Same seed and start date: this value on every platform. A deliberate change of the generator
 // changes it; update it then, and only then.
-constexpr std::uint64_t kGoldenHash = 0x14FCFE87BBCB904FULL;
+// P11: the load-spike player trains lightly before the last week (RPE 3 on Tuesday and Thursday,
+// excused on Friday, no match minutes) and hard in it (RPE 8/9/8, the whole last match at RPE 9),
+// so the EWMA ratio of SPEC 7.1 is red on most weekdays (P11 decision 2). He no longer comes on as
+// a forced substitute, so the substitutions of every match draw different numbers.
+constexpr std::uint64_t kGoldenHash = 0x4EF3D50617412691ULL;
 
 Date addDays(Date date, int count) { return Date{sys_days{date} + days{count}}; }
 
@@ -423,17 +427,29 @@ TEST_F(DemoGeneratorTest, OnePlayerHasALoadSpikeInTheLastWeek) {
     const int acute = load(data, player, addDays(data.today, -7), yesterday);
     const int chronicWeekly = load(data, player, addDays(data.today, -28), yesterday) / 4;
     ASSERT_GT(chronicWeekly, 0);
+    // At least twice the mean week of the last 28 days (P11: the EWMA ratio needs that contrast).
     const int ratioPercent = acute * 100 / chronicWeekly;
-    EXPECT_GE(ratioPercent, 150) << acute << " vs " << chronicWeekly;
-    EXPECT_LE(ratioPercent, 170) << acute << " vs " << chronicWeekly;
+    EXPECT_GE(ratioPercent, 200) << acute << " vs " << chronicWeekly;
 
-    // High RPE on every session of the last week and the whole last match.
+    // High RPE on every session of the last week; before it light or excused.
     for (const DemoSession& session : data.sessions) {
-        if (session.draft.date >= addDays(data.today, -7) && session.draft.date < data.today) {
-            const auto it = std::ranges::find(session.attendance, player, &DemoAttendance::player);
-            ASSERT_NE(it, session.attendance.end());
-            EXPECT_GE(it->rpe.value_or(0), 7);
+        if (session.draft.date >= data.today || session.attendance.empty()) {
+            continue;
         }
+        const auto it = std::ranges::find(session.attendance, player, &DemoAttendance::player);
+        ASSERT_NE(it, session.attendance.end());
+        if (session.draft.date >= addDays(data.today, -7)) {
+            EXPECT_EQ(it->status, AttendanceStatus::Present);
+            EXPECT_GE(it->rpe.value_or(0), 8);
+        } else {
+            EXPECT_LE(it->rpe.value_or(0), 3);
+        }
+    }
+    // No minutes before the last match.
+    for (std::size_t index = 0; index + 2 < data.matches.size(); ++index) {
+        EXPECT_EQ(
+            std::ranges::find(data.matches[index].appearances, player, &DemoAppearance::player),
+            data.matches[index].appearances.end());
     }
     const DemoMatch& last = data.matches[data.matches.size() - 2];
     const auto it = std::ranges::find(last.appearances, player, &DemoAppearance::player);

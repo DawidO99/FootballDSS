@@ -9,7 +9,9 @@ Rectangle {
         Ok,
         Warn,
         Danger,
-        Info
+        Info,
+        // Grey: no status yet (e.g. not enough data).
+        Neutral
     }
 
     property int kind: StatusBadge.Info
@@ -23,6 +25,8 @@ Rectangle {
             return Theme.warn;
         case StatusBadge.Danger:
             return Theme.danger;
+        case StatusBadge.Neutral:
+            return Theme.textMuted;
         default:
             return Theme.info;
         }
@@ -35,6 +39,8 @@ Rectangle {
             return "warn";
         case StatusBadge.Danger:
             return "danger";
+        case StatusBadge.Neutral:
+            return "minus";
         default:
             return "info";
         }

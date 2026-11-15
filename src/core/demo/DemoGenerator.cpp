@@ -94,17 +94,21 @@ struct SessionTemplate {
     int startMinutes = 18 * 60;
     int rpeLo = 3;
     int rpeHi = 6;
-    int spikeRpeBefore = 4; // the load-spike player before the last week
-    int spikeRpeLast = 7;   // and in the last week
+    // The load-spike player before the last week (nullopt: excused) and in the last week. The
+    // contrast is large on purpose: the EWMA ratio follows the weekly microcycle, and a smaller
+    // spike is red on some weekdays only (P11 decision 2).
+    std::optional<int> spikeRpeBefore = 3;
+    int spikeRpeLast = 8;
 };
 
-constexpr SessionTemplate kTuesday{SessionType::Training, 75, 18 * 60, 3, 6, 4, 7};
-constexpr SessionTemplate kThursday{SessionType::Training, 90, 18 * 60, 5, 8, 5, 8};
-constexpr SessionTemplate kFriday{SessionType::MatchPrep, 60, (17 * 60) + 30, 4, 7, 4, 7};
+// Before the last week the load-spike player trains lightly on Tuesday and Thursday and is
+// excused on Friday (work), and does not play.
+constexpr SessionTemplate kTuesday{SessionType::Training, 75, 18 * 60, 3, 6, 3, 8};
+constexpr SessionTemplate kThursday{SessionType::Training, 90, 18 * 60, 5, 8, 3, 9};
+constexpr SessionTemplate kFriday{SessionType::MatchPrep, 60, (17 * 60) + 30, 4, 7,
+                                  std::nullopt,           8};
 
-constexpr int kSpikeSubMinute = 60;
-constexpr int kSpikeSubRpe = 6;
-constexpr int kSpikeFullRpe = 8;
+constexpr int kSpikeFullRpe = 9;
 
 Date addDays(Date date, int count) { return Date{sys_days{date} + days{count}}; }
 
@@ -413,6 +417,9 @@ private:
             const auto out = outOn(player, date);
             if (player == story.loadSpike) {
                 attendance.rpe = offset >= -7 ? weekly.spikeRpeLast : weekly.spikeRpeBefore;
+                if (!attendance.rpe) {
+                    attendance.status = AttendanceStatus::Excused;
+                }
             } else if (out == AvailabilityType::Injury) {
                 attendance.status = AttendanceStatus::Injured;
             } else if (out == AvailabilityType::Illness) {
@@ -501,7 +508,7 @@ private:
         std::vector<bool> picked(kTotalPlayers, false);
         auto& appearances = match.appearances;
 
-        // The load-spike player is a substitute until the last match, which he plays in full.
+        // The load-spike player does not play until the last match, which he plays in full.
         if (!lastPlayed) {
             picked[static_cast<std::size_t>(story.loadSpike)] = true;
         }
@@ -558,7 +565,7 @@ private:
 
         substitutions(match, available, picked, lastPlayed, sentOff);
         goalsAndCards(match, sentOff);
-        ratings(match, lastPlayed);
+        ratings(match);
         std::ranges::stable_sort(match.events, {}, &DemoEvent::minute);
         m_data.matches.push_back(std::move(match));
     }
@@ -572,22 +579,17 @@ private:
                 bench.push_back(player);
             }
         }
-        const bool spikeOnBench = !lastPlayed;
-        const int benchSize = static_cast<int>(bench.size()) + (spikeOnBench ? 1 : 0);
-        const int count = std::min(m_rng.uniform(2, kMaxSubstitutions), benchSize);
+        const int count =
+            std::min(m_rng.uniform(2, kMaxSubstitutions), static_cast<int>(bench.size()));
 
-        // (minute, forced player or kNoPlayer)
-        std::vector<std::pair<int, int>> subs;
-        if (spikeOnBench && count > 0) {
-            subs.emplace_back(kSpikeSubMinute, story.loadSpike);
+        std::vector<int> minutes;
+        while (static_cast<int>(minutes.size()) < count) {
+            minutes.push_back(m_rng.uniform(46, 88));
         }
-        while (static_cast<int>(subs.size()) < count) {
-            subs.emplace_back(m_rng.uniform(46, 88), kNoPlayer);
-        }
-        std::ranges::stable_sort(subs, {}, &std::pair<int, int>::first);
+        std::ranges::stable_sort(minutes);
 
         auto& appearances = match.appearances;
-        for (const auto& [minute, forced] : subs) {
+        for (const int minute : minutes) {
             std::vector<int> outCandidates;
             for (std::size_t index = 0; index < static_cast<std::size_t>(kStarters); ++index) {
                 const DemoAppearance& starter = appearances[index];
@@ -600,14 +602,11 @@ private:
             if (outCandidates.empty()) {
                 break;
             }
-            int playerOn = forced;
+            const int playerOn = pickBest(bench);
             if (playerOn == kNoPlayer) {
-                playerOn = pickBest(bench);
-                if (playerOn == kNoPlayer) {
-                    break;
-                }
-                std::erase(bench, playerOn);
+                break;
             }
+            std::erase(bench, playerOn);
             const int outIndex = pickAny(outCandidates);
             DemoAppearance& off = appearances[static_cast<std::size_t>(outIndex)];
             off.minuteOff = minute;
@@ -687,7 +686,7 @@ private:
         match.goalsAgainst = goalsAgainst;
     }
 
-    void ratings(DemoMatch& match, bool lastPlayed) {
+    void ratings(DemoMatch& match) {
         const DemoStory& story = m_data.story;
         for (DemoAppearance& appearance : match.appearances) {
             int rating = m_rng.bell(5, 7);
@@ -703,7 +702,7 @@ private:
 
             const int minutes = appearance.minuteOff - appearance.minuteOn;
             if (appearance.player == story.loadSpike) {
-                appearance.rpe = lastPlayed ? kSpikeFullRpe : kSpikeSubRpe;
+                appearance.rpe = kSpikeFullRpe; // he plays the last match only
             } else if (minutes >= 60) {
                 appearance.rpe = m_rng.bell(6, 9);
             } else if (minutes >= 30) {

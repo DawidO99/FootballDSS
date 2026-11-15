@@ -3,6 +3,7 @@
 // survive a restart.
 
 #include "../services/FakeClock.hpp"
+#include "core/demo/DemoGenerator.hpp"
 #include "core/domain/Club.hpp"
 #include "core/domain/Player.hpp"
 #include "core/domain/StaffUser.hpp"
@@ -14,6 +15,7 @@
 #include "data/repositories/TrainingRepository.hpp"
 #include "services/AuthService.hpp"
 #include "services/CalendarService.hpp"
+#include "services/DemoDataService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
@@ -25,10 +27,12 @@
 #include "viewmodels/CalendarWeekModel.hpp"
 #include "viewmodels/ChangePinViewModel.hpp"
 #include "viewmodels/LanguageManager.hpp"
+#include "viewmodels/LoadViewModel.hpp"
 #include "viewmodels/MatchEditorViewModel.hpp"
 #include "viewmodels/NavigationModel.hpp"
 #include "viewmodels/PlayerCardViewModel.hpp"
 #include "viewmodels/PlayerEditorViewModel.hpp"
+#include "viewmodels/PlayerLoadViewModel.hpp"
 #include "viewmodels/ProfilePickerViewModel.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/SessionEditorViewModel.hpp"
@@ -72,6 +76,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -83,10 +88,12 @@ using fdss::viewmodels::AvailabilityViewModel;
 using fdss::viewmodels::CalendarViewModel;
 using fdss::viewmodels::ChangePinViewModel;
 using fdss::viewmodels::LanguageManager;
+using fdss::viewmodels::LoadViewModel;
 using fdss::viewmodels::MatchEditorViewModel;
 using fdss::viewmodels::NavigationModel;
 using fdss::viewmodels::PlayerCardViewModel;
 using fdss::viewmodels::PlayerEditorViewModel;
+using fdss::viewmodels::PlayerLoadViewModel;
 using fdss::viewmodels::ProfilePickerViewModel;
 using fdss::viewmodels::ServiceRegistry;
 using fdss::viewmodels::SessionEditorViewModel;
@@ -193,7 +200,8 @@ void saveScreenshot(QQuickWindow* window, const QString& directory, const QStrin
 void exerciseComponentGallery(QQmlApplicationEngine& engine, QQuickWindow* window,
                               const QString& language, const QString& theme,
                               const QString& screenshotDirectory) {
-    constexpr std::array<const char*, 4> kTabNames{"buttons", "inputs", "table", "feedback"};
+    constexpr std::array<const char*, 5> kTabNames{"buttons", "inputs", "table", "charts",
+                                                   "feedback"};
 
     window->setProperty("componentGalleryOpen", true);
     settle();
@@ -3145,6 +3153,255 @@ void exerciseFailedDemoSetup(QQmlApplicationEngine& engine, fdss::data::Database
     }
 }
 
+// Packet P11: the Load screen. The computation runs on the thread pool, so every step waits for it.
+struct LoadScreen {
+    QQuickWindow* window = nullptr;
+    NavigationModel* navigation = nullptr;
+    QQuickItem* view = nullptr;
+    LoadViewModel* load = nullptr;
+
+    [[nodiscard]] QQuickItem* find(const QString& name) const {
+        return findByObjectName(view, name);
+    }
+};
+
+// Goes to the section (again, so it reads anew) and waits for the result.
+std::optional<LoadScreen> openLoadScreen(QQmlApplicationEngine& engine) {
+    LoadScreen screen;
+    screen.window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    screen.navigation = screen.window->property("navigation").value<NavigationModel*>();
+    screen.navigation->activate(QStringLiteral("dashboard"));
+    settle();
+    screen.navigation->activate(QStringLiteral("load"));
+    settle();
+    screen.view = findQmlItem(screen.window->contentItem(), "LoadView");
+    if (screen.view == nullptr) {
+        fail("the load view is not loaded");
+        return std::nullopt;
+    }
+    screen.load = screen.view->property("viewModel").value<LoadViewModel*>();
+    if (screen.load == nullptr) {
+        fail("the load view has no viewmodel");
+        return std::nullopt;
+    }
+    if (!waitUntil([&] { return !screen.load->busy(); }, "the team load did not finish")) {
+        return std::nullopt;
+    }
+    settle();
+    return screen;
+}
+
+PlayerLoadViewModel* waitForPlayerLoad(QQuickItem* panel, const char* reason) {
+    auto* player =
+        panel != nullptr ? panel->property("viewModel").value<PlayerLoadViewModel*>() : nullptr;
+    if (player == nullptr) {
+        fail(reason);
+        return nullptr;
+    }
+    if (!waitUntil([player] { return !player->busy(); }, reason)) {
+        return nullptr;
+    }
+    settle();
+    return player;
+}
+
+// Empty club: the table says what to do; then three days of RPE: grey with a hint, no green.
+void exerciseLoadNewClub(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    settle();
+    auto screen = openLoadScreen(engine);
+    if (!screen) {
+        return;
+    }
+    if (screen->load->playerCount() != 0) {
+        fail("an empty club shows players on the load screen");
+    }
+    grabOrSave(screen->window, screenshotDirectory, QStringLiteral("load-empty.png"));
+
+    const fdss::core::TeamId team = smokeTeam();
+    std::vector<fdss::core::PlayerId> players;
+    for (const auto& [first, last, number] :
+         {std::tuple{"Jan", "Kowalski", 7}, std::tuple{"Adam", "Nowak", 9}}) {
+        fdss::core::PlayerDraft draft;
+        draft.firstName = first;
+        draft.lastName = last;
+        draft.shirtNumber = number;
+        const auto id = ServiceRegistry::instance().squad().addPlayer(team, draft);
+        if (!id) {
+            fail("cannot add a player for the load screen");
+            return;
+        }
+        players.push_back(*id);
+    }
+    for (const int ago : {5, 3, 1}) {
+        fdss::core::TrainingSessionDraft draft;
+        draft.date =
+            fdss::core::Date{std::chrono::sys_days{g_clock->today()} - std::chrono::days{ago}};
+        const auto session = ServiceRegistry::instance().calendar().addSession(team, draft);
+        std::vector<fdss::core::AttendanceDraft> rows;
+        for (const fdss::core::PlayerId player : players) {
+            fdss::core::AttendanceDraft row;
+            row.playerId = player;
+            row.rpe = 6;
+            rows.push_back(row);
+        }
+        if (!session || !ServiceRegistry::instance().training().saveAttendance(*session, rows)) {
+            fail("cannot save RPE for the load screen");
+            return;
+        }
+    }
+    screen = openLoadScreen(engine);
+    if (!screen) {
+        return;
+    }
+    if (screen->load->playerCount() != 2) {
+        fail("the load screen does not show the two players");
+    }
+    for (int row = 0; row < screen->load->players()->rowCount(); ++row) {
+        if (screen->load->rowAt(row).value(QStringLiteral("statusKey")).toString() !=
+            QLatin1StringView("notEnoughData")) {
+            fail("three days of RPE give a status other than not enough data");
+        }
+    }
+    expectFlag(screen->find(QStringLiteral("teamHint")), "visible", true,
+               "three days of RPE, and no hint what to enter");
+    auto* panel = screen->find(QStringLiteral("loadPlayerPanel"));
+    if (auto* player = waitForPlayerLoad(panel, "the panel of a new player did not load")) {
+        if (!player->hasData() || player->baselineReady()) {
+            fail("the panel of a new player is not acute only");
+        }
+        expectFlag(findByObjectName(panel, QStringLiteral("ratioChartView")), "visible", false,
+                   "the ratio panel is shown without a baseline");
+    }
+    grabOrSave(screen->window, screenshotDirectory, QStringLiteral("load-new-club.png"));
+}
+
+// Done when: the demo club shows one red player with a chart that explains why, on the Load screen
+// and on the player card, in both languages and themes and at the minimum window.
+void exerciseLoadDemo(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
+        fail("cannot load the demo club for the load screen");
+        return;
+    }
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    settle();
+    auto screen = openLoadScreen(engine);
+    if (!screen) {
+        return;
+    }
+    LoadViewModel* load = screen->load;
+    if (load->playerCount() != fdss::core::demo::kActivePlayers) {
+        fail("the load screen does not show the active players of the demo club");
+        return;
+    }
+    // Sorted by status: the red player first, selected, and nobody grey.
+    int red = 0;
+    for (int row = 0; row < load->players()->rowCount(); ++row) {
+        const QString key = load->rowAt(row).value(QStringLiteral("statusKey")).toString();
+        red += key == QLatin1StringView("high") ? 1 : 0;
+        if (key == QLatin1StringView("notEnoughData")) {
+            fail("a demo player has not enough data");
+        }
+    }
+    if (red < 1 ||
+        load->rowAt(0).value(QStringLiteral("statusKey")).toString() != QLatin1StringView("high")) {
+        fail("the demo club has no red player at the top of the load table");
+    }
+    const qint64 spike = load->rowAt(0).value(QStringLiteral("playerId")).toLongLong();
+    if (screen->view->property("selectedPlayer").toMap().value(QStringLiteral("playerId")) !=
+        spike) {
+        fail("the most urgent player is not selected");
+    }
+    auto* panel = screen->find(QStringLiteral("loadPlayerPanel"));
+    auto* player = waitForPlayerLoad(panel, "the panel of the red player did not load");
+    if (player == nullptr) {
+        return;
+    }
+    if (player->statusKey() != QLatin1StringView("high") || player->ratioPoints().isEmpty() ||
+        !player->explanation().contains(QStringLiteral("signal to talk"), Qt::CaseInsensitive)) {
+        fail("the panel of the red player does not explain why");
+    }
+    auto* chart = findByObjectName(panel, QStringLiteral("loadChart"));
+    expectFlag(chart, "visible", true, "the red player has no chart");
+    expectFlag(findByObjectName(panel, QStringLiteral("ratioChartView")), "visible", true,
+               "the red player has no ratio panel");
+
+    // Hover over the last day with data: the tooltip finds the day by its index.
+    if (auto* loadView = findByObjectName(panel, QStringLiteral("loadChartView"))) {
+        const QRectF area = loadView->property("plotArea").toRectF();
+        const QPointF inside(area.x() + area.width() * 0.97, area.y() + area.height() / 2);
+        const QPointF scene = loadView->mapToScene(inside);
+        QMouseEvent move(QEvent::MouseMove, scene, scene, screen->window->mapToGlobal(scene),
+                         Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(screen->window, &move);
+        settle();
+        if (chart->property("hoveredIndex").toInt() < 0) {
+            fail("hovering the chart does not pick a day");
+        }
+    }
+
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                            QStringLiteral("AppSettings"));
+    const QString startLanguage = languages->language();
+    const bool startDark = settings->darkTheme();
+    for (const QString& language : {QStringLiteral("pl"), QStringLiteral("en")}) {
+        for (const bool dark : {true, false}) {
+            languages->setLanguage(language);
+            settings->setDarkTheme(dark);
+            settle();
+            grabOrSave(screen->window, screenshotDirectory,
+                       QStringLiteral("load-%1-%2.png")
+                           .arg(language, dark ? QStringLiteral("dark") : QStringLiteral("light")));
+        }
+    }
+    languages->setLanguage(startLanguage);
+    settings->setDarkTheme(startDark);
+    settle();
+
+    // The minimum window keeps the table and a readable chart side by side.
+    const QSize originalSize = screen->window->size();
+    screen->window->resize(1280, 720);
+    settle();
+    auto* table = screen->find(QStringLiteral("loadTable"));
+    if (table == nullptr || chart->height() < 150 || chart->width() < 300 ||
+        table->mapToScene(QPointF(table->width(), 0)).x() > panel->mapToScene(QPointF(0, 0)).x()) {
+        fail("the load screen does not fit the minimum window");
+    }
+    grabOrSave(screen->window, screenshotDirectory, QStringLiteral("load-minimum.png"));
+    screen->window->resize(originalSize);
+    settle();
+
+    // The same panel on the "Load" tab of the player card.
+    screen->navigation->activate(QStringLiteral("squad"),
+                                 QVariantMap{{QStringLiteral("playerId"), spike}});
+    settle();
+    auto* card = findQmlItem(screen->window->contentItem(), "PlayerCardView");
+    auto* tabs = card != nullptr ? findQmlItem(card, "AppTabs") : nullptr;
+    if (tabs == nullptr) {
+        fail("the player card is not there");
+        return;
+    }
+    tabs->setProperty("currentIndex", 1);
+    settle();
+    auto* cardPanel = card->property("loadPanel").value<QQuickItem*>();
+    if (auto* cardLoad = waitForPlayerLoad(cardPanel, "the load tab of the card did not load")) {
+        if (cardLoad->playerId() != spike || cardLoad->statusKey() != QLatin1StringView("high")) {
+            fail("the load tab of the card does not show the red player");
+        }
+    }
+    grabOrSave(screen->window, screenshotDirectory, QStringLiteral("card-load.png"));
+}
+
 int main(int argc, char* argv[]) {
     // Deterministic offscreen rendering without a GPU.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
@@ -3213,6 +3470,22 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 exerciseTraining(engine, screenshotDirectory);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        for (const bool demo : {false, true}) {
+            if (installRegistry(AppState::State::Ready) == nullptr) {
+                fail("cannot install the service registry");
+                continue;
+            }
+            {
+                QQmlApplicationEngine engine;
+                if (demo) {
+                    exerciseLoadDemo(engine, screenshotDirectory);
+                } else {
+                    exerciseLoadNewClub(engine, screenshotDirectory);
+                }
             }
             settle();
             ServiceRegistry::reset();
