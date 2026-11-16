@@ -9,6 +9,7 @@
 #include "data/repositories/MatchRepository.hpp"
 #include "services/CalendarService.hpp"
 #include "services/DemoDataService.hpp"
+#include "services/LoadService.hpp"
 #include "services/Session.hpp"
 #include "services/SquadService.hpp"
 #include "services/TrainingService.hpp"
@@ -19,6 +20,7 @@
 #include <QEvent>
 #include <QStringList>
 #include <QThread>
+#include <QThreadPool>
 
 #include <gtest/gtest.h>
 
@@ -145,8 +147,12 @@ TEST_F(LoadViewModelTest, BusyUntilTheResultIsIn) {
     seedMixed();
     LoadViewModel load;
     SignalCount reloaded(&load, &LoadViewModel::playersReloaded);
+    // Held: a result ready before the viewmodel attaches its continuation comes in at once.
+    registry().load().holdResults();
     load.setTeamId(m_team.value);
     EXPECT_TRUE(load.busy());
+    EXPECT_EQ(reloaded.count(), 0);
+    registry().load().releaseResults();
     ASSERT_TRUE(waitForResult(load));
     EXPECT_EQ(reloaded.count(), 1);
     EXPECT_EQ(load.playerCount(), 3);
@@ -156,16 +162,17 @@ TEST_F(LoadViewModelTest, BusyUntilTheResultIsIn) {
 TEST_F(LoadViewModelTest, AResultOfAnOlderRequestIsDropped) {
     seedMixed();
     LoadViewModel load;
+    registry().load().holdResults();
     load.setTeamId(m_team.value);
+    ASSERT_TRUE(load.busy());
     load.setTeamId(0);
     EXPECT_FALSE(load.busy());
-    // Let the first computation finish and reach the event loop.
-    QElapsedTimer timer;
-    timer.start();
-    while (timer.elapsed() < 200) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
-    }
+    // The first computation finishes and its result reaches the event loop.
+    registry().load().releaseResults();
+    QThreadPool::globalInstance()->waitForDone();
+    QCoreApplication::processEvents();
     EXPECT_EQ(load.playerCount(), 0);
+    EXPECT_FALSE(load.busy());
 }
 
 TEST_F(LoadViewModelTest, GreyRowsShowTheAcuteLoadOnlyAndSayWhatIsMissing) {
@@ -317,8 +324,10 @@ TEST_F(LoadViewModelTest, PlayerLoadOfANewPlayerIsGreyWithAcuteOnly) {
         addSession(daysAgo(ago), 60, {{player, 5}});
     }
     PlayerLoadViewModel load;
+    registry().load().holdResults();
     load.setPlayerId(player.value);
     EXPECT_TRUE(load.busy());
+    registry().load().releaseResults();
     ASSERT_TRUE(waitForResult(load));
 
     EXPECT_TRUE(load.hasData());
@@ -487,6 +496,20 @@ TEST_F(LoadViewModelTest, TheShortStatusAndTheReasonKeysAreInTheRow) {
               QStringList({QStringLiteral("fewRpeDays"), QStringLiteral("shortBaseline")}));
 }
 
+// P11 CI review: the view measures the status column with these, in its own font.
+TEST_F(LoadViewModelTest, TheStatusColumnTextsCoverEveryStatusAndDay) {
+    LoadViewModel load;
+    EXPECT_EQ(
+        load.statusShortTexts(),
+        QStringList({QStringLiteral("High"), QStringLiteral("Elevated"), QStringLiteral("In range"),
+                     QStringLiteral("Low"), QStringLiteral("No baseline")}));
+    const QStringList samples = load.asOfShortSamples();
+    EXPECT_EQ(samples.size(), 366);
+    EXPECT_EQ(samples.front(), QStringLiteral("01/01"));
+    EXPECT_TRUE(samples.contains(QStringLiteral("02/29")));
+    EXPECT_EQ(samples.back(), QStringLiteral("12/31"));
+}
+
 // P11 review: navigationArgs.playerId arrives before the read is done.
 TEST_F(LoadViewModelTest, ARequestedPlayerIsSelectedAfterTheRead) {
     seedMixed();
@@ -497,10 +520,14 @@ TEST_F(LoadViewModelTest, ARequestedPlayerIsSelectedAfterTheRead) {
     QObject::connect(&load, &LoadViewModel::playerRequested, &load, [&events](qint64 player) {
         events.append(QStringLiteral("player %1").arg(player));
     });
+    // Held, so both reads are still running when the request comes.
+    registry().load().holdResults();
     load.setTeamId(m_team.value);
     ASSERT_TRUE(load.busy());
     load.requestPlayer(m_zak.value);
     EXPECT_TRUE(load.busy());
+    EXPECT_TRUE(events.isEmpty());
+    registry().load().releaseResults();
     ASSERT_TRUE(waitForResult(load));
     // The older read is dropped: one result, and the request after it, so the view's own
     // "select the first row" of playersReloaded does not win.

@@ -16,6 +16,8 @@ Rectangle {
 
     property int kind: StatusBadge.Info
     property string text
+    // The font of the word, which implicitWidthFor() measures in.
+    readonly property font wordFont: word.font
 
     readonly property color tone: {
         switch (kind) {
@@ -46,6 +48,12 @@ Rectangle {
         }
     }
 
+    // The width of this badge with another text, in the font of its word and laid out as below: a
+    // column fits its longest text before any row shows it.
+    function implicitWidthFor(otherText) {
+        return Theme.iconSize.xs + row.spacing + Math.ceil(wordMetrics.advanceWidth(otherText)) + 2 * Theme.spacing.s;
+    }
+
     implicitWidth: row.implicitWidth + 2 * Theme.spacing.s
     implicitHeight: Math.max(Theme.badgeHeight, row.implicitHeight + 2 * Theme.spacing.xs)
     radius: height / 2
@@ -55,6 +63,12 @@ Rectangle {
 
     Accessible.role: Accessible.StaticText
     Accessible.name: text
+
+    FontMetrics {
+        id: wordMetrics
+
+        font: word.font
+    }
 
     Row {
         id: row
@@ -70,6 +84,8 @@ Rectangle {
         }
 
         Label {
+            id: word
+
             anchors.verticalCenter: parent.verticalCenter
             text: root.text
             color: root.tone

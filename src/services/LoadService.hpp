@@ -7,6 +7,7 @@
 #include "core/util/Error.hpp"
 
 #include <QFuture>
+#include <QPromise>
 
 #include <map>
 #include <vector>
@@ -61,6 +62,13 @@ public:
     // Also for an archived player: the card shows the history.
     [[nodiscard]] core::Result<QFuture<PlayerLoadDetail>> playerLoad(core::PlayerId player) const;
 
+    // Tests only. While held, the computation of every read waits for releaseResults(), so a test
+    // sees a screen during a read whatever the speed of the machine: a result that is ready before
+    // the viewmodel attaches its continuation comes in at once, inside the call that started the
+    // read. Holding again while held changes nothing.
+    void holdResults();
+    void releaseResults();
+
 private:
     using EntriesByPlayer = std::map<core::PlayerId, std::vector<core::LoadEntry>>;
 
@@ -76,6 +84,10 @@ private:
     Session& m_session;
     const Clock& m_clock;
     core::LoadThresholds m_thresholds;
+    bool m_holding = false;
+    // A gate per read started while held, opened by releaseResults(): a future runs only one
+    // continuation, so the reads cannot share one.
+    mutable std::vector<QPromise<void>> m_held;
 };
 
 } // namespace fdss::services

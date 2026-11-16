@@ -19,8 +19,19 @@ Item {
     readonly property bool canEditSquad: AppState.can("EditSquad")
     readonly property alias viewModel: load
     readonly property alias playerPanel: panel
+    // The status column holds the longest short status of the language with a day beside it,
+    // measured in the font of the badge: fonts differ between machines, so no width in pixels fits
+    // them all (P11 CI review). qml_smoke checks it at the minimum window.
+    readonly property real statusColumnWidth: statusColumnWidthFor(statusMeasure.fonts, load.statusShortTexts, load.asOfShortSamples)
 
     signal navigateRequested(string key, var args)
+
+    // The widest word plus the widest day, measured by statusMeasure. `fonts` are the fonts it
+    // measures in: passed so that the binding above follows them.
+    function statusColumnWidthFor(fonts, words, days) {
+        const widest = (texts, width) => texts.reduce((most, text) => Math.max(most, width(text)), 0);
+        return widest(words, word => statusMeasure.badgeWidthFor(word)) + widest(days, day => statusMeasure.noteWidthFor(day)) + 2 * playersTable.cellPadding + Theme.measuredTextSlack;
+    }
 
     function syncSelection() {
         root.selectedPlayer = load.rowAt(playersTable.currentIndex);
@@ -136,6 +147,13 @@ Item {
         }
 
         RowLayout {
+            id: split
+
+            // Table and panel 13 : 7, but the table never narrower than its columns need, so the
+            // status column keeps its measured width and the numbers stay readable at the minimum
+            // window; the chart beside gets the rest.
+            readonly property real tableShare: (width - spacing) * 13 / 20
+
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: Theme.spacing.l
@@ -146,9 +164,8 @@ Item {
                 objectName: "loadTable"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                // At the minimum window the status column keeps its width and the numbers stay
-                // readable; the chart beside gets the rest.
-                Layout.preferredWidth: 13
+                Layout.preferredWidth: Math.max(playersTable.minimumColumnsWidth, split.tableShare)
+                Layout.minimumWidth: playersTable.minimumColumnsWidth
                 focus: true
                 Accessible.name: qsTr("Load of the squad")
                 model: load.players
@@ -193,7 +210,7 @@ Item {
                     {
                         "role": "statusKey",
                         "title": qsTr("Status"),
-                        "width": Theme.loadStatusColumnWidth,
+                        "width": root.statusColumnWidth,
                         "delegate": statusCell
                     }
                 ]
@@ -205,7 +222,7 @@ Item {
             Card {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.preferredWidth: 7
+                Layout.preferredWidth: Math.max(0, split.width - split.spacing - playersTable.Layout.preferredWidth)
                 title: root.hasSelection ? root.selectedPlayer.name : qsTr("Player")
 
                 actions: SecondaryButton {
@@ -242,6 +259,13 @@ Item {
                 }
             }
         }
+    }
+
+    // Not shown: measures the status column in the fonts of the badge.
+    LoadStatusBadge {
+        id: statusMeasure
+
+        visible: false
     }
 
     Component {

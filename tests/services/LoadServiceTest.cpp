@@ -9,6 +9,7 @@
 #include "data/repositories/TrainingRepository.hpp"
 #include "services/DemoDataService.hpp"
 
+#include <QThreadPool>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -235,6 +236,30 @@ TEST_F(LoadServiceTest, TheTeamTableUsesTheSameAssessmentAsThePlayer) {
         EXPECT_EQ(row.assessment, player(row.player.id).load.assessment);
         EXPECT_NE(row.assessment.verdict.status, LoadStatus::NotEnoughData);
     }
+}
+
+// qml_smoke looks at the Load screen during a read: held results wait for the release.
+TEST_F(LoadServiceTest, HeldResultsWaitForTheRelease) {
+    logInAs(Role::Coach);
+    addSession(daysAgo(1), 60, {present(kPlayer, 5)});
+    m_service->holdResults();
+    m_service->holdResults();
+    auto team = m_service->teamLoad(kTeam);
+    auto detail = m_service->playerLoad(kPlayer);
+    ASSERT_TRUE(team.has_value());
+    ASSERT_TRUE(detail.has_value());
+    // Nothing of them is on the thread pool yet.
+    QThreadPool::globalInstance()->waitForDone();
+    EXPECT_FALSE(team->isFinished());
+    EXPECT_FALSE(detail->isFinished());
+
+    m_service->releaseResults();
+    EXPECT_EQ(team->result().players.size(), 2U);
+    EXPECT_EQ(detail->result().load.assessment.indicators.weekLoad, 300);
+    // Released for good: the next read runs at once.
+    auto next = m_service->teamLoad(kTeam);
+    ASSERT_TRUE(next.has_value());
+    EXPECT_EQ(next->result().players.size(), 2U);
 }
 
 TEST_F(LoadServiceTest, DemoDataShowsTheLoadSpike) {

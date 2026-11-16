@@ -149,9 +149,9 @@ QtObject {
     // The bar beside the current section of the sidebar.
     readonly property int sidebarMarkerWidth: 3
     readonly property int badgeHeight: 24
-    // The status column of the load table: the longest short status of every language with the day
-    // of a row beside it, plus the cell padding (P11 review; qml_smoke checks it at 1280×720).
-    readonly property int loadStatusColumnWidth: 208
+    // Added to a width measured from text (FontMetrics) for a column that must hold it: the
+    // measurement and the laid-out text may round and hint differently.
+    readonly property int measuredTextSlack: 4
     readonly property int emptyStateWidth: 480
     // Icon.qml draws its paths on a square of this side and scales it to the size asked for.
     readonly property int iconGrid: 24

@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <map>
 #include <utility>
 
@@ -131,6 +132,26 @@ QString LoadViewModel::asOfText() const { return m_asOf ? LoadTexts::asOf(*m_asO
 
 QString LoadViewModel::loadError() const {
     return m_loadFailure ? ErrorPresenter::message(*m_loadFailure) : QString{};
+}
+
+QStringList LoadViewModel::statusShortTexts() const {
+    QStringList texts;
+    for (const core::LoadStatus status : kStatuses) {
+        texts.append(LoadTexts::statusShortName(status));
+    }
+    return texts;
+}
+
+QStringList LoadViewModel::asOfShortSamples() const {
+    using namespace std::chrono;
+    constexpr sys_days kFirst{year{2028} / January / 1};
+    constexpr int kLeapYearDays = 366;
+    QStringList samples;
+    samples.reserve(kLeapYearDays);
+    for (int day = 0; day < kLeapYearDays; ++day) {
+        samples.append(LoadTexts::chartDay(core::Date{kFirst + days{day}}));
+    }
+    return samples;
 }
 
 void LoadViewModel::reload() {

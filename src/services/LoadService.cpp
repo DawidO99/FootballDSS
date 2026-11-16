@@ -21,6 +21,16 @@ struct PlayerInput {
     std::vector<core::LoadEntry> entries;
 };
 
+// On the thread pool now or, given the gates of a hold, once it is released.
+template <class Work> auto start(std::vector<QPromise<void>>* held, Work work) {
+    if (held == nullptr) {
+        return QtConcurrent::run(std::move(work));
+    }
+    QPromise<void>& gate = held->emplace_back();
+    gate.start();
+    return gate.future().then(QtFuture::Launch::Async, std::move(work));
+}
+
 core::DateRange historyRange(core::Date today) {
     using std::chrono::days;
     using std::chrono::sys_days;
@@ -65,17 +75,17 @@ core::Result<QFuture<TeamLoad>> LoadService::teamLoad(core::TeamId team) const {
         inputs.push_back(std::move(input));
     }
 
-    return QtConcurrent::run(
-        [inputs = std::move(inputs), today, thresholds = m_thresholds]() mutable {
-            TeamLoad result{today, thresholds, {}};
-            result.players.reserve(inputs.size());
-            for (PlayerInput& input : inputs) {
-                result.players.push_back(
-                    PlayerLoadRow{std::move(input.player),
-                                  core::evaluateLoad(input.entries, today, thresholds).assessment});
-            }
-            return result;
-        });
+    std::vector<QPromise<void>>* const gates = m_holding ? &m_held : nullptr;
+    return start(gates, [inputs = std::move(inputs), today, thresholds = m_thresholds]() mutable {
+        TeamLoad result{today, thresholds, {}};
+        result.players.reserve(inputs.size());
+        for (PlayerInput& input : inputs) {
+            result.players.push_back(
+                PlayerLoadRow{std::move(input.player),
+                              core::evaluateLoad(input.entries, today, thresholds).assessment});
+        }
+        return result;
+    });
 }
 
 core::Result<QFuture<PlayerLoadDetail>> LoadService::playerLoad(core::PlayerId id) const {
@@ -100,11 +110,20 @@ core::Result<QFuture<PlayerLoadDetail>> LoadService::playerLoad(core::PlayerId i
         input.entries.insert(input.entries.end(), found->second.begin(), found->second.end());
     }
 
-    return QtConcurrent::run(
-        [input = std::move(input), today, thresholds = m_thresholds]() mutable {
-            core::PlayerLoad load = core::evaluateLoad(input.entries, today, thresholds);
-            return PlayerLoadDetail{std::move(input.player), today, thresholds, std::move(load)};
-        });
+    std::vector<QPromise<void>>* const gates = m_holding ? &m_held : nullptr;
+    return start(gates, [input = std::move(input), today, thresholds = m_thresholds]() mutable {
+        core::PlayerLoad load = core::evaluateLoad(input.entries, today, thresholds);
+        return PlayerLoadDetail{std::move(input.player), today, thresholds, std::move(load)};
+    });
+}
+
+void LoadService::holdResults() { m_holding = true; }
+
+void LoadService::releaseResults() {
+    m_holding = false;
+    for (QPromise<void>& gate : std::exchange(m_held, {})) {
+        gate.finish();
+    }
 }
 
 core::Result<LoadService::EntriesByPlayer>

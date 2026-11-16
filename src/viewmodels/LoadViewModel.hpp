@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
 #include <QtQmlIntegration/qqmlintegration.h>
@@ -54,6 +55,11 @@ class LoadViewModel : public QObject {
     Q_PROPERTY(QString asOfText READ asOfText NOTIFY textsChanged FINAL)
     // Why the table could not be read; the view offers to try again. Empty: the table is fine.
     Q_PROPERTY(QString loadError READ loadError NOTIFY loadErrorChanged FINAL)
+    // What the status column may hold, for the view to measure in its own font (fonts differ
+    // between machines, so no width in pixels fits them all): the short word of every status, and
+    // every day and month a row can show beside it (a leap year; the widest depends on the font).
+    Q_PROPERTY(QStringList statusShortTexts READ statusShortTexts NOTIFY textsChanged FINAL)
+    Q_PROPERTY(QStringList asOfShortSamples READ asOfShortSamples NOTIFY textsChanged FINAL)
 
 public:
     explicit LoadViewModel(QObject* parent = nullptr);
@@ -72,6 +78,8 @@ public:
     [[nodiscard]] QString teamHint() const;
     [[nodiscard]] QString asOfText() const;
     [[nodiscard]] QString loadError() const;
+    [[nodiscard]] QStringList statusShortTexts() const;
+    [[nodiscard]] QStringList asOfShortSamples() const;
 
     Q_INVOKABLE void reload();
     // An unknown role is reported and ignored.
@@ -96,7 +104,8 @@ signals:
     void loadErrorChanged();
     // After a new result is in. The view selects the same player again.
     void playersReloaded();
-    // teamHint and asOfText: after a result and on a change of the language.
+    // teamHint, asOfText and the texts of the status column: after a result and on a change of
+    // the language.
     void textsChanged();
     // After playersReloaded: select this player (requestPlayer).
     void playerRequested(qint64 playerId);

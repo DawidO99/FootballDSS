@@ -10,6 +10,12 @@ import QtQuick.Controls.Basic
 //   note: string             a day and month shown beside the badge; empty: none
 //   accessibleName: string   the full status (and its day) when the badge shows a short word;
 //                            defaults to text
+//   badgeWidthFor(text), noteWidthFor(note)   the widths of the two parts with other texts, in the
+//                            fonts of this badge; their sum is its implicit width. A column fits
+//                            its longest status with them.
+//   fonts: var               read-only: the fonts the two parts are measured in. A binding that
+//                            measures with the functions passes it on, so it follows a change of
+//                            them: a function call is no dependency of a binding.
 Row {
     id: root
 
@@ -17,6 +23,16 @@ Row {
     property string text
     property string note
     property string accessibleName: text
+    readonly property var fonts: [badge.wordFont, noteLabel.font]
+
+    function badgeWidthFor(otherText) {
+        return badge.implicitWidthFor(otherText);
+    }
+
+    // With the gap before it; 0 without a note.
+    function noteWidthFor(otherNote) {
+        return otherNote.length > 0 ? root.spacing + Theme.iconSize.xs + noteRow.spacing + Math.ceil(noteMetrics.advanceWidth(otherNote)) : 0;
+    }
 
     spacing: Theme.spacing.s
 
@@ -24,6 +40,8 @@ Row {
     Accessible.name: root.accessibleName
 
     StatusBadge {
+        id: badge
+
         anchors.verticalCenter: parent.verticalCenter
         text: root.text
         Accessible.ignored: true
@@ -44,6 +62,8 @@ Row {
     }
 
     Row {
+        id: noteRow
+
         anchors.verticalCenter: parent.verticalCenter
         visible: root.note.length > 0
         spacing: Theme.spacing.xs
@@ -56,11 +76,20 @@ Row {
         }
 
         Label {
+            id: noteLabel
+
+            objectName: "loadStatusNote"
             anchors.verticalCenter: parent.verticalCenter
             text: root.note
             textFormat: Text.PlainText
             color: Theme.textMuted
             font.pixelSize: Theme.fontSize.caption
         }
+    }
+
+    FontMetrics {
+        id: noteMetrics
+
+        font: noteLabel.font
     }
 }

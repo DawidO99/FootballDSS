@@ -16,6 +16,7 @@
 #include "services/AuthService.hpp"
 #include "services/CalendarService.hpp"
 #include "services/DemoDataService.hpp"
+#include "services/LoadService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
@@ -49,6 +50,8 @@
 #include <QDirIterator>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QFont>
+#include <QFontMetricsF>
 #include <QGuiApplication>
 #include <QImage>
 #include <QKeyEvent>
@@ -192,6 +195,11 @@ void settle() {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 }
 
+// Polishes the layouts and renders: the geometry read after it is the one on screen.
+// processEvents() alone reaches a frame only when the render loop's timer has fired (see
+// exerciseTileScrolling).
+void renderFrame(QQuickWindow* window) { window->grabWindow(); }
+
 void saveScreenshot(QQuickWindow* window, const QString& directory, const QString& name) {
     const QString path = QDir(directory).filePath(name);
     if (!window->grabWindow().save(path)) {
@@ -229,6 +237,7 @@ void expectLoadChartTooltips(QQuickWindow* window, QQuickItem* gallery) {
         QCoreApplication::sendEvent(window, &event);
         settle();
     };
+    renderFrame(window);
     const QRectF area = view->property("plotArea").toRectF();
     const auto days = static_cast<qreal>(labels.size());
     for (const int day : {0, static_cast<int>(labels.size()) - 1, equalDay}) {
@@ -3231,15 +3240,36 @@ struct LoadScreen {
     }
 };
 
-// Goes to the section (again, so it reads anew) and waits for the result.
+// Runs `start`, which must start a read of the team load, while the results are held: the read is
+// still running when `during` looks at the screen, whatever the speed of the runner (CI review of
+// P11: a result ready before the viewmodel attached its continuation came in inside the call that
+// started the read). Then the read is let go and waited for.
+template <class Start, class During>
+bool readLoad(LoadViewModel* load, Start start, During during, const char* what) {
+    fdss::services::LoadService& service = ServiceRegistry::instance().load();
+    service.holdResults();
+    start();
+    const QByteArray notStarted = what + QByteArrayLiteral(": no read of the load started");
+    const bool started = waitUntil([load] { return load->busy(); }, notStarted.constData());
+    if (started) {
+        settle();
+        during();
+    }
+    service.releaseResults();
+    const QByteArray notDone = what + QByteArrayLiteral(": the read of the load did not finish");
+    if (!started || !waitUntil([load] { return !load->busy(); }, notDone.constData())) {
+        return false;
+    }
+    settle();
+    return true;
+}
+
+// Goes to the section (again, so it reads anew) and waits for that read.
 std::optional<LoadScreen> openLoadScreen(QQmlApplicationEngine& engine) {
     LoadScreen screen;
     screen.window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
     screen.navigation = screen.window->property("navigation").value<NavigationModel*>();
-    screen.navigation->activate(QStringLiteral("dashboard"));
-    settle();
-    screen.navigation->activate(QStringLiteral("load"));
-    settle();
+    // Every section is loaded with the shell, the hidden ones too.
     screen.view = findQmlItem(screen.window->contentItem(), "LoadView");
     if (screen.view == nullptr) {
         fail("the load view is not loaded");
@@ -3250,11 +3280,17 @@ std::optional<LoadScreen> openLoadScreen(QQmlApplicationEngine& engine) {
         fail("the load view has no viewmodel");
         return std::nullopt;
     }
-    if (!waitUntil([&] { return !screen.load->busy(); },
-                   "the team load did not finish on opening")) {
+    const bool read = readLoad(
+        screen.load,
+        [&screen] {
+            screen.navigation->activate(QStringLiteral("dashboard"));
+            settle();
+            screen.navigation->activate(QStringLiteral("load"));
+        },
+        [] {}, "opening the load screen");
+    if (!read) {
         return std::nullopt;
     }
-    settle();
     return screen;
 }
 
@@ -3361,9 +3397,11 @@ void exerciseLoadNewClub(QQmlApplicationEngine& engine, const std::optional<QStr
     grabOrSave(screen->window, screenshotDirectory, QStringLiteral("load-new-club.png"));
 }
 
-// P11 review: at 1280×720 with the sidebar expanded, the status cell holds the longest short status
-// of the language with the day of a row beside it. Measured in a real cell of the table, whose
-// badge is given each text in turn; a reload then restores the bindings.
+// P11 review and CI: at 1280×720 with the sidebar expanded, the status cell holds the longest short
+// status of the language with the widest day beside it, in the font of the machine and in a wider
+// one: the column is measured in the font (a width in pixels did not fit the fonts of CI). Checked
+// in a real cell of the table, whose badge is given each text in turn; a read then restores the
+// bindings.
 void expectLoadStatusesFit(QQmlApplicationEngine& engine, LoadScreen& screen) {
     auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
                                                                  QStringLiteral("LanguageManager"));
@@ -3371,47 +3409,73 @@ void expectLoadStatusesFit(QQmlApplicationEngine& engine, LoadScreen& screen) {
     if (screen.window->property("sidebarCollapsed").toBool()) {
         fail("the sidebar is collapsed for the status width check");
     }
-    // The widest day and month of the year.
-    const fdss::core::Date widestDay{std::chrono::year{2026}, std::chrono::December,
-                                     std::chrono::day{28}};
-    for (const QString& language : {QStringLiteral("pl"), QStringLiteral("en")}) {
-        languages->setLanguage(language);
-        settle();
+    const auto startFont = screen.window->property("font").value<QFont>();
+    QFont wideFont = startFont;
+    constexpr qreal kWiderLetters = 2;
+    wideFont.setLetterSpacing(QFont::AbsoluteSpacing, kWiderLetters);
+
+    const auto fits = [&screen](const QString& language, const QFont& font) {
         auto* badge = screen.find(QStringLiteral("loadStatus_0"));
         QQuickItem* cell = badge != nullptr ? badge->parentItem() : nullptr;
-        if (cell == nullptr) {
+        auto* note =
+            badge != nullptr ? findByObjectName(badge, QStringLiteral("loadStatusNote")) : nullptr;
+        if (cell == nullptr || note == nullptr) {
             fail("the load table has no status cell");
-            break;
+            return false;
         }
+        // The widest day in the font of the cell.
+        const QFontMetricsF metrics(note->property("font").value<QFont>());
+        const QStringList days = screen.load->asOfShortSamples();
+        const auto widestDay = std::ranges::max_element(
+            days, {}, [&metrics](const QString& day) { return metrics.horizontalAdvance(day); });
+        if (widestDay == days.end()) {
+            fail("the load screen has no days to measure");
+            return false;
+        }
+        bool allFit = true;
         for (const auto status :
              {fdss::core::LoadStatus::High, fdss::core::LoadStatus::Elevated,
               fdss::core::LoadStatus::Normal, fdss::core::LoadStatus::Underloaded,
               fdss::core::LoadStatus::NotEnoughData}) {
             badge->setProperty("statusKey", fdss::viewmodels::LoadTexts::statusKey(status));
             badge->setProperty("text", fdss::viewmodels::LoadTexts::statusShortName(status));
-            badge->setProperty("note", fdss::viewmodels::LoadTexts::chartDay(widestDay));
+            badge->setProperty("note", *widestDay);
             // A frame lays the rows of the badge out (polish); events alone may not.
-            screen.window->grabWindow();
-            settle();
+            renderFrame(screen.window);
             const qreal right = badge->mapToItem(cell, QPointF(badge->implicitWidth(), 0)).x();
             if (badge->implicitWidth() > cell->width() || right > cell->width()) {
-                qWarning("qml_smoke: status '%s' with its day needs %.0f px, the cell has %.0f",
-                         qUtf8Printable(badge->property("text").toString()), badge->implicitWidth(),
-                         cell->width());
-                fail("a load status does not fit its column at the minimum window");
+                qWarning("qml_smoke: status '%s' with the day '%s' (%s, letter spacing %.0f) needs "
+                         "%.0f px, the cell has %.0f",
+                         qUtf8Printable(badge->property("text").toString()),
+                         qUtf8Printable(*widestDay), qUtf8Printable(language), font.letterSpacing(),
+                         badge->implicitWidth(), cell->width());
+                allFit = false;
             }
         }
+        return allFit;
+    };
+    bool allFit = true;
+    for (const QString& language : {QStringLiteral("pl"), QStringLiteral("en")}) {
+        for (const QFont& font : {startFont, wideFont}) {
+            languages->setLanguage(language);
+            screen.window->setProperty("font", font);
+            settle();
+            renderFrame(screen.window);
+            allFit = fits(language, font) && allFit;
+        }
+    }
+    if (!allFit) {
+        fail("a load status does not fit its column at the minimum window");
     }
     languages->setLanguage(startLanguage);
+    screen.window->setProperty("font", startFont);
     settle();
-    screen.load->reload();
-    waitUntil([&screen] { return !screen.load->busy(); },
-              "the team load did not finish after the width check");
-    settle();
+    readLoad(screen.load, [&screen] { screen.load->reload(); }, [] {}, "after the width check");
 }
 
 // P11 review: navigationArgs.playerId arrives while the table is read, for a player the status
-// filter hides: the filter is cleared and that player selected, not the first row.
+// filter hides: the filter is cleared and that player selected after the read, not the first row.
+// The read is held while the screen is checked, so nothing depends on the speed of the runner.
 void exerciseLoadNavigation(QQmlApplicationEngine& engine, LoadScreen& screen) {
     LoadViewModel* load = screen.load;
     // Rows beyond the visible ones are created asynchronously, and offscreen only frames move that
@@ -3434,23 +3498,32 @@ void exerciseLoadNavigation(QQmlApplicationEngine& engine, LoadScreen& screen) {
         fail("the navigation check has no player hidden by the filter");
         return;
     }
-    screen.navigation->activate(QStringLiteral("dashboard"));
-    settle();
-    screen.navigation->activate(QStringLiteral("load"),
-                                QVariantMap{{QStringLiteral("playerId"), requested}});
-    if (!load->busy()) {
-        fail("the navigation check did not reach the load screen during a read");
-    }
-    if (!waitUntil([load] { return !load->busy(); },
-                   "the team load did not finish after the navigation")) {
+    const auto selected = [&screen] {
+        return screen.view->property("selectedPlayer").toMap().value(QStringLiteral("playerId"));
+    };
+    const bool read = readLoad(
+        load,
+        [&screen, requested] {
+            screen.navigation->activate(QStringLiteral("dashboard"));
+            settle();
+            screen.navigation->activate(QStringLiteral("load"),
+                                        QVariantMap{{QStringLiteral("playerId"), requested}});
+        },
+        [load, requested, &selected] {
+            // During the read the request waits: the old rows know nothing of it.
+            if (load->statusFilter() != QLatin1StringView("high") ||
+                selected().toLongLong() == requested) {
+                fail("navigationArgs.playerId was applied before the read finished");
+            }
+        },
+        "the navigation to a player");
+    if (!read) {
         return;
     }
-    settle();
     if (load->statusFilter() != QLatin1StringView("all")) {
         fail("a requested player hidden by the filter did not clear it");
     }
-    if (screen.view->property("selectedPlayer").toMap().value(QStringLiteral("playerId")) !=
-        requested) {
+    if (selected() != requested) {
         fail("navigationArgs.playerId did not select that player after the read");
     }
     auto* panel = screen.find(QStringLiteral("loadPlayerPanel"));
@@ -3521,6 +3594,7 @@ void exerciseLoadDemo(QQmlApplicationEngine& engine, const std::optional<QString
 
     // Hover over the last day with data: the tooltip finds the day by its index.
     if (auto* loadView = findByObjectName(panel, QStringLiteral("loadChartView"))) {
+        renderFrame(screen->window);
         const QRectF area = loadView->property("plotArea").toRectF();
         const QPointF inside(area.x() + area.width() * 0.97, area.y() + area.height() / 2);
         const QPointF scene = loadView->mapToScene(inside);
@@ -3557,6 +3631,7 @@ void exerciseLoadDemo(QQmlApplicationEngine& engine, const std::optional<QString
     const QSize originalSize = screen->window->size();
     screen->window->resize(1280, 720);
     settle();
+    renderFrame(screen->window);
     auto* table = screen->find(QStringLiteral("loadTable"));
     if (table == nullptr || chart->height() < 150 || chart->width() < 300 ||
         table->mapToScene(QPointF(table->width(), 0)).x() > panel->mapToScene(QPointF(0, 0)).x()) {

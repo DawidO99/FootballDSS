@@ -123,9 +123,9 @@ EWMA after Williams et al. 2017) and why the UI avoids "injury risk" (Impellizze
       name. Icon + date instead of "as of 31.10" in the cell: it fits the status column at 1280×720.
     - *Status column*: the table shows a short word (High / Elevated / In range / Low / No baseline;
       Wysokie / Podwyższone / W normie / Niskie / Mało danych), the full one is in the tooltip and the
-      accessible name. Width `Theme.loadStatusColumnWidth` (208 px), table and panel 13:7; qml_smoke
-      measures every short word with the widest date in a real cell at 1280×720 with the sidebar
-      expanded, in both languages. The date axis labels every second week when a week is narrower
+      accessible name. The width is measured in the font (decision 16), table and panel 13:7;
+      qml_smoke measures every short word with the widest date in a real cell at 1280×720 with the
+      sidebar expanded, in both languages. The date axis labels every second week when a week is narrower
       than `Theme.chart.minTickSpacing`.
     - *navigationArgs.playerId*: `LoadViewModel::requestPlayer()` always reads anew and selects the
       player after that result (`playerRequested`, after `playersReloaded`). A status filter that hides
@@ -141,3 +141,24 @@ EWMA after Williams et al. 2017) and why the UI avoids "injury risk" (Impellizze
       object. Qt sends a copy to every window and item, which an application-wide filter also sees; on
       the demo club that rebuilt the chart thousands of times (a switch took ~12 s). The same fix for
       the W1 viewmodels is a separate commit on this branch.
+16. **CI review**:
+    - *Status column*: a fixed 208 px fitted the font of the developer's machine but not DejaVu Sans
+      on the Ubuntu runner (1 px short), and coaches' Windows and macOS fonts differ again. The
+      column is measured in QML: the widest short word (`LoadViewModel.statusShortTexts`) and the
+      widest day of a leap year (`asOfShortSamples`, the widest depends on the font), each through
+      a `FontMetrics` bound to the font of the badge's own label, plus the cell padding
+      (`DataTable.cellPadding`) and `Theme.measuredTextSlack`. The binding takes the badge's fonts
+      as an argument, as a function call is no dependency: the column follows a change of them. The other columns share the rest, and
+      the table keeps at least `DataTable.minimumColumnsWidth` so the status column never shrinks.
+      qml_smoke checks the fit in a real cell, with the widest day measured in the cell's font, in
+      the machine's font and with 2 px letter spacing; locally also with only DejaVu Sans
+      installed (`FONTCONFIG_FILE`).
+    - *Deterministic reads*: `LoadService::holdResults()` / `releaseResults()` (tests only) keep the
+      computation of every read behind a gate (`QPromise`, one per read: a future runs only one
+      continuation). Without it a result that is ready before the viewmodel attaches its
+      continuation comes in inside `reload()` (Qt calls the continuation directly), so `busy` was
+      already false after the navigation on the Windows runner. The navigation check holds the
+      read, checks the screen during it, releases it and checks the selection; opening the screen
+      and the width check wait for a held read the same way, and the viewmodel tests hold instead
+      of sleeping. Geometry (layouts, the chart's plot area) is read after a rendered frame
+      (`grabWindow()`), not after `processEvents()` alone. Every wait has a limit and a message.
