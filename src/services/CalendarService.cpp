@@ -3,6 +3,7 @@
 #include "core/domain/Permissions.hpp"
 #include "core/domain/Validation.hpp"
 #include "data/db/Transaction.hpp"
+#include "data/repositories/LineupRepository.hpp"
 #include "data/repositories/MatchRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/TrainingRepository.hpp"
@@ -62,9 +63,9 @@ template <class Draft, class Row> std::vector<Draft> asDrafts(const std::vector<
 
 CalendarService::CalendarService(data::DatabaseManager& db, data::OpponentRepository& opponents,
                                  data::MatchRepository& matches, data::TrainingRepository& training,
-                                 Session& session)
+                                 data::LineupRepository& lineups, Session& session)
     : m_db(db), m_opponents(opponents), m_matches(matches), m_training(training),
-      m_session(session) {}
+      m_lineups(lineups), m_session(session) {}
 
 core::Result<CalendarItems> CalendarService::listItems(core::TeamId team) const {
     if (auto allowed = requireLogin(); !allowed) {
@@ -172,6 +173,17 @@ core::Status CalendarService::updateMatch(core::MatchId id, const core::MatchDra
     return withConflictField(m_matches.updatePlanned(id, draft), kMatchNotPlanned);
 }
 
+core::Result<bool> CalendarService::hasLineup(core::MatchId id) const {
+    if (auto allowed = requireLogin(); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    const auto lineup = m_lineups.findForMatch(id);
+    if (!lineup) {
+        return std::unexpected(lineup.error());
+    }
+    return lineup->has_value();
+}
+
 core::Result<DeletedMatch> CalendarService::deleteMatch(core::MatchId id) {
     if (auto allowed = m_session.require(core::Permission::EditCalendar); !allowed) {
         return std::unexpected(allowed.error());
@@ -197,6 +209,13 @@ core::Result<DeletedMatch> CalendarService::deleteMatch(core::MatchId id) {
     if (!events) {
         return std::unexpected(events.error());
     }
+    auto lineup = m_lineups.findForMatch(id);
+    if (!lineup) {
+        return std::unexpected(lineup.error());
+    }
+    if (auto removed = m_lineups.removeForMatch(id); !removed) {
+        return std::unexpected(removed.error());
+    }
     if (auto removed = withConflictField(m_matches.removePlanned(id), kMatchInUse); !removed) {
         return std::unexpected(removed.error());
     }
@@ -204,7 +223,7 @@ core::Result<DeletedMatch> CalendarService::deleteMatch(core::MatchId id) {
         return std::unexpected(committed.error());
     }
     return DeletedMatch{std::move(*match), asDrafts<core::AppearanceDraft>(*appearances),
-                        asDrafts<core::MatchEventDraft>(*events)};
+                        asDrafts<core::MatchEventDraft>(*events), std::move(*lineup)};
 }
 
 core::Result<core::MatchId> CalendarService::restoreMatch(const DeletedMatch& deleted) {
@@ -225,6 +244,12 @@ core::Result<core::MatchId> CalendarService::restoreMatch(const DeletedMatch& de
     for (const core::MatchEventDraft& event : deleted.events) {
         if (const auto added = m_matches.appendEvent(*id, event); !added) {
             return std::unexpected(added.error());
+        }
+    }
+    // Also sets match.formation again.
+    if (deleted.lineup) {
+        if (auto saved = m_lineups.saveForMatch(*id, *deleted.lineup); !saved) {
+            return std::unexpected(saved.error());
         }
     }
     if (auto committed = transaction->commit(); !committed) {

@@ -9,6 +9,7 @@ namespace fdss::data {
 class AvailabilityRepository;
 class ClubRepository;
 class DatabaseManager;
+class LineupRepository;
 class MatchRepository;
 class OpponentRepository;
 class PlayerRepository;
@@ -19,6 +20,7 @@ class TrainingRepository;
 namespace fdss::services {
 class CalendarService;
 class DemoDataService;
+class LineupService;
 class LoadService;
 class Session;
 class SetupService;
@@ -55,6 +57,8 @@ public:
     static void install(std::unique_ptr<ServiceRegistry> registry);
     // Fatal when nothing is installed.
     [[nodiscard]] static ServiceRegistry& instance();
+    // For the one object that also lives without a registry: the AppSettings singleton.
+    [[nodiscard]] static bool isInstalled();
     // Closes the database. Viewmodels keep references to the services, so destroy the QML engine
     // first. main.cpp calls it too: static destruction would run after QGuiApplication is gone.
     static void reset();
@@ -74,6 +78,7 @@ public:
     [[nodiscard]] services::TrainingService& training();
     [[nodiscard]] services::DemoDataService& demoData();
     [[nodiscard]] services::LoadService& load();
+    [[nodiscard]] services::LineupService& lineup();
 
 private:
     // Destroyed from the bottom up, the database last.
@@ -86,6 +91,7 @@ private:
     std::unique_ptr<data::OpponentRepository> m_opponents;
     std::unique_ptr<data::MatchRepository> m_matches;
     std::unique_ptr<data::TrainingRepository> m_training;
+    std::unique_ptr<data::LineupRepository> m_lineups;
     std::unique_ptr<services::Session> m_session;
     std::unique_ptr<services::AuthService> m_auth;
     std::unique_ptr<services::SetupService> m_setup;
@@ -94,6 +100,7 @@ private:
     std::unique_ptr<services::TrainingService> m_trainingService;
     std::unique_ptr<services::DemoDataService> m_demoData;
     std::unique_ptr<services::LoadService> m_load;
+    std::unique_ptr<services::LineupService> m_lineup;
 };
 
 } // namespace fdss::viewmodels

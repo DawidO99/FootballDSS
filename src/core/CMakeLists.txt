@@ -1,4 +1,10 @@
 add_library(fdss_core STATIC
+    algorithms/Formations.hpp
+    algorithms/Formations.cpp
+    algorithms/LineupRules.hpp
+    algorithms/LineupRules.cpp
+    algorithms/LineupValidator.hpp
+    algorithms/LineupValidator.cpp
     algorithms/Load.hpp
     algorithms/Load.cpp
     domain/Appearance.hpp
@@ -10,6 +16,8 @@ add_library(fdss_core STATIC
     domain/Enums.hpp
     domain/Enums.cpp
     domain/Ids.hpp
+    domain/Lineup.hpp
+    domain/Lineup.cpp
     domain/Match.hpp
     domain/MatchEvent.hpp
     domain/Opponent.hpp

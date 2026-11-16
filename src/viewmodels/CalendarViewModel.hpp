@@ -73,6 +73,9 @@ public:
     Q_INVOKABLE int attendanceCount(qint64 sessionId);
     // The question to ask before deleting a session with that many attendance rows.
     Q_INVOKABLE QString deleteConfirmationText(int attendanceCount) const;
+    // 1 when a lineup is saved for the match, 0 when not; -1 and errorOccurred when unreadable.
+    // A lineup takes a coach time to set up, so a match that has one asks first (P12 review).
+    Q_INVOKABLE int matchHasLineup(qint64 matchId);
     // True when deleted; otherwise errorOccurred says why. The item is kept for undoDelete().
     Q_INVOKABLE bool deleteMatch(qint64 matchId);
     Q_INVOKABLE bool deleteSession(qint64 sessionId);

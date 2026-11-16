@@ -40,6 +40,7 @@ qt_add_qml_module(fdss_ui
         ui/components/AttendanceGrid.qml
         ui/components/AttendanceGridHeading.qml
         ui/components/AttendanceGridRow.qml
+        ui/components/BenchList.qml
         ui/components/AvailabilityDialog.qml
         ui/components/CalendarWeekGrid.qml
         ui/components/Card.qml
@@ -57,6 +58,8 @@ qt_add_qml_module(fdss_ui
         ui/components/Icon.qml
         ui/components/IconButton.qml
         ui/components/LanguageThemeSwitch.qml
+        ui/components/LineupIssuesPanel.qml
+        ui/components/LineupPlayerList.qml
         ui/components/LoadChart.qml
         ui/components/LoadStatusBadge.qml
         ui/components/MatchEditorDialog.qml
@@ -70,6 +73,7 @@ qt_add_qml_module(fdss_ui
         ui/components/PlainToolTip.qml
         ui/components/PlayerEditorDialog.qml
         ui/components/PlayerLoadPanel.qml
+        ui/components/PlayerToken.qml
         ui/components/PlayerStatusBadge.qml
         ui/components/PrimaryButton.qml
         ui/components/ProfileTile.qml
@@ -81,8 +85,10 @@ qt_add_qml_module(fdss_ui
         ui/components/SessionEditorDialog.qml
         ui/components/Sidebar.qml
         ui/components/SidebarButton.qml
+        ui/components/SlotPickerDialog.qml
         ui/components/StatusBadge.qml
         ui/components/SuggestionField.qml
+        ui/components/TacticsPitch.qml
         ui/components/TextAreaField.qml
         ui/components/TextInputField.qml
         ui/components/TimeField.qml
@@ -126,9 +132,14 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/ErrorPresenter.hpp
         src/viewmodels/ErrorPresenter.cpp
         src/viewmodels/IsoDates.hpp
+        src/viewmodels/JsGarbageCollector.hpp
         src/viewmodels/IsoDates.cpp
         src/viewmodels/LanguageManager.hpp
         src/viewmodels/LanguageManager.cpp
+        src/viewmodels/LineupModels.hpp
+        src/viewmodels/LineupModels.cpp
+        src/viewmodels/LineupTexts.hpp
+        src/viewmodels/LineupTexts.cpp
         src/viewmodels/LoadFilterModel.hpp
         src/viewmodels/LoadFilterModel.cpp
         src/viewmodels/LoadListModel.hpp
@@ -152,8 +163,12 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/PlayerLoadViewModel.hpp
         src/viewmodels/PlayerLoadViewModel.cpp
         src/viewmodels/QmlValues.hpp
+        src/viewmodels/PreMatchViewModel.hpp
+        src/viewmodels/PreMatchViewModel.cpp
         src/viewmodels/ProfilePickerViewModel.hpp
         src/viewmodels/ProfilePickerViewModel.cpp
+        src/viewmodels/RowsModel.hpp
+        src/viewmodels/RowsModel.cpp
         src/viewmodels/ServiceRegistry.hpp
         src/viewmodels/ServiceRegistry.cpp
         src/viewmodels/SessionEditorViewModel.hpp

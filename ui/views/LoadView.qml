@@ -226,10 +226,18 @@ Item {
                 title: root.hasSelection ? root.selectedPlayer.name : qsTr("Player")
 
                 actions: SecondaryButton {
+                    objectName: "playerCardButton"
                     visible: root.hasSelection
                     text: qsTr("Player card")
+                    // Back on the card leads here, to the same player (P12 manual test).
                     onClicked: root.navigateRequested("squad", {
-                        "playerId": root.selectedPlayer.playerId
+                        "playerId": root.selectedPlayer.playerId,
+                        "returnTo": {
+                            "key": "load",
+                            "args": {
+                                "playerId": root.selectedPlayer.playerId
+                            }
+                        }
                     })
                 }
 

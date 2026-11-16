@@ -10,8 +10,9 @@
 - Keyboard shortcut overview on F1
 - Column chooser in the squad table, SPEC section 4 (P08)
 - Deleting an availability entry entered by mistake; the repository already has `remove` (P08)
-- Undo of a calendar delete gives the item a new id and loses `import_id` and `formation`: the
-  repository `create()` cannot set them. Matters once imports and the pre-match screen write them (P09a)
+- Undo of a calendar delete gives the item a new id and loses `import_id`, and `formation` of a match
+  without a saved lineup: the repository `create()` cannot set them. Matters once imports write them
+  (P09a; since P12 a match with a lineup gets its lineup and formation back)
 - Correcting the name of an opponent added by mistake, on the Opponents screen; the repository already
   has `update` (P09a)
 - CI: compiler cache (sccache/ccache) for Windows and Linux builds; Windows build is ~14 min (P09a)
@@ -27,6 +28,21 @@
   `SegmentedControl` (P09b)
 - Remove the P03 spike view `SpikeChartsView.qml` and its Ctrl+Shift+G (Main.qml, qml_smoke, the mention in
   AGENTS §6): `LoadChart` is the real chart now (ADR-006 consequence, P11 decision 10)
+- Yellow-card threshold per competition (SPEC §7.2); P12 has one global threshold in the app settings, a
+  threshold per competition needs a settings table in the database (P12 decision 3)
+- Icon clip workaround — sprawdzić w kolejnej wersji Qt i ewentualnie zgłosić błąd do Qt: `Icon.qml`
+  adds far segments (`boundsGuide`) because the scene graph does not clip a Shape lying wholly outside the
+  clip of a list (Qt 6.12, both renderers). With `boundsGuide: ""` `tst_iconclip.qml` must pass before the
+  workaround goes; otherwise report it with that test as the reproduction (fix: icons respect clipping)
+- JS garbage collector workaround — sprawdzić w kolejnej wersji Qt i ewentualnie zgłosić błąd do Qt:
+  `useNonIncrementalGarbageCollector()` (`src/viewmodels/JsGarbageCollector.hpp`) sets `QV4_GC_TIMELIMIT=0`
+  because the incremental collector of Qt 6.12 frees the property storage of live objects ("Cannot find
+  member data" in AppDialog and DateField on CI). Without the call, `qml_smoke` under `QV4_GC_TIMELIMIT=1`
+  must be clean before it goes (fix(P12): CI-only dialog failures)
+- CI: ręczne zadanie ze stresem GC (QV4_GC_TIMELIMIT=1, bez obejścia) — sprawdza, czy kolejna wersja Qt
+  naprawiła błąd. A `workflow_dispatch` job running `qml_smoke` and `qml_components` with
+  `QV4_GC_TIMELIMIT=1` and `useNonIncrementalGarbageCollector()` switched off (it needs a way to skip the
+  call, e.g. an environment variable read only by the test programs) (P19)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,

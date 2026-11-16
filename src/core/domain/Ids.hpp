@@ -62,4 +62,9 @@ struct AttendanceId {
     auto operator<=>(const AttendanceId&) const = default;
 };
 
+struct LineupId {
+    std::int64_t value = 0;
+    auto operator<=>(const LineupId&) const = default;
+};
+
 } // namespace fdss::core

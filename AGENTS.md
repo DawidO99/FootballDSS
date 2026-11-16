@@ -121,8 +121,9 @@ CMake targets:
   `QML_UNCREATABLE` with `qt_add_qml_module`. `qmlRegisterType` is FORBIDDEN.
 - List data for QML: `QAbstractListModel` with named roles, or `QRangeModel` for simple cases.
   Small fixed or nested read-only lists (a few items) may be a `QVariantList`.
-- Long work (parsing, validation, recalculation) runs via `QtConcurrent`; database writes stay on
+- Long work (parsing, import validation, recalculation) runs via `QtConcurrent`; database writes stay on
   the main-thread connection in one `Transaction`. The UI thread never blocks on parsing or computation.
+  Checks of a form or a lineup (microseconds, not long work) run synchronously.
 - Naming: `PascalCase` types, `camelCase` functions/variables, `m_` members, `kConstant`.
   Code identifiers and comments in English.
 - `fdss_core` compiles with warnings as errors. Code formatted with the repo `.clang-format`.

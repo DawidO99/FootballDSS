@@ -2,6 +2,7 @@
 #include "data/db/AppPaths.hpp"
 #include "data/db/DatabaseManager.hpp"
 #include "services/SetupService.hpp"
+#include "viewmodels/JsGarbageCollector.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/StartupViewModel.hpp"
@@ -39,6 +40,7 @@ fdss::core::Status installServices(const fdss::core::Result<QString>& path) {
 } // namespace
 
 int main(int argc, char* argv[]) {
+    fdss::viewmodels::useNonIncrementalGarbageCollector();
     QGuiApplication app(argc, argv);
     // Organization and application names decide where QSettings and AppDataLocation live.
     QGuiApplication::setOrganizationName(QStringLiteral("FootballDSS"));

@@ -3,6 +3,8 @@
 // survive a restart.
 
 #include "../services/FakeClock.hpp"
+#include "core/algorithms/Formations.hpp"
+#include "core/algorithms/LineupValidator.hpp"
 #include "core/demo/DemoGenerator.hpp"
 #include "core/domain/Club.hpp"
 #include "core/domain/Player.hpp"
@@ -16,6 +18,7 @@
 #include "services/AuthService.hpp"
 #include "services/CalendarService.hpp"
 #include "services/DemoDataService.hpp"
+#include "services/LineupService.hpp"
 #include "services/LoadService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
@@ -27,6 +30,7 @@
 #include "viewmodels/CalendarViewModel.hpp"
 #include "viewmodels/CalendarWeekModel.hpp"
 #include "viewmodels/ChangePinViewModel.hpp"
+#include "viewmodels/JsGarbageCollector.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/LoadTexts.hpp"
 #include "viewmodels/LoadViewModel.hpp"
@@ -35,6 +39,7 @@
 #include "viewmodels/PlayerCardViewModel.hpp"
 #include "viewmodels/PlayerEditorViewModel.hpp"
 #include "viewmodels/PlayerLoadViewModel.hpp"
+#include "viewmodels/PreMatchViewModel.hpp"
 #include "viewmodels/ProfilePickerViewModel.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/SessionEditorViewModel.hpp"
@@ -55,6 +60,7 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QKeyEvent>
+#include <QLineF>
 #include <QMetaObject>
 #include <QMouseEvent>
 #include <QPointer>
@@ -66,6 +72,7 @@
 #include <QRectF>
 #include <QSet>
 #include <QSettings>
+#include <QStyleHints>
 #include <QThread>
 #include <QVariantMap>
 #include <QtQml/QQmlExtensionPlugin>
@@ -77,10 +84,12 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <iterator>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -99,6 +108,7 @@ using fdss::viewmodels::NavigationModel;
 using fdss::viewmodels::PlayerCardViewModel;
 using fdss::viewmodels::PlayerEditorViewModel;
 using fdss::viewmodels::PlayerLoadViewModel;
+using fdss::viewmodels::PreMatchViewModel;
 using fdss::viewmodels::ProfilePickerViewModel;
 using fdss::viewmodels::ServiceRegistry;
 using fdss::viewmodels::SessionEditorViewModel;
@@ -272,8 +282,8 @@ void expectLoadChartTooltips(QQuickWindow* window, QQuickItem* gallery) {
 void exerciseComponentGallery(QQmlApplicationEngine& engine, QQuickWindow* window,
                               const QString& language, const QString& theme,
                               const QString& screenshotDirectory) {
-    constexpr std::array<const char*, 5> kTabNames{"buttons", "inputs", "table", "charts",
-                                                   "feedback"};
+    constexpr std::array<const char*, 6> kTabNames{"buttons", "inputs",  "table",
+                                                   "charts",  "tactics", "feedback"};
 
     window->setProperty("componentGalleryOpen", true);
     settle();
@@ -3093,6 +3103,845 @@ void exerciseWindowClosing(CloseCase closeCase) {
     ServiceRegistry::reset();
 }
 
+// A tap as a pointer device sends it: a move to the point, then press and release, each with its
+// own timestamp. clickItem() sends no timestamps, and a second one on the same point is not taken
+// as a tap by the TapHandler of PlayerToken, which shares the item with a DragHandler.
+void tapItem(QQuickWindow* window, QQuickItem* item) {
+    static ulong timestamp = 1'000'000;
+    const QPointF center = item->mapToScene(QPointF(item->width() / 2, item->height() / 2));
+    const QPointF global = window->mapToGlobal(center);
+    QMouseEvent move(QEvent::MouseMove, center, center, global, Qt::NoButton, Qt::NoButton,
+                     Qt::NoModifier);
+    move.setTimestamp(timestamp += 1000);
+    QMouseEvent press(QEvent::MouseButtonPress, center, center, global, Qt::LeftButton,
+                      Qt::LeftButton, Qt::NoModifier);
+    press.setTimestamp(timestamp += 1000);
+    QMouseEvent release(QEvent::MouseButtonRelease, center, center, global, Qt::LeftButton,
+                        Qt::NoButton, Qt::NoModifier);
+    release.setTimestamp(timestamp += 50);
+    QCoreApplication::sendEvent(window, &move);
+    QCoreApplication::sendEvent(window, &press);
+    QCoreApplication::sendEvent(window, &release);
+    settle();
+}
+
+// A double tap: two taps close in time and place, as the TapHandler of PlayerToken counts them.
+void doubleTapItem(QQuickWindow* window, QQuickItem* item) {
+    static ulong timestamp = 500'000'000;
+    const QPointF center = item->mapToScene(QPointF(item->width() / 2, item->height() / 2));
+    const QPointF global = window->mapToGlobal(center);
+    QMouseEvent move(QEvent::MouseMove, center, center, global, Qt::NoButton, Qt::NoButton,
+                     Qt::NoModifier);
+    move.setTimestamp(timestamp += 1000);
+    QCoreApplication::sendEvent(window, &move);
+    for (int tap = 0; tap < 2; ++tap) {
+        QMouseEvent press(QEvent::MouseButtonPress, center, center, global, Qt::LeftButton,
+                          Qt::LeftButton, Qt::NoModifier);
+        press.setTimestamp(timestamp += 100);
+        QMouseEvent release(QEvent::MouseButtonRelease, center, center, global, Qt::LeftButton,
+                            Qt::NoButton, Qt::NoModifier);
+        release.setTimestamp(timestamp += 50);
+        QCoreApplication::sendEvent(window, &press);
+        QCoreApplication::sendEvent(window, &release);
+    }
+    settle();
+}
+
+// --- Pre-match (P12) ---
+
+struct PreMatchScreen {
+    QQuickWindow* window = nullptr;
+    NavigationModel* navigation = nullptr;
+    QQuickItem* view = nullptr;
+    PreMatchViewModel* preMatch = nullptr;
+
+    [[nodiscard]] QQuickItem* find(const QString& name) const {
+        return findByObjectName(window->contentItem(), name);
+    }
+    [[nodiscard]] QQuickItem* token(int slot) const {
+        return findByObjectName(view, QStringLiteral("token_%1").arg(slot));
+    }
+    [[nodiscard]] QVariant board(int slot, const char* role) const {
+        return preMatch->board()->value(slot, role);
+    }
+    // A row of the squad list as the list shows it (LineupPlayersSortModel).
+    [[nodiscard]] QVariant player(int row, const char* role) const {
+        return preMatch->sortedPlayers()->value(row, role);
+    }
+    [[nodiscard]] QObject* slotPicker() const {
+        return view->property("slotPicker").value<QObject*>();
+    }
+    [[nodiscard]] bool pickerOpen() const { return slotPicker()->property("opened").toBool(); }
+    // Gives a token the focus and selects its slot without a click, which would open its picker.
+    void focusToken(int slot) const {
+        QMetaObject::invokeMethod(find(QStringLiteral("tacticsPitch")), "focusSlot",
+                                  Q_ARG(QVariant, slot));
+        preMatch->selectSlot(slot);
+        settle();
+    }
+    [[nodiscard]] std::vector<qint64> boardPlayers() const {
+        std::vector<qint64> ids;
+        for (int slot = 0; slot < preMatch->board()->rowCount(); ++slot) {
+            ids.push_back(board(slot, "playerId").toLongLong());
+        }
+        return ids;
+    }
+    // The first row of the squad list for which `accept` holds; -1: none.
+    template <class Accept> [[nodiscard]] int playerRow(Accept accept) const {
+        for (int row = 0; row < preMatch->sortedPlayers()->rowCount(); ++row) {
+            if (accept(row)) {
+                return row;
+            }
+        }
+        return -1;
+    }
+    [[nodiscard]] bool hasIssue(const QString& ruleKey, qint64 playerId) const {
+        for (int row = 0; row < preMatch->issues()->rowCount(); ++row) {
+            if (preMatch->issues()->value(row, "ruleKey").toString() == ruleKey &&
+                preMatch->issues()->value(row, "playerId").toLongLong() == playerId) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
+// Goes to the section (again, so it reads anew), finds it anew (a login builds the views again)
+// and waits for the load statuses.
+// matchId: opens that match (0: the one the view has). A change left by a failed step is dropped
+// first, so leaving does not stop at the question.
+std::optional<PreMatchScreen> openPreMatchScreen(QQmlApplicationEngine& engine,
+                                                 qint64 matchId = 0) {
+    PreMatchScreen screen;
+    screen.window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    screen.navigation = screen.window->property("navigation").value<NavigationModel*>();
+    if (QQuickItem* view = findQmlItem(screen.window->contentItem(), "PreMatchView")) {
+        if (auto* open = view->property("viewModel").value<PreMatchViewModel*>()) {
+            open->discardChanges();
+        }
+    }
+    screen.navigation->activate(QStringLiteral("dashboard"));
+    settle();
+    screen.navigation->activate(QStringLiteral("prematch"),
+                                matchId != 0 ? QVariantMap{{QStringLiteral("matchId"), matchId}}
+                                             : QVariantMap{});
+    settle();
+    screen.view = findQmlItem(screen.window->contentItem(), "PreMatchView");
+    if (screen.view == nullptr) {
+        fail("the pre-match view is not loaded");
+        return std::nullopt;
+    }
+    screen.preMatch = screen.view->property("viewModel").value<PreMatchViewModel*>();
+    if (screen.preMatch == nullptr) {
+        fail("the pre-match view has no viewmodel");
+        return std::nullopt;
+    }
+    if (!waitUntil([&screen] { return !screen.preMatch->loadPending(); },
+                   "the load statuses of pre-match did not arrive")) {
+        return std::nullopt;
+    }
+    settle();
+    renderFrame(screen.window);
+    return screen;
+}
+
+// Presses Tab until `focused` holds, at most `limit` times.
+template <class Focused>
+bool tabUntil(QQuickWindow* window, Focused focused, int limit, const char* reason) {
+    for (int press = 0; press < limit && !focused(); ++press) {
+        pressKey(window, Qt::Key_Tab);
+    }
+    if (!focused()) {
+        fail(reason);
+        return false;
+    }
+    return true;
+}
+
+// Moves the current row of a focused list with the arrow keys.
+void arrowTo(QQuickWindow* window, QQuickItem* list, int row) {
+    int current = list->property("currentIndex").toInt();
+    while (current != row) {
+        pressKey(window, current < row ? Qt::Key_Down : Qt::Key_Up);
+        const int moved = list->property("currentIndex").toInt();
+        if (moved == current) {
+            fail("the arrow keys do not move in the squad list");
+            return;
+        }
+        current = moved;
+    }
+}
+
+// The next planned match of the smoke team, read anew for every step: a step that failed and
+// deleted or moved a match leaves no stale id behind. 0 with a failure: none.
+qint64 nextPreMatchMatch(const char* step) {
+    const auto next = ServiceRegistry::instance().lineup().nextPlannedMatch(smokeTeam());
+    if (!next || !*next) {
+        fail("pre-match: no planned match");
+        qWarning("qml_smoke: pre-match step without a match: %s", step);
+        return 0;
+    }
+    return (*next)->value;
+}
+
+// The precondition of the steps that need a saved lineup, through the service and not through an
+// earlier step: a 4-4-2 of available players, by their primary position where one fits. The
+// players of the slots in order; empty with a failure.
+std::vector<qint64> saveSmokeLineup(qint64 matchId) {
+    auto& lineups = ServiceRegistry::instance().lineup();
+    const auto data =
+        lineups.matchLineup(fdss::core::MatchId{matchId}, fdss::core::kDefaultYellowCardThreshold);
+    const fdss::core::Formation* formation = fdss::core::findFormation("4-4-2");
+    if (!data || formation == nullptr) {
+        fail("pre-match: cannot read the match for a saved lineup");
+        return {};
+    }
+    fdss::core::Lineup lineup = fdss::core::emptyLineup(*formation);
+    std::set<fdss::core::PlayerId> used;
+    const auto available = [&](const fdss::services::LineupCandidate& candidate) {
+        return candidate.facts.statusOnMatchDay == fdss::core::PlayerStatus::Available &&
+               !used.contains(candidate.player.id);
+    };
+    for (const bool samePosition : {true, false}) {
+        for (fdss::core::LineupSlot& slot : lineup.pitchSlots) {
+            if (slot.player) {
+                continue;
+            }
+            for (const auto& candidate : data->candidates) {
+                if (available(candidate) &&
+                    (!samePosition || candidate.player.primaryPosition == slot.position)) {
+                    slot.player = candidate.player.id;
+                    used.insert(candidate.player.id);
+                    break;
+                }
+            }
+        }
+    }
+    if (!lineups.save(fdss::core::MatchId{matchId}, lineup)) {
+        fail("pre-match: cannot save a lineup through the service");
+        return {};
+    }
+    std::vector<qint64> players;
+    for (const fdss::core::LineupSlot& slot : lineup.pitchSlots) {
+        players.push_back(slot.player ? slot.player->value : 0);
+    }
+    return players;
+}
+
+// Ctrl+S as the keyboard sends it. A shortcut fires only in the focus window, and on Xvfb without
+// a window manager (CI) the window may never get the focus: then the shortcut object is checked
+// to be enabled and triggered as Qt would, and the run says so.
+void pressSave(const PreMatchScreen& screen) {
+    screen.window->requestActivate();
+    QElapsedTimer waited;
+    waited.start();
+    while (QGuiApplication::focusWindow() != screen.window && waited.elapsed() < 1000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    }
+    if (QGuiApplication::focusWindow() == screen.window) {
+        QKeyEvent press(QEvent::KeyPress, Qt::Key_S, Qt::ControlModifier, QStringLiteral("s"));
+        QKeyEvent release(QEvent::KeyRelease, Qt::Key_S, Qt::ControlModifier, QStringLiteral("s"));
+        QCoreApplication::sendEvent(screen.window, &press);
+        QCoreApplication::sendEvent(screen.window, &release);
+        settle();
+        return;
+    }
+    qInfo("qml_smoke: the window has no focus (no window manager): Ctrl+S through its shortcut");
+    auto* shortcut = screen.view->findChild<QObject*>(QStringLiteral("saveShortcut"));
+    if (shortcut == nullptr || !shortcut->property("enabled").toBool()) {
+        fail("the save shortcut is not there or not enabled");
+        return;
+    }
+    QMetaObject::invokeMethod(shortcut, "activated");
+    settle();
+}
+
+// The steps below are independent: each opens the screen on the next planned match read anew, sets
+// up what it needs through the services and leaves no unsaved change behind, so one failure does
+// not fail the steps after it (P12 CI).
+
+// A click on a slot opens its picker; the injured player picked there names an error, replacing
+// him in the squad list removes it.
+void preMatchPickerAndIssues(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    const qint64 matchId = nextPreMatchMatch("picker");
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    PreMatchViewModel* preMatch = screen->preMatch;
+    QQuickWindow* window = screen->window;
+    if (preMatch->matchId() != matchId) {
+        fail("pre-match does not open the next planned match");
+        return;
+    }
+    preMatch->setProperty("formation", QStringLiteral("4-4-2"));
+    settle();
+    if (preMatch->formation() != QLatin1StringView("4-4-2") || screen->token(10) == nullptr) {
+        fail("the board does not show 4-4-2");
+        return;
+    }
+
+    // A click on the slot of a centre midfielder, then the injured player picked with Enter.
+    const int injuredRow = screen->playerRow([&](int row) {
+        return screen->player(row, "statusKey").toString() == QLatin1StringView("injured");
+    });
+    if (injuredRow < 0) {
+        fail("the demo club has no injured player on the match day");
+        return;
+    }
+    const qint64 injured = screen->player(injuredRow, "playerId").toLongLong();
+    const QString injuredName = screen->player(injuredRow, "shortName").toString();
+    // A click on a token selects it and opens its picker after the double click interval; the
+    // picker of a centre midfielder starts with the centre midfielders (P12 manual test).
+    tapItem(window, screen->token(6));
+    if (preMatch->selectedSlot() != 6) {
+        fail("a click on a token does not select its slot");
+    }
+    if (!waitUntil([&] { return screen->pickerOpen(); },
+                   "a click on a slot does not open its picker")) {
+        return;
+    }
+    settle();
+    grabOrSave(window, screenshotDirectory, QStringLiteral("prematch-picker.png"));
+    if (preMatch->slotPicker()->value(0, "group").toString() != QLatin1StringView("primary") ||
+        preMatch->slotPicker()->rowCount() != preMatch->playerCount()) {
+        fail("the picker of a slot does not start with its position");
+    }
+    int injuredPick = -1;
+    for (int row = 0; row < preMatch->slotPicker()->rowCount(); ++row) {
+        if (preMatch->slotPicker()->value(row, "playerId").toLongLong() == injured) {
+            injuredPick = row;
+        }
+    }
+    auto* pickerList = screen->find(QStringLiteral("slotPickerList"));
+    if (pickerList == nullptr || injuredPick < 0) {
+        fail("the picker does not list the injured player");
+        return;
+    }
+    pickerList->forceActiveFocus(Qt::TabFocusReason);
+    pickerList->setProperty("currentIndex", injuredPick);
+    pressKey(window, Qt::Key_Return);
+    settle();
+    if (screen->pickerOpen()) {
+        fail("Enter in the picker does not close it");
+    }
+    auto* list = screen->find(QStringLiteral("playerListView"));
+    if (screen->board(6, "playerId").toLongLong() != injured ||
+        !screen->hasIssue(QStringLiteral("unavailable"), injured) ||
+        screen->board(6, "severity").toString() != QLatin1StringView("error")) {
+        fail("an injured player in the XI is not an error");
+    }
+    bool named = false;
+    for (int row = 0; row < preMatch->issues()->rowCount(); ++row) {
+        named = named || preMatch->issues()->value(row, "text").toString().contains(injuredName);
+    }
+    if (!named) {
+        fail("the error does not name the injured player");
+    }
+    // Replaced by an available player with XI (Enter) in the list: the error goes.
+    screen->focusToken(6);
+    const int replacementRow = screen->playerRow([&](int row) {
+        return screen->player(row, "statusKey").toString() == QLatin1StringView("available") &&
+               screen->player(row, "placement").toString().isEmpty();
+    });
+    list->forceActiveFocus(Qt::TabFocusReason);
+    list->setProperty("currentIndex", replacementRow);
+    pressKey(window, Qt::Key_Return);
+    if (screen->hasIssue(QStringLiteral("unavailable"), injured)) {
+        fail("replacing the injured player leaves the error");
+    }
+
+    preMatch->discardChanges();
+    settle();
+}
+
+// 11 players by the keyboard alone, Ctrl+S, and the lineup reads back the same.
+void preMatchKeyboardAndSave(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("keyboard");
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    PreMatchViewModel* preMatch = screen->preMatch;
+    QQuickWindow* window = screen->window;
+    auto* list = screen->find(QStringLiteral("playerListView"));
+    // The keyboard alone: Tab to the first token, Enter, Tab to the squad, then arrows and Enter.
+    clickItem(window, screen->find(QStringLiteral("clearButton")));
+    if (preMatch->startingCount() != 0) {
+        fail("Clear leaves players in the lineup");
+    }
+    screen->find(QStringLiteral("formationField"))->forceActiveFocus(Qt::TabFocusReason);
+    if (!tabUntil(
+            window, [&] { return screen->token(0)->hasActiveFocus(); }, 20,
+            "Tab does not reach the first token")) {
+        return;
+    }
+    pressKey(window, Qt::Key_Return);
+    if (preMatch->selectedSlot() != 0 || !screen->pickerOpen()) {
+        fail("Enter on a token does not select its slot and open its picker");
+    }
+    // Esc closes the picker; the slot stays selected and its token gets the focus back.
+    pressKey(window, Qt::Key_Escape);
+    settle();
+    if (screen->pickerOpen() || preMatch->selectedSlot() != 0 ||
+        !screen->token(0)->hasActiveFocus()) {
+        fail("Esc in the picker does not go back to the slot");
+    }
+    if (!tabUntil(
+            window, [&] { return list->hasActiveFocus(); }, 40,
+            "Tab does not reach the squad list")) {
+        return;
+    }
+    // The list sorts the XI to the top, so every round looks for the next available player.
+    for (int placed = 0; placed < 11; ++placed) {
+        const int row = screen->playerRow([&](int candidate) {
+            return screen->player(candidate, "statusKey").toString() ==
+                       QLatin1StringView("available") &&
+                   screen->player(candidate, "placement").toString().isEmpty();
+        });
+        if (row < 0) {
+            break;
+        }
+        arrowTo(window, list, row);
+        pressKey(window, Qt::Key_Return);
+        // The next player of the rest is current, not the one who went to the XI.
+        if (placed < 10 && !screen->player(list->property("currentIndex").toInt(), "placement")
+                                .toString()
+                                .isEmpty()) {
+            fail("after Enter the squad list stays on the player who went to the XI");
+        }
+    }
+    if (preMatch->startingCount() != 11 || preMatch->selectedSlot() != -1 ||
+        !list->hasActiveFocus()) {
+        fail("the keyboard path does not place 11 players");
+    }
+
+    pressSave(*screen);
+    if (preMatch->dirty() || !preMatch->hasSavedLineup()) {
+        fail("Ctrl+S does not save the lineup");
+    }
+    const std::vector<qint64> saved = screen->boardPlayers();
+    preMatch->discardChanges();
+    screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    if (screen->boardPlayers() != saved || screen->preMatch->dirty()) {
+        fail("the saved lineup does not read back the same");
+    }
+}
+
+// The Calendar asks before deleting a match with a saved lineup (P12 review). On a match of its own
+// four weeks after the next one, so even a delete without a question touches no other step.
+void preMatchCalendarDelete(QQmlApplicationEngine& engine) {
+    auto& calendar = ServiceRegistry::instance().calendar();
+    const qint64 nextId = nextPreMatchMatch("calendar delete");
+    const auto next = calendar.match(fdss::core::MatchId{nextId});
+    if (!next) {
+        fail("pre-match: cannot read the next match");
+        return;
+    }
+    fdss::core::MatchDraft draft = *next;
+    draft.date = fdss::core::Date{std::chrono::sys_days{next->date} + std::chrono::days{28}};
+    const auto own = calendar.addMatch(smokeTeam(), draft);
+    if (!own || saveSmokeLineup(own->value).empty()) {
+        fail("pre-match: cannot add a match with a lineup to delete");
+        return;
+    }
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    navigation->activate(QStringLiteral("calendar"));
+    settle();
+    QQuickItem* calendarView = findQmlItem(window->contentItem(), "CalendarView");
+    QMetaObject::invokeMethod(calendarView, "requestMatchDelete",
+                              Q_ARG(QVariant, static_cast<qint64>(own->value)),
+                              Q_ARG(QVariant, QStringLiteral("Rywal")));
+    settle();
+    auto* question = calendarView->property("deleteMatchDialog").value<QObject*>();
+    if (question == nullptr || !question->property("visible").toBool()) {
+        fail("deleting a match with a saved lineup does not ask first");
+    }
+    if (question != nullptr) {
+        QMetaObject::invokeMethod(question, "close");
+        settle();
+    }
+    if (!calendar.match(*own)) {
+        fail("the question deleted the match before an answer");
+        return;
+    }
+    if (!calendar.deleteMatch(*own)) {
+        fail("pre-match: cannot remove the match of the delete step");
+    }
+}
+
+// To the bench by keyboard, a refused second goalkeeper, and the touch sizes of the board.
+void preMatchBenchKeys(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("bench");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    PreMatchViewModel* preMatch = screen->preMatch;
+    QQuickWindow* window = screen->window;
+    auto* list = screen->find(QStringLiteral("playerListView"));
+    // To the bench by keyboard: B on a token, Tab to the button, B in the squad (P12 review).
+    {
+        const int bench = preMatch->benchCount();
+        screen->focusToken(1);
+        pressKey(window, Qt::Key_B);
+        if (preMatch->benchCount() != bench + 1 || screen->board(1, "playerId").toLongLong() != 0) {
+            fail("B on a token does not move its player to the bench");
+        }
+        screen->focusToken(2);
+        auto* toBench = screen->find(QStringLiteral("toBenchButton"));
+        if (tabUntil(
+                window, [&] { return toBench->hasActiveFocus(); }, 30,
+                "Tab does not reach the button Move to the bench")) {
+            pressKey(window, Qt::Key_Return);
+            if (preMatch->benchCount() != bench + 2) {
+                fail("Enter on Move to the bench does not move the player");
+            }
+        }
+        const int freeRow = screen->playerRow(
+            [&](int row) { return screen->player(row, "placement").toString().isEmpty(); });
+        list->forceActiveFocus(Qt::TabFocusReason);
+        list->setProperty("currentIndex", freeRow);
+        pressKey(window, Qt::Key_B);
+        if (preMatch->benchCount() != bench + 3) {
+            fail("B in the squad list does not add the player to the bench");
+        }
+
+        // A second goalkeeper picked in the position field: refused, the field shows the slot
+        // again.
+        screen->focusToken(3);
+        auto* positionField = screen->find(QStringLiteral("positionField"));
+        int gkIndex = -1;
+        QMetaObject::invokeMethod(positionField, "indexOfValue", Q_RETURN_ARG(int, gkIndex),
+                                  Q_ARG(QVariant, QStringLiteral("gk")));
+        positionField->setProperty("currentIndex", gkIndex);
+        QMetaObject::invokeMethod(positionField, "activated", Q_ARG(int, gkIndex));
+        settle();
+        if (preMatch->selectedPosition() == QLatin1StringView("gk") ||
+            positionField->property("currentValue").toString() != preMatch->selectedPosition()) {
+            fail("the position field keeps a refused goalkeeper");
+        }
+
+        // The controls of the board are touch sized (Theme.hitTouch).
+        const auto touchSized = [](const QQuickItem* item) {
+            return item != nullptr && item->height() >= 44 && item->width() >= 44;
+        };
+        for (const char* name : {"positionField", "swapButton", "toBenchButton", "removeButton",
+                                 "benchRemove_0", "benchButton_0", "xiButton_0", "playerRow_0"}) {
+            if (!touchSized(screen->find(QString::fromLatin1(name)))) {
+                fail("a control of the tactics board is smaller than Theme.hitTouch");
+                qWarning("qml_smoke: too small: %s", name);
+            }
+        }
+        const QQuickItem* benchRemove = screen->find(QStringLiteral("benchRemove_0"));
+        if (benchRemove == nullptr || benchRemove->parentItem()->parentItem()->height() < 44) {
+            fail("a bench row is lower than Theme.hitTouch");
+        }
+        preMatch->discardChanges();
+        settle();
+    }
+}
+
+// Leaving with a change asks; Discard leaves and drops the change.
+void preMatchLeaveGuard(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("leave guard");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    // Leaving with a change asks; Discard leaves and drops the change.
+    screen->preMatch->swapSlots(1, 2);
+    settle();
+    expectFlag(screen->navigation, "leaveGuard", true, "a change of the lineup does not guard");
+    screen->navigation->activate(QStringLiteral("dashboard"));
+    settle();
+    auto* question = screen->view->property("leaveDialog").value<QObject*>();
+    if (question == nullptr || !question->property("visible").toBool() ||
+        screen->navigation->currentKey() != QLatin1StringView("prematch")) {
+        fail("leaving pre-match with a change does not ask");
+    } else {
+        QMetaObject::invokeMethod(question, "dangerClicked");
+        settle();
+        if (screen->navigation->currentKey() != QLatin1StringView("dashboard") ||
+            screen->preMatch->dirty()) {
+            fail("Discard does not leave pre-match");
+        }
+    }
+
+    screen->preMatch->discardChanges();
+    settle();
+}
+
+// A double click on a token opens the card of its player, after the question about a change; Back
+// on the card returns to the same match. The same from a row of the squad list and from Load (P12
+// manual test).
+void preMatchPlayerCard(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("player card");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    QQuickWindow* window = screen->window;
+    {
+        const auto backTo = [&](const char* key, const char* reason) {
+            QQuickItem* squadView = findQmlItem(window->contentItem(), "SquadView");
+            auto* card = squadView != nullptr
+                             ? squadView->property("playerCard").value<QQuickItem*>()
+                             : nullptr;
+            QQuickItem* back =
+                card != nullptr ? findByObjectName(card, QStringLiteral("backButton")) : nullptr;
+            if (screen->navigation->currentKey() != QLatin1StringView("squad") ||
+                !squadView->property("cardOpen").toBool() || back == nullptr) {
+                fail(reason);
+                return qint64{0};
+            }
+            const qint64 shown = card->property("playerId").toLongLong();
+            clickItem(window, back);
+            settle();
+            if (screen->navigation->currentKey() != QLatin1StringView(key)) {
+                fail("Back on the card does not return where the card was opened from");
+            }
+            return shown;
+        };
+        const qint64 goalkeeper = screen->board(0, "playerId").toLongLong();
+        screen->preMatch->swapSlots(1, 2);
+        settle();
+        doubleTapItem(window, screen->token(0));
+        auto* leave = screen->view->property("leaveDialog").value<QObject*>();
+        if (leave == nullptr || !leave->property("visible").toBool()) {
+            fail("a double click with a change does not ask before leaving");
+        } else {
+            QMetaObject::invokeMethod(leave, "dangerClicked");
+            settle();
+        }
+        if (backTo("prematch", "a double click on a token does not open the card") != goalkeeper ||
+            screen->preMatch->matchId() != matchId) {
+            fail("the card of a token is not the card of its player, or Back changes the match");
+        }
+        // The first click of the double one never opens the picker.
+        QElapsedTimer waited;
+        waited.start();
+        while (waited.elapsed() < QGuiApplication::styleHints()->mouseDoubleClickInterval() + 100) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        }
+        if (screen->pickerOpen() || screen->preMatch->pickerSlot() >= 0) {
+            fail("a double click on a token opens its picker");
+        }
+
+        const qint64 firstRow = screen->player(0, "playerId").toLongLong();
+        // The first row in view: the list may be scrolled from the keyboard path.
+        auto* rows = findByObjectName(screen->view, QStringLiteral("playerListView"));
+        rows->setProperty("currentIndex", 0);
+        QMetaObject::invokeMethod(rows, "positionViewAtBeginning");
+        renderFrame(window);
+        doubleTapItem(window, findByObjectName(screen->view, QStringLiteral("playerRow_0")));
+        if (backTo("prematch", "a double click on a squad row does not open the card") !=
+            firstRow) {
+            fail("the card of a squad row is not the card of its player");
+        }
+
+        screen->navigation->activate(QStringLiteral("load"),
+                                     QVariantMap{{QStringLiteral("playerId"), goalkeeper}});
+        settle();
+        QQuickItem* loadView = findQmlItem(window->contentItem(), "LoadView");
+        if (loadView != nullptr &&
+            waitUntil([&] { return loadView->property("hasSelection").toBool(); },
+                      "Load does not select the player it was opened with")) {
+            settle();
+            clickItem(window, findByObjectName(loadView, QStringLiteral("playerCardButton")));
+            settle();
+            backTo("load", "the player card button of Load does not open the card");
+            if (!loadView->property("hasSelection").toBool()) {
+                fail("Back to Load loses the player");
+            }
+        }
+    }
+}
+
+// The minimum window in both themes: tokens of Theme.hitTouch that do not overlap, icons clipped by
+// a scrolled list, three tokens in one side zone.
+void preMatchMinimumWindow(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    const qint64 matchId = nextPreMatchMatch("minimum window");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    QQuickWindow* window = screen->window;
+    auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                            QStringLiteral("AppSettings"));
+    const bool startDark = settings->darkTheme();
+    const QSize originalSize = window->size();
+    window->resize(1280, 720);
+    for (const bool dark : {true, false}) {
+        settings->setDarkTheme(dark);
+        settle();
+        renderFrame(window);
+        std::vector<QPointF> centres;
+        for (int slot = 0; slot < 11; ++slot) {
+            QQuickItem* token = screen->token(slot);
+            if (token == nullptr || token->height() < 44 || token->width() < 44) {
+                fail("a token is smaller than Theme.hitTouch");
+                break;
+            }
+            centres.push_back(token->mapToScene(QPointF(token->width() / 2, 22)));
+        }
+        for (std::size_t a = 0; a < centres.size(); ++a) {
+            for (std::size_t b = a + 1; b < centres.size(); ++b) {
+                if (QLineF(centres[a], centres[b]).length() < 44) {
+                    fail("two tokens overlap at the minimum window");
+                }
+            }
+        }
+        auto* issues = screen->find(QStringLiteral("lineupIssuesPanel"));
+        auto* pitch = screen->find(QStringLiteral("tacticsPitch"));
+        if (issues == nullptr || pitch == nullptr || issues->width() < 250 ||
+            pitch->height() < 400 ||
+            issues->mapToScene(QPointF(issues->width(), 0)).x() > window->width()) {
+            fail("the board does not fit the minimum window");
+        }
+        grabOrSave(window, screenshotDirectory,
+                   QStringLiteral("prematch-%1.png")
+                       .arg(dark ? QStringLiteral("dark") : QStringLiteral("light")));
+    }
+    settings->setDarkTheme(startDark);
+
+    // A scrolled list clips the icons of its rows: below the squad list, with the issues panel
+    // hidden, there is only the page background (fix: icons respect clipping in lists).
+    {
+        auto* rows = screen->find(QStringLiteral("playerListView"));
+        auto* panel = screen->find(QStringLiteral("lineupIssuesPanel"));
+        const QColor background = window->color();
+        panel->setOpacity(0);
+        // Half a row up: the last row in view is cut, the next ones lie below the list.
+        rows->setProperty("contentY", rows->property("originY").toReal() + 22);
+        settle();
+        const QImage image = window->grabWindow();
+        const qreal ratio = image.devicePixelRatio();
+        const QRectF below = rows->mapRectToScene(QRectF(0, rows->height() + 6, rows->width(), 56));
+        int foreign = 0;
+        for (int y = int(below.top() * ratio); y < int(below.bottom() * ratio); ++y) {
+            for (int x = int(below.left() * ratio); x < int(below.right() * ratio); ++x) {
+                const QColor pixel = image.pixelColor(x, y);
+                if (std::abs(pixel.red() - background.red()) > 8 ||
+                    std::abs(pixel.green() - background.green()) > 8 ||
+                    std::abs(pixel.blue() - background.blue()) > 8) {
+                    ++foreign;
+                }
+            }
+        }
+        if (foreign > 0) {
+            fail("icons of rows outside a scrolled list are drawn below it");
+            qWarning("qml_smoke: %d pixels below the squad list", foreign);
+            image.save(QDir::temp().filePath(QStringLiteral("fdss-clip.png")));
+        }
+        panel->setOpacity(1);
+        rows->setProperty("contentY", rows->property("originY"));
+        settle();
+    }
+
+    // Three tokens in one side zone at the minimum window: they do not overlap (P12 review).
+    for (const int slot : {8, 9, 10}) {
+        screen->preMatch->setSlotPosition(slot, QStringLiteral("lw"));
+    }
+    settle();
+    renderFrame(window);
+    std::vector<QRectF> wingers;
+    for (const int slot : {8, 9, 10}) {
+        if (screen->board(slot, "positionKey").toString() != QLatin1StringView("lw")) {
+            fail("a slot did not move to the left wing zone");
+        }
+        QQuickItem* token = screen->token(slot);
+        wingers.push_back(token->mapRectToScene(QRectF(0, 0, token->width(), token->height())));
+    }
+    for (std::size_t a = 0; a < wingers.size(); ++a) {
+        for (std::size_t b = a + 1; b < wingers.size(); ++b) {
+            if (wingers[a].intersects(wingers[b])) {
+                fail("tokens of one zone overlap at the minimum window");
+            }
+        }
+    }
+    for (int a = 0; a < 11; ++a) {
+        for (int b = a + 1; b < 11; ++b) {
+            const QPointF first =
+                screen->token(a)->mapToScene(QPointF(screen->token(a)->width() / 2, 22));
+            const QPointF second =
+                screen->token(b)->mapToScene(QPointF(screen->token(b)->width() / 2, 22));
+            if (QLineF(first, second).length() < 44) {
+                fail("two tokens overlap with three left wingers");
+            }
+        }
+    }
+    grabOrSave(window, screenshotDirectory, QStringLiteral("prematch-three-wingers.png"));
+    screen->preMatch->discardChanges();
+    window->resize(originalSize);
+    settle();
+}
+
+// Another role: the saved lineup, read-only.
+void preMatchReadOnly(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("read-only");
+    const std::vector<qint64> saved = saveSmokeLineup(matchId);
+    if (saved.empty()) {
+        return;
+    }
+    const auto physio = addSmokeStaff("Fizjo Smoke", fdss::core::Role::Physio);
+    if (!physio || !logInAgain(engine, *physio)) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    if (!screen->preMatch->readOnly() || screen->boardPlayers() != saved) {
+        fail("another role does not see the saved lineup read-only");
+    }
+    expectFlag(screen->find(QStringLiteral("tacticsPitch")), "interactive", false,
+               "the board is interactive for a role without EditLineup");
+    expectFlag(screen->find(QStringLiteral("saveButton")), "visible", false,
+               "a role without EditLineup sees Save");
+}
+
+// Demo data -> next match -> 4-4-2 -> an injured player names an error, replacing him removes it;
+// 11 players by the keyboard alone; Ctrl+S; the lineup reads back the same; leaving asks; both
+// themes at the minimum window; another role sees the board read-only (packet P12, Done when).
+void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
+        fail("cannot load the demo club for pre-match");
+        return;
+    }
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    settle();
+    preMatchPickerAndIssues(engine, screenshotDirectory);
+    preMatchKeyboardAndSave(engine);
+    preMatchCalendarDelete(engine);
+    preMatchBenchKeys(engine);
+    preMatchLeaveGuard(engine);
+    preMatchPlayerCard(engine);
+    preMatchMinimumWindow(engine, screenshotDirectory);
+    // Last: it logs in another user.
+    preMatchReadOnly(engine);
+}
+
 } // namespace
 
 // Main.qml on the summary step of the wizard, with the club and the Coach filled in. Null when it
@@ -3666,6 +4515,8 @@ void exerciseLoadDemo(QQmlApplicationEngine& engine, const std::optional<QString
 }
 
 int main(int argc, char* argv[]) {
+    // As the app does; without it this run shows the CI failures of P12 under QV4_GC_TIMELIMIT=1.
+    fdss::viewmodels::useNonIncrementalGarbageCollector();
     // Deterministic offscreen rendering without a GPU.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
     g_defaultHandler = qInstallMessageHandler(countingMessageHandler);
@@ -3699,11 +4550,14 @@ int main(int argc, char* argv[]) {
         // qml_smoke --only-load runs the load scenarios alone, in the default language of the
         // machine (P11 review: they must not depend on an earlier scenario).
         const bool onlyLoad = arguments.contains(QStringLiteral("--only-load"));
+        // qml_smoke --only-prematch runs the pre-match scenario alone (P12).
+        const bool onlyPreMatch = arguments.contains(QStringLiteral("--only-prematch"));
+        const bool onlyOne = onlyLoad || onlyPreMatch;
 
         std::optional<UiPreferences> leftBehind;
         for (const AppState::State state :
              {AppState::State::NeedsSetup, AppState::State::NeedsLogin, AppState::State::Ready}) {
-            if (onlyLoad) {
+            if (onlyOne) {
                 break;
             }
             // Same order as src/main.cpp: the registry is installed before any QML loads, and goes
@@ -3734,7 +4588,7 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (onlyLoad) {
+        if (onlyOne) {
             // Nothing ran before.
         } else if (installRegistry(AppState::State::Ready) == nullptr) {
             fail("cannot install the service registry");
@@ -3746,16 +4600,28 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
+        if (onlyLoad) {
+            // Not this one.
+        } else if (installRegistry(AppState::State::Ready) == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                exercisePreMatch(engine, screenshotDirectory);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
         // A closed window must not end the application: the next scenario still has to run.
         QGuiApplication::setQuitOnLastWindowClosed(false);
         for (const CloseCase closeCase : {CloseCase::Clean, CloseCase::StayThenDiscard,
                                           CloseCase::Save, CloseCase::FailedSaveThenDiscard}) {
-            if (!onlyLoad) {
+            if (!onlyOne) {
                 exerciseWindowClosing(closeCase);
             }
         }
         QGuiApplication::setQuitOnLastWindowClosed(true);
-        if (onlyLoad) {
+        if (onlyOne) {
             // Done.
         } else if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
             fail("cannot install the service registry");
@@ -3769,7 +4635,7 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (onlyLoad) {
+        if (onlyOne) {
             // Done.
         } else if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
             fail("cannot install the service registry");
@@ -3781,7 +4647,7 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (onlyLoad) {
+        if (onlyOne) {
             // Done.
         } else if (auto* database = installRegistry(AppState::State::NeedsSetup);
                    database == nullptr) {
@@ -3802,6 +4668,9 @@ int main(int argc, char* argv[]) {
         const std::optional<QString> loadLanguage =
             onlyLoad ? std::nullopt : std::optional(QStringLiteral("pl"));
         for (const bool demo : {false, true}) {
+            if (onlyPreMatch) {
+                break;
+            }
             if (installRegistry(AppState::State::Ready) == nullptr) {
                 fail("cannot install the service registry");
                 continue;
@@ -3819,7 +4688,7 @@ int main(int argc, char* argv[]) {
         }
         QSettings().clear();
 
-        if (viewCount == 0 && !onlyLoad) {
+        if (viewCount == 0 && !onlyOne) {
             fail("no views found in ui/views/");
         }
     } // Include application teardown messages in the final result.

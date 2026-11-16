@@ -5,17 +5,27 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FootballDSS
 
-// The Staff section for those who may manage staff. Other settings arrive with later packets.
+// The match rules and the Staff section, for those who may manage settings and staff. Other
+// settings arrive with later packets.
 Item {
     id: root
 
     // What the section was opened with, see NavigationModel::activate().
     property var navigationArgs: ({})
     readonly property bool canManageStaff: AppState.can("ManageStaff")
+    readonly property bool canManageSettings: AppState.can("ManageSettings")
     // Exposed for tests: null without ManageStaff.
     readonly property Item staffSection: staffLoader.item as Item
 
     signal navigateRequested(string key, var args)
+
+    Connections {
+        target: AppSettings
+
+        function onErrorOccurred(message: string) {
+            Toasts.error(message);
+        }
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -25,6 +35,37 @@ Item {
         PageHeader {
             Layout.fillWidth: true
             title: qsTr("Settings")
+        }
+
+        // P12 decision 3: one threshold for every competition, kept on this computer.
+        Card {
+            objectName: "matchRulesCard"
+            Layout.fillWidth: true
+            visible: root.canManageSettings
+            title: qsTr("Match rules")
+
+            FormField {
+                id: yellowCardsFormField
+
+                Layout.fillWidth: true
+                label: qsTr("Yellow cards before a suspension")
+                helpText: qsTr("Pre-match warns when a player is one yellow card away from a suspension in the competition of the match.")
+
+                NumberField {
+                    id: yellowCardThresholdField
+
+                    objectName: "yellowCardThresholdField"
+                    from: AppSettings.minYellowCardThreshold
+                    to: AppSettings.maxYellowCardThreshold
+                    value: AppSettings.yellowCardThreshold
+                    Accessible.name: yellowCardsFormField.label
+                    // A refused change shows the stored value again.
+                    onValueModified: value => {
+                        if (value !== null && !AppSettings.setYellowCardThreshold(value))
+                            yellowCardThresholdField.showValue();
+                    }
+                }
+            }
         }
 
         Loader {
@@ -40,7 +81,7 @@ Item {
         EmptyState {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: !root.canManageStaff
+            visible: !root.canManageStaff && !root.canManageSettings
             iconName: "settings"
             description: qsTr("Club details, custom metrics and backups will be configured here.")
             actionText: qsTr("Back to the dashboard")

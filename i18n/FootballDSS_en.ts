@@ -102,6 +102,29 @@
     </message>
 </context>
 <context>
+    <name>BenchList</name>
+    <message>
+        <source>Bench</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 / %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Take out of the lineup (Del)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag players here or use Add to bench in the list.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No players on the bench.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>CalendarView</name>
     <message>
         <source>The match against %1 was deleted.</source>
@@ -189,6 +212,14 @@
     </message>
     <message>
         <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match has a saved lineup. Delete it together with the lineup?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -518,6 +549,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Tactics board</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Live</source>
         <translation type="unfinished"></translation>
     </message>
@@ -722,6 +757,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Swap with another slot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Coach</source>
         <translation type="unfinished"></translation>
     </message>
@@ -862,6 +901,50 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Activated slot: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Swap: %1 and %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player %1 on slot %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PlayerToken</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Marek Zieliński plays out of position: Left winger.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Jan Szczepaniak-Wojciechowski is not available on the match day: injured.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pick: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>To the bench: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Errors: %1 · Warnings: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Issue: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Card with header actions</source>
         <translation type="unfinished"></translation>
     </message>
@@ -947,6 +1030,50 @@
     </message>
     <message>
         <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cezary Mur is not available on the match day: injured.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Filip Skrzydło has a high load. A signal to talk to the player.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Leon Rezerwa missed each of the last training sessions: 3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In the XI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On the match day: available. Load as of 31.10 (today): in range.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starting XI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No baseline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not in the lineup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Warning</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1072,6 +1199,68 @@
     </message>
     <message>
         <source>Switch to dark theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LineupIssuesPanel</name>
+    <message>
+        <source>Checking the load…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lineup issues</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LineupPlayerList</name>
+    <message>
+        <source>No.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>XI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Put in the selected slot, or the first free one (Enter)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bench</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add to the bench (B)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Double click: the player card.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1344,7 +1533,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Back to the list (%1)</source>
+        <source>Back (%1)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1579,13 +1768,224 @@
     </message>
 </context>
 <context>
+    <name>PlayerToken</name>
+    <message>
+        <source>%1, number %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>free slot</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PreMatchView</name>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>Pre-match</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Pick the opponent, set up the tactics board and check the lineup.</source>
+        <source>Unsaved changes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not saved yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Formation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Templates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Take every player out of the lineup. The formation stays.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Selected: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Selected: free slot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Now choose the slot to swap with</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Swap with another slot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Take out of the lineup (Del)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The match could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move to the bench (B)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click a slot to pick its player. Double click: the player card.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Double click: the player card.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No planned match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add the next match in the Calendar to set up its lineup.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add the next match in the Calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No players yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add players in Squad to set up the lineup.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add players in Squad.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the changes?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Discard changes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The lineup of this match has changes that are not saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save as template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the current lineup as</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Template name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved templates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No templates yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load into the board</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replace the template?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Replace</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A template named %1 already exists. Replace it with the current lineup?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export the lineup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tactics files (*.tactic.json)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import a lineup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tactics files (*.tactic.json *.json)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1717,6 +2117,18 @@
     <name>SettingsView</name>
     <message>
         <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match rules</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow cards before a suspension</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-match warns when a player is one yellow card away from a suspension in the competition of the match.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2003,6 +2415,17 @@
     </message>
 </context>
 <context>
+    <name>SlotPickerDialog</name>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>in this slot</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SpikeChartsView</name>
     <message>
         <source>Charts spike (Qt Graphs)</source>
@@ -2068,6 +2491,18 @@
 </context>
 <context>
     <name>SquadView</name>
+    <message>
+        <source>← Pre-match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>← Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>← Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>%1 was archived.</source>
         <translation type="unfinished"></translation>
@@ -2179,6 +2614,13 @@
     </message>
     <message>
         <source>Restore</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TacticsPitch</name>
+    <message>
+        <source>Tactics board</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2497,11 +2939,19 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>This tactics file was saved by a newer version of FootballDSS. Install the newer version to open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>This data was saved by a newer version of FootballDSS. Install the newer version to use it.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>A file cannot be read or written. Check that the disk is not full and that you may write to the folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This is not a tactics file of FootballDSS (.tactic.json), or it is damaged. Choose another file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2609,6 +3059,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Enter a template name, up to 50 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file is too large to be a tactics file. Choose a .tactic.json file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This lineup cannot be saved. Open the match again and set up the lineup.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2637,7 +3099,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>This match has data attached to it, such as a lineup or metrics, so it cannot be deleted.</source>
+        <source>This match has data attached to it, such as metrics, so it cannot be deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A template with this name already exists. Choose a different name.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2678,6 +3144,81 @@
     <message>
         <source>dd/MM/yyyy</source>
         <extracomment>Qt date format of the app language. Keep it the same as in DateField: dd.MM.yyyy in Polish.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::LineupTexts</name>
+    <message>
+        <source>Error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Players in the starting XI: %1 of 11.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No goalkeeper: put a player in the GK slot.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is not available on the match day: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is in the lineup more than once.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 has a high load. A signal to talk to the player.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 plays out of position: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 missed each of the last training sessions: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 has yellow cards: %2. One more means a suspension.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (custom)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2 (%3)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No earlier match against this opponent.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last meeting: won %1:%2 on %3 (%4).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last meeting: lost %1:%2 on %3 (%4).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last meeting: drew %1:%2 on %3 (%4).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In the XI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On the bench</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2877,6 +3418,137 @@
     </message>
     <message>
         <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::PreMatchViewModel</name>
+    <message>
+        <source>Moved to the bench: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The bench is full. Left out of the lineup: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: choose a player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No issues: the lineup is ready for Match Day.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Errors: %1 · Warnings: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The check is incomplete: the load could not be checked. Try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only the coach or the assistant can change the lineup.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match has already started or finished, so its lineup is shown read-only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Every slot is taken. Select a slot first to replace its player.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The lineup was cleared.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lineup saved as a draft. Errors to fix before Match Day: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lineup saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Template saved: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The template was loaded into the board.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Template deleted: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lineup exported: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lineup imported: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starting XI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bench</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not in the lineup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 as the main position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 as a second position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Other positions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The bench is full: at most %1 players.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only one slot can be in goal. Move the goalkeeper out first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Players no longer in the squad were left out of the lineup: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On the match day: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load: could not be checked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load as of %1 (today): %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load as of %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unknown player</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

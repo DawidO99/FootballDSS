@@ -187,7 +187,8 @@ the import can be undone.
 | `schema_version` | `id` INTEGER PRIMARY KEY (always 1), `version` INTEGER | One row |
 
 `.tactic.json`: `{ "version": 1, "formation": "4-3-3", "slots": [{ "position": "GK", "x": 0.5, "y": 0.95, "playerId": 12 }] }`
-— coordinates normalised 0–1 relative to the pitch (own goal at y = 1).
+— coordinates normalised 0–1 relative to the pitch (own goal at y = 1). Optional `"bench": [playerId, …]`
+(at most 12, missing = empty); `playerId` null or missing = an empty slot.
 
 ## 7. Algorithms (`src/core/algorithms/`)
 

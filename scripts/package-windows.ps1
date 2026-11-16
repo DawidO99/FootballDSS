@@ -199,6 +199,7 @@ try {
         'qml\QtQuick\Controls\Basic',
         'qml\QtQuick\Layouts',
         'qml\QtGraphs',
+        'qml\QtQuick\Dialogs',
         'vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll'
     )
     # windeployqt adds Qt6Sql.dll once the app links Qt6::Sql (P05); it cannot open a database

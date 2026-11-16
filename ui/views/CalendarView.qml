@@ -15,15 +15,19 @@ Item {
     property string mode: "list"
     // The session the question before a delete is about.
     property double sessionToDelete: 0
+    // The match the question before a delete is about.
+    property double matchToDelete: 0
+    property string matchToDeleteName
     readonly property bool canEdit: AppState.can("EditCalendar")
     readonly property bool weekMode: mode === "week"
     readonly property bool failed: calendar.loadError.length > 0
-    readonly property bool dialogOpen: matchDialog.visible || sessionDialog.visible || addChoice.visible || deleteQuestionDialog.visible
+    readonly property bool dialogOpen: matchDialog.visible || sessionDialog.visible || addChoice.visible || deleteQuestionDialog.visible || deleteMatchQuestionDialog.visible
     readonly property alias viewModel: calendar
     readonly property alias matchEditor: matchDialog
     readonly property alias sessionEditor: sessionDialog
     readonly property alias addChoiceDialog: addChoice
     readonly property alias deleteSessionDialog: deleteQuestionDialog
+    readonly property alias deleteMatchDialog: deleteMatchQuestionDialog
 
     signal navigateRequested(string key, var args)
 
@@ -68,6 +72,21 @@ Item {
             return;
         sessionDialog.close();
         Toasts.show(qsTr("The session was deleted."), qsTr("Undo"), () => calendar.undoDelete());
+    }
+
+    // A saved lineup takes a coach time to set up, so a match that has one asks first (P12 review);
+    // the undo toast stays.
+    function requestMatchDelete(matchId, opponentName) {
+        const saved = calendar.matchHasLineup(matchId);
+        if (saved < 0)
+            return;
+        if (saved === 0) {
+            root.deleteMatch(matchId, opponentName);
+            return;
+        }
+        root.matchToDelete = matchId;
+        root.matchToDeleteName = opponentName;
+        deleteMatchQuestionDialog.open();
     }
 
     // Attendance takes a coach minutes to enter, so a session that has it asks first (P09a decision 9).
@@ -364,7 +383,7 @@ Item {
 
         objectName: "matchEditor"
         onSaved: (matchId, date) => root.showSaved("match", matchId, date)
-        onDeleteRequested: (matchId, opponentName) => root.deleteMatch(matchId, opponentName)
+        onDeleteRequested: (matchId, opponentName) => root.requestMatchDelete(matchId, opponentName)
         onClosed: root.focusContent()
     }
 
@@ -440,6 +459,29 @@ Item {
 
             objectName: "deleteQuestion"
             Layout.fillWidth: true
+            color: Theme.text
+            font.pixelSize: Theme.fontSize.body
+            wrapMode: Text.WordWrap
+        }
+    }
+
+    AppDialog {
+        id: deleteMatchQuestionDialog
+
+        objectName: "deleteMatchDialog"
+        size: AppDialog.Small
+        title: qsTr("Delete match")
+        primaryText: ""
+        dangerText: qsTr("Delete match")
+        onDangerClicked: {
+            deleteMatchQuestionDialog.close();
+            root.deleteMatch(root.matchToDelete, root.matchToDeleteName);
+        }
+
+        Label {
+            objectName: "deleteMatchQuestion"
+            Layout.fillWidth: true
+            text: qsTr("This match has a saved lineup. Delete it together with the lineup?")
             color: Theme.text
             font.pixelSize: Theme.fontSize.body
             wrapMode: Text.WordWrap

@@ -54,6 +54,45 @@ QtObject {
         readonly property int minTickSpacing: 56
     }
 
+    // The tactics board (P12): grass, lines and zones of the pitch, and the player tokens. Only the
+    // grass follows the theme, so a token reads the same on either.
+    component PitchStyle: QtObject {
+        required property bool dark
+        required property int tokenSize
+
+        readonly property color grass: dark ? "#1F4D36" : "#2E7D4F"
+        readonly property color grassStripe: dark ? "#245A3F" : "#338A57"
+        readonly property color line: "#E8F5EC"
+        // The zones while a token is dragged, and the zone under the pointer.
+        readonly property color zoneBorder: "#80E8F5EC"
+        readonly property color zoneActive: "#40E8F5EC"
+        readonly property color token: "#F8FAFC"
+        readonly property color tokenText: "#111827"
+        readonly property color emptySlot: "#B3E8F5EC"
+        readonly property color labelBackground: "#CC111827"
+        readonly property color labelText: "#F8FAFC"
+        readonly property int lineWidth: 2
+        readonly property int stripes: 8
+        // Width to height of the drawn pitch; a real one is 68 to 105, a wider one leaves the
+        // names of a row of tokens more room.
+        readonly property real aspect: 0.74
+        readonly property int labelWidth: 76
+        readonly property int labelHeight: 18
+        readonly property int issueIconSize: 16
+        // A drag shorter than this is a click.
+        readonly property int dragThreshold: 8
+        // The size the board asks for when nothing constrains it.
+        readonly property int preferredWidth: 360
+        // The markings, in metres of a 68 × 105 m pitch.
+        readonly property real widthMetres: 68
+        readonly property real lengthMetres: 105
+        readonly property real centreCircleMetres: 18.3
+        readonly property real penaltyAreaWidthMetres: 40.3
+        readonly property real penaltyAreaDepthMetres: 16.5
+        readonly property real goalAreaWidthMetres: 18.3
+        readonly property real goalAreaDepthMetres: 5.5
+    }
+
     // The size a window opens with and the smallest it can be made.
     component WindowSize: QtObject {
         required property int width
@@ -121,6 +160,10 @@ QtObject {
     readonly property ChartStyle chart: ChartStyle {
         dark: theme.dark
     }
+    readonly property PitchStyle pitch: PitchStyle {
+        dark: theme.dark
+        tokenSize: theme.hitTouch
+    }
 
     // Minimum hit targets: mouse + keyboard screens / touch screens (Match Day, tactics board).
     readonly property int hitMin: 32
@@ -153,6 +196,13 @@ QtObject {
     // measurement and the laid-out text may round and hint differently.
     readonly property int measuredTextSlack: 4
     readonly property int emptyStateWidth: 480
+    // Pre-match (P12): the bench column and the panel of the lineup issues.
+    readonly property int benchColumnWidth: 228
+    // The shirt number column of a player list.
+    readonly property int shirtNumberWidth: 24
+    readonly property int issuesPanelHeight: 196
+    // The list of the slot picker of Pre-match: about seven rows with their group headings.
+    readonly property int slotPickerHeight: 360
     // Icon.qml draws its paths on a square of this side and scales it to the size asked for.
     readonly property int iconGrid: 24
     readonly property int iconStrokeWidth: 2

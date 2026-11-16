@@ -9,6 +9,7 @@ import QtQuick.Controls.Basic
 //   value: var              input: selected value; never assigned by the field
 //   placeholderText         shown while nothing is selected
 //   error: string           external message, empty = valid (red border)
+//   touch: bool             Theme.hitTouch high, the rows of the list too (tactics board, Match Day)
 //   valueActivated(var value)   the user picked an item (read it from `currentValue` too)
 //   showValue()             shows `value` again after a pick the owner did not accept
 // A pick stays inside the field, so a binding on `value` survives it. Keep a viewmodel in sync in
@@ -21,6 +22,7 @@ ComboBox {
     property var value
     property string placeholderText
     property string error
+    property bool touch: false
     readonly property string effectiveError: error
 
     signal valueActivated(var value)
@@ -37,7 +39,7 @@ ComboBox {
     }
 
     implicitWidth: Theme.fieldWidth
-    implicitHeight: Theme.controlHeight
+    implicitHeight: control.touch ? Theme.controlHeightTouch : Theme.controlHeight
     leftPadding: Theme.spacing.m
     rightPadding: Theme.spacing.m + Theme.iconSize.m + Theme.spacing.s
     hoverEnabled: true
@@ -113,7 +115,7 @@ ComboBox {
         required property int index
 
         width: ListView.view ? ListView.view.width : implicitWidth
-        implicitHeight: Theme.rowHeight
+        implicitHeight: control.touch ? Theme.hitTouch : Theme.rowHeight
         leftPadding: Theme.spacing.m
         text: control.textRole.length > 0 ? option.model[control.textRole] : option.model.modelData
         highlighted: control.highlightedIndex === index
