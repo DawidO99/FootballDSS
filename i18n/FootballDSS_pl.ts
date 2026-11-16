@@ -1061,12 +1061,20 @@
         <translation>W dniu meczu: dostępny. Obciążenie na dzień 31.10 (dziś): w normie.</translation>
     </message>
     <message>
+        <source>Starting XI</source>
+        <translation>Wyjściowa jedenastka</translation>
+    </message>
+    <message>
         <source>No baseline</source>
         <translation>Mało danych</translation>
     </message>
     <message>
         <source>High</source>
         <translation>Wysokie</translation>
+    </message>
+    <message>
+        <source>Not in the lineup</source>
+        <translation>Poza składem</translation>
     </message>
     <message>
         <source>Error</source>
@@ -1220,12 +1228,52 @@
 <context>
     <name>LineupPlayerList</name>
     <message>
+        <source>No.</source>
+        <translation>Nr</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nazwisko</translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation>Pozycja</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation>Obciążenie</translation>
+    </message>
+    <message>
         <source>Squad</source>
         <translation>Kadra</translation>
     </message>
     <message>
+        <source>XI</source>
+        <translation>XI</translation>
+    </message>
+    <message>
+        <source>Put in the selected slot, or the first free one (Enter)</source>
+        <translation>Do składu: na zaznaczone miejsce albo pierwsze wolne (Enter)</translation>
+    </message>
+    <message>
+        <source>Bench</source>
+        <translation>Ławka</translation>
+    </message>
+    <message>
+        <source>Add to the bench (B)</source>
+        <translation>Na ławkę (B)</translation>
+    </message>
+    <message>
+        <source>Double click: the player card.</source>
+        <translation>Dwuklik: karta zawodnika.</translation>
+    </message>
+    <message>
         <source>Add to bench (B)</source>
-        <translation>Dodaj na ławkę (B)</translation>
+        <translation type="vanished">Dodaj na ławkę (B)</translation>
     </message>
     <message>
         <source>Add to bench</source>
@@ -1233,7 +1281,7 @@
     </message>
     <message>
         <source>Click or Enter: put in the selected slot.</source>
-        <translation>Kliknięcie lub Enter: wstaw na zaznaczone miejsce.</translation>
+        <translation type="vanished">Kliknięcie lub Enter: wstaw na zaznaczone miejsce.</translation>
     </message>
 </context>
 <context>
@@ -1510,7 +1558,11 @@
     </message>
     <message>
         <source>Back to the list (%1)</source>
-        <translation>Powrót do listy (%1)</translation>
+        <translation type="vanished">Powrót do listy (%1)</translation>
+    </message>
+    <message>
+        <source>Back (%1)</source>
+        <translation>Wróć (%1)</translation>
     </message>
     <message>
         <source>%1, age %2</source>
@@ -1846,15 +1898,15 @@
     </message>
     <message>
         <source>Pick a player for the selected slot: click or Enter.</source>
-        <translation>Wybierz zawodnika na zaznaczone miejsce: kliknięcie lub Enter.</translation>
+        <translation type="vanished">Wybierz zawodnika na zaznaczone miejsce: kliknięcie lub Enter.</translation>
     </message>
     <message>
         <source>Select a slot on the board, then pick a player.</source>
-        <translation>Zaznacz miejsce na tablicy, potem wybierz zawodnika.</translation>
+        <translation type="vanished">Zaznacz miejsce na tablicy, potem wybierz zawodnika.</translation>
     </message>
     <message>
         <source>Squad</source>
-        <translation>Kadra</translation>
+        <translation type="vanished">Kadra</translation>
     </message>
     <message>
         <source>The match could not be read</source>
@@ -1867,6 +1919,14 @@
     <message>
         <source>Move to the bench (B)</source>
         <translation>Przenieś na ławkę (B)</translation>
+    </message>
+    <message>
+        <source>Click a slot to pick its player. Double click: the player card.</source>
+        <translation>Kliknij miejsce, by wybrać zawodnika. Dwuklik: karta zawodnika.</translation>
+    </message>
+    <message>
+        <source>Double click: the player card.</source>
+        <translation>Dwuklik: karta zawodnika.</translation>
     </message>
     <message>
         <source>No planned match</source>
@@ -2407,6 +2467,17 @@
     </message>
 </context>
 <context>
+    <name>SlotPickerDialog</name>
+    <message>
+        <source>Close</source>
+        <translation>Zamknij</translation>
+    </message>
+    <message>
+        <source>in this slot</source>
+        <translation>na tym miejscu</translation>
+    </message>
+</context>
+<context>
     <name>SpikeChartsView</name>
     <message>
         <source>Charts spike (Qt Graphs)</source>
@@ -2472,6 +2543,18 @@
 </context>
 <context>
     <name>SquadView</name>
+    <message>
+        <source>← Pre-match</source>
+        <translation>← Przed meczem</translation>
+    </message>
+    <message>
+        <source>← Load</source>
+        <translation>← Obciążenie</translation>
+    </message>
+    <message>
+        <source>← Squad</source>
+        <translation>← Kadra</translation>
+    </message>
     <message>
         <source>%1 was archived.</source>
         <translation>Zarchiwizowano: %1.</translation>
@@ -3409,6 +3492,10 @@
         <translation>Ławka jest pełna. Poza składem: %1.</translation>
     </message>
     <message>
+        <source>%1: choose a player</source>
+        <translation>%1: wybierz zawodnika</translation>
+    </message>
+    <message>
         <source>No issues: the lineup is ready for Match Day.</source>
         <translation>Brak problemów: skład jest gotowy na tryb meczowy.</translation>
     </message>
@@ -3467,6 +3554,30 @@
     <message>
         <source>%1 · %2</source>
         <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <source>Starting XI</source>
+        <translation>Wyjściowa jedenastka</translation>
+    </message>
+    <message>
+        <source>Bench</source>
+        <translation>Ławka</translation>
+    </message>
+    <message>
+        <source>Not in the lineup</source>
+        <translation>Poza składem</translation>
+    </message>
+    <message>
+        <source>%1 as the main position</source>
+        <translation>%1 jako pozycja główna</translation>
+    </message>
+    <message>
+        <source>%1 as a second position</source>
+        <translation>%1 jako pozycja zapasowa</translation>
+    </message>
+    <message>
+        <source>Other positions</source>
+        <translation>Inne pozycje</translation>
     </message>
     <message>
         <source>The bench is full: at most %1 players.</source>

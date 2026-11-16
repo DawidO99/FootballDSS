@@ -2,8 +2,9 @@ import QtQuick
 import QtTest
 import FootballDSS
 
-// TacticsPitch and PlayerToken (P12): taps and keys on tokens, a token dragged to another zone
-// (decision 12), a token dropped on another one, and a read-only board.
+// TacticsPitch and PlayerToken (P12): taps, double taps and keys on tokens, a token dragged to
+// another zone (decision 12), also a free slot, a token dropped on another one, and a read-only
+// board.
 TestCase {
     id: testCase
 
@@ -19,6 +20,8 @@ TestCase {
 
         Item {
             property var activations: []
+            property var pointers: []
+            property var doubleTaps: []
             property var moves: []
             property var swaps: []
             property var removals: []
@@ -47,7 +50,11 @@ TestCase {
                     { "position": "cm", "text": "CM", "x": 0.25, "y": 0.4, "width": 0.5, "height": 0.16 },
                     { "position": "lw", "text": "LW", "x": 0, "y": 0.24, "width": 0.25, "height": 0.16 }
                 ]
-                onSlotActivated: slot => parent.activations = parent.activations.concat([slot])
+                onSlotActivated: (slot, pointer) => {
+                    parent.activations = parent.activations.concat([slot]);
+                    parent.pointers = parent.pointers.concat([pointer]);
+                }
+                onSlotDoubleTapped: slot => parent.doubleTaps = parent.doubleTaps.concat([slot])
                 onSlotMoved: (slot, x, y) => parent.moves = parent.moves.concat([{ "slot": slot, "x": x, "y": y }])
                 onSlotsSwapped: (from, to) => parent.swaps = parent.swaps.concat([[from, to]])
                 onRemoveRequested: slot => parent.removals = parent.removals.concat([slot])
@@ -92,6 +99,17 @@ TestCase {
         wait(Theme.tooltipDelay + 100);
         mouseClick(host, centre.x, centre.y);
         compare(host.activations, [0, 0]);
+        compare(host.pointers, [true, true]);
+        compare(host.doubleTaps, []);
+    }
+
+    // QtTest spaces its clicks by the double click interval, so a TapHandler never sees a double
+    // tap from here; qml_smoke sends one with its own timestamps. This checks the way to the board.
+    function test_double_tap_of_a_token_reaches_the_board() {
+        const host = createHost();
+        host.pitch.tokenAt(1).doubleTapped();
+        compare(host.doubleTaps, [1]);
+        compare(host.activations, []);
     }
 
     function test_tap_on_a_free_slot() {
@@ -108,6 +126,7 @@ TestCase {
         keyClick(Qt.Key_Return);
         keyClick(Qt.Key_Space);
         compare(host.activations, [1, 1]);
+        compare(host.pointers, [false, false]);
         keyClick(Qt.Key_Delete);
         compare(host.removals, [1]);
         // Tab moves to the next token.
@@ -133,6 +152,17 @@ TestCase {
         compare(host.moves[0].slot, 0);
         verify(host.moves[0].x < 0.25);
         verify(host.moves[0].y >= 0.24 && host.moves[0].y < 0.4);
+        compare(host.activations, []);
+    }
+
+    // A free slot moves like a taken one (P12 manual test).
+    function test_drag_a_free_slot_to_another_zone() {
+        const host = createHost();
+        const pitchItem = host.pitch.pitchItem;
+        drag(host, tokenCentre(host, 2, pitchItem), Qt.point(pitchItem.width * 0.1, pitchItem.height * 0.3));
+        compare(host.moves.length, 1);
+        compare(host.moves[0].slot, 2);
+        verify(host.moves[0].x < 0.25);
         compare(host.activations, []);
     }
 

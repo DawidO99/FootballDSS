@@ -1053,11 +1053,19 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Starting XI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No baseline</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>High</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not in the lineup</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1212,15 +1220,47 @@
 <context>
     <name>LineupPlayerList</name>
     <message>
+        <source>No.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Squad</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Add to bench (B)</source>
+        <source>XI</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Click or Enter: put in the selected slot.</source>
+        <source>Put in the selected slot, or the first free one (Enter)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bench</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add to the bench (B)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Double click: the player card.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1493,7 +1533,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Back to the list (%1)</source>
+        <source>Back (%1)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1821,18 +1861,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Pick a player for the selected slot: click or Enter.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Select a slot on the board, then pick a player.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Squad</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>The match could not be read</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1842,6 +1870,14 @@
     </message>
     <message>
         <source>Move to the bench (B)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click a slot to pick its player. Double click: the player card.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Double click: the player card.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2379,6 +2415,17 @@
     </message>
 </context>
 <context>
+    <name>SlotPickerDialog</name>
+    <message>
+        <source>Close</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>in this slot</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SpikeChartsView</name>
     <message>
         <source>Charts spike (Qt Graphs)</source>
@@ -2444,6 +2491,18 @@
 </context>
 <context>
     <name>SquadView</name>
+    <message>
+        <source>← Pre-match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>← Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>← Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>%1 was archived.</source>
         <translation type="unfinished"></translation>
@@ -3373,6 +3432,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>%1: choose a player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No issues: the lineup is ready for Match Day.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3430,6 +3493,30 @@
     </message>
     <message>
         <source>%1 · %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Starting XI</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bench</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not in the lineup</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 as the main position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 as a second position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Other positions</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

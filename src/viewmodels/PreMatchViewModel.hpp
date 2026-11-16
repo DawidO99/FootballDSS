@@ -10,12 +10,14 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
 #include <QVariantList>
 #include <QtQmlIntegration/qqmlintegration.h>
 
 #include <map>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace fdss::services {
@@ -68,6 +70,15 @@ class PreMatchViewModel : public QObject {
     Q_PROPERTY(fdss::viewmodels::TacticsBoardModel* board READ board CONSTANT FINAL)
     Q_PROPERTY(fdss::viewmodels::BenchListModel* bench READ bench CONSTANT FINAL)
     Q_PROPERTY(fdss::viewmodels::LineupPlayersModel* players READ players CONSTANT FINAL)
+    // The rows of `players` in the order of the list: XI, bench, then the chosen column.
+    Q_PROPERTY(
+        fdss::viewmodels::LineupPlayersSortModel* sortedPlayers READ sortedPlayers CONSTANT FINAL)
+    // The players offered for pickerSlot, see openPicker().
+    Q_PROPERTY(fdss::viewmodels::SlotPickerModel* slotPicker READ slotPicker CONSTANT FINAL)
+    // -1: the picker is closed.
+    Q_PROPERTY(int pickerSlot READ pickerSlot NOTIFY pickerChanged FINAL)
+    // "Centre back: choose a player".
+    Q_PROPERTY(QString pickerTitle READ pickerTitle NOTIFY pickerChanged FINAL)
     Q_PROPERTY(fdss::viewmodels::LineupIssuesModel* issues READ issues CONSTANT FINAL)
     Q_PROPERTY(int startingCount READ startingCount NOTIFY lineupChanged FINAL)
     Q_PROPERTY(int benchCount READ benchCount NOTIFY lineupChanged FINAL)
@@ -133,6 +144,10 @@ public:
     [[nodiscard]] TacticsBoardModel* board() const;
     [[nodiscard]] BenchListModel* bench() const;
     [[nodiscard]] LineupPlayersModel* players() const;
+    [[nodiscard]] LineupPlayersSortModel* sortedPlayers() const;
+    [[nodiscard]] SlotPickerModel* slotPicker() const;
+    [[nodiscard]] int pickerSlot() const;
+    [[nodiscard]] QString pickerTitle() const;
     [[nodiscard]] LineupIssuesModel* issues() const;
     [[nodiscard]] int startingCount() const;
     [[nodiscard]] int benchCount() const;
@@ -188,6 +203,12 @@ public:
     Q_INVOKABLE bool moveSlotTo(int slot, double x, double y);
     // The keyboard path of the same: the position as its database text.
     Q_INVOKABLE bool setSlotPosition(int slot, const QString& position);
+    // The picker of a slot (P12 manual test, decision 20): selects the slot and fills slotPicker,
+    // which follows every change until closePicker(). False on a read-only board.
+    Q_INVOKABLE bool openPicker(int slot);
+    // Into pickerSlot by the rules of assignToSlot(); the player already there: true, no change.
+    Q_INVOKABLE bool pickForSlot(qint64 playerId);
+    Q_INVOKABLE void closePicker();
     // Selects the place of the issue and asks the view to focus it.
     Q_INVOKABLE void activateIssue(int row);
 
@@ -213,6 +234,7 @@ signals:
     void matchesChanged();
     void lineupChanged();
     void selectionChanged();
+    void pickerChanged();
     void issuesChanged();
     void loadPendingChanged();
     void dirtyChanged();
@@ -249,6 +271,9 @@ private:
     void lineupEdited();
     void validate();
     void rebuildRows();
+    void rebuildPlayerRows(std::map<core::PlayerId, std::pair<QString, QStringList>>& byPlayer);
+    void rebuildPicker();
+    void setPickerSlot(int slot);
     void updateDirty();
     void setSelectedSlot(int slot);
     void setLoadPending(bool pending);
@@ -276,6 +301,8 @@ private:
     TacticsBoardModel* m_board;
     BenchListModel* m_bench;
     LineupPlayersModel* m_players;
+    LineupPlayersSortModel* m_sortedPlayers;
+    SlotPickerModel* m_picker;
     LineupIssuesModel* m_issues;
     ChoiceListModel* m_templates;
 
@@ -295,6 +322,7 @@ private:
     // Every load request gets the next number; only the newest result counts.
     int m_loadRequest = 0;
     int m_selectedSlot = -1;
+    int m_pickerSlot = -1;
     bool m_dirty = false;
     std::optional<services::DeletedTemplate> m_deletedTemplate;
     std::optional<core::Error> m_loadFailure;

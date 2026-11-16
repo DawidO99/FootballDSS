@@ -8,8 +8,10 @@ import FootballDSS
 
 // Pre-match (SPEC sections 4 and 7.2, packet P12): the match, the tactics board with the bench and
 // the squad, and the issues of the lineup validator, checked after every change. Mouse, touch and
-// keyboard: select a slot (Tab, Enter), then pick a player in the list with Enter; the selection
-// moves on to the next free slot. Saving with errors is allowed (a draft); Match Day refuses to start
+// keyboard: a click or Enter on a slot opens the picker of its player (P12 manual test); in the
+// squad list Enter (XI) puts the player in the selected slot and the selection moves on to the next
+// free slot, B puts them on the bench. A double click on a token or a row opens the player card,
+// whose back button leads here again (navigationArgs returnTo). Saving with errors is allowed (a draft); Match Day refuses to start
 // with them. Read-only without EditLineup or for a match that is not planned.
 Item {
     id: root
@@ -33,6 +35,7 @@ Item {
     readonly property alias issuesPanel: issuesPanel
     readonly property alias leaveDialog: leaveQuestion
     readonly property alias templatesDialog: templatesDialog
+    readonly property alias slotPicker: slotPickerDialog
 
     signal navigateRequested(string key, var args)
     // The answer to askBeforeLeaving(): the changes are saved or dropped, or the user stays.
@@ -82,13 +85,64 @@ Item {
         root.leaveCancelled();
     }
 
-    // A token was clicked or got Enter: select it, or finish a swap started with the swap button.
-    function activateSlot(slot) {
+    // A token was clicked or got Enter: finish a swap started with the swap button, or select it and
+    // open its picker. A click waits for the double click interval first, so the second click of
+    // a double one opens the card instead and the picker never shows.
+    function activateSlot(slot, pointer) {
+        tapWait.stop();
+        tapWait.slot = slot;
+        tapWait.picker = false;
         if (root.swapFrom >= 0 && root.swapFrom !== slot && root.canEdit) {
             preMatch.swapSlots(root.swapFrom, slot);
             root.swapFrom = -1;
+            preMatch.selectSlot(slot);
+            // The second click of a double one after a swap does nothing.
+            tapWait.swapped = true;
+            if (pointer)
+                tapWait.start();
+            return;
         }
+        tapWait.swapped = false;
         preMatch.selectSlot(slot);
+        if (!pointer) {
+            root.openPicker(slot);
+            return;
+        }
+        tapWait.picker = root.canEdit;
+        tapWait.start();
+    }
+
+    // A double click on a token: the card of its player; on a free slot, its picker.
+    function doubleTapSlot(slot) {
+        const swapped = tapWait.swapped && tapWait.slot === slot;
+        tapWait.stop();
+        tapWait.swapped = false;
+        if (swapped)
+            return;
+        const playerId = preMatch.board.get(slot).playerId ?? 0;
+        if (playerId > 0)
+            root.openPlayerCard(playerId);
+        else
+            root.openPicker(slot);
+    }
+
+    function openPicker(slot) {
+        if (root.canEdit && preMatch.openPicker(slot))
+            slotPickerDialog.open();
+    }
+
+    // The card in Squad; its back button returns to this match. Unsaved changes ask first: the
+    // navigation is guarded (Main.qml).
+    function openPlayerCard(playerId) {
+        root.navigateRequested("squad", {
+            "playerId": playerId,
+            "returnTo": {
+                "key": "prematch",
+                "args": {
+                    "matchId": preMatch.matchId
+                }
+            }
+        });
     }
 
     // Not from the visible change: the order against it is not guaranteed, see Main.qml.
@@ -120,12 +174,28 @@ Item {
         onBenchFocusRequested: index => benchList.focusRow(index)
     }
 
+    // The time between the first click on a token and its picker, see activateSlot().
+    Timer {
+        id: tapWait
+
+        property int slot: -1
+        property bool picker: false
+        property bool swapped: false
+
+        interval: Application.styleHints.mouseDoubleClickInterval
+        onTriggered: {
+            if (tapWait.picker)
+                root.openPicker(tapWait.slot);
+            tapWait.swapped = false;
+        }
+    }
+
     Shortcut {
         id: saveShortcut
 
         objectName: "saveShortcut"
         sequence: "Ctrl+S"
-        enabled: root.visible && root.canEdit && !leaveQuestion.visible && !templatesDialog.visible
+        enabled: root.visible && root.canEdit && !leaveQuestion.visible && !templatesDialog.visible && !slotPickerDialog.visible
         onActivated: root.save()
     }
 
@@ -330,7 +400,8 @@ Item {
                 model: preMatch.board
                 zones: preMatch.zones
                 interactive: root.canEdit
-                onSlotActivated: slot => root.activateSlot(slot)
+                onSlotActivated: (slot, pointer) => root.activateSlot(slot, pointer)
+                onSlotDoubleTapped: slot => root.doubleTapSlot(slot)
                 onPlayerDropped: (slot, playerId) => preMatch.assignToSlot(slot, playerId)
                 onSlotsSwapped: (from, to) => preMatch.swapSlots(from, to)
                 onSlotMoved: (slot, x, y) => preMatch.moveSlotTo(slot, x, y)
@@ -442,7 +513,7 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
-                    text: root.canEdit ? (preMatch.selectedSlot >= 0 ? qsTr("Pick a player for the selected slot: click or Enter.") : qsTr("Select a slot on the board, then pick a player.")) : qsTr("Squad")
+                    text: root.canEdit ? qsTr("Click a slot to pick its player. Double click: the player card.") : qsTr("Double click: the player card.")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSize.caption
                     elide: Text.ElideRight
@@ -454,11 +525,15 @@ Item {
                     objectName: "lineupPlayerList"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    model: preMatch.players
+                    model: preMatch.sortedPlayers
+                    sortColumn: preMatch.sortedPlayers.sortColumn
+                    ascending: preMatch.sortedPlayers.ascending
                     interactive: root.canEdit
                     onPickRequested: playerId => preMatch.pickPlayer(playerId)
                     onBenchRequested: playerId => preMatch.addToBench(playerId)
                     onRemoveRequested: playerId => preMatch.removePlayer(playerId)
+                    onCardRequested: playerId => root.openPlayerCard(playerId)
+                    onSortRequested: column => preMatch.sortedPlayers.sortBy(column)
                 }
 
                 LineupIssuesPanel {
@@ -512,6 +587,21 @@ Item {
             description: root.canEditSquad ? qsTr("Add players in Squad to set up the lineup.") : qsTr("Ask the coach or the assistant to add players in Squad.")
             actionText: root.canEditSquad ? qsTr("Open the squad") : ""
             onActionTriggered: root.navigateRequested("squad", {})
+        }
+    }
+
+    SlotPickerDialog {
+        id: slotPickerDialog
+
+        objectName: "slotPicker"
+        title: preMatch.pickerTitle
+        model: preMatch.slotPicker
+        onPicked: playerId => preMatch.pickForSlot(playerId)
+        onClosed: {
+            const slot = preMatch.pickerSlot;
+            preMatch.closePicker();
+            if (slot >= 0)
+                pitch.focusSlot(slot);
         }
     }
 

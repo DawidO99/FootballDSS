@@ -9,8 +9,11 @@ import FootballDSS
 Item {
     id: root
 
-    // What the section was opened with, see NavigationModel::activate(). playerId: opens that card.
+    // What the section was opened with, see NavigationModel::activate(). playerId: opens that card;
+    // returnTo { key, args }: its Back button leads to that section with those arguments (P12
+    // manual test: from Pre-match and Load).
     property var navigationArgs: ({})
+    property var returnTo: null
     property var selectedPlayer: ({})
     readonly property bool hasSelection: selectedPlayer.playerId !== undefined
     readonly property bool canEdit: AppState.can("EditSquad")
@@ -39,10 +42,29 @@ Item {
     }
 
     function closeCard() {
+        const target = root.returnTo;
+        root.returnTo = null;
+        card.backText = root.backTextFor("");
+        if (target) {
+            pages.currentIndex = 0;
+            root.navigateRequested(target.key, target.args ?? {});
+            return;
+        }
         pages.currentIndex = 0;
         playersTable.currentIndex = squad.rowOf(card.playerId);
         root.syncSelection();
         playersTable.forceActiveFocus(Qt.TabFocusReason);
+    }
+
+    function backTextFor(key) {
+        switch (key) {
+        case "prematch":
+            return qsTr("← Pre-match");
+        case "load":
+            return qsTr("← Load");
+        default:
+            return qsTr("← Squad");
+        }
     }
 
     function openSelectedCard() {
@@ -79,6 +101,9 @@ Item {
     }
 
     onNavigationArgsChanged: {
+        // Arguments without a card (also none, after leaving the section) end the way back.
+        root.returnTo = navigationArgs.playerId !== undefined ? navigationArgs.returnTo ?? null : null;
+        card.backText = root.backTextFor(root.returnTo ? root.returnTo.key : "");
         if (navigationArgs.playerId !== undefined)
             root.openCard(navigationArgs.playerId);
         // From the search of the top bar: the field shows it and keeps the focus for more typing.

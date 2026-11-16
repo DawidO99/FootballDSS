@@ -4,7 +4,8 @@ import QtQuick.Controls.Basic
 // A player on the tactics board (P12): the shirt number in a circle of Theme.hitTouch and the
 // surname under it. An issue of the lineup validator adds an icon (a different one for an error and
 // a warning; the words are in the tooltip and the accessible name), so it is never color only. A
-// free slot shows its position.
+// free slot shows its position, and can be dragged too: a custom shape can be built before any
+// player is in it (P12 manual test).
 // API:
 //   positionText: string        GK, RB…
 //   shirtNumber: var            a number, or nothing
@@ -13,12 +14,14 @@ import QtQuick.Controls.Basic
 //   severity: string            error, warning or empty
 //   issueText: string           the issues, one per line
 //   selected: bool
-//   interactive: bool           can be dragged (the board is not read-only)
+//   interactive: bool           can be dragged, also when free (the board is not read-only)
 //   ghost: bool                 the copy that follows the pointer during a drag: no input
 //   payload: var                what a drop target reads from a ghost: { kind, slot, playerId }
 //   dragActive: bool            read-only: this token is being dragged
 //   dragScenePosition: point    read-only: the pointer during the drag, in scene coordinates
-//   activated()                 click, tap, Enter or Space
+//   activated()                 Enter or Space
+//   tapped()                    a click or tap; the first of a double one too
+//   doubleTapped()              the second click or tap of a double one
 //   deletePressed()             Delete while it has the focus
 //   benchPressed()              B while it has the focus (the accelerator of "Move to the bench")
 //   dragReleased()              the drag ended
@@ -51,6 +54,8 @@ Item {
     }
 
     signal activated
+    signal tapped
+    signal doubleTapped
     signal deletePressed
     signal benchPressed
     signal dragReleased
@@ -143,17 +148,18 @@ Item {
 
     TapHandler {
         enabled: !root.ghost
-        onTapped: {
+        onSingleTapped: {
             root.forceActiveFocus(Qt.MouseFocusReason);
-            root.activated();
+            root.tapped();
         }
+        onDoubleTapped: root.doubleTapped()
     }
 
     DragHandler {
         id: dragHandler
 
         target: null
-        enabled: root.interactive && !root.ghost && !root.empty
+        enabled: root.interactive && !root.ghost
         dragThreshold: Theme.pitch.dragThreshold
         onActiveChanged: {
             if (!active)

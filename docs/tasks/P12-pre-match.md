@@ -184,3 +184,32 @@ per rule), worth a class diagram.
       three in a wide one) and further rows `kZoneRowStep` 0.14 apart around the y of the zone, so they
       never overlap one another; catalogue formations lay out as before. Extreme shapes may still
       bring a token of one zone close to one of the next row.
+20. **Slot picker (manual test)**: a click or Enter on a slot selects it and opens a small dialog of
+    the players for its position (`SlotPickerDialog`, `PreMatchViewModel::openPicker()` /
+    `pickForSlot()` / `closePicker()`). The order and the groups come from C++ (`SlotPickerModel`):
+    the position of the slot as the main one, as a second one, then "Other positions"; in each group
+    the available players by shirt number, the unavailable ones last and marked by their status.
+    Every row: number, name, positions, where the player is (XI, bench, not in the lineup), the
+    availability on the match day and the load status (icon and word). A pick follows the rules of
+    `assignToSlot`; arrows, Enter and Esc; rows of `Theme.hitTouch`. A click waits for the double
+    click interval before the picker opens, so the second click of a double one opens the card
+    instead; Enter opens it at once. The second click of a double one that finished a swap does
+    nothing. Empty slots drag like taken ones and keep the position field, so a custom shape can be
+    built before any player is in it.
+21. **Squad list (manual test)**: `LineupPlayersSortModel` (a `QSortFilterProxyModel` over
+    `LineupPlayersModel`) puts the XI first, from the goalkeeper up the pitch (y descending, then x),
+    then the bench in its order, then the rest by the header: number, name (Polish collation, as in
+    Squad), position, status, load (high first); the same header again turns the direction, rows
+    without a value stay last both ways. Section headings: "Starting XI", "Bench", "Not in the
+    lineup". Every row has two actions, "XI" (into the selected slot, without a selection into the
+    first free one; Enter) and "Bench" (B), with the shortcut in the tooltip. A click on a row only
+    makes it current; after a player leaves the rest the next one of the rest is current, so Enter
+    after Enter still fills the XI. The header is a sort bar over the columns: at 1280 px the column
+    is about 430 px wide, too narrow for aligned status and load columns.
+22. **Player card from Pre-match and Load (manual test)**: a double click on a token (or a row of the
+    squad list) opens the card in Squad with `navigationArgs` `{ playerId, returnTo: { key, args } }`;
+    Back (and Esc) on the card goes to `returnTo` ("← Pre-match" with the same `matchId`, "← Load"
+    with the same `playerId`) instead of the list. Unsaved changes ask first through the existing
+    navigation guard. `SquadView` forgets `returnTo` when it gets arguments without a card, also the
+    empty ones after leaving the section. QtTest spaces its clicks by the double click interval, so the
+    double tap is tested in qml_smoke with its own timestamps; `tst_tacticspitch` checks the signal.

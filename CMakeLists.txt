@@ -85,6 +85,7 @@ qt_add_qml_module(fdss_ui
         ui/components/SessionEditorDialog.qml
         ui/components/Sidebar.qml
         ui/components/SidebarButton.qml
+        ui/components/SlotPickerDialog.qml
         ui/components/StatusBadge.qml
         ui/components/SuggestionField.qml
         ui/components/TacticsPitch.qml

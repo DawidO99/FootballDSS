@@ -8,15 +8,17 @@ import QtQuick.Controls.Basic
 // drawn while a token is dragged. Mouse, touch and keyboard: a token is a button (Tab, Enter), and
 // a drag starts after Theme.pitch.dragThreshold. During a drag a copy of the token follows the
 // pointer in the overlay; dropping it on another token swaps the players, on the pitch moves the
-// slot to the zone there. Players dragged from the bench or the squad list (Drag.keys
-// "fdss-player", source.payload { kind, playerId }) are dropped on a token.
+// slot to the zone there; a free slot moves the same way. Players dragged from the bench or the
+// squad list (Drag.keys "fdss-player", source.payload { kind, playerId }) are dropped on a token.
 // API:
 //   model: TacticsBoardModel     slotIndex, positionText, pitchX, pitchY, playerId, shirtNumber,
 //                                shortName, fullName, severity, issueText, selected
 //   zones: var                   [{ position, text, x, y, width, height }], 0–1
 //   interactive: bool            drags and drops; a read-only board still selects
 //   dragging: bool               read-only: a token is being dragged
-//   slotActivated(slot)          click, tap, Enter or Space on a token
+//   slotActivated(slot, pointer) a click or tap (pointer true; also the first of a double one),
+//                                Enter or Space (pointer false) on a token
+//   slotDoubleTapped(slot)       the second click or tap of a double one
 //   playerDropped(slot, playerId)   a player from the bench or the list dropped on a token
 //   slotsSwapped(from, to)       a token dropped on another token
 //   slotMoved(slot, x, y)        a token dropped on the pitch, x and y 0–1
@@ -35,7 +37,8 @@ Item {
     readonly property int hoverZone: pitchDrop.containsDrag ? root.zoneAt(pitchDrop.drag.x / pitch.width, pitchDrop.drag.y / pitch.height) : -1
     readonly property alias pitchItem: pitch
 
-    signal slotActivated(int slot)
+    signal slotActivated(int slot, bool pointer)
+    signal slotDoubleTapped(int slot)
     signal playerDropped(int slot, double playerId)
     signal slotsSwapped(int from, int to)
     signal slotMoved(int slot, real x, real y)
@@ -279,7 +282,9 @@ Item {
                     issueText: slotItem.issueText
                     selected: slotItem.selected
                     interactive: root.interactive
-                    onActivated: root.slotActivated(slotItem.slotIndex)
+                    onActivated: root.slotActivated(slotItem.slotIndex, false)
+                    onTapped: root.slotActivated(slotItem.slotIndex, true)
+                    onDoubleTapped: root.slotDoubleTapped(slotItem.slotIndex)
                     onDeletePressed: {
                         if (root.interactive)
                             root.removeRequested(slotItem.slotIndex);

@@ -584,3 +584,102 @@ TEST_F(PreMatchViewModelTest, PlayerDetailsNameTheDays) {
     // No RPE in this club: today's grey status is as of yesterday (P11 decision 4).
     EXPECT_TRUE(details.contains("Load as of")) << details.toStdString();
 }
+
+// The picker of a centre back: CB as the main position, then as a second one, then the others; the
+// unavailable ones last in their group (P12 manual test, decision 20).
+TEST_F(PreMatchViewModelTest, ThePickerOfACentreBackGroupsByPosition) {
+    auto secondary = registry().squad().player(m_players[11]);
+    ASSERT_TRUE(secondary.has_value());
+    PlayerDraft draft = secondary->player;
+    draft.secondaryPositions = {Position::Cb};
+    ASSERT_TRUE(registry().squad().updatePlayer(m_players[11], draft).has_value());
+    AvailabilityDraft injury;
+    injury.type = AvailabilityType::Injury;
+    injury.fromDate = Date{std::chrono::year{2026}, std::chrono::October, std::chrono::day{25}};
+    ASSERT_TRUE(registry().squad().addAvailability(m_players[2], injury).has_value());
+    ASSERT_TRUE(registry().squad().addAvailability(m_players[12], injury).has_value());
+    const auto vm = open();
+    ASSERT_TRUE(vm->assignToSlot(2, player(4)));
+
+    ASSERT_EQ(vm->board()->value(2, "positionKey").toString(), "cb");
+    ASSERT_TRUE(vm->openPicker(2));
+    EXPECT_EQ(vm->pickerSlot(), 2);
+    EXPECT_EQ(vm->selectedSlot(), 2);
+    const auto* picker = vm->slotPicker();
+    ASSERT_EQ(picker->rowCount(), kSquad);
+    std::vector<qint64> order;
+    QStringList groups;
+    for (int row = 0; row < picker->rowCount(); ++row) {
+        order.push_back(picker->value(row, "playerId").toLongLong());
+        const QString group = picker->value(row, "group").toString();
+        if (groups.isEmpty() || groups.back() != group) {
+            groups << group;
+        }
+    }
+    EXPECT_EQ(groups, (QStringList{"primary", "secondary", "other"}));
+    // Player 3 is injured: last of the centre backs.
+    EXPECT_EQ(order[0], player(4));
+    EXPECT_EQ(order[1], player(3));
+    EXPECT_FALSE(picker->value(1, "available").toBool());
+    EXPECT_TRUE(picker->value(0, "current").toBool());
+    EXPECT_EQ(picker->value(0, "placement").toString(), "xi");
+    EXPECT_EQ(order[2], player(12));
+    EXPECT_EQ(order[3], player(1));
+    // Player 13 is injured: last of the others.
+    EXPECT_EQ(order.back(), player(13));
+    EXPECT_EQ(picker->value(kSquad - 1, "statusKey").toString(), "injured");
+
+    // A pick swaps by the rules of assignToSlot and the picker follows.
+    ASSERT_TRUE(vm->pickForSlot(player(12)));
+    EXPECT_EQ(slotPlayer(*vm, 2), player(12));
+    EXPECT_TRUE(picker->value(2, "current").toBool());
+    EXPECT_TRUE(vm->pickForSlot(player(12)));
+    vm->closePicker();
+    EXPECT_EQ(vm->pickerSlot(), -1);
+    EXPECT_EQ(picker->rowCount(), 0);
+}
+
+// The squad list: the XI from the goalkeeper up the pitch, the bench in its order, then the rest by
+// the chosen column, rows without a value last both ways (P12 manual test, decision 21).
+TEST_F(PreMatchViewModelTest, TheSquadListPutsTheLineupFirst) {
+    PlayerDraft unnumbered;
+    unnumbered.firstName = "Bez";
+    unnumbered.lastName = "Abacki";
+    ASSERT_TRUE(registry().squad().addPlayer(m_team, unnumbered).has_value());
+    const auto vm = open();
+    auto* list = vm->sortedPlayers();
+    ASSERT_EQ(list->rowCount(), kSquad + 1);
+    // Strikers in slot 0 and 1, the goalkeeper in slot 10: the goalkeeper still comes first.
+    ASSERT_TRUE(vm->assignToSlot(0, player(10)));
+    ASSERT_TRUE(vm->setSlotPosition(0, "st"));
+    ASSERT_TRUE(vm->setSlotPosition(10, "gk"));
+    ASSERT_TRUE(vm->assignToSlot(10, player(1)));
+    ASSERT_TRUE(vm->addToBench(player(20)));
+    ASSERT_TRUE(vm->addToBench(player(15)));
+
+    EXPECT_EQ(list->value(0, "playerId").toLongLong(), player(1));
+    EXPECT_EQ(list->value(0, "section").toInt(), 0);
+    EXPECT_EQ(list->value(1, "playerId").toLongLong(), player(10));
+    EXPECT_EQ(list->value(2, "playerId").toLongLong(), player(20));
+    EXPECT_EQ(list->value(2, "section").toInt(), 1);
+    EXPECT_EQ(list->value(3, "playerId").toLongLong(), player(15));
+    EXPECT_EQ(list->value(4, "section").toInt(), 2);
+    EXPECT_EQ(list->value(4, "playerId").toLongLong(), player(2));
+    EXPECT_EQ(list->value(kSquad, "shortName").toString(), "Abacki");
+
+    // Descending by number: the lineup stays on top, the player without a number stays last.
+    list->sortBy("number");
+    EXPECT_FALSE(list->ascending());
+    EXPECT_EQ(list->value(0, "playerId").toLongLong(), player(1));
+    EXPECT_EQ(list->value(4, "playerId").toLongLong(), player(19));
+    EXPECT_EQ(list->value(kSquad, "shortName").toString(), "Abacki");
+
+    // By name, then descending: a surname always has a value, so it sorts like the others.
+    list->sortBy("name");
+    EXPECT_TRUE(list->ascending());
+    EXPECT_EQ(list->value(4, "shortName").toString(), "Abacki");
+    list->sortBy("name");
+    EXPECT_EQ(list->value(4, "playerId").toLongLong(), player(19));
+    EXPECT_EQ(list->value(kSquad, "shortName").toString(), "Abacki");
+    EXPECT_EQ(list->rowOf(player(1)), 0);
+}

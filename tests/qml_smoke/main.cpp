@@ -69,6 +69,7 @@
 #include <QRectF>
 #include <QSet>
 #include <QSettings>
+#include <QStyleHints>
 #include <QThread>
 #include <QVariantMap>
 #include <QtQml/QQmlExtensionPlugin>
@@ -3120,6 +3121,28 @@ void tapItem(QQuickWindow* window, QQuickItem* item) {
     settle();
 }
 
+// A double tap: two taps close in time and place, as the TapHandler of PlayerToken counts them.
+void doubleTapItem(QQuickWindow* window, QQuickItem* item) {
+    static ulong timestamp = 500'000'000;
+    const QPointF center = item->mapToScene(QPointF(item->width() / 2, item->height() / 2));
+    const QPointF global = window->mapToGlobal(center);
+    QMouseEvent move(QEvent::MouseMove, center, center, global, Qt::NoButton, Qt::NoButton,
+                     Qt::NoModifier);
+    move.setTimestamp(timestamp += 1000);
+    QCoreApplication::sendEvent(window, &move);
+    for (int tap = 0; tap < 2; ++tap) {
+        QMouseEvent press(QEvent::MouseButtonPress, center, center, global, Qt::LeftButton,
+                          Qt::LeftButton, Qt::NoModifier);
+        press.setTimestamp(timestamp += 100);
+        QMouseEvent release(QEvent::MouseButtonRelease, center, center, global, Qt::LeftButton,
+                            Qt::NoButton, Qt::NoModifier);
+        release.setTimestamp(timestamp += 50);
+        QCoreApplication::sendEvent(window, &press);
+        QCoreApplication::sendEvent(window, &release);
+    }
+    settle();
+}
+
 // --- Pre-match (P12) ---
 
 struct PreMatchScreen {
@@ -3137,8 +3160,20 @@ struct PreMatchScreen {
     [[nodiscard]] QVariant board(int slot, const char* role) const {
         return preMatch->board()->value(slot, role);
     }
+    // A row of the squad list as the list shows it (LineupPlayersSortModel).
     [[nodiscard]] QVariant player(int row, const char* role) const {
-        return preMatch->players()->value(row, role);
+        return preMatch->sortedPlayers()->value(row, role);
+    }
+    [[nodiscard]] QObject* slotPicker() const {
+        return view->property("slotPicker").value<QObject*>();
+    }
+    [[nodiscard]] bool pickerOpen() const { return slotPicker()->property("opened").toBool(); }
+    // Gives a token the focus and selects its slot without a click, which would open its picker.
+    void focusToken(int slot) const {
+        QMetaObject::invokeMethod(find(QStringLiteral("tacticsPitch")), "focusSlot",
+                                  Q_ARG(QVariant, slot));
+        preMatch->selectSlot(slot);
+        settle();
     }
     [[nodiscard]] std::vector<qint64> boardPlayers() const {
         std::vector<qint64> ids;
@@ -3149,7 +3184,7 @@ struct PreMatchScreen {
     }
     // The first row of the squad list for which `accept` holds; -1: none.
     template <class Accept> [[nodiscard]] int playerRow(Accept accept) const {
-        for (int row = 0; row < preMatch->players()->rowCount(); ++row) {
+        for (int row = 0; row < preMatch->sortedPlayers()->rowCount(); ++row) {
             if (accept(row)) {
                 return row;
             }
@@ -3265,14 +3300,41 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
     }
     const qint64 injured = screen->player(injuredRow, "playerId").toLongLong();
     const QString injuredName = screen->player(injuredRow, "shortName").toString();
+    // A click on a token selects it and opens its picker after the double click interval; the
+    // picker of a centre midfielder starts with the centre midfielders (P12 manual test).
     tapItem(window, screen->token(6));
     if (preMatch->selectedSlot() != 6) {
         fail("a click on a token does not select its slot");
     }
-    auto* list = screen->find(QStringLiteral("playerListView"));
-    list->forceActiveFocus(Qt::TabFocusReason);
-    list->setProperty("currentIndex", injuredRow);
+    if (!waitUntil([&] { return screen->pickerOpen(); },
+                   "a click on a slot does not open its picker")) {
+        return;
+    }
+    settle();
+    grabOrSave(window, screenshotDirectory, QStringLiteral("prematch-picker.png"));
+    if (preMatch->slotPicker()->value(0, "group").toString() != QLatin1StringView("primary") ||
+        preMatch->slotPicker()->rowCount() != preMatch->playerCount()) {
+        fail("the picker of a slot does not start with its position");
+    }
+    int injuredPick = -1;
+    for (int row = 0; row < preMatch->slotPicker()->rowCount(); ++row) {
+        if (preMatch->slotPicker()->value(row, "playerId").toLongLong() == injured) {
+            injuredPick = row;
+        }
+    }
+    auto* pickerList = screen->find(QStringLiteral("slotPickerList"));
+    if (pickerList == nullptr || injuredPick < 0) {
+        fail("the picker does not list the injured player");
+        return;
+    }
+    pickerList->forceActiveFocus(Qt::TabFocusReason);
+    pickerList->setProperty("currentIndex", injuredPick);
     pressKey(window, Qt::Key_Return);
+    settle();
+    if (screen->pickerOpen()) {
+        fail("Enter in the picker does not close it");
+    }
+    auto* list = screen->find(QStringLiteral("playerListView"));
     if (screen->board(6, "playerId").toLongLong() != injured ||
         !screen->hasIssue(QStringLiteral("unavailable"), injured) ||
         screen->board(6, "severity").toString() != QLatin1StringView("error")) {
@@ -3285,8 +3347,8 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
     if (!named) {
         fail("the error does not name the injured player");
     }
-    // Replaced by an available player: the error goes.
-    tapItem(window, screen->token(6));
+    // Replaced by an available player with XI (Enter) in the list: the error goes.
+    screen->focusToken(6);
     const int replacementRow = screen->playerRow([&](int row) {
         return screen->player(row, "statusKey").toString() == QLatin1StringView("available") &&
                screen->player(row, "placement").toString().isEmpty();
@@ -3310,23 +3372,39 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
         return;
     }
     pressKey(window, Qt::Key_Return);
-    if (preMatch->selectedSlot() != 0) {
-        fail("Enter on a token does not select its slot");
+    if (preMatch->selectedSlot() != 0 || !screen->pickerOpen()) {
+        fail("Enter on a token does not select its slot and open its picker");
+    }
+    // Esc closes the picker; the slot stays selected and its token gets the focus back.
+    pressKey(window, Qt::Key_Escape);
+    settle();
+    if (screen->pickerOpen() || preMatch->selectedSlot() != 0 ||
+        !screen->token(0)->hasActiveFocus()) {
+        fail("Esc in the picker does not go back to the slot");
     }
     if (!tabUntil(
             window, [&] { return list->hasActiveFocus(); }, 40,
             "Tab does not reach the squad list")) {
         return;
     }
-    int placed = 0;
-    for (int row = 0; row < preMatch->players()->rowCount() && placed < 11; ++row) {
-        if (screen->player(row, "statusKey").toString() != QLatin1StringView("available") ||
-            !screen->player(row, "placement").toString().isEmpty()) {
-            continue;
+    // The list sorts the XI to the top, so every round looks for the next available player.
+    for (int placed = 0; placed < 11; ++placed) {
+        const int row = screen->playerRow([&](int candidate) {
+            return screen->player(candidate, "statusKey").toString() ==
+                       QLatin1StringView("available") &&
+                   screen->player(candidate, "placement").toString().isEmpty();
+        });
+        if (row < 0) {
+            break;
         }
         arrowTo(window, list, row);
         pressKey(window, Qt::Key_Return);
-        ++placed;
+        // The next player of the rest is current, not the one who went to the XI.
+        if (placed < 10 && !screen->player(list->property("currentIndex").toInt(), "placement")
+                                .toString()
+                                .isEmpty()) {
+            fail("after Enter the squad list stays on the player who went to the XI");
+        }
     }
     if (preMatch->startingCount() != 11 || preMatch->selectedSlot() != -1 ||
         !list->hasActiveFocus()) {
@@ -3382,12 +3460,12 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
     // To the bench by keyboard: B on a token, Tab to the button, B in the squad (P12 review).
     {
         const int bench = preMatch->benchCount();
-        tapItem(window, screen->token(1));
+        screen->focusToken(1);
         pressKey(window, Qt::Key_B);
         if (preMatch->benchCount() != bench + 1 || screen->board(1, "playerId").toLongLong() != 0) {
             fail("B on a token does not move its player to the bench");
         }
-        tapItem(window, screen->token(2));
+        screen->focusToken(2);
         auto* toBench = screen->find(QStringLiteral("toBenchButton"));
         if (tabUntil(
                 window, [&] { return toBench->hasActiveFocus(); }, 30,
@@ -3408,7 +3486,7 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
 
         // A second goalkeeper picked in the position field: refused, the field shows the slot
         // again.
-        tapItem(window, screen->token(3));
+        screen->focusToken(3);
         auto* positionField = screen->find(QStringLiteral("positionField"));
         int gkIndex = -1;
         QMetaObject::invokeMethod(positionField, "indexOfValue", Q_RETURN_ARG(int, gkIndex),
@@ -3426,7 +3504,7 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
             return item != nullptr && item->height() >= 44 && item->width() >= 44;
         };
         for (const char* name : {"positionField", "swapButton", "toBenchButton", "removeButton",
-                                 "benchRemove_0", "benchButton_0", "playerRow_0"}) {
+                                 "benchRemove_0", "benchButton_0", "xiButton_0", "playerRow_0"}) {
             if (!touchSized(screen->find(QString::fromLatin1(name)))) {
                 fail("a control of the tactics board is smaller than Theme.hitTouch");
                 qWarning("qml_smoke: too small: %s", name);
@@ -3456,6 +3534,89 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
         if (screen->navigation->currentKey() != QLatin1StringView("dashboard") ||
             screen->preMatch->dirty()) {
             fail("Discard does not leave pre-match");
+        }
+    }
+
+    // A double click on a token opens the card of its player, after the question about a change;
+    // Back on the card returns to the same match. The same from a row of the squad list and from
+    // Load (P12 manual test).
+    screen = openPreMatchScreen(engine);
+    if (!screen) {
+        return;
+    }
+    {
+        const auto backTo = [&](const char* key, const char* reason) {
+            QQuickItem* squadView = findQmlItem(window->contentItem(), "SquadView");
+            auto* card = squadView != nullptr
+                             ? squadView->property("playerCard").value<QQuickItem*>()
+                             : nullptr;
+            QQuickItem* back =
+                card != nullptr ? findByObjectName(card, QStringLiteral("backButton")) : nullptr;
+            if (screen->navigation->currentKey() != QLatin1StringView("squad") ||
+                !squadView->property("cardOpen").toBool() || back == nullptr) {
+                fail(reason);
+                return qint64{0};
+            }
+            const qint64 shown = card->property("playerId").toLongLong();
+            clickItem(window, back);
+            settle();
+            if (screen->navigation->currentKey() != QLatin1StringView(key)) {
+                fail("Back on the card does not return where the card was opened from");
+            }
+            return shown;
+        };
+        const qint64 matchId = screen->preMatch->matchId();
+        const qint64 goalkeeper = screen->board(0, "playerId").toLongLong();
+        screen->preMatch->swapSlots(1, 2);
+        settle();
+        doubleTapItem(window, screen->token(0));
+        auto* leave = screen->view->property("leaveDialog").value<QObject*>();
+        if (leave == nullptr || !leave->property("visible").toBool()) {
+            fail("a double click with a change does not ask before leaving");
+        } else {
+            QMetaObject::invokeMethod(leave, "dangerClicked");
+            settle();
+        }
+        if (backTo("prematch", "a double click on a token does not open the card") != goalkeeper ||
+            screen->preMatch->matchId() != matchId) {
+            fail("the card of a token is not the card of its player, or Back changes the match");
+        }
+        // The first click of the double one never opens the picker.
+        QElapsedTimer waited;
+        waited.start();
+        while (waited.elapsed() < QGuiApplication::styleHints()->mouseDoubleClickInterval() + 100) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        }
+        if (screen->pickerOpen() || screen->preMatch->pickerSlot() >= 0) {
+            fail("a double click on a token opens its picker");
+        }
+
+        const qint64 firstRow = screen->player(0, "playerId").toLongLong();
+        // The first row in view: the list may be scrolled from the keyboard path.
+        auto* rows = findByObjectName(screen->view, QStringLiteral("playerListView"));
+        rows->setProperty("currentIndex", 0);
+        QMetaObject::invokeMethod(rows, "positionViewAtBeginning");
+        renderFrame(window);
+        doubleTapItem(window, findByObjectName(screen->view, QStringLiteral("playerRow_0")));
+        if (backTo("prematch", "a double click on a squad row does not open the card") !=
+            firstRow) {
+            fail("the card of a squad row is not the card of its player");
+        }
+
+        screen->navigation->activate(QStringLiteral("load"),
+                                     QVariantMap{{QStringLiteral("playerId"), goalkeeper}});
+        settle();
+        QQuickItem* loadView = findQmlItem(window->contentItem(), "LoadView");
+        if (loadView != nullptr &&
+            waitUntil([&] { return loadView->property("hasSelection").toBool(); },
+                      "Load does not select the player it was opened with")) {
+            settle();
+            clickItem(window, findByObjectName(loadView, QStringLiteral("playerCardButton")));
+            settle();
+            backTo("load", "the player card button of Load does not open the card");
+            if (!loadView->property("hasSelection").toBool()) {
+                fail("Back to Load loses the player");
+            }
         }
     }
 

@@ -5,12 +5,15 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FootballDSS
 
-// The card of one player, shown by SquadView. The Back button leads to the list; Esc is its shortcut.
+// The card of one player, shown by SquadView. The Back button leads to the list, or to the screen
+// the card was opened from (backText names it); Esc is its shortcut.
 Item {
     id: root
 
     // 0: no player.
     property double playerId: 0
+    // Where Back leads, e.g. "← Pre-match".
+    property string backText: qsTr("← Squad")
     // False while a dialog of SquadView is open: Esc belongs to that dialog then.
     property bool shortcutsEnabled: true
     property var selectedEntry: ({})
@@ -118,9 +121,9 @@ Item {
                 id: backButton
 
                 objectName: "backButton"
-                text: qsTr("← Squad")
+                text: root.backText
                 ToolTip.visible: hovered
-                ToolTip.text: qsTr("Back to the list (%1)").arg(backShortcut.nativeText)
+                ToolTip.text: qsTr("Back (%1)").arg(backShortcut.nativeText)
                 ToolTip.delay: Theme.tooltipDelay
                 onClicked: root.backRequested()
             }

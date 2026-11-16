@@ -20,6 +20,7 @@
 #include <QStringList>
 
 #include <algorithm>
+#include <array>
 #include <set>
 #include <utility>
 
@@ -64,6 +65,23 @@ QVariant idOrZero(const std::optional<core::PlayerId>& player) {
     return QVariant(static_cast<qint64>(player ? player->value : 0));
 }
 
+// The order of the load column: the statuses to talk about first; not enough data has no value.
+QVariant loadRank(core::LoadStatus status) {
+    switch (status) {
+    case core::LoadStatus::High:
+        return 0;
+    case core::LoadStatus::Elevated:
+        return 1;
+    case core::LoadStatus::Normal:
+        return 2;
+    case core::LoadStatus::Underloaded:
+        return 3;
+    case core::LoadStatus::NotEnoughData:
+        return {};
+    }
+    return {};
+}
+
 } // namespace
 
 PreMatchViewModel::PreMatchViewModel(QObject* parent)
@@ -71,7 +89,9 @@ PreMatchViewModel::PreMatchViewModel(QObject* parent)
       m_load(ServiceRegistry::instance().load()), m_session(ServiceRegistry::instance().session()),
       m_clock(ServiceRegistry::instance().clock()), m_matches(new ChoiceListModel(this)),
       m_board(new TacticsBoardModel(this)), m_bench(new BenchListModel(this)),
-      m_players(new LineupPlayersModel(this)), m_issues(new LineupIssuesModel(this)),
+      m_players(new LineupPlayersModel(this)),
+      m_sortedPlayers(new LineupPlayersSortModel(m_players, this)),
+      m_picker(new SlotPickerModel(this)), m_issues(new LineupIssuesModel(this)),
       m_templates(new ChoiceListModel(this)) {
     // Once per change of the language, see LoadViewModel.
     if (QCoreApplication* app = QCoreApplication::instance()) {
@@ -206,6 +226,21 @@ BenchListModel* PreMatchViewModel::bench() const { return m_bench; }
 LineupPlayersModel* PreMatchViewModel::players() const { return m_players; }
 
 LineupIssuesModel* PreMatchViewModel::issues() const { return m_issues; }
+
+LineupPlayersSortModel* PreMatchViewModel::sortedPlayers() const { return m_sortedPlayers; }
+
+SlotPickerModel* PreMatchViewModel::slotPicker() const { return m_picker; }
+
+int PreMatchViewModel::pickerSlot() const { return m_pickerSlot; }
+
+QString PreMatchViewModel::pickerTitle() const {
+    if (!core::isValidSlot(m_lineup, m_pickerSlot)) {
+        return {};
+    }
+    return tr("%1: choose a player")
+        .arg(SquadTexts::positionName(
+            m_lineup.pitchSlots[static_cast<std::size_t>(m_pickerSlot)].position));
+}
 
 int PreMatchViewModel::startingCount() const { return core::startingCount(m_lineup); }
 
@@ -490,6 +525,32 @@ bool PreMatchViewModel::setSlotPosition(int slot, const QString& position) {
     return true;
 }
 
+bool PreMatchViewModel::openPicker(int slot) {
+    if (!core::isValidSlot(m_lineup, slot) || !checkEditable()) {
+        return false;
+    }
+    setSelectedSlot(slot);
+    setPickerSlot(slot);
+    rebuildRows();
+    return true;
+}
+
+bool PreMatchViewModel::pickForSlot(qint64 playerId) {
+    if (!core::isValidSlot(m_lineup, m_pickerSlot)) {
+        return false;
+    }
+    const auto& current = m_lineup.pitchSlots[static_cast<std::size_t>(m_pickerSlot)].player;
+    if (current && current->value == playerId) {
+        return true;
+    }
+    return assignToSlot(m_pickerSlot, playerId);
+}
+
+void PreMatchViewModel::closePicker() {
+    setPickerSlot(-1);
+    m_picker->setRows({});
+}
+
 void PreMatchViewModel::activateIssue(int row) {
     if (row < 0 || row >= std::ssize(m_issueList)) {
         return;
@@ -665,6 +726,7 @@ bool PreMatchViewModel::eventFilter(QObject* watched, QEvent* event) {
         emit issuesChanged();
         emit lineupChanged();
         emit loadErrorChanged();
+        emit pickerChanged();
     }
     return QObject::eventFilter(watched, event);
 }
@@ -735,6 +797,7 @@ bool PreMatchViewModel::readMatch(qint64 matchId, core::Error& failure) {
     m_beforeReplace.reset();
     m_loadFailure.reset();
     m_selectedSlot = -1;
+    setPickerSlot(-1);
     refreshMatches();
     emit matchChanged();
     emit textsChanged();
@@ -797,6 +860,7 @@ void PreMatchViewModel::clearMatch(std::optional<core::Error> failure) {
     setLoadCheckFailed(false);
     m_loadFailure = std::move(failure);
     m_selectedSlot = -1;
+    setPickerSlot(-1);
     setLoadPending(false);
     refreshMatches();
     emit matchChanged();
@@ -879,15 +943,105 @@ void PreMatchViewModel::rebuildRows() {
     }
     m_bench->setRows(std::move(benchRows));
 
-    std::vector<const services::LineupCandidate*> sorted;
+    rebuildPlayerRows(byPlayer);
+    rebuildPicker();
+}
+
+void PreMatchViewModel::rebuildPlayerRows(
+    std::map<core::PlayerId, std::pair<QString, QStringList>>& byPlayer) {
+    // The XI from the goalkeeper up the pitch (own goal at y = 1), then from the left.
+    std::vector<int> pitchOrder(m_lineup.pitchSlots.size());
+    for (std::size_t i = 0; i < pitchOrder.size(); ++i) {
+        pitchOrder[i] = static_cast<int>(i);
+    }
+    std::ranges::stable_sort(pitchOrder, [&](int a, int b) {
+        const auto& left = m_lineup.pitchSlots[static_cast<std::size_t>(a)];
+        const auto& right = m_lineup.pitchSlots[static_cast<std::size_t>(b)];
+        return left.y != right.y ? left.y > right.y : left.x < right.x;
+    });
+    std::map<int, int> rankOfSlot;
+    for (std::size_t rank = 0; rank < pitchOrder.size(); ++rank) {
+        rankOfSlot[pitchOrder[rank]] = static_cast<int>(rank);
+    }
+    const std::array<QString, 3> sectionTexts{tr("Starting XI"), tr("Bench"),
+                                              tr("Not in the lineup")};
+    QList<QVariantList> playerRows;
     if (m_data) {
         for (const services::LineupCandidate& item : m_data->candidates) {
-            sorted.push_back(&item);
+            const core::Player& player = item.player;
+            const auto place = core::findPlayer(m_lineup, player.id);
+            const bool inXi = place && place->kind == core::LineupPlace::Kind::Slot;
+            const QString placement = !place ? QString{} : inXi ? kXi : kBench;
+            const int section = !place ? 2 : inXi ? 0 : 1;
+            const int sectionOrder = !place ? 0 : inXi ? rankOfSlot[place->index] : place->index;
+            const auto load = m_loadStatuses.find(player.id);
+            const auto& issues = byPlayer[player.id];
+            playerRows.append(QVariantList{
+                QVariant(static_cast<qint64>(player.id.value)),
+                shirtNumberOf(player),
+                SquadTexts::displayName(player),
+                QString::fromStdString(player.lastName),
+                positionsText(player),
+                SquadTexts::positionCode(player.primaryPosition),
+                SquadTexts::statusKey(item.facts.statusOnMatchDay, false),
+                SquadTexts::statusName(item.facts.statusOnMatchDay, false),
+                load == m_loadStatuses.end() ? QString{} : LoadTexts::statusKey(load->second),
+                load == m_loadStatuses.end() ? QString{} : LoadTexts::statusShortName(load->second),
+                placement,
+                LineupTexts::placementName(placement),
+                issues.first,
+                issues.second.join(QLatin1Char('\n')),
+                playerDetails(item),
+                section,
+                sectionTexts[static_cast<std::size_t>(section)],
+                sectionOrder,
+                QString::fromStdString(player.lastName),
+                QString::fromStdString(player.firstName),
+                static_cast<int>(player.primaryPosition),
+                static_cast<int>(item.facts.statusOnMatchDay),
+                load == m_loadStatuses.end() ? QVariant{} : loadRank(load->second)});
         }
     }
-    std::ranges::stable_sort(sorted, [](const auto* a, const auto* b) {
-        const auto& left = a->player;
-        const auto& right = b->player;
+    m_players->setRows(std::move(playerRows));
+}
+
+void PreMatchViewModel::rebuildPicker() {
+    if (!m_data || !core::isValidSlot(m_lineup, m_pickerSlot)) {
+        m_picker->setRows({});
+        return;
+    }
+    const core::LineupSlot& slot = m_lineup.pitchSlots[static_cast<std::size_t>(m_pickerSlot)];
+    const QString code = SquadTexts::positionCode(slot.position);
+    const std::array<QString, 3> groupKeys{QStringLiteral("primary"), QStringLiteral("secondary"),
+                                           QStringLiteral("other")};
+    const std::array<QString, 3> groupTexts{tr("%1 as the main position").arg(code),
+                                            tr("%1 as a second position").arg(code),
+                                            tr("Other positions")};
+    struct Entry {
+        const services::LineupCandidate* item;
+        int group;
+        bool available;
+    };
+    std::vector<Entry> entries;
+    for (const services::LineupCandidate& item : m_data->candidates) {
+        const core::Player& player = item.player;
+        const int group = player.primaryPosition == slot.position ? 0
+                          : std::ranges::find(player.secondaryPositions, slot.position) !=
+                                  player.secondaryPositions.end()
+                              ? 1
+                              : 2;
+        entries.push_back(
+            {&item, group, item.facts.statusOnMatchDay == core::PlayerStatus::Available});
+    }
+    std::ranges::stable_sort(entries, [](const Entry& a, const Entry& b) {
+        if (a.group != b.group) {
+            return a.group < b.group;
+        }
+        if (a.available != b.available) {
+            return a.available;
+        }
+        const auto& left = a.item->player;
+        const auto& right = b.item->player;
         if (left.shirtNumber.has_value() != right.shirtNumber.has_value()) {
             return left.shirtNumber.has_value();
         }
@@ -896,26 +1050,27 @@ void PreMatchViewModel::rebuildRows() {
         }
         return SquadTexts::displayName(left).localeAwareCompare(SquadTexts::displayName(right)) < 0;
     });
-    QList<QVariantList> playerRows;
-    for (const services::LineupCandidate* item : sorted) {
-        const core::Player& player = item->player;
+    QList<QVariantList> rows;
+    for (const Entry& entry : entries) {
+        const core::Player& player = entry.item->player;
         const auto place = core::findPlayer(m_lineup, player.id);
         const QString placement = !place                                         ? QString{}
                                   : place->kind == core::LineupPlace::Kind::Slot ? kXi
                                                                                  : kBench;
         const auto load = m_loadStatuses.find(player.id);
-        const auto& issues = byPlayer[player.id];
-        playerRows.append(QVariantList{
+        const auto group = static_cast<std::size_t>(entry.group);
+        rows.append(QVariantList{
             QVariant(static_cast<qint64>(player.id.value)), shirtNumberOf(player),
-            SquadTexts::displayName(player), QString::fromStdString(player.lastName),
-            positionsText(player), SquadTexts::statusKey(item->facts.statusOnMatchDay, false),
-            SquadTexts::statusName(item->facts.statusOnMatchDay, false),
+            SquadTexts::displayName(player), positionsText(player), groupKeys[group],
+            groupTexts[group], SquadTexts::statusKey(entry.item->facts.statusOnMatchDay, false),
+            SquadTexts::statusName(entry.item->facts.statusOnMatchDay, false), entry.available,
             load == m_loadStatuses.end() ? QString{} : LoadTexts::statusKey(load->second),
             load == m_loadStatuses.end() ? QString{} : LoadTexts::statusShortName(load->second),
-            placement, LineupTexts::placementName(placement), issues.first,
-            issues.second.join(newline), playerDetails(*item)});
+            placement,
+            placement.isEmpty() ? tr("Not in the lineup") : LineupTexts::placementName(placement),
+            slot.player == player.id});
     }
-    m_players->setRows(std::move(playerRows));
+    m_picker->setRows(std::move(rows));
 }
 
 void PreMatchViewModel::updateDirty() {
@@ -933,6 +1088,14 @@ void PreMatchViewModel::setSelectedSlot(int slot) {
     }
     m_selectedSlot = slot;
     emit selectionChanged();
+}
+
+void PreMatchViewModel::setPickerSlot(int slot) {
+    if (slot == m_pickerSlot) {
+        return;
+    }
+    m_pickerSlot = slot;
+    emit pickerChanged();
 }
 
 void PreMatchViewModel::setLoadCheckFailed(bool failed) {
