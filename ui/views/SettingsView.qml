@@ -19,6 +19,14 @@ Item {
 
     signal navigateRequested(string key, var args)
 
+    Connections {
+        target: AppSettings
+
+        function onErrorOccurred(message: string) {
+            Toasts.error(message);
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: Theme.spacing.xl
@@ -44,14 +52,17 @@ Item {
                 helpText: qsTr("Pre-match warns when a player is one yellow card away from a suspension in the competition of the match.")
 
                 NumberField {
+                    id: yellowCardThresholdField
+
                     objectName: "yellowCardThresholdField"
                     from: AppSettings.minYellowCardThreshold
                     to: AppSettings.maxYellowCardThreshold
                     value: AppSettings.yellowCardThreshold
                     Accessible.name: yellowCardsFormField.label
+                    // A refused change shows the stored value again.
                     onValueModified: value => {
-                        if (value !== null)
-                            AppSettings.yellowCardThreshold = value;
+                        if (value !== null && !AppSettings.setYellowCardThreshold(value))
+                            yellowCardThresholdField.showValue();
                     }
                 }
             }

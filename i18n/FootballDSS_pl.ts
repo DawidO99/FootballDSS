@@ -215,6 +215,14 @@
         <translation>Spróbuj ponownie</translation>
     </message>
     <message>
+        <source>Delete match</source>
+        <translation>Usuń mecz</translation>
+    </message>
+    <message>
+        <source>This match has a saved lineup. Delete it together with the lineup?</source>
+        <translation>Ten mecz ma zapisany skład. Usunąć go razem ze składem?</translation>
+    </message>
+    <message>
         <source>No matches or sessions yet</source>
         <translation>Nie ma jeszcze meczów ani sesji</translation>
     </message>
@@ -1049,6 +1057,10 @@
         <translation>W jedenastce</translation>
     </message>
     <message>
+        <source>On the match day: available. Load as of 31.10 (today): in range.</source>
+        <translation>W dniu meczu: dostępny. Obciążenie na dzień 31.10 (dziś): w normie.</translation>
+    </message>
+    <message>
         <source>No baseline</source>
         <translation>Mało danych</translation>
     </message>
@@ -1197,6 +1209,10 @@
         <translation>Sprawdzanie obciążenia…</translation>
     </message>
     <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
         <source>Lineup issues</source>
         <translation>Problemy ze składem</translation>
     </message>
@@ -1208,8 +1224,12 @@
         <translation>Kadra</translation>
     </message>
     <message>
+        <source>Add to bench (B)</source>
+        <translation>Dodaj na ławkę (B)</translation>
+    </message>
+    <message>
         <source>Add to bench</source>
-        <translation>Dodaj na ławkę</translation>
+        <translation type="vanished">Dodaj na ławkę</translation>
     </message>
     <message>
         <source>Click or Enter: put in the selected slot.</source>
@@ -1818,7 +1838,7 @@
     </message>
     <message>
         <source>Move to the bench</source>
-        <translation>Przenieś na ławkę</translation>
+        <translation type="vanished">Przenieś na ławkę</translation>
     </message>
     <message>
         <source>Take out of the lineup (Del)</source>
@@ -1843,6 +1863,10 @@
     <message>
         <source>Try again</source>
         <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>Move to the bench (B)</source>
+        <translation>Przenieś na ławkę (B)</translation>
     </message>
     <message>
         <source>No planned match</source>
@@ -3393,6 +3417,10 @@
         <translation>Błędy: %1 · Ostrzeżenia: %2</translation>
     </message>
     <message>
+        <source>The check is incomplete: the load could not be checked. Try again.</source>
+        <translation>Walidacja niepełna: nie udało się sprawdzić obciążenia. Spróbuj ponownie.</translation>
+    </message>
+    <message>
         <source>Only the coach or the assistant can change the lineup.</source>
         <translation>Skład może zmienić tylko trener albo asystent.</translation>
     </message>
@@ -3405,6 +3433,10 @@
         <translation>Wszystkie miejsca są zajęte. Najpierw zaznacz miejsce, aby wymienić zawodnika.</translation>
     </message>
     <message>
+        <source>The lineup was cleared.</source>
+        <translation>Wyczyszczono skład.</translation>
+    </message>
+    <message>
         <source>Lineup saved as a draft. Errors to fix before Match Day: %1.</source>
         <translation>Skład zapisano jako szkic. Błędy do poprawienia przed trybem meczowym: %1.</translation>
     </message>
@@ -3415,6 +3447,10 @@
     <message>
         <source>Template saved: %1.</source>
         <translation>Zapisano szablon: %1.</translation>
+    </message>
+    <message>
+        <source>The template was loaded into the board.</source>
+        <translation>Wczytano szablon na tablicę.</translation>
     </message>
     <message>
         <source>Template deleted: %1.</source>
@@ -3443,6 +3479,22 @@
     <message>
         <source>Players no longer in the squad were left out of the lineup: %1.</source>
         <translation>Pominięto w składzie zawodników, których nie ma już w kadrze: %1.</translation>
+    </message>
+    <message>
+        <source>On the match day: %1</source>
+        <translation>W dniu meczu: %1</translation>
+    </message>
+    <message>
+        <source>Load: could not be checked</source>
+        <translation>Obciążenie: nie udało się sprawdzić</translation>
+    </message>
+    <message>
+        <source>Load as of %1 (today): %2</source>
+        <translation>Obciążenie na dzień %1 (dziś): %2</translation>
+    </message>
+    <message>
+        <source>Load as of %1: %2</source>
+        <translation>Obciążenie na dzień %1: %2</translation>
     </message>
     <message>
         <source>Unknown player</source>

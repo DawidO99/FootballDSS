@@ -115,6 +115,7 @@ Item {
             replaceQuestion.open();
         }
         onTemplateDeleted: message => Toasts.show(message, qsTr("Undo"), () => preMatch.undoDeleteTemplate())
+        onLineupReplaced: message => Toasts.show(message, qsTr("Undo"), () => preMatch.undoReplace())
         onSlotFocusRequested: slot => pitch.focusSlot(slot)
         onBenchFocusRequested: index => benchList.focusRow(index)
     }
@@ -198,6 +199,33 @@ Item {
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontSize.body
                 elide: Text.ElideRight
+            }
+        }
+
+        // The facts could not be read again: the lineup on the screen stays (P12 review).
+        RowLayout {
+            objectName: "reloadErrorNote"
+            Layout.fillWidth: true
+            visible: preMatch.hasMatch && root.failed
+            spacing: Theme.spacing.s
+
+            Icon {
+                name: "danger"
+                size: Theme.iconSize.s
+                color: Theme.danger
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text: preMatch.loadError
+                color: Theme.text
+                font.pixelSize: Theme.fontSize.body
+                wrapMode: Text.WordWrap
+            }
+
+            SecondaryButton {
+                text: qsTr("Try again")
+                onClicked: preMatch.reload()
             }
         }
 
@@ -290,7 +318,7 @@ Item {
             objectName: "boardArea"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: preMatch.hasMatch && preMatch.playerCount > 0 && !root.failed
+            visible: preMatch.hasMatch && preMatch.playerCount > 0
             spacing: Theme.spacing.m
 
             TacticsPitch {
@@ -311,6 +339,7 @@ Item {
                     if (playerId)
                         preMatch.removePlayer(playerId);
                 }
+                onBenchRequested: slot => preMatch.moveSlotToBench(slot)
             }
 
             ColumnLayout {
@@ -342,13 +371,18 @@ Item {
 
                         objectName: "positionField"
                         Layout.fillWidth: true
+                        touch: true
                         enabled: root.canEdit
                         model: preMatch.positionOptions
                         textRole: "text"
                         valueRole: "value"
                         value: preMatch.selectedPosition
                         Accessible.name: qsTr("Position")
-                        onValueActivated: value => preMatch.setSlotPosition(preMatch.selectedSlot, value)
+                        // A refused position (a second goalkeeper) shows the current one again.
+                        onValueActivated: value => {
+                            if (!preMatch.setSlotPosition(preMatch.selectedSlot, value))
+                                positionField.showValue();
+                        }
                     }
 
                     RowLayout {
@@ -370,7 +404,7 @@ Item {
                             touch: true
                             enabled: preMatch.selectedPlayerId > 0
                             iconName: "chevronRight"
-                            text: qsTr("Move to the bench")
+                            text: qsTr("Move to the bench (B)")
                             onClicked: preMatch.moveSlotToBench(preMatch.selectedSlot)
                         }
 
@@ -437,7 +471,9 @@ Item {
                     summary: preMatch.issuesSummary
                     errorCount: preMatch.errorCount
                     loadPending: preMatch.loadPending
+                    incompleteText: preMatch.loadCheckText
                     onIssueActivated: row => preMatch.activateIssue(row)
+                    onRetryRequested: preMatch.reload()
                 }
             }
         }
@@ -446,7 +482,7 @@ Item {
             objectName: "loadErrorState"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root.failed
+            visible: root.failed && !preMatch.hasMatch
             iconName: "warn"
             title: qsTr("The match could not be read")
             description: preMatch.loadError

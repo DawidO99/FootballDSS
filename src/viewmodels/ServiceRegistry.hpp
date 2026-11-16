@@ -57,6 +57,8 @@ public:
     static void install(std::unique_ptr<ServiceRegistry> registry);
     // Fatal when nothing is installed.
     [[nodiscard]] static ServiceRegistry& instance();
+    // For the one object that also lives without a registry: the AppSettings singleton.
+    [[nodiscard]] static bool isInstalled();
     // Closes the database. Viewmodels keep references to the services, so destroy the QML engine
     // first. main.cpp calls it too: static destruction would run after QGuiApplication is gone.
     static void reset();

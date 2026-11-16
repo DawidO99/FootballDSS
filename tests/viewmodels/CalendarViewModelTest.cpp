@@ -1,10 +1,12 @@
 #include "viewmodels/CalendarViewModel.hpp"
 
 #include "ViewModelFixture.hpp"
+#include "core/algorithms/Formations.hpp"
 #include "core/domain/Match.hpp"
 #include "core/domain/TrainingSession.hpp"
 #include "data/repositories/TrainingRepository.hpp"
 #include "services/CalendarService.hpp"
+#include "services/LineupService.hpp"
 #include "services/SquadService.hpp"
 #include "viewmodels/IsoDates.hpp"
 
@@ -446,3 +448,25 @@ TEST_F(CalendarViewModelTest, ARoleWithoutEditCalendarIsRefusedAndSeesTheCalenda
 }
 
 } // namespace
+
+// P12 review: a match with a saved lineup asks before a delete; the undo brings the lineup back.
+TEST_F(CalendarViewModelTest, AMatchWithASavedLineupAsksAndComesBackWithIt) {
+    const MatchId match = addMatch(kToday);
+    CalendarViewModel calendar;
+    calendar.setTeamId(m_team.value);
+    EXPECT_EQ(calendar.matchHasLineup(match.value), 0);
+
+    Lineup lineup = emptyLineup(*findFormation("3-5-2"));
+    lineup.pitchSlots[0].player = addPlayer("Bramkarz");
+    ASSERT_TRUE(registry().lineup().save(match, lineup).has_value());
+    EXPECT_EQ(calendar.matchHasLineup(match.value), 1);
+
+    ASSERT_TRUE(calendar.deleteMatch(match.value));
+    ASSERT_TRUE(calendar.undoDelete());
+    const MatchId restored{calendar.rowAt(0).value(QStringLiteral("itemId")).toLongLong()};
+    EXPECT_EQ(calendar.matchHasLineup(restored.value), 1);
+    const auto read = registry().lineup().matchLineup(restored, 4);
+    ASSERT_TRUE(read.has_value());
+    EXPECT_TRUE(read->saved);
+    EXPECT_EQ(read->lineup.pitchSlots[0].player, lineup.pitchSlots[0].player);
+}

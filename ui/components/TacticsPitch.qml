@@ -21,6 +21,7 @@ import QtQuick.Controls.Basic
 //   slotsSwapped(from, to)       a token dropped on another token
 //   slotMoved(slot, x, y)        a token dropped on the pitch, x and y 0–1
 //   removeRequested(slot)        Delete on a token
+//   benchRequested(slot)         B on a token
 //   focusSlot(slot)              gives a token the keyboard focus
 //   tokenAt(slot): Item          the token of a slot, for the tests
 Item {
@@ -39,6 +40,7 @@ Item {
     signal slotsSwapped(int from, int to)
     signal slotMoved(int slot, real x, real y)
     signal removeRequested(int slot)
+    signal benchRequested(int slot)
 
     function focusSlot(slot) {
         const token = root.tokenAt(slot);
@@ -281,6 +283,10 @@ Item {
                     onDeletePressed: {
                         if (root.interactive)
                             root.removeRequested(slotItem.slotIndex);
+                    }
+                    onBenchPressed: {
+                        if (root.interactive)
+                            root.benchRequested(slotItem.slotIndex);
                     }
                     onDragActiveChanged: {
                         if (dragActive)

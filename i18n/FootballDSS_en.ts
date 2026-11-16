@@ -215,6 +215,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Delete match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match has a saved lineup. Delete it together with the lineup?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No matches or sessions yet</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1041,6 +1049,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>On the match day: available. Load as of 31.10 (today): in range.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No baseline</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1189,6 +1201,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Lineup issues</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1200,7 +1216,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Add to bench</source>
+        <source>Add to bench (B)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1801,10 +1817,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Move to the bench</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Take out of the lineup (Del)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1826,6 +1838,10 @@
     </message>
     <message>
         <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move to the bench (B)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3365,6 +3381,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The check is incomplete: the load could not be checked. Try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Only the coach or the assistant can change the lineup.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3377,6 +3397,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The lineup was cleared.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Lineup saved as a draft. Errors to fix before Match Day: %1.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3386,6 +3410,10 @@
     </message>
     <message>
         <source>Template saved: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The template was loaded into the board.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3414,6 +3442,22 @@
     </message>
     <message>
         <source>Players no longer in the squad were left out of the lineup: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On the match day: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load: could not be checked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load as of %1 (today): %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load as of %1: %2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

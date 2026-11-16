@@ -20,6 +20,7 @@ import QtQuick.Controls.Basic
 //   dragScenePosition: point    read-only: the pointer during the drag, in scene coordinates
 //   activated()                 click, tap, Enter or Space
 //   deletePressed()             Delete while it has the focus
+//   benchPressed()              B while it has the focus (the accelerator of "Move to the bench")
 //   dragReleased()              the drag ended
 Item {
     id: root
@@ -51,6 +52,7 @@ Item {
 
     signal activated
     signal deletePressed
+    signal benchPressed
     signal dragReleased
 
     implicitWidth: Theme.pitch.labelWidth
@@ -64,6 +66,12 @@ Item {
     Keys.onEnterPressed: root.activated()
     Keys.onSpacePressed: root.activated()
     Keys.onDeletePressed: root.deletePressed()
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_B && event.modifiers === Qt.NoModifier) {
+            root.benchPressed();
+            event.accepted = true;
+        }
+    }
 
     Rectangle {
         id: circle

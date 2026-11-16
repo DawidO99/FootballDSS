@@ -58,6 +58,8 @@ ServiceRegistry& ServiceRegistry::instance() {
 
 void ServiceRegistry::reset() { g_instance.reset(); }
 
+bool ServiceRegistry::isInstalled() { return g_instance != nullptr; }
+
 ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager> database,
                                  RegistryOptions options)
     : m_database(std::move(database)), m_clock(clockOrSystem(std::move(options.clock))),

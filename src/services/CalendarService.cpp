@@ -173,6 +173,17 @@ core::Status CalendarService::updateMatch(core::MatchId id, const core::MatchDra
     return withConflictField(m_matches.updatePlanned(id, draft), kMatchNotPlanned);
 }
 
+core::Result<bool> CalendarService::hasLineup(core::MatchId id) const {
+    if (auto allowed = requireLogin(); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    const auto lineup = m_lineups.findForMatch(id);
+    if (!lineup) {
+        return std::unexpected(lineup.error());
+    }
+    return lineup->has_value();
+}
+
 core::Result<DeletedMatch> CalendarService::deleteMatch(core::MatchId id) {
     if (auto allowed = m_session.require(core::Permission::EditCalendar); !allowed) {
         return std::unexpected(allowed.error());

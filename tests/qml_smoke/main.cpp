@@ -3351,6 +3351,95 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
         fail("the saved lineup does not read back the same");
     }
 
+    // The Calendar asks before deleting a match with a saved lineup (P12 review).
+    {
+        const qint64 matchId = screen->preMatch->matchId();
+        screen->navigation->activate(QStringLiteral("calendar"));
+        settle();
+        QQuickItem* calendarView = findQmlItem(window->contentItem(), "CalendarView");
+        QMetaObject::invokeMethod(calendarView, "requestMatchDelete", Q_ARG(QVariant, matchId),
+                                  Q_ARG(QVariant, QStringLiteral("Rywal")));
+        settle();
+        auto* question = calendarView->property("deleteMatchDialog").value<QObject*>();
+        if (question == nullptr || !question->property("visible").toBool()) {
+            fail("deleting a match with a saved lineup does not ask first");
+        }
+        if (question != nullptr) {
+            QMetaObject::invokeMethod(question, "close");
+            settle();
+        }
+        if (!ServiceRegistry::instance().calendar().match(fdss::core::MatchId{matchId})) {
+            fail("the question deleted the match before an answer");
+        }
+    }
+    screen = openPreMatchScreen(engine);
+    if (!screen) {
+        return;
+    }
+    preMatch = screen->preMatch;
+    list = screen->find(QStringLiteral("playerListView"));
+
+    // To the bench by keyboard: B on a token, Tab to the button, B in the squad (P12 review).
+    {
+        const int bench = preMatch->benchCount();
+        tapItem(window, screen->token(1));
+        pressKey(window, Qt::Key_B);
+        if (preMatch->benchCount() != bench + 1 || screen->board(1, "playerId").toLongLong() != 0) {
+            fail("B on a token does not move its player to the bench");
+        }
+        tapItem(window, screen->token(2));
+        auto* toBench = screen->find(QStringLiteral("toBenchButton"));
+        if (tabUntil(
+                window, [&] { return toBench->hasActiveFocus(); }, 30,
+                "Tab does not reach the button Move to the bench")) {
+            pressKey(window, Qt::Key_Return);
+            if (preMatch->benchCount() != bench + 2) {
+                fail("Enter on Move to the bench does not move the player");
+            }
+        }
+        const int freeRow = screen->playerRow(
+            [&](int row) { return screen->player(row, "placement").toString().isEmpty(); });
+        list->forceActiveFocus(Qt::TabFocusReason);
+        list->setProperty("currentIndex", freeRow);
+        pressKey(window, Qt::Key_B);
+        if (preMatch->benchCount() != bench + 3) {
+            fail("B in the squad list does not add the player to the bench");
+        }
+
+        // A second goalkeeper picked in the position field: refused, the field shows the slot
+        // again.
+        tapItem(window, screen->token(3));
+        auto* positionField = screen->find(QStringLiteral("positionField"));
+        int gkIndex = -1;
+        QMetaObject::invokeMethod(positionField, "indexOfValue", Q_RETURN_ARG(int, gkIndex),
+                                  Q_ARG(QVariant, QStringLiteral("gk")));
+        positionField->setProperty("currentIndex", gkIndex);
+        QMetaObject::invokeMethod(positionField, "activated", Q_ARG(int, gkIndex));
+        settle();
+        if (preMatch->selectedPosition() == QLatin1StringView("gk") ||
+            positionField->property("currentValue").toString() != preMatch->selectedPosition()) {
+            fail("the position field keeps a refused goalkeeper");
+        }
+
+        // The controls of the board are touch sized (Theme.hitTouch).
+        const auto touchSized = [](const QQuickItem* item) {
+            return item != nullptr && item->height() >= 44 && item->width() >= 44;
+        };
+        for (const char* name : {"positionField", "swapButton", "toBenchButton", "removeButton",
+                                 "benchRemove_0", "benchButton_0", "playerRow_0"}) {
+            if (!touchSized(screen->find(QString::fromLatin1(name)))) {
+                fail("a control of the tactics board is smaller than Theme.hitTouch");
+                qWarning("qml_smoke: too small: %s", name);
+            }
+        }
+        const QQuickItem* benchRemove = screen->find(QStringLiteral("benchRemove_0"));
+        if (benchRemove == nullptr || benchRemove->parentItem()->parentItem()->height() < 44) {
+            fail("a bench row is lower than Theme.hitTouch");
+        }
+        preMatch->discardChanges();
+        settle();
+    }
+
     // Leaving with a change asks; Discard leaves and drops the change.
     screen->preMatch->swapSlots(1, 2);
     settle();
@@ -3412,6 +3501,41 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
                        .arg(dark ? QStringLiteral("dark") : QStringLiteral("light")));
     }
     settings->setDarkTheme(startDark);
+
+    // Three tokens in one side zone at the minimum window: they do not overlap (P12 review).
+    for (const int slot : {8, 9, 10}) {
+        screen->preMatch->setSlotPosition(slot, QStringLiteral("lw"));
+    }
+    settle();
+    renderFrame(window);
+    std::vector<QRectF> wingers;
+    for (const int slot : {8, 9, 10}) {
+        if (screen->board(slot, "positionKey").toString() != QLatin1StringView("lw")) {
+            fail("a slot did not move to the left wing zone");
+        }
+        QQuickItem* token = screen->token(slot);
+        wingers.push_back(token->mapRectToScene(QRectF(0, 0, token->width(), token->height())));
+    }
+    for (std::size_t a = 0; a < wingers.size(); ++a) {
+        for (std::size_t b = a + 1; b < wingers.size(); ++b) {
+            if (wingers[a].intersects(wingers[b])) {
+                fail("tokens of one zone overlap at the minimum window");
+            }
+        }
+    }
+    for (int a = 0; a < 11; ++a) {
+        for (int b = a + 1; b < 11; ++b) {
+            const QPointF first =
+                screen->token(a)->mapToScene(QPointF(screen->token(a)->width() / 2, 22));
+            const QPointF second =
+                screen->token(b)->mapToScene(QPointF(screen->token(b)->width() / 2, 22));
+            if (QLineF(first, second).length() < 44) {
+                fail("two tokens overlap with three left wingers");
+            }
+        }
+    }
+    grabOrSave(window, screenshotDirectory, QStringLiteral("prematch-three-wingers.png"));
+    screen->preMatch->discardChanges();
     window->resize(originalSize);
     settle();
 

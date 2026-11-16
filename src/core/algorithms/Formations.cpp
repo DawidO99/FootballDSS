@@ -77,6 +77,19 @@ static_assert(kZones.size() == EnumValues<Position>::values.size());
 
 constexpr int kRows = 6;
 
+// A grid of tokens in a zone (Codex review of P12): a column is at least this wide, so a side zone
+// holds one token in a row and a wide one three; further tokens go to rows this far apart, which at
+// the smallest board (about 350 × 470 px at 1280 × 720) is more than a token with its name.
+constexpr double kMinZoneColumnWidth = 0.15;
+constexpr double kZoneRowStep = 0.14;
+// The centre of a token stays this far from the goal lines.
+constexpr double kTokenMargin = 0.04;
+
+std::size_t zoneColumns(const PitchZone& zone) {
+    return std::max<std::size_t>(1,
+                                 static_cast<std::size_t>(zone.layoutWidth / kMinZoneColumnWidth));
+}
+
 // The far edge of the pitch belongs to the zone at it.
 bool within(double value, double start, double size) noexcept {
     const double end = start + size;
@@ -154,16 +167,31 @@ void layoutZone(Lineup& lineup, Position zone) {
             members.push_back(i);
         }
     }
-    std::ranges::stable_sort(members, [&](std::size_t a, std::size_t b) {
-        return lineup.pitchSlots[a].x < lineup.pitchSlots[b].x;
-    });
     const PitchZone& geometry = pitchZone(zone);
-    const auto count = static_cast<double>(members.size());
-    for (std::size_t i = 0; i < members.size(); ++i) {
-        LineupSlot& slot = lineup.pitchSlots[members[i]];
-        slot.x = geometry.layoutLeft +
-                 geometry.layoutWidth * (2.0 * static_cast<double>(i) + 1.0) / (2.0 * count);
-        slot.y = geometry.tokenY;
+    const std::size_t columns = zoneColumns(geometry);
+    const std::size_t rows = (members.size() + columns - 1) / columns;
+    // One row: left to right. Several: top to bottom, then left to right, so a drop picks its row.
+    std::ranges::stable_sort(members, [&](std::size_t a, std::size_t b) {
+        const LineupSlot& left = lineup.pitchSlots[a];
+        const LineupSlot& right = lineup.pitchSlots[b];
+        if (rows > 1 && left.y != right.y) {
+            return left.y < right.y;
+        }
+        return left.x < right.x;
+    });
+    for (std::size_t row = 0; row < rows; ++row) {
+        const std::size_t first = row * columns;
+        const std::size_t count = std::min(columns, members.size() - first);
+        const double y =
+            geometry.tokenY +
+            (static_cast<double>(row) - static_cast<double>(rows - 1) / 2.0) * kZoneRowStep;
+        for (std::size_t i = 0; i < count; ++i) {
+            LineupSlot& slot = lineup.pitchSlots[members[first + i]];
+            slot.x = geometry.layoutLeft + geometry.layoutWidth *
+                                               (2.0 * static_cast<double>(i) + 1.0) /
+                                               (2.0 * static_cast<double>(count));
+            slot.y = std::clamp(y, kTokenMargin, 1.0 - kTokenMargin);
+        }
     }
 }
 
@@ -224,7 +252,8 @@ Lineup emptyLineup(const Formation& formation) {
     return lineup;
 }
 
-LineupEdit moveSlot(Lineup& lineup, int slot, Position zone, std::optional<double> x) {
+LineupEdit moveSlot(Lineup& lineup, int slot, Position zone, std::optional<double> x,
+                    std::optional<double> y) {
     if (!isValidSlot(lineup, slot)) {
         return LineupEdit::InvalidSlot;
     }
@@ -239,6 +268,9 @@ LineupEdit moveSlot(Lineup& lineup, int slot, Position zone, std::optional<doubl
     moved.position = zone;
     if (x) {
         moved.x = std::clamp(*x, 0.0, 1.0);
+    }
+    if (y) {
+        moved.y = std::clamp(*y, 0.0, 1.0);
     }
     if (from != zone) {
         layoutZone(lineup, from);

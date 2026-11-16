@@ -31,8 +31,9 @@ public:
 
     // nullopt: nothing saved for the match.
     [[nodiscard]] core::Result<std::optional<core::Lineup>> findForMatch(core::MatchId match) const;
-    // Replaces the lineup of the match and sets match.formation, in one transaction. A match that
-    // is not planned: Conflict; none: NotFound.
+    // Replaces the lineup of the match and sets match.formation: several statements, so the caller
+    // runs it inside a Transaction (LineupService::save(), CalendarService::restoreMatch()). A
+    // match that is not planned: Conflict; none: NotFound.
     [[nodiscard]] core::Status saveForMatch(core::MatchId match, const core::Lineup& lineup);
     // Removes the lineup of the match; nothing saved is not an error. match.formation stays: the
     // match goes with it (CalendarService::deleteMatch).

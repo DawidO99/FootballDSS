@@ -216,3 +216,43 @@ TEST(FormationsTest, ChangeFormationFromACustomShape) {
     EXPECT_EQ(change.lineup.pitchSlots[10].player, PlayerId{9});
     EXPECT_EQ(change.movedToBench, (std::vector{PlayerId{6}, PlayerId{11}}));
 }
+
+// Codex review of P12: several tokens of one zone never overlap. A side zone holds one token in a
+// row, so three left wingers stand in three rows 0.14 apart around the y of the zone (0.32).
+TEST(FormationsTest, ThreeTokensOfASideZoneStandInRows) {
+    Lineup lineup = filled("4-4-2");
+    // The left midfielder and both strikers become left wingers.
+    ASSERT_EQ(moveSlot(lineup, 8, Position::Lw), LineupEdit::Done);
+    ASSERT_EQ(moveSlot(lineup, 9, Position::Lw), LineupEdit::Done);
+    ASSERT_EQ(moveSlot(lineup, 10, Position::Lw), LineupEdit::Done);
+    std::vector<double> ys;
+    for (const int slot : {8, 9, 10}) {
+        EXPECT_DOUBLE_EQ(lineup.pitchSlots[static_cast<std::size_t>(slot)].x, 0.125);
+        ys.push_back(lineup.pitchSlots[static_cast<std::size_t>(slot)].y);
+        EXPECT_EQ(positionAt(0.125, 0.32), Position::Lw);
+    }
+    std::ranges::sort(ys);
+    EXPECT_NEAR(ys[0], 0.18, 1e-9);
+    EXPECT_NEAR(ys[1], 0.32, 1e-9);
+    EXPECT_NEAR(ys[2], 0.46, 1e-9);
+    EXPECT_EQ(lineup.formation, "4-3-3");
+}
+
+TEST(FormationsTest, AWideZoneFillsRowsOfThree) {
+    Lineup lineup = filled("4-4-2");
+    // Four centre midfielders: three in the first row, one below.
+    ASSERT_EQ(moveSlot(lineup, 5, Position::Cm), LineupEdit::Done);
+    ASSERT_EQ(moveSlot(lineup, 8, Position::Cm, 0.5, 0.9), LineupEdit::Done);
+    // Slots 5, 6, 7 in the first row (y 0.41), slot 8 dropped low in the second (y 0.55).
+    for (const int slot : {5, 6, 7}) {
+        EXPECT_NEAR(lineup.pitchSlots[static_cast<std::size_t>(slot)].y, 0.41, 1e-9) << slot;
+    }
+    EXPECT_NEAR(lineup.pitchSlots[8].y, 0.55, 1e-9);
+    EXPECT_DOUBLE_EQ(lineup.pitchSlots[8].x, 0.5);
+    // The first row is spread over the zone left to right.
+    std::vector<double> xs{lineup.pitchSlots[5].x, lineup.pitchSlots[6].x, lineup.pitchSlots[7].x};
+    std::ranges::sort(xs);
+    EXPECT_DOUBLE_EQ(xs[0], 0.25 + 0.5 / 6);
+    EXPECT_DOUBLE_EQ(xs[1], 0.5);
+    EXPECT_DOUBLE_EQ(xs[2], 0.25 + 0.5 * 5 / 6);
+}

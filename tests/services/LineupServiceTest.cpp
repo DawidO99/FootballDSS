@@ -431,3 +431,33 @@ TEST_F(LineupServiceTest, PermissionPerRole) {
     EXPECT_FALSE(isAllowed(Role::Physio, Permission::EditLineup));
     EXPECT_FALSE(isAllowed(Role::Analyst, Permission::EditLineup));
 }
+
+// Codex review of P12: the old row is deleted and the new one written in one transaction of the
+// service. A failure after the delete leaves the old lineup and formation.
+TEST_F(LineupServiceTest, SavingIsAtomic) {
+    logInAs(Role::Coach);
+    const Lineup old = lineup("3-5-2");
+    ASSERT_TRUE(m_service->save(kNextMatch, old).has_value());
+    // The insert fails after the delete of the old row.
+    ASSERT_TRUE(sql("CREATE TRIGGER fail_lineup BEFORE INSERT ON lineup "
+                    "BEGIN SELECT RAISE(ABORT, 'test'); END"));
+    EXPECT_FALSE(m_service->save(kNextMatch, lineup("4-3-3")).has_value());
+    EXPECT_EQ(m_lineups->findForMatch(kNextMatch).value(), old);
+    EXPECT_EQ(m_matches->get(kNextMatch).value().formation, "3-5-2");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM lineup"), 1);
+}
+
+TEST_F(LineupServiceTest, RestoringATemplateWhoseNameWasTakenMeanwhile) {
+    logInAs(Role::Coach);
+    const auto id = m_service->saveTemplate("Plan A", lineup("4-3-3"), false);
+    ASSERT_TRUE(id.has_value());
+    const auto deleted = m_service->deleteTemplate(*id);
+    ASSERT_TRUE(deleted.has_value());
+    ASSERT_TRUE(m_service->saveTemplate("plan a", lineup("5-3-2"), false).has_value());
+    expectError(m_service->restoreTemplate(*deleted), ErrorCode::Conflict, "template_name");
+    // The template that took the name stays as it was.
+    const auto templates = m_service->templates().value();
+    ASSERT_EQ(templates.size(), 1U);
+    EXPECT_EQ(templates.front().name, "plan a");
+    EXPECT_EQ(templates.front().formation, "5-3-2");
+}

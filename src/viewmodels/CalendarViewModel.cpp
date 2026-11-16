@@ -180,6 +180,15 @@ QString CalendarViewModel::deleteConfirmationText(int attendanceCount) const {
                      .arg(attendanceCount);
 }
 
+int CalendarViewModel::matchHasLineup(qint64 matchId) {
+    const auto saved = m_calendar.hasLineup(core::MatchId{matchId});
+    if (!saved) {
+        report(saved.error());
+        return -1;
+    }
+    return *saved ? 1 : 0;
+}
+
 bool CalendarViewModel::deleteMatch(qint64 matchId) {
     if (!checkAllowed()) {
         return false;

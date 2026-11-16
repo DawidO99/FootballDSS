@@ -3,6 +3,7 @@
 #include "core/algorithms/Formations.hpp"
 #include "core/domain/Enums.hpp"
 #include "core/domain/Permissions.hpp"
+#include "services/Clock.hpp"
 #include "services/LoadService.hpp"
 #include "services/Session.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
@@ -68,9 +69,10 @@ QVariant idOrZero(const std::optional<core::PlayerId>& player) {
 PreMatchViewModel::PreMatchViewModel(QObject* parent)
     : QObject(parent), m_lineupService(ServiceRegistry::instance().lineup()),
       m_load(ServiceRegistry::instance().load()), m_session(ServiceRegistry::instance().session()),
-      m_matches(new ChoiceListModel(this)), m_board(new TacticsBoardModel(this)),
-      m_bench(new BenchListModel(this)), m_players(new LineupPlayersModel(this)),
-      m_issues(new LineupIssuesModel(this)), m_templates(new ChoiceListModel(this)) {
+      m_clock(ServiceRegistry::instance().clock()), m_matches(new ChoiceListModel(this)),
+      m_board(new TacticsBoardModel(this)), m_bench(new BenchListModel(this)),
+      m_players(new LineupPlayersModel(this)), m_issues(new LineupIssuesModel(this)),
+      m_templates(new ChoiceListModel(this)) {
     // Once per change of the language, see LoadViewModel.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
@@ -99,6 +101,7 @@ void PreMatchViewModel::setYellowCardThreshold(int threshold) {
     emit yellowCardThresholdChanged();
     validate();
     rebuildRows();
+    emit issuesChanged();
 }
 
 ChoiceListModel* PreMatchViewModel::matches() const { return m_matches; }
@@ -242,10 +245,19 @@ QString PreMatchViewModel::issuesSummary() const {
     if (!m_data) {
         return {};
     }
-    if (m_issueList.empty()) {
+    // Never "ready" while the load is not checked (P12 review).
+    if (m_issueList.empty() && !m_loadPending && !m_loadCheckFailed) {
         return tr("No issues: the lineup is ready for Match Day.");
     }
     return tr("Errors: %1 · Warnings: %2").arg(errorCount()).arg(warningCount());
+}
+
+bool PreMatchViewModel::loadCheckFailed() const { return m_loadCheckFailed; }
+
+QString PreMatchViewModel::loadCheckText() const {
+    return m_loadCheckFailed
+               ? tr("The check is incomplete: the load could not be checked. Try again.")
+               : QString{};
 }
 
 bool PreMatchViewModel::loadPending() const { return m_loadPending; }
@@ -288,10 +300,15 @@ void PreMatchViewModel::reload() {
     }
     auto result = m_lineupService.matchLineup(m_data->match.match.id, m_yellowCardThreshold);
     if (!result) {
+        // Only the facts could not be read again: the lineup on the screen, changed or not, stays
+        // with its dirty state, so leaving still asks (P12 review).
         qCritical("PreMatchViewModel: %s", result.error().detail.c_str());
-        clearMatch(result.error());
+        m_loadFailure = result.error();
+        emit loadErrorChanged();
         return;
     }
+    m_loadFailure.reset();
+    emit loadErrorChanged();
     const bool keepChanges = m_dirty;
     core::Lineup edited = m_lineup;
     m_data = std::move(*result);
@@ -434,7 +451,19 @@ void PreMatchViewModel::clearLineup() {
     if (!checkEditable()) {
         return;
     }
+    rememberBeforeReplace();
     core::clearPlayers(m_lineup);
+    setSelectedSlot(-1);
+    lineupEdited();
+    emit lineupReplaced(tr("The lineup was cleared."));
+}
+
+void PreMatchViewModel::undoReplace() {
+    if (!m_beforeReplace || !m_data) {
+        return;
+    }
+    m_lineup = std::move(*m_beforeReplace);
+    m_beforeReplace.reset();
     setSelectedSlot(-1);
     lineupEdited();
 }
@@ -548,10 +577,12 @@ bool PreMatchViewModel::loadTemplate(qint64 templateId) {
         report(loaded.error());
         return false;
     }
+    rememberBeforeReplace();
     m_lineup = std::move(loaded->lineup);
     reportDropped(loaded->droppedPlayers);
     setSelectedSlot(-1);
     lineupEdited();
+    emit lineupReplaced(tr("The template was loaded into the board."));
     return true;
 }
 
@@ -616,11 +647,12 @@ bool PreMatchViewModel::importTactic(const QUrl& file) {
         report(loaded.error());
         return false;
     }
+    rememberBeforeReplace();
     m_lineup = std::move(loaded->lineup);
     reportDropped(loaded->droppedPlayers);
     setSelectedSlot(-1);
     lineupEdited();
-    emit notice(tr("Lineup imported: %1.").arg(QFileInfo(path).fileName()));
+    emit lineupReplaced(tr("Lineup imported: %1.").arg(QFileInfo(path).fileName()));
     return true;
 }
 
@@ -700,6 +732,7 @@ bool PreMatchViewModel::readMatch(qint64 matchId, core::Error& failure) {
     m_data = std::move(*result);
     m_lineup = m_data->lineup;
     m_baseline = m_lineup;
+    m_beforeReplace.reset();
     m_loadFailure.reset();
     m_selectedSlot = -1;
     refreshMatches();
@@ -715,19 +748,23 @@ bool PreMatchViewModel::readMatch(qint64 matchId, core::Error& failure) {
 
 void PreMatchViewModel::requestLoad() {
     const int request = ++m_loadRequest;
+    m_loadStatuses.clear();
+    m_loadAsOf.clear();
     if (!m_data || !m_session.isAllowed(core::Permission::ViewAnalysis)) {
-        m_loadStatuses.clear();
+        setLoadCheckFailed(false);
         setLoadPending(false);
         return;
     }
     auto future = m_load.teamLoad(m_data->match.match.teamId);
     if (!future) {
-        // The lineup still works without load statuses; the issue list says nothing about them.
+        // The lineup still works without load statuses, but the check is incomplete and says so
+        // until the next reload succeeds (P12 review).
         qCritical("PreMatchViewModel: %s", future.error().detail.c_str());
-        m_loadStatuses.clear();
+        setLoadCheckFailed(true);
         setLoadPending(false);
         return;
     }
+    setLoadCheckFailed(false);
     setLoadPending(true);
     future->then(this, [this, request](services::TeamLoad result) {
         if (request == m_loadRequest) {
@@ -738,8 +775,10 @@ void PreMatchViewModel::requestLoad() {
 
 void PreMatchViewModel::applyLoad(const services::TeamLoad& load) {
     m_loadStatuses.clear();
+    m_loadAsOf.clear();
     for (const services::PlayerLoadRow& row : load.players) {
         m_loadStatuses.emplace(row.player.id, row.assessment.verdict.status);
+        m_loadAsOf.emplace(row.player.id, row.assessment.asOf);
     }
     setLoadPending(false);
     validate();
@@ -752,7 +791,10 @@ void PreMatchViewModel::clearMatch(std::optional<core::Error> failure) {
     m_data.reset();
     m_lineup = core::Lineup{};
     m_baseline = core::Lineup{};
+    m_beforeReplace.reset();
     m_loadStatuses.clear();
+    m_loadAsOf.clear();
+    setLoadCheckFailed(false);
     m_loadFailure = std::move(failure);
     m_selectedSlot = -1;
     setLoadPending(false);
@@ -871,7 +913,7 @@ void PreMatchViewModel::rebuildRows() {
             load == m_loadStatuses.end() ? QString{} : LoadTexts::statusKey(load->second),
             load == m_loadStatuses.end() ? QString{} : LoadTexts::statusShortName(load->second),
             placement, LineupTexts::placementName(placement), issues.first,
-            issues.second.join(newline)});
+            issues.second.join(newline), playerDetails(*item)});
     }
     m_players->setRows(std::move(playerRows));
 }
@@ -892,6 +934,18 @@ void PreMatchViewModel::setSelectedSlot(int slot) {
     m_selectedSlot = slot;
     emit selectionChanged();
 }
+
+void PreMatchViewModel::setLoadCheckFailed(bool failed) {
+    if (failed == m_loadCheckFailed) {
+        return;
+    }
+    m_loadCheckFailed = failed;
+    emit loadPendingChanged();
+    emit issuesChanged();
+    emit textsChanged();
+}
+
+void PreMatchViewModel::rememberBeforeReplace() { m_beforeReplace = m_lineup; }
 
 void PreMatchViewModel::setLoadPending(bool pending) {
     if (pending == m_loadPending) {
@@ -941,6 +995,22 @@ void PreMatchViewModel::reportDropped(int dropped) {
         emit notice(
             tr("Players no longer in the squad were left out of the lineup: %1.").arg(dropped));
     }
+}
+
+QString PreMatchViewModel::playerDetails(const services::LineupCandidate& item) const {
+    QStringList lines{
+        tr("On the match day: %1").arg(SquadTexts::statusName(item.facts.statusOnMatchDay, false))};
+    if (m_loadCheckFailed) {
+        lines.append(tr("Load: could not be checked"));
+    } else if (const auto status = m_loadStatuses.find(item.player.id);
+               status != m_loadStatuses.end()) {
+        const core::Date asOf = m_loadAsOf.at(item.player.id);
+        const QString day = LoadTexts::chartDay(asOf);
+        const QString name = LoadTexts::statusShortName(status->second);
+        lines.append(asOf == m_clock.today() ? tr("Load as of %1 (today): %2").arg(day, name)
+                                             : tr("Load as of %1: %2").arg(day, name));
+    }
+    return lines.join(QLatin1Char('\n'));
 }
 
 QString PreMatchViewModel::playerName(core::PlayerId player) const {

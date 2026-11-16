@@ -1,6 +1,5 @@
 #include "data/repositories/LineupRepository.hpp"
 
-#include "data/db/Transaction.hpp"
 #include "data/readers/TacticJson.hpp"
 #include "data/repositories/RepositorySupport.hpp"
 
@@ -50,10 +49,6 @@ LineupRepository::findForMatch(core::MatchId match) const {
 
 core::Status LineupRepository::saveForMatch(core::MatchId match, const core::Lineup& lineup) {
     constexpr std::string_view kContext = "save match lineup";
-    auto transaction = Transaction::begin(m_db);
-    if (!transaction) {
-        return std::unexpected(transaction.error());
-    }
     auto status =
         selectOne(m_db, QStringLiteral("SELECT status FROM match WHERE id = ?"), {idValue(match)},
                   kContext, [](RowReader& row) { return row.enumeration<core::MatchStatus>(); });
@@ -81,7 +76,7 @@ core::Status LineupRepository::saveForMatch(core::MatchId match, const core::Lin
         !updated) {
         return updated;
     }
-    return transaction->commit();
+    return {};
 }
 
 core::Status LineupRepository::removeForMatch(core::MatchId match) {

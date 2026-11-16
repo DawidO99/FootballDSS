@@ -54,8 +54,9 @@ struct PitchZone {
 // ST.
 [[nodiscard]] int pitchRow(Position position) noexcept;
 
-// Spreads the tokens of the zone over it in their left-to-right order (by x, then slot order) and
-// gives them the y of the zone.
+// Lays the tokens of the zone out in a grid: as many in a row as the zone has room for (one in a
+// side zone, three in a wide one), left to right by x; more tokens go to further rows around the y
+// of the zone, top to bottom by y. Tokens of one zone never overlap.
 void layoutZone(Lineup& lineup, Position zone);
 void layoutAllZones(Lineup& lineup);
 
@@ -72,10 +73,11 @@ void layoutAllZones(Lineup& lineup);
 [[nodiscard]] Lineup emptyLineup(const Formation& formation);
 
 // Gives the slot the position of `zone` and lays out the zone it left and the one it entered. `x`
-// is where in the new zone (a drop); without it the slot keeps its x for the order. A second
-// goalkeeper: GoalkeeperTaken. The formation name follows.
-LineupEdit moveSlot(Lineup& lineup, int slot, Position zone,
-                    std::optional<double> x = std::nullopt);
+// and `y` are where in the new zone (a drop), which decide its place in the grid; without them the
+// slot keeps its coordinates for the order. A second goalkeeper: GoalkeeperTaken. The formation
+// name follows.
+LineupEdit moveSlot(Lineup& lineup, int slot, Position zone, std::optional<double> x = std::nullopt,
+                    std::optional<double> y = std::nullopt);
 
 struct FormationChange {
     Lineup lineup;

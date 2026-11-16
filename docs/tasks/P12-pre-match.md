@@ -150,3 +150,37 @@ per rule), worth a class diagram.
     of a slot; the name counted from the rows; at most one GK. `qml_components`: dragging a token to
     another zone. Viewmodel: the keyboard path of a position change. `TacticJson`: round trip of an
     asymmetric shape. Service: delete and undo of a match with a lineup.
+19. **Review (Codex)**:
+    - *Read errors*: `reload()` that cannot read the facts again keeps the lineup on the screen and its
+      dirty state (the leave guard still asks) and shows `loadError` in a banner with Try again above
+      the board; only with no match open the error replaces the screen.
+    - *Load not checked*: a `LoadService` read error is an explicit state, "the check is incomplete:
+      the load could not be checked" with a warning icon and Try again in the issues panel; the
+      summary never says the lineup is ready while the load is pending or not checked; `reload()`
+      tries again.
+    - *Undo of whole-lineup changes*: Clear, loading a template and importing a file remember the
+      lineup before and show a 10 s toast whose Undo brings it back (with its dirty state); no
+      confirmation dialog.
+    - *Calendar*: deleting a match with a saved lineup asks first ("This match has a saved lineup.
+      Delete it together with the lineup?", AGENTS §6 like a session with attendance), then the undo
+      toast (`CalendarService::hasLineup`, `CalendarViewModel::matchHasLineup`).
+    - *Threshold*: `AppSettings::setYellowCardThreshold()` checks ManageSettings in C++ and refuses
+      with a message otherwise; the property is read-only to QML (`ServiceRegistry::isInstalled()`
+      for the singleton, which also lives without a registry in the component tests).
+    - *Synchronous import of `.tactic.json`*: an exception to AGENTS §5, like decision 4: the file is
+      at most 1 MB and parses in milliseconds.
+    - *Position field*: a refused position (a second goalkeeper) shows the current one again.
+    - *Bench by keyboard*: "Move to the bench (B)" and "Add to bench (B)": the buttons of the
+      selected slot are in the Tab order, B on a focused token or row of the squad list is their
+      accelerator.
+    - *Touch*: the position field (`SelectField.touch`), the buttons of the selected slot, the rows and
+      buttons of the bench and the squad list are at least `Theme.hitTouch`; qml_smoke measures them.
+    - *Threshold change* emits `issuesChanged`.
+    - *Squad tooltip*: "On the match day: …" and "Load as of dd.MM (today): …" (the day of the P11
+      status, decision 9).
+    - *Transaction*: `LineupService::save()` owns the transaction; `LineupRepository::saveForMatch()`
+      runs inside the caller's one (also `CalendarService::restoreMatch()`).
+    - *Tokens of one zone*: a grid, `kMinZoneColumnWidth` 0.15 (one token in a row in a side zone,
+      three in a wide one) and further rows `kZoneRowStep` 0.14 apart around the y of the zone, so they
+      never overlap one another; catalogue formations lay out as before. Extreme shapes may still
+      bring a token of one zone close to one of the next row.

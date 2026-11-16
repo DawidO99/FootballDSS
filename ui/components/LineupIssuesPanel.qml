@@ -13,7 +13,10 @@ import QtQuick.Layouts
 //   summary: string              e.g. "Errors: 2 · Warnings: 1"
 //   errorCount: int
 //   loadPending: bool            the load statuses are still being calculated
+//   incompleteText: string       the check is incomplete (the load could not be read); empty: it is
+//                                complete. Shown with a warning icon and a Try again button.
 //   issueActivated(row)
+//   retryRequested()
 Item {
     id: root
 
@@ -21,9 +24,11 @@ Item {
     property string summary
     property int errorCount: 0
     property bool loadPending: false
+    property string incompleteText
     readonly property alias listView: list
 
     signal issueActivated(int row)
+    signal retryRequested
 
     implicitWidth: Theme.fieldWidth
     implicitHeight: Theme.issuesPanelHeight
@@ -45,8 +50,8 @@ Item {
                 spacing: Theme.spacing.s
 
                 Icon {
-                    name: root.errorCount > 0 ? "danger" : list.count > 0 ? "warn" : "ok"
-                    color: root.errorCount > 0 ? Theme.danger : list.count > 0 ? Theme.warn : Theme.ok
+                    name: root.errorCount > 0 ? "danger" : list.count > 0 || root.incompleteText.length > 0 ? "warn" : "ok"
+                    color: root.errorCount > 0 ? Theme.danger : list.count > 0 || root.incompleteText.length > 0 ? Theme.warn : Theme.ok
                     size: Theme.iconSize.m
                 }
 
@@ -65,6 +70,33 @@ Item {
                     text: qsTr("Checking the load…")
                     color: Theme.textMuted
                     font.pixelSize: Theme.fontSize.caption
+                }
+            }
+
+            RowLayout {
+                objectName: "incompleteCheck"
+                Layout.fillWidth: true
+                visible: root.incompleteText.length > 0
+                spacing: Theme.spacing.s
+
+                Icon {
+                    name: "warn"
+                    color: Theme.warn
+                    size: Theme.iconSize.s
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: root.incompleteText
+                    color: Theme.text
+                    font.pixelSize: Theme.fontSize.body
+                    wrapMode: Text.WordWrap
+                }
+
+                SecondaryButton {
+                    objectName: "retryLoadButton"
+                    text: qsTr("Try again")
+                    onClicked: root.retryRequested()
                 }
             }
 

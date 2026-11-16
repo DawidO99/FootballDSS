@@ -64,6 +64,8 @@ public:
     [[nodiscard]] core::Result<std::vector<std::string>> listCompetitions(core::TeamId team) const;
     // How many players have attendance saved, so the view can ask before a delete.
     [[nodiscard]] core::Result<int> attendanceCount(core::TrainingSessionId id) const;
+    // A lineup is saved for the match (Pre-match), so the view can ask before a delete.
+    [[nodiscard]] core::Result<bool> hasLineup(core::MatchId id) const;
 
     // The methods below need EditCalendar.
     // A bad or duplicate name: InvalidInput or Conflict with field "opponent_name".

@@ -36,7 +36,7 @@ public:
 // The squad to pick from, by shirt number: playerId, shirtNumber, name, shortName, positionsText,
 // statusKey and statusText (availability on the match date), loadStatusKey and loadStatusText (P11,
 // empty while not known), placement ("xi", "bench" or empty) and placementText, severity,
-// issueText.
+// issueText, detailsText (availability on the match day, load as of its day).
 class LineupPlayersModel : public RowsModel {
     Q_OBJECT
     QML_ELEMENT

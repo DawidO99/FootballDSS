@@ -5,6 +5,8 @@
 #include "core/domain/Match.hpp"
 #include "core/domain/Opponent.hpp"
 #include "core/domain/Player.hpp"
+#include "data/db/DatabaseManager.hpp"
+#include "data/repositories/MatchRepository.hpp"
 #include "services/CalendarService.hpp"
 #include "services/LoadService.hpp"
 #include "services/SquadService.hpp"
@@ -440,4 +442,145 @@ TEST_F(PreMatchViewModelTest, TheThresholdSettingIsClampedAndKept) {
     fdss::viewmodels::AppSettings again;
     EXPECT_EQ(again.yellowCardThreshold(), 6);
     again.setYellowCardThreshold(kDefaultYellowCardThreshold);
+}
+
+// --- Codex review of P12 ---
+
+// The facts cannot be read again: the draft stays with its dirty state, loadError says why, and a
+// later reload clears it and keeps the draft.
+TEST_F(PreMatchViewModelTest, AFailedReloadKeepsTheDraft) {
+    const auto vm = open();
+    pickEleven(*vm, eleven());
+    ASSERT_TRUE(vm->dirty());
+    ASSERT_TRUE(m_db->execSql(QStringLiteral("ALTER TABLE lineup RENAME TO lineup_gone"), "test")
+                    .has_value());
+    SignalCount dirtyChanges(vm.get(), &PreMatchViewModel::dirtyChanged);
+    vm->reload();
+    EXPECT_FALSE(vm->loadError().isEmpty());
+    EXPECT_TRUE(vm->hasMatch());
+    EXPECT_TRUE(vm->dirty());
+    EXPECT_EQ(vm->startingCount(), 11);
+    EXPECT_EQ(dirtyChanges.count(), 0);
+
+    ASSERT_TRUE(m_db->execSql(QStringLiteral("ALTER TABLE lineup_gone RENAME TO lineup"), "test")
+                    .has_value());
+    vm->reload();
+    ASSERT_TRUE(waitUntil([&] { return !vm->loadPending(); }));
+    EXPECT_TRUE(vm->loadError().isEmpty());
+    EXPECT_TRUE(vm->dirty());
+    EXPECT_EQ(vm->startingCount(), 11);
+}
+
+// The load cannot be read: an explicit incomplete check, never "ready", and a retry on reload.
+TEST_F(PreMatchViewModelTest, AFailedLoadCheckIsNeverReady) {
+    // A finished match makes LoadService read the appearances, which Pre-match does not need.
+    MatchDraft past;
+    past.opponentId = registry().calendar().listOpponents().value().front().id;
+    past.date = Date{std::chrono::year{2026}, std::chrono::October, std::chrono::day{10}};
+    const auto pastMatch = registry().calendar().addMatch(m_team, past);
+    ASSERT_TRUE(pastMatch.has_value());
+    ASSERT_TRUE(fdss::data::MatchRepository(*m_db)
+                    .setResult(*pastMatch, 1, 0, MatchStatus::Finished)
+                    .has_value());
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE appearance RENAME TO appearance_gone"), "test")
+            .has_value());
+    const auto vm = open();
+    pickEleven(*vm, eleven());
+    EXPECT_TRUE(vm->loadCheckFailed());
+    EXPECT_FALSE(vm->loadCheckText().isEmpty());
+    EXPECT_EQ(vm->errorCount(), 0);
+    EXPECT_NE(vm->issuesSummary(), "No issues: the lineup is ready for Match Day.");
+    EXPECT_TRUE(vm->players()->value(0, "detailsText").toString().contains("could not be checked"));
+
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE appearance_gone RENAME TO appearance"), "test")
+            .has_value());
+    vm->reload();
+    ASSERT_TRUE(waitUntil([&] { return !vm->loadPending(); }));
+    EXPECT_FALSE(vm->loadCheckFailed());
+    EXPECT_TRUE(vm->loadCheckText().isEmpty());
+    EXPECT_EQ(vm->issuesSummary(), "No issues: the lineup is ready for Match Day.");
+}
+
+// Clear, template and import replace the lineup; undo brings back the one before, dirty included.
+TEST_F(PreMatchViewModelTest, ReplacingTheLineupCanBeUndone) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QUrl file = QUrl::fromLocalFile(dir.filePath("plan.tactic.json"));
+    const auto vm = open();
+    Messages replaced(vm.get(), &PreMatchViewModel::lineupReplaced);
+    // A saved lineup, and a template and a file of another one.
+    pickEleven(*vm, eleven());
+    ASSERT_TRUE(vm->save());
+    vm->setFormation("3-5-2");
+    ASSERT_TRUE(vm->saveTemplate("Plan B", false));
+    ASSERT_TRUE(vm->exportTactic(file));
+    vm->discardChanges();
+    ASSERT_FALSE(vm->dirty());
+    const std::vector<qint64> saved = [&] {
+        std::vector<qint64> ids;
+        for (int slot = 0; slot < 11; ++slot) {
+            ids.push_back(slotPlayer(*vm, slot));
+        }
+        return ids;
+    }();
+    const auto expectSaved = [&](const char* what) {
+        EXPECT_FALSE(vm->dirty()) << what;
+        EXPECT_EQ(vm->formation(), "4-4-2") << what;
+        for (int slot = 0; slot < 11; ++slot) {
+            EXPECT_EQ(slotPlayer(*vm, slot), saved[static_cast<std::size_t>(slot)]) << what;
+        }
+    };
+
+    vm->clearLineup();
+    EXPECT_EQ(vm->startingCount(), 0);
+    EXPECT_TRUE(vm->dirty());
+    vm->undoReplace();
+    expectSaved("clear");
+
+    ASSERT_TRUE(vm->loadTemplate(vm->templates()->value(0, "value").toLongLong()));
+    EXPECT_EQ(vm->formation(), "3-5-2");
+    vm->undoReplace();
+    expectSaved("template");
+
+    ASSERT_TRUE(vm->importTactic(file));
+    EXPECT_EQ(vm->formation(), "3-5-2");
+    vm->undoReplace();
+    expectSaved("import");
+
+    EXPECT_EQ(replaced.texts().size(), 3);
+    // Nothing more to undo.
+    vm->undoReplace();
+    expectSaved("second undo");
+}
+
+// The threshold is saved only with ManageSettings, checked in C++ (not only by the view).
+TEST_F(PreMatchViewModelTest, OnlyManageSettingsChangesTheThreshold) {
+    logInAs(Role::Physio);
+    fdss::viewmodels::AppSettings settings;
+    const int before = settings.yellowCardThreshold();
+    int errors = 0;
+    QObject::connect(&settings, &fdss::viewmodels::AppSettings::errorOccurred,
+                     [&errors](const QString&) { ++errors; });
+    EXPECT_FALSE(settings.setYellowCardThreshold(before == 6 ? 7 : 6));
+    EXPECT_EQ(settings.yellowCardThreshold(), before);
+    EXPECT_EQ(errors, 1);
+}
+
+TEST_F(PreMatchViewModelTest, AThresholdChangeUpdatesTheIssues) {
+    const auto vm = open();
+    pickEleven(*vm, eleven());
+    SignalCount issues(vm.get(), &PreMatchViewModel::issuesChanged);
+    vm->setYellowCardThreshold(3);
+    EXPECT_GE(issues.count(), 1);
+}
+
+// The tooltip of a row: availability on the match day, the load as of its day.
+TEST_F(PreMatchViewModelTest, PlayerDetailsNameTheDays) {
+    const auto vm = open();
+    const QString details = vm->players()->value(0, "detailsText").toString();
+    EXPECT_TRUE(details.contains("On the match day:")) << details.toStdString();
+    // No RPE in this club: today's grey status is as of yesterday (P11 decision 4).
+    EXPECT_TRUE(details.contains("Load as of")) << details.toStdString();
 }

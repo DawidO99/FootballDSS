@@ -252,11 +252,19 @@ core::Status LineupService::save(core::MatchId match, const core::Lineup& lineup
     if (auto shape = checkShape(lineup); !shape) {
         return shape;
     }
-    auto saved = m_lineups.saveForMatch(match, named(lineup));
-    if (!saved && saved.error().code == core::ErrorCode::Conflict) {
-        saved.error().field = kMatchNotPlanned;
+    // The old row goes before the new one is written: both in one transaction (Codex review).
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
     }
-    return saved;
+    auto saved = m_lineups.saveForMatch(match, named(lineup));
+    if (!saved) {
+        if (saved.error().code == core::ErrorCode::Conflict) {
+            saved.error().field = kMatchNotPlanned;
+        }
+        return saved;
+    }
+    return transaction->commit();
 }
 
 core::Result<LoadedLineup> LineupService::loadTemplate(core::LineupId id, core::TeamId team) const {

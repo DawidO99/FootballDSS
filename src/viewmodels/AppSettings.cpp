@@ -1,6 +1,10 @@
 #include "viewmodels/AppSettings.hpp"
 
 #include "core/algorithms/LineupValidator.hpp"
+#include "core/domain/Permissions.hpp"
+#include "services/Session.hpp"
+#include "viewmodels/ErrorPresenter.hpp"
+#include "viewmodels/ServiceRegistry.hpp"
 
 #include <QSettings>
 
@@ -35,14 +39,23 @@ void AppSettings::setDarkTheme(bool darkTheme) {
 
 int AppSettings::yellowCardThreshold() const { return m_yellowCardThreshold; }
 
-void AppSettings::setYellowCardThreshold(int threshold) {
+bool AppSettings::setYellowCardThreshold(int threshold) {
+    // The singleton also lives where no registry is installed (the component tests): nobody may
+    // change the setting there.
+    if (!ServiceRegistry::isInstalled() ||
+        !ServiceRegistry::instance().session().isAllowed(core::Permission::ManageSettings)) {
+        emit errorOccurred(ErrorPresenter::message(
+            core::Error{core::ErrorCode::PermissionDenied, "yellow card threshold", {}}));
+        return false;
+    }
     const int clamped = clampedThreshold(threshold);
     if (clamped == m_yellowCardThreshold) {
-        return;
+        return true;
     }
     m_yellowCardThreshold = clamped;
     QSettings().setValue(kYellowCardThresholdKey, m_yellowCardThreshold);
     emit yellowCardThresholdChanged();
+    return true;
 }
 
 int AppSettings::minYellowCardThreshold() const { return core::kMinYellowCardThreshold; }

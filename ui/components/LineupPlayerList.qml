@@ -7,13 +7,15 @@ import QtQuick.Layouts
 // The squad to pick from on the tactics board (P12): number, name, positions, where the player is
 // (XI or bench), the availability on the match day when it is not "available", and the load status
 // (P11). Keyboard path: the list takes the focus with Tab, the arrows move, Enter puts the player in
-// the selected slot (a click or tap does the same). A row can be dragged on a token (Drag.keys
+// the selected slot (a click or tap does the same), B puts them on the bench (the accelerator of the
+// bench button of the row). The tooltip names the days: availability on the match day, load as of
+// its day. A row can be dragged on a token (Drag.keys
 // "fdss-player", source.payload { kind: "player", playerId }); a token or a bench player dropped on
 // the list leaves the lineup. Rows are Theme.hitTouch high.
 // API:
 //   model: LineupPlayersModel    playerId, shirtNumber, name, shortName, positionsText, statusKey,
 //                                statusText, loadStatusKey, loadStatusText, placement,
-//                                placementText, severity, issueText
+//                                placementText, severity, issueText, detailsText
 //   interactive: bool            false: read-only
 //   pickRequested(playerId)      Enter, click or tap
 //   benchRequested(playerId)     the bench button of a row
@@ -70,6 +72,12 @@ Item {
             Accessible.name: qsTr("Squad")
             Keys.onReturnPressed: list.pickCurrent()
             Keys.onEnterPressed: list.pickCurrent()
+            Keys.onPressed: event => {
+                if (event.key === Qt.Key_B && event.modifiers === Qt.NoModifier && root.interactive && list.currentIndex >= 0) {
+                    root.benchRequested(root.model.get(list.currentIndex).playerId);
+                    event.accepted = true;
+                }
+            }
 
             function pickCurrent() {
                 if (root.interactive && list.currentIndex >= 0)
@@ -93,6 +101,7 @@ Item {
                 required property string placementText
                 required property string severity
                 required property string issueText
+                required property string detailsText
                 readonly property string details: [row.positionsText, row.placementText].filter(part => part.length > 0).join(" · ")
 
                 objectName: "playerRow_" + row.index
@@ -164,7 +173,7 @@ Item {
                         enabled: row.placement !== "bench"
                         touch: true
                         iconName: "plus"
-                        text: qsTr("Add to bench")
+                        text: qsTr("Add to bench (B)")
                         focusPolicy: Qt.NoFocus
                         onClicked: root.benchRequested(row.playerId)
                     }
@@ -210,7 +219,7 @@ Item {
 
                 PlainToolTip {
                     visible: rowHover.hovered && !rowDrag.active
-                    text: [row.name, row.details, row.issueText, root.interactive ? qsTr("Click or Enter: put in the selected slot.") : ""].filter(part => part.length > 0).join("\n")
+                    text: [row.name, row.details, row.detailsText, row.issueText, root.interactive ? qsTr("Click or Enter: put in the selected slot.") : ""].filter(part => part.length > 0).join("\n")
                     delay: Theme.tooltipDelay
                 }
             }

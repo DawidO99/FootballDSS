@@ -15,7 +15,7 @@ BenchListModel::BenchListModel(QObject* parent)
 LineupPlayersModel::LineupPlayersModel(QObject* parent)
     : RowsModel({"playerId", "shirtNumber", "name", "shortName", "positionsText", "statusKey",
                  "statusText", "loadStatusKey", "loadStatusText", "placement", "placementText",
-                 "severity", "issueText"},
+                 "severity", "issueText", "detailsText"},
                 parent) {}
 
 LineupIssuesModel::LineupIssuesModel(QObject* parent)

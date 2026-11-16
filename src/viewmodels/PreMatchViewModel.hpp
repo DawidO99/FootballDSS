@@ -85,6 +85,11 @@ class PreMatchViewModel : public QObject {
     // "Errors: 2 · Warnings: 1", or that the lineup has no issues.
     Q_PROPERTY(QString issuesSummary READ issuesSummary NOTIFY issuesChanged FINAL)
     Q_PROPERTY(bool loadPending READ loadPending NOTIFY loadPendingChanged FINAL)
+    // The load statuses could not be read: the check is incomplete, the summary never says the
+    // lineup is ready, and reload() tries again (P12 review).
+    Q_PROPERTY(bool loadCheckFailed READ loadCheckFailed NOTIFY loadPendingChanged FINAL)
+    // What to show for it; empty when the check is complete.
+    Q_PROPERTY(QString loadCheckText READ loadCheckText NOTIFY textsChanged FINAL)
 
     // State
     // No EditLineup, or a match that is not planned, or no match.
@@ -140,6 +145,8 @@ public:
     [[nodiscard]] int warningCount() const;
     [[nodiscard]] QString issuesSummary() const;
     [[nodiscard]] bool loadPending() const;
+    [[nodiscard]] bool loadCheckFailed() const;
+    [[nodiscard]] QString loadCheckText() const;
 
     [[nodiscard]] bool readOnly() const;
     [[nodiscard]] QString readOnlyText() const;
@@ -150,7 +157,8 @@ public:
     [[nodiscard]] QString loadError() const;
 
     // Reads the matches, the facts and the load statuses again. A lineup with changes of the user
-    // stays as it is, without players who left the squad meanwhile.
+    // stays as it is, without players who left the squad meanwhile. Facts that cannot be read set
+    // loadError and leave the lineup on the screen as it is, dirty or not (P12 review).
     Q_INVOKABLE void reload();
     // Drops changes that were not saved; the view asks first. A match that cannot be read:
     // errorOccurred, and the one on the screen stays.
@@ -171,7 +179,10 @@ public:
     Q_INVOKABLE void swapSlots(int first, int second);
     Q_INVOKABLE bool moveSlotToBench(int slot);
     Q_INVOKABLE void removePlayer(qint64 playerId);
+    // Clearing, loading a template and importing a file replace the lineup and emit lineupReplaced;
+    // undoReplace() brings back the lineup from before, and with it the dirty state (P12 review).
     Q_INVOKABLE void clearLineup();
+    Q_INVOKABLE void undoReplace();
     // A token dropped on the pitch (not on another token): the slot takes the position of the zone
     // under the point, x and y 0–1. A second goalkeeper: errorOccurred.
     Q_INVOKABLE bool moveSlotTo(int slot, double x, double y);
@@ -213,6 +224,8 @@ signals:
     void saved(const QString& message);
     void notice(const QString& message);
     void errorOccurred(const QString& message);
+    // The lineup was replaced as a whole; the view shows an undo toast (undoReplace()).
+    void lineupReplaced(const QString& message);
     // The view asks whether to replace that template.
     void templateNameTaken(const QString& name);
     // The view shows an undo toast.
@@ -239,6 +252,10 @@ private:
     void updateDirty();
     void setSelectedSlot(int slot);
     void setLoadPending(bool pending);
+    void setLoadCheckFailed(bool failed);
+    void rememberBeforeReplace();
+    // The tooltip of a row of the squad: availability on the match day, load as of its day.
+    [[nodiscard]] QString playerDetails(const services::LineupCandidate& item) const;
     // Without EditLineup or on a read-only board: errorOccurred, and nothing changes. The service
     // checks the permission again (AGENTS section 4).
     [[nodiscard]] bool checkEditable();
@@ -254,6 +271,7 @@ private:
     services::LineupService& m_lineupService;
     services::LoadService& m_load;
     services::Session& m_session;
+    const services::Clock& m_clock;
     ChoiceListModel* m_matches;
     TacticsBoardModel* m_board;
     BenchListModel* m_bench;
@@ -269,7 +287,11 @@ private:
     core::Lineup m_baseline;
     std::vector<core::LineupIssue> m_issueList;
     std::map<core::PlayerId, core::LoadStatus> m_loadStatuses;
+    std::map<core::PlayerId, core::Date> m_loadAsOf;
     bool m_loadPending = false;
+    bool m_loadCheckFailed = false;
+    // The lineup before the last clear, template or import, for undoReplace().
+    std::optional<core::Lineup> m_beforeReplace;
     // Every load request gets the next number; only the newest result counts.
     int m_loadRequest = 0;
     int m_selectedSlot = -1;
