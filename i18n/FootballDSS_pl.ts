@@ -2709,10 +2709,12 @@
     </message>
     <message>
         <source>Elevated</source>
+        <extracomment>Short status in the load table; the full one is &quot;Elevated&quot;.</extracomment>
         <translation>Podwyższone</translation>
     </message>
     <message>
         <source>In range</source>
+        <extracomment>Short status in the load table; the full one is &quot;In range&quot;.</extracomment>
         <translation>W normie</translation>
     </message>
     <message>
@@ -2726,6 +2728,21 @@
     <message>
         <source>Not enough data</source>
         <translation>Za mało danych</translation>
+    </message>
+    <message>
+        <source>High</source>
+        <extracomment>Short status in the load table; the full one is &quot;High load&quot;.</extracomment>
+        <translation>Wysokie</translation>
+    </message>
+    <message>
+        <source>Low</source>
+        <extracomment>Short status in the load table; the full one is &quot;Underloaded&quot;.</extracomment>
+        <translation>Niskie</translation>
+    </message>
+    <message>
+        <source>No baseline</source>
+        <extracomment>Short status in the load table; the full one is &quot;Not enough data&quot; or &quot;Building the baseline&quot;.</extracomment>
+        <translation>Mało danych</translation>
     </message>
     <message>
         <source>.</source>
@@ -2807,6 +2824,10 @@
     <message>
         <source>All</source>
         <translation>Wszyscy</translation>
+    </message>
+    <message>
+        <source>This player is not in the load table. Archived players are not shown.</source>
+        <translation>Tego zawodnika nie ma w tabeli obciążenia. Zawodnicy zarchiwizowani nie są pokazywani.</translation>
     </message>
 </context>
 <context>

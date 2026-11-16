@@ -59,6 +59,54 @@ QString LoadTexts::statusName(const core::LoadVerdict& verdict) {
     return onlyTime ? tr("Building the baseline") : tr("Not enough data");
 }
 
+QString LoadTexts::statusShortName(core::LoadStatus status) {
+    switch (status) {
+    //: Short status in the load table; the full one is "High load".
+    case core::LoadStatus::High:
+        return tr("High");
+    //: Short status in the load table; the full one is "Elevated".
+    case core::LoadStatus::Elevated:
+        return tr("Elevated");
+    //: Short status in the load table; the full one is "In range".
+    case core::LoadStatus::Normal:
+        return tr("In range");
+    //: Short status in the load table; the full one is "Underloaded".
+    case core::LoadStatus::Underloaded:
+        return tr("Low");
+    case core::LoadStatus::NotEnoughData:
+        break;
+    }
+    //: Short status in the load table; the full one is "Not enough data" or "Building the
+    //: baseline".
+    return tr("No baseline");
+}
+
+QString LoadTexts::reasonKey(core::LoadReason reason) {
+    switch (reason) {
+    case LoadReason::NoRpe:
+        return QStringLiteral("noRpe");
+    case LoadReason::FewRpeDays:
+        return QStringLiteral("fewRpeDays");
+    case LoadReason::ShortBaseline:
+        return QStringLiteral("shortBaseline");
+    case LoadReason::NoChronicLoad:
+        return QStringLiteral("noChronicLoad");
+    case LoadReason::RatioHigh:
+        return QStringLiteral("ratioHigh");
+    case LoadReason::RatioElevated:
+        return QStringLiteral("ratioElevated");
+    case LoadReason::MonotonyHigh:
+        return QStringLiteral("monotonyHigh");
+    case LoadReason::RatioLow:
+        return QStringLiteral("ratioLow");
+    case LoadReason::RatioInRange:
+        return QStringLiteral("ratioInRange");
+    case LoadReason::AfterBreak:
+        break;
+    }
+    return QStringLiteral("afterBreak");
+}
+
 int LoadTexts::statusRank(core::LoadStatus status) {
     switch (status) {
     case core::LoadStatus::High:

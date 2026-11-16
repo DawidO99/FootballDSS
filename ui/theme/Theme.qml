@@ -50,6 +50,8 @@ QtObject {
         readonly property int hoverMarkerWidth: 1
         // Share of a day taken by its bar.
         readonly property real barWidth: 0.7
+        // The least room for one label of a date axis.
+        readonly property int minTickSpacing: 56
     }
 
     // The size a window opens with and the smallest it can be made.
@@ -147,6 +149,9 @@ QtObject {
     // The bar beside the current section of the sidebar.
     readonly property int sidebarMarkerWidth: 3
     readonly property int badgeHeight: 24
+    // The status column of the load table: the longest short status of every language with the day
+    // of a row beside it, plus the cell padding (P11 review; qml_smoke checks it at 1280×720).
+    readonly property int loadStatusColumnWidth: 208
     readonly property int emptyStateWidth: 480
     // Icon.qml draws its paths on a square of this side and scales it to the size asked for.
     readonly property int iconGrid: 24

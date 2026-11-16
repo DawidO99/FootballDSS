@@ -9,7 +9,8 @@ import QtQuick.Layouts
 // the title and the rows.
 // API:
 //   title: string
-//   rows: var       [{ label, value, color, shape }], shape as in ChartLegend
+//   rows: var       [{ label, value, color, shape }], shape as in ChartLegend; other keys (such as
+//                   the series key) are kept
 //   showAt(x, y)    next to that point of the parent, kept inside the parent
 //   hide()
 Rectangle {

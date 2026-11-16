@@ -2,8 +2,11 @@
 
 #include "ViewModelFixture.hpp"
 #include "core/demo/DemoGenerator.hpp"
+#include "core/domain/Match.hpp"
+#include "core/domain/Opponent.hpp"
 #include "core/domain/Player.hpp"
 #include "core/domain/TrainingSession.hpp"
+#include "data/repositories/MatchRepository.hpp"
 #include "services/CalendarService.hpp"
 #include "services/DemoDataService.hpp"
 #include "services/Session.hpp"
@@ -420,4 +423,186 @@ TEST_F(LoadViewModelTest, PlayerLoadNamesTheMissingRpe) {
     ASSERT_TRUE(waitForResult(load));
     EXPECT_EQ(load.missingRpeText(),
               QStringLiteral("Without RPE in the last 28 days: sessions 1, matches 0."));
+}
+
+// P11 review: a row that describes another day than the table says so as text.
+TEST_F(LoadViewModelTest, ARowOfAnotherDayNamesItsDay) {
+    const PlayerId first = addPlayer("Jan", "Kowalski", 7);
+    const PlayerId second = addPlayer("Adam", "Nowak", 9);
+    const PlayerId third = addPlayer("Piotr", "Żak", 4);
+    addSession(daysAgo(3), 60, {{first, 5}, {second, 5}, {third, 5}});
+    // Today: RPE of two players; the third one has none yet, so he is as of yesterday.
+    addSession(kToday, 60, {{first, 6}, {second, 6}});
+
+    LoadViewModel load;
+    open(load);
+    // The day of most rows.
+    EXPECT_EQ(load.asOfText(), QStringLiteral("As of 01/11/2026"));
+    const QVariantMap other = load.rowAt(load.rowOf(third.value));
+    EXPECT_EQ(other.value(QStringLiteral("asOfShort")), QStringLiteral("10/31"));
+    EXPECT_EQ(other.value(QStringLiteral("asOfText")), QStringLiteral("As of 31/10/2026"));
+    for (const PlayerId same : {first, second}) {
+        const QVariantMap row = load.rowAt(load.rowOf(same.value));
+        EXPECT_TRUE(row.value(QStringLiteral("asOfShort")).toString().isEmpty());
+        EXPECT_TRUE(row.value(QStringLiteral("asOfText")).toString().isEmpty());
+    }
+}
+
+TEST_F(LoadViewModelTest, TheTableTakesTheDayOfMostRowsAndTheLaterOneOnATie) {
+    const PlayerId first = addPlayer("Jan", "Kowalski", 7);
+    const PlayerId second = addPlayer("Adam", "Nowak", 9);
+    const PlayerId withoutData = addPlayer("Piotr", "Żak", 4);
+    addSession(daysAgo(3), 60, {{first, 5}, {second, 5}});
+    addSession(kToday, 60, {{first, 6}});
+
+    LoadViewModel load;
+    open(load);
+    // One as of today, one as of yesterday: the later day. A player without data does not count
+    // and says nothing.
+    EXPECT_EQ(load.asOfText(), QStringLiteral("As of 01/11/2026"));
+    EXPECT_EQ(load.rowAt(load.rowOf(second.value)).value(QStringLiteral("asOfShort")),
+              QStringLiteral("10/31"));
+    EXPECT_TRUE(load.rowAt(load.rowOf(withoutData.value))
+                    .value(QStringLiteral("asOfShort"))
+                    .toString()
+                    .isEmpty());
+}
+
+TEST_F(LoadViewModelTest, AnEmptyClubHasNoDate) {
+    addPlayer("Jan", "Kowalski", 7);
+    LoadViewModel load;
+    open(load);
+    EXPECT_TRUE(load.asOfText().isEmpty());
+}
+
+TEST_F(LoadViewModelTest, TheShortStatusAndTheReasonKeysAreInTheRow) {
+    seedMixed();
+    LoadViewModel load;
+    open(load);
+    const QVariantMap grey = load.rowAt(load.rowOf(m_nowak.value));
+    EXPECT_EQ(grey.value(QStringLiteral("statusShortText")), QStringLiteral("No baseline"));
+    EXPECT_EQ(grey.value(QStringLiteral("statusText")), QStringLiteral("Not enough data"));
+    EXPECT_EQ(grey.value(QStringLiteral("reasonKeys")).toStringList(),
+              QStringList({QStringLiteral("fewRpeDays"), QStringLiteral("shortBaseline")}));
+}
+
+// P11 review: navigationArgs.playerId arrives before the read is done.
+TEST_F(LoadViewModelTest, ARequestedPlayerIsSelectedAfterTheRead) {
+    seedMixed();
+    LoadViewModel load;
+    QStringList events;
+    QObject::connect(&load, &LoadViewModel::playersReloaded, &load,
+                     [&events] { events.append(QStringLiteral("reloaded")); });
+    QObject::connect(&load, &LoadViewModel::playerRequested, &load, [&events](qint64 player) {
+        events.append(QStringLiteral("player %1").arg(player));
+    });
+    load.setTeamId(m_team.value);
+    ASSERT_TRUE(load.busy());
+    load.requestPlayer(m_zak.value);
+    EXPECT_TRUE(load.busy());
+    ASSERT_TRUE(waitForResult(load));
+    // The older read is dropped: one result, and the request after it, so the view's own
+    // "select the first row" of playersReloaded does not win.
+    EXPECT_EQ(events, QStringList({QStringLiteral("reloaded"),
+                                   QStringLiteral("player %1").arg(m_zak.value)}));
+
+    // Once only.
+    events.clear();
+    load.reload();
+    ASSERT_TRUE(waitForResult(load));
+    EXPECT_EQ(events, QStringList({QStringLiteral("reloaded")}));
+}
+
+TEST_F(LoadViewModelTest, ARequestedPlayerHiddenByTheFilterClearsIt) {
+    seedMixed();
+    LoadViewModel load;
+    open(load);
+    load.setStatusFilter(QStringLiteral("notEnoughData"));
+    ASSERT_EQ(load.rowOf(m_kowalski.value), -1);
+    qint64 requested = 0;
+    QObject::connect(&load, &LoadViewModel::playerRequested, &load,
+                     [&requested](qint64 player) { requested = player; });
+
+    load.requestPlayer(m_kowalski.value);
+    ASSERT_TRUE(waitForResult(load));
+    EXPECT_EQ(requested, m_kowalski.value);
+    EXPECT_EQ(load.statusFilter(), QStringLiteral("all"));
+    EXPECT_GE(load.rowOf(m_kowalski.value), 0);
+}
+
+TEST_F(LoadViewModelTest, ARequestedPlayerOutsideTheTableIsReported) {
+    seedMixed();
+    ASSERT_TRUE(registry().squad().archivePlayer(m_zak).has_value());
+    LoadViewModel load;
+    open(load);
+    qint64 requested = 0;
+    QString message;
+    QObject::connect(&load, &LoadViewModel::playerRequested, &load,
+                     [&requested](qint64 player) { requested = player; });
+    QObject::connect(&load, &LoadViewModel::playerNotInTable, &load,
+                     [&message](const QString& text) { message = text; });
+
+    load.requestPlayer(m_zak.value);
+    ASSERT_TRUE(waitForResult(load));
+    EXPECT_EQ(requested, 0);
+    EXPECT_EQ(
+        message,
+        QStringLiteral("This player is not in the load table. Archived players are not shown."));
+}
+
+// P11 review: the tooltip of the first and the last chart day, and of a day whose session and
+// match have the same load: each value under its own series, with the right date.
+TEST_F(LoadViewModelTest, PlayerLoadTooltipOfTheEdgesAndOfEqualSeries) {
+    const PlayerId player = addPlayer("Jan", "Kowalski", 7);
+    // Day index 0 is 55 days before today: 5 × 60 = 300 AU.
+    addSession(daysAgo(55), 60, {{player, 5}});
+    // Day index 45: a session of 5 × 60 = 300 AU and a match of 10 × 30 = 300 AU.
+    addSession(daysAgo(10), 60, {{player, 5}});
+    OpponentDraft opponent;
+    opponent.name = "Rywal";
+    const auto opponentId = registry().calendar().addOpponent(opponent);
+    ASSERT_TRUE(opponentId.has_value());
+    MatchDraft match;
+    match.opponentId = *opponentId;
+    match.date = daysAgo(10);
+    const auto matchId = registry().calendar().addMatch(m_team, match);
+    ASSERT_TRUE(matchId.has_value()) << matchId.error().detail;
+    fdss::data::MatchRepository matches(*m_db);
+    AppearanceDraft appearance;
+    appearance.playerId = player;
+    appearance.minuteOn = 60;
+    appearance.minuteOff = 90;
+    appearance.rpe = 10;
+    ASSERT_TRUE(matches.replaceAppearances(*matchId, std::vector{appearance}).has_value());
+    ASSERT_TRUE(matches.setResult(*matchId, 1, 0, MatchStatus::Finished).has_value());
+    // Day index 55, today: 4 × 50 = 200 AU (an RPE today, so the chart ends today).
+    addSession(kToday, 50, {{player, 4}});
+
+    PlayerLoadViewModel load;
+    load.setPlayerId(player.value);
+    ASSERT_TRUE(waitForResult(load));
+
+    const auto valuesOf = [&load](int index) {
+        QStringList values;
+        const QVariantList rows = load.dayAt(index).value(QStringLiteral("rows")).toList();
+        for (const QVariant& row : rows) {
+            const QVariantMap entry = row.toMap();
+            values.append(entry.value(QStringLiteral("key")).toString() + QLatin1Char('=') +
+                          entry.value(QStringLiteral("value")).toString());
+        }
+        return values;
+    };
+    EXPECT_EQ(load.dayAt(0).value(QStringLiteral("title")), QStringLiteral("07/09/2026"));
+    EXPECT_EQ(valuesOf(0).mid(0, 2),
+              QStringList({QStringLiteral("sessions=300 AU"), QStringLiteral("matches=0 AU")}));
+    EXPECT_EQ(load.dayAt(45).value(QStringLiteral("title")), QStringLiteral("22/10/2026"));
+    EXPECT_EQ(valuesOf(45).mid(0, 2),
+              QStringList({QStringLiteral("sessions=300 AU"), QStringLiteral("matches=300 AU")}));
+    EXPECT_EQ(load.sessionLoads()[45], 300.0);
+    EXPECT_EQ(load.matchLoads()[45], 300.0);
+    EXPECT_EQ(load.dayAt(55).value(QStringLiteral("title")), QStringLiteral("01/11/2026"));
+    EXPECT_EQ(valuesOf(55).mid(0, 2),
+              QStringList({QStringLiteral("sessions=200 AU"), QStringLiteral("matches=0 AU")}));
+    EXPECT_EQ(load.chartDayLabels().first(), QStringLiteral("09/07"));
+    EXPECT_EQ(load.chartDayLabels().last(), QStringLiteral("11/01"));
 }

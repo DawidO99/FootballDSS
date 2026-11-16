@@ -39,6 +39,8 @@ class PlayerLoadViewModel : public QObject {
     Q_PROPERTY(QString statusText READ statusText NOTIFY loadChanged FINAL)
     // Why, ending in "A signal to talk to the player." for high and elevated.
     Q_PROPERTY(QString explanation READ explanation NOTIFY loadChanged FINAL)
+    // The same, independent of the language: ratioHigh, afterBreak… (LoadTexts::reasonKey).
+    Q_PROPERTY(QStringList reasonKeys READ reasonKeys NOTIFY loadChanged FINAL)
     // What is missing for a status; empty when nothing is.
     Q_PROPERTY(QString hint READ hint NOTIFY loadChanged FINAL)
     // Sessions and matches without RPE in the last 28 days; empty when there are none.
@@ -84,6 +86,7 @@ public:
     [[nodiscard]] QString statusKey() const;
     [[nodiscard]] QString statusText() const;
     [[nodiscard]] QString explanation() const;
+    [[nodiscard]] QStringList reasonKeys() const;
     [[nodiscard]] QString hint() const;
     [[nodiscard]] QString missingRpeText() const;
     [[nodiscard]] QString asOfText() const;

@@ -45,36 +45,24 @@ Item {
             firstPrimaryButton.forceActiveFocus(Qt.TabFocusReason);
     }
 
-    // Eight weeks of one player for LoadChart: three sessions and a match a week, a spike at the end.
-    readonly property var sampleLoad: {
-        const days = 56;
-        const result = {
-            "labels": [],
-            "sessions": [],
-            "matches": [],
-            "acute": [],
-            "chronic": [],
-            "ratio": []
-        };
-        let acute = 0;
-        let chronic = 0;
-        for (let day = 0; day < days; ++day) {
-            const weekday = day % 7;
-            const spike = day >= days - 7 ? 2 : 1;
-            const session = (weekday === 1 ? 300 : weekday === 3 ? 450 : weekday === 4 ? 240 : 0) * spike;
-            const match = weekday === 6 ? 90 * (spike > 1 ? 9 : 6) : 0;
-            const load = session + match;
-            acute = day === 0 ? load : 0.25 * load + 0.75 * acute;
-            chronic = day === 0 ? load : 2 / 29 * load + 27 / 29 * chronic;
-            result.labels.push(String(day + 1));
-            result.sessions.push(session);
-            result.matches.push(match);
-            result.acute.push(Qt.point(day, acute));
-            result.chronic.push(Qt.point(day, chronic));
-            if (day >= 28)
-                result.ratio.push(Qt.point(day, acute / chronic));
-        }
-        return result;
+    // Four weeks of one player for LoadChart, as constant sample values (no load arithmetic in QML):
+    // three sessions and a match a week, a spike in the last week, and on day 14 a session and a match
+    // of the same load (the tooltip tells them apart by series, not by value).
+    readonly property var sampleLoad: ({
+            "labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"],
+            "sessions": [0, 300, 0, 450, 240, 0, 0, 0, 300, 0, 450, 240, 0, 360, 0, 300, 0, 450, 240, 0, 0, 0, 600, 0, 900, 480, 0, 0],
+            "matches": [0, 0, 0, 0, 0, 0, 540, 0, 0, 0, 0, 0, 0, 360, 0, 0, 0, 0, 0, 0, 540, 0, 0, 0, 0, 0, 0, 810],
+            "acute": [0, 75, 56, 155, 176, 132, 234, 176, 207, 155, 229, 232, 174, 310, 233, 250, 187, 253, 250, 187, 275, 207, 305, 229, 397, 417, 313, 437],
+            "chronic": [0, 21, 19, 49, 62, 58, 91, 85, 100, 93, 117, 126, 117, 159, 148, 158, 147, 168, 173, 161, 187, 174, 204, 190, 239, 255, 238, 277],
+            // From day 15 on.
+            "ratio": [1.57, 1.58, 1.27, 1.5, 1.44, 1.16, 1.47, 1.18, 1.5, 1.21, 1.66, 1.63, 1.32, 1.58]
+        })
+    // The day with a session and a match of the same load.
+    readonly property int sampleEqualDay: 13
+
+    // Values by day as chart points, starting at the given day.
+    function samplePoints(values, firstDay) {
+        return values.map((value, index) => Qt.point(firstDay + index, value));
     }
 
     readonly property var sampleWeek: {
@@ -1328,9 +1316,9 @@ Item {
                         dayLabels: root.sampleLoad.labels
                         sessionLoads: root.sampleLoad.sessions
                         matchLoads: root.sampleLoad.matches
-                        acutePoints: root.sampleLoad.acute
-                        chronicPoints: root.sampleLoad.chronic
-                        ratioPoints: root.sampleLoad.ratio
+                        acutePoints: root.samplePoints(root.sampleLoad.acute, 0)
+                        chronicPoints: root.samplePoints(root.sampleLoad.chronic, 0)
+                        ratioPoints: root.samplePoints(root.sampleLoad.ratio, 14)
                         loadAxisMax: 1000
                         loadAxisStep: 250
                         ratioAxisMax: 2.5

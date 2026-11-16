@@ -2689,10 +2689,12 @@
     </message>
     <message>
         <source>Elevated</source>
+        <extracomment>Short status in the load table; the full one is &quot;Elevated&quot;.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>In range</source>
+        <extracomment>Short status in the load table; the full one is &quot;In range&quot;.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2705,6 +2707,21 @@
     </message>
     <message>
         <source>Not enough data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High</source>
+        <extracomment>Short status in the load table; the full one is &quot;High load&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Low</source>
+        <extracomment>Short status in the load table; the full one is &quot;Underloaded&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No baseline</source>
+        <extracomment>Short status in the load table; the full one is &quot;Not enough data&quot; or &quot;Building the baseline&quot;.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2786,6 +2803,10 @@
     </message>
     <message>
         <source>All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This player is not in the load table. Archived players are not shown.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

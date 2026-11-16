@@ -45,9 +45,10 @@ Item {
     property var tooltipAt: null
     readonly property int dayCount: dayLabels.length
     readonly property int hoveredIndex: internal.hoveredIndex
-    // A tick every week, the last one today; whole numbers on the ratio axis (the bands and the
-    // tooltip give the exact values), so it stays readable in a low panel.
-    readonly property int daysPerTick: 7
+    // A tick every week, the last one today, or every second week where a week is too narrow for a
+    // label; whole numbers on the ratio axis (the bands and the tooltip give the exact values), so
+    // it stays readable in a low panel.
+    readonly property int daysPerTick: loadView.plotArea.width * 7 / Math.max(1, dayCount) < Theme.chart.minTickSpacing ? 14 : 7
     readonly property real ratioTick: 1
 
     // Colors and shapes of the series, shared by the legend, the series and the tooltip.
@@ -130,6 +131,7 @@ Item {
         tooltip.rows = (day.rows ?? []).map(entry => {
             const style = root.seriesStyle(entry.key);
             return {
+                "key": entry.key,
                 "label": entry.label,
                 "value": entry.value,
                 "color": style.color,
@@ -455,5 +457,7 @@ Item {
 
     ChartTooltip {
         id: tooltip
+
+        objectName: "chartTooltip"
     }
 }

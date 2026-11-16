@@ -20,6 +20,11 @@ public:
     [[nodiscard]] static QString statusKey(core::LoadStatus status);
     // The word on the badge. Grey is "Building the baseline" while only the time is missing.
     [[nodiscard]] static QString statusName(const core::LoadVerdict& verdict);
+    // The word in the team table, short enough for its status column at the minimum window in
+    // every language (P11 review); statusName() goes to its tooltip and accessible name.
+    [[nodiscard]] static QString statusShortName(core::LoadStatus status);
+    // What drove a status, independent of the language: ratioHigh, afterBreak…
+    [[nodiscard]] static QString reasonKey(core::LoadReason reason);
     // Most to least urgent: 0 high … 4 not enough data. The order of the status sort.
     [[nodiscard]] static int statusRank(core::LoadStatus status);
 
@@ -38,8 +43,10 @@ public:
     // Sessions and matches without RPE in the last chronicDays days. Empty when there are none.
     [[nodiscard]] static QString missingRpe(const core::LoadAssessment& assessment,
                                             const core::LoadThresholds& thresholds);
+    // "As of 31/10/2026".
     [[nodiscard]] static QString asOf(core::Date date);
-    // A day on the chart axis: day and month.
+    // A day and month: the chart axis, and the date of a row of the team table that differs from
+    // the date of the table.
     [[nodiscard]] static QString chartDay(core::Date date);
 };
 

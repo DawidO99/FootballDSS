@@ -23,6 +23,7 @@ int numericRole(int role) {
         return LoadListModel::WeekLoadRole;
     case LoadListModel::StatusKeyRole:
     case LoadListModel::StatusTextRole:
+    case LoadListModel::StatusShortTextRole:
         return LoadListModel::StatusRankRole;
     default:
         return role;

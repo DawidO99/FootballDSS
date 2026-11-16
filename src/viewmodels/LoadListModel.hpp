@@ -6,6 +6,7 @@
 #include <QAbstractListModel>
 #include <QtQmlIntegration/qqmlintegration.h>
 
+#include <optional>
 #include <vector>
 
 namespace fdss::viewmodels {
@@ -35,15 +36,23 @@ public:
         MonotonyTextRole,
         WeekLoadRole,
         WeekLoadTextRole,
-        // What LoadStatusBadge takes, and the word on it.
+        // What LoadStatusBadge takes; the full word (tooltip, accessible name) and the short one
+        // the table shows.
         StatusKeyRole,
         StatusTextRole,
+        StatusShortTextRole,
         // 0 high … 4 not enough data.
         StatusRankRole,
         // What is missing for a status; empty when nothing is.
         HintRole,
         // Why the status is what it is (tooltip).
-        ExplanationRole
+        ExplanationRole,
+        // Only when the row describes another day than the table (P11 review): the day and month
+        // for the cell, and "As of …" for the tooltip and the accessible name. Empty otherwise.
+        AsOfShortRole,
+        AsOfTextRole,
+        // What drove the status, independent of the language (LoadTexts::reasonKey).
+        ReasonKeysRole
     };
 
     explicit LoadListModel(QObject* parent = nullptr);
@@ -52,7 +61,9 @@ public:
     [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
-    void setRows(std::vector<services::PlayerLoadRow> rows, const core::LoadThresholds& thresholds);
+    // tableAsOf: the day the table header names; rows with data on another day say so.
+    void setRows(std::vector<services::PlayerLoadRow> rows, const core::LoadThresholds& thresholds,
+                 std::optional<core::Date> tableAsOf);
     [[nodiscard]] const services::PlayerLoadRow& rowAt(int row) const;
     // -1 when the id is not in the list.
     [[nodiscard]] int rowOf(qint64 playerId) const;
@@ -64,6 +75,7 @@ protected:
 private:
     std::vector<services::PlayerLoadRow> m_rows;
     core::LoadThresholds m_thresholds;
+    std::optional<core::Date> m_tableAsOf;
 };
 
 } // namespace fdss::viewmodels

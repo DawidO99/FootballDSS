@@ -116,3 +116,28 @@ EWMA after Williams et al. 2017) and why the UI avoids "injury risk" (Impellizze
 14. **Load screen**: the selected player's panel hides the row of numbers (the table row shows them); the
     player card shows them. `PlayerCardView` gets a `navigateRequested` signal for the empty state of its
     Load tab, forwarded by one line in `SquadView.qml`.
+15. **Review (Codex)**:
+    - *Dates*: the table header names the day of most rows with data (the later one on a tie). A row of
+      another day (a player without an RPE today while the others have one) shows that day beside its
+      badge as a calendar icon and day.month, and "As of <date>" in the tooltip and the accessible
+      name. Icon + date instead of "as of 31.10" in the cell: it fits the status column at 1280×720.
+    - *Status column*: the table shows a short word (High / Elevated / In range / Low / No baseline;
+      Wysokie / Podwyższone / W normie / Niskie / Mało danych), the full one is in the tooltip and the
+      accessible name. Width `Theme.loadStatusColumnWidth` (208 px), table and panel 13:7; qml_smoke
+      measures every short word with the widest date in a real cell at 1280×720 with the sidebar
+      expanded, in both languages. The date axis labels every second week when a week is narrower
+      than `Theme.chart.minTickSpacing`.
+    - *navigationArgs.playerId*: `LoadViewModel::requestPlayer()` always reads anew and selects the
+      player after that result (`playerRequested`, after `playersReloaded`). A status filter that hides
+      the player is cleared: the user asked for that player, and a message would only add a step. A
+      player who is not in the table (archived, another team) gets an info toast.
+    - *Gallery*: constant sample values, no load arithmetic in QML.
+    - *qml_smoke*: the load scenarios check keys (`statusKey`, `reasonKeys`), not words; in the full
+      run they start in Polish (as an earlier scenario may leave it), and `qml_smoke --only-load` runs
+      them alone in the language of the machine (checked with `LC_ALL=en_US.UTF-8` and `pl_PL.UTF-8`).
+      The tooltip is checked on the first and the last day and on a day with equal session and match
+      load.
+    - *Language change*: the load viewmodels react only to the `LanguageChange` of the application
+      object. Qt sends a copy to every window and item, which an application-wide filter also sees; on
+      the demo club that rebuilt the chart thousands of times (a switch took ~12 s). The same fix for
+      the W1 viewmodels is a separate commit on this branch.

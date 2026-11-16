@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <array>
+#include <map>
 #include <utility>
 
 namespace fdss::viewmodels {
@@ -44,7 +45,8 @@ LoadViewModel::LoadViewModel(QObject* parent)
       m_session(ServiceRegistry::instance().session()), m_source(new LoadListModel(this)),
       m_filter(new LoadFilterModel(m_source, this)), m_statusFilter(kAll),
       m_sortRole(QStringLiteral("statusKey")) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -184,8 +186,16 @@ int LoadViewModel::rowOf(qint64 playerId) const {
     return sourceRow < 0 ? -1 : m_filter->mapFromSource(m_source->index(sourceRow)).row();
 }
 
+void LoadViewModel::requestPlayer(qint64 playerId) {
+    m_requestedPlayer = playerId;
+    // Always after a fresh read: the rows on hand may be older than the player.
+    reload();
+}
+
 bool LoadViewModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange) {
+    // Once per change of the language: the copies for every window and item would be thousands
+    // with the demo club, each one rebuilding the table or the chart.
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit optionsChanged();
         emit loadErrorChanged();
         emit textsChanged();
@@ -194,23 +204,34 @@ bool LoadViewModel::eventFilter(QObject* watched, QEvent* event) {
 }
 
 void LoadViewModel::apply(services::TeamLoad result) {
-    m_asOf.reset();
+    // The day of most rows with data, the later one on a tie: a player without an entry today
+    // is as of yesterday while the others are as of today, or the other way round.
+    std::map<core::Date, int> days;
     for (const services::PlayerLoadRow& row : result.players) {
-        if (!m_asOf || row.assessment.asOf > *m_asOf) {
-            m_asOf = row.assessment.asOf;
+        if (row.assessment.indicators.daysSinceFirstEntry) {
+            ++days[row.assessment.asOf];
         }
     }
-    m_source->setRows(std::move(result.players), result.thresholds);
+    m_asOf.reset();
+    int most = 0;
+    for (const auto& [day, count] : days) {
+        if (count >= most) {
+            most = count;
+            m_asOf = day;
+        }
+    }
+    m_source->setRows(std::move(result.players), result.thresholds, m_asOf);
     m_loadFailure.reset();
     setBusy(false);
     emit loadErrorChanged();
     emit optionsChanged();
     emit textsChanged();
     emit playersReloaded();
+    resolveRequestedPlayer();
 }
 
 void LoadViewModel::clearRows(std::optional<core::Error> failure) {
-    m_source->setRows({}, core::LoadThresholds{});
+    m_source->setRows({}, core::LoadThresholds{}, std::nullopt);
     m_asOf.reset();
     m_loadFailure = std::move(failure);
     setBusy(false);
@@ -218,6 +239,23 @@ void LoadViewModel::clearRows(std::optional<core::Error> failure) {
     emit optionsChanged();
     emit textsChanged();
     emit playersReloaded();
+    resolveRequestedPlayer();
+}
+
+void LoadViewModel::resolveRequestedPlayer() {
+    const qint64 player = std::exchange(m_requestedPlayer, 0);
+    if (player == 0) {
+        return;
+    }
+    if (m_source->rowOf(player) < 0) {
+        emit playerNotInTable(
+            tr("This player is not in the load table. Archived players are not shown."));
+        return;
+    }
+    if (rowOf(player) < 0) {
+        clearFilters();
+    }
+    emit playerRequested(player);
 }
 
 void LoadViewModel::setBusy(bool busy) {

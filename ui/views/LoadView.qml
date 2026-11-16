@@ -35,16 +35,14 @@ Item {
     }
 
     function selectPlayer(playerId) {
-        const row = load.rowOf(playerId);
-        if (row < 0)
-            load.clearFilters();
         playersTable.currentIndex = load.rowOf(playerId);
         root.syncSelection();
     }
 
+    // The viewmodel selects the player after the next read, also when it is still running.
     onNavigationArgsChanged: {
         if (navigationArgs.playerId !== undefined)
-            root.selectPlayer(navigationArgs.playerId);
+            load.requestPlayer(navigationArgs.playerId);
     }
     // All views stay loaded, and RPE may have been entered since this one was seen.
     onVisibleChanged: {
@@ -64,6 +62,8 @@ Item {
         }
         onFiltersChanged: root.restoreSelection()
         onSortChanged: root.restoreSelection()
+        onPlayerRequested: playerId => root.selectPlayer(playerId)
+        onPlayerNotInTable: message => Toasts.info(message)
     }
 
     ColumnLayout {
@@ -146,7 +146,9 @@ Item {
                 objectName: "loadTable"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.preferredWidth: 12
+                // At the minimum window the status column keeps its width and the numbers stay
+                // readable; the chart beside gets the rest.
+                Layout.preferredWidth: 13
                 focus: true
                 Accessible.name: qsTr("Load of the squad")
                 model: load.players
@@ -191,7 +193,7 @@ Item {
                     {
                         "role": "statusKey",
                         "title": qsTr("Status"),
-                        "width": 0.25,
+                        "width": Theme.loadStatusColumnWidth,
                         "delegate": statusCell
                     }
                 ]
@@ -203,7 +205,7 @@ Item {
             Card {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.preferredWidth: 9
+                Layout.preferredWidth: 7
                 title: root.hasSelection ? root.selectedPlayer.name : qsTr("Player")
 
                 actions: SecondaryButton {
@@ -252,15 +254,20 @@ Item {
                 id: statusHover
             }
 
+            // The short word, and the day when the row describes another day than the table; the
+            // full status and its day are in the tooltip and the accessible name.
             LoadStatusBadge {
+                objectName: "loadStatus_" + cell.row
                 anchors.verticalCenter: parent.verticalCenter
                 statusKey: String(cell.value ?? "")
-                text: cell.rowData ? cell.rowData.statusText : ""
+                text: cell.rowData ? cell.rowData.statusShortText : ""
+                note: cell.rowData ? cell.rowData.asOfShort : ""
+                accessibleName: cell.rowData ? [cell.rowData.statusText, cell.rowData.asOfText].filter(part => part.length > 0).join(", ") : ""
             }
 
             PlainToolTip {
                 visible: statusHover.hovered && text.length > 0
-                text: cell.rowData ? [cell.rowData.explanation, cell.rowData.hint].filter(part => part.length > 0).join("\n") : ""
+                text: cell.rowData ? [cell.rowData.statusText, cell.rowData.asOfText, cell.rowData.explanation, cell.rowData.hint].filter(part => part.length > 0).join("\n") : ""
                 delay: Theme.tooltipDelay
             }
         }

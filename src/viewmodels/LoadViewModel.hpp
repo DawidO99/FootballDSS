@@ -49,7 +49,8 @@ class LoadViewModel : public QObject {
     // While nobody has a status yet: what to enter, e.g. "Days with RPE still needed: 11." Else
     // empty.
     Q_PROPERTY(QString teamHint READ teamHint NOTIFY textsChanged FINAL)
-    // "As of …": the most recent day the statuses describe. Empty without players.
+    // "As of …": the day most rows with data describe (the later one on a tie). A row of another
+    // day says so itself (roles asOfShort, asOfText). Empty while no row has data.
     Q_PROPERTY(QString asOfText READ asOfText NOTIFY textsChanged FINAL)
     // Why the table could not be read; the view offers to try again. Empty: the table is fine.
     Q_PROPERTY(QString loadError READ loadError NOTIFY loadErrorChanged FINAL)
@@ -80,6 +81,11 @@ public:
     Q_INVOKABLE QVariantMap rowAt(int row) const;
     // -1 when the player is not in the table, for example filtered out.
     Q_INVOKABLE int rowOf(qint64 playerId) const;
+    // Opening the screen for one player (navigationArgs.playerId): reads the table anew and, once
+    // the result is in, asks the view to select that player (playerRequested). A status filter that
+    // hides the player is cleared, because the user asked for this player; a player who is not in
+    // the table (archived, another team) gives playerNotInTable with a message.
+    Q_INVOKABLE void requestPlayer(qint64 playerId);
 
 signals:
     void teamIdChanged();
@@ -92,12 +98,17 @@ signals:
     void playersReloaded();
     // teamHint and asOfText: after a result and on a change of the language.
     void textsChanged();
+    // After playersReloaded: select this player (requestPlayer).
+    void playerRequested(qint64 playerId);
+    // A translated text for the user; the view shows it in a toast.
+    void playerNotInTable(const QString& message);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     void apply(services::TeamLoad result);
+    void resolveRequestedPlayer();
     void clearRows(std::optional<core::Error> failure);
     void setBusy(bool busy);
 
@@ -115,6 +126,8 @@ private:
     bool m_sortAscending = true;
     std::optional<core::Date> m_asOf;
     std::optional<core::Error> m_loadFailure;
+    // requestPlayer() until the next result is in; 0: none.
+    qint64 m_requestedPlayer = 0;
 };
 
 } // namespace fdss::viewmodels

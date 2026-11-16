@@ -48,7 +48,8 @@ PlayerLoadViewModel::PlayerLoadViewModel(QObject* parent)
     : QObject(parent), m_load(ServiceRegistry::instance().load()),
       m_session(ServiceRegistry::instance().session()),
       m_clock(ServiceRegistry::instance().clock()) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -88,6 +89,16 @@ QString PlayerLoadViewModel::statusText() const {
 QString PlayerLoadViewModel::explanation() const {
     const core::LoadAssessment* current = assessment();
     return current != nullptr ? LoadTexts::explanation(*current, m_detail->thresholds) : QString{};
+}
+
+QStringList PlayerLoadViewModel::reasonKeys() const {
+    QStringList keys;
+    if (const core::LoadAssessment* current = assessment()) {
+        for (const core::LoadReason reason : current->verdict.reasons) {
+            keys.append(LoadTexts::reasonKey(reason));
+        }
+    }
+    return keys;
 }
 
 QString PlayerLoadViewModel::hint() const {
@@ -232,7 +243,9 @@ QVariantMap PlayerLoadViewModel::dayAt(int index) const {
 }
 
 bool PlayerLoadViewModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange) {
+    // Once per change of the language: the copies for every window and item would be thousands
+    // with the demo club, each one rebuilding the table or the chart.
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit loadChanged();
         emit loadErrorChanged();
     }

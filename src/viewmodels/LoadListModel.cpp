@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QEvent>
+#include <QStringList>
 
 #include <algorithm>
 #include <optional>
@@ -32,7 +33,8 @@ QString textOrEmpty(const std::optional<double>& value, int decimals) {
 } // namespace
 
 LoadListModel::LoadListModel(QObject* parent) : QAbstractListModel(parent) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -58,6 +60,8 @@ QVariant LoadListModel::data(const QModelIndex& index, int role) const {
     const std::optional<double> monotony = baseline ? indicators.monotony : std::nullopt;
     const std::optional<double> weekLoad =
         indicators.daysSinceFirstEntry ? std::optional<double>(indicators.weekLoad) : std::nullopt;
+    const bool otherDay =
+        indicators.daysSinceFirstEntry && m_tableAsOf && assessment.asOf != *m_tableAsOf;
 
     switch (role) {
     case PlayerIdRole:
@@ -90,12 +94,25 @@ QVariant LoadListModel::data(const QModelIndex& index, int role) const {
         return LoadTexts::statusKey(assessment.verdict.status);
     case StatusTextRole:
         return LoadTexts::statusName(assessment.verdict);
+    case StatusShortTextRole:
+        return LoadTexts::statusShortName(assessment.verdict.status);
     case StatusRankRole:
         return LoadTexts::statusRank(assessment.verdict.status);
     case HintRole:
         return LoadTexts::hint(assessment);
     case ExplanationRole:
         return LoadTexts::explanation(assessment, m_thresholds);
+    case AsOfShortRole:
+        return otherDay ? LoadTexts::chartDay(assessment.asOf) : QString{};
+    case AsOfTextRole:
+        return otherDay ? LoadTexts::asOf(assessment.asOf) : QString{};
+    case ReasonKeysRole: {
+        QStringList keys;
+        for (const core::LoadReason reason : assessment.verdict.reasons) {
+            keys.append(LoadTexts::reasonKey(reason));
+        }
+        return keys;
+    }
     default:
         return {};
     }
@@ -117,16 +134,22 @@ QHash<int, QByteArray> LoadListModel::roleNames() const {
             {WeekLoadTextRole, "weekLoadText"},
             {StatusKeyRole, "statusKey"},
             {StatusTextRole, "statusText"},
+            {StatusShortTextRole, "statusShortText"},
             {StatusRankRole, "statusRank"},
             {HintRole, "hint"},
-            {ExplanationRole, "explanation"}};
+            {ExplanationRole, "explanation"},
+            {AsOfShortRole, "asOfShort"},
+            {AsOfTextRole, "asOfText"},
+            {ReasonKeysRole, "reasonKeys"}};
 }
 
 void LoadListModel::setRows(std::vector<services::PlayerLoadRow> rows,
-                            const core::LoadThresholds& thresholds) {
+                            const core::LoadThresholds& thresholds,
+                            std::optional<core::Date> tableAsOf) {
     beginResetModel();
     m_rows = std::move(rows);
     m_thresholds = thresholds;
+    m_tableAsOf = tableAsOf;
     endResetModel();
 }
 
@@ -143,11 +166,14 @@ int LoadListModel::rowOf(qint64 playerId) const {
 const std::vector<services::PlayerLoadRow>& LoadListModel::rows() const { return m_rows; }
 
 bool LoadListModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange && !m_rows.empty()) {
+    // Once per change of the language: the copies for every window and item would be thousands
+    // with the demo club, each one rebuilding the table or the chart.
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange &&
+        !m_rows.empty()) {
         // The numbers carry the decimal separator of the language too.
-        emit dataChanged(
-            index(0), index(rowCount() - 1),
-            {RatioTextRole, MonotonyTextRole, StatusTextRole, HintRole, ExplanationRole});
+        emit dataChanged(index(0), index(rowCount() - 1),
+                         {RatioTextRole, MonotonyTextRole, StatusTextRole, StatusShortTextRole,
+                          HintRole, ExplanationRole, AsOfShortRole, AsOfTextRole});
     }
     return QAbstractListModel::eventFilter(watched, event);
 }
