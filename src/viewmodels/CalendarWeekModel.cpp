@@ -29,7 +29,8 @@ QVariantMap itemValues(const CalendarEntry& entry) {
 } // namespace
 
 CalendarWeekModel::CalendarWeekModel(QObject* parent) : QAbstractListModel(parent) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -92,7 +93,7 @@ void CalendarWeekModel::setWeek(core::Date monday, const std::vector<CalendarEnt
 }
 
 bool CalendarWeekModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange) {
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit dataChanged(index(0), index(rowCount() - 1));
     }
     return QAbstractListModel::eventFilter(watched, event);

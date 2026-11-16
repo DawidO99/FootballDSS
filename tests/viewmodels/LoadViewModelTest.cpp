@@ -16,6 +16,7 @@
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QEvent>
 #include <QStringList>
 #include <QThread>
 
@@ -605,4 +606,22 @@ TEST_F(LoadViewModelTest, PlayerLoadTooltipOfTheEdgesAndOfEqualSeries) {
               QStringList({QStringLiteral("sessions=200 AU"), QStringLiteral("matches=0 AU")}));
     EXPECT_EQ(load.chartDayLabels().first(), QStringLiteral("09/07"));
     EXPECT_EQ(load.chartDayLabels().last(), QStringLiteral("11/01"));
+}
+
+// The chart of the demo club was rebuilt once per item of the window on a language switch (~12 s).
+TEST_F(LoadViewModelTest, ReactsOnlyToTheLanguageChangeOfTheApplication) {
+    LoadViewModel team;
+    PlayerLoadViewModel player;
+    SignalCount options(&team, &LoadViewModel::optionsChanged);
+    SignalCount chart(&player, &PlayerLoadViewModel::loadChanged);
+    QObject item;
+    QEvent forwarded(QEvent::LanguageChange);
+    QCoreApplication::sendEvent(&item, &forwarded);
+    EXPECT_EQ(options.count(), 0);
+    EXPECT_EQ(chart.count(), 0);
+
+    QEvent own(QEvent::LanguageChange);
+    QCoreApplication::sendEvent(QCoreApplication::instance(), &own);
+    EXPECT_EQ(options.count(), 1);
+    EXPECT_EQ(chart.count(), 1);
 }

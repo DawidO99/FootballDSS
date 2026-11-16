@@ -6,6 +6,8 @@
 #include "services/SquadService.hpp"
 #include "viewmodels/SquadListModel.hpp"
 
+#include <QCoreApplication>
+#include <QEvent>
 #include <QStringList>
 
 #include <gtest/gtest.h>
@@ -415,3 +417,19 @@ TEST_F(SquadViewModelTest, UnreadableListGivesALoadError) {
 }
 
 } // namespace
+
+// Qt sends the LanguageChange of the application on to every window and item, which the
+// application-wide filter sees too: only the application's own one counts, or a language switch
+// re-reads every list once per item of the window.
+TEST_F(SquadViewModelTest, ReactsOnlyToTheLanguageChangeOfTheApplication) {
+    SquadViewModel squad;
+    SignalCount options(&squad, &SquadViewModel::optionsChanged);
+    QObject item;
+    QEvent forwarded(QEvent::LanguageChange);
+    QCoreApplication::sendEvent(&item, &forwarded);
+    EXPECT_EQ(options.count(), 0);
+
+    QEvent own(QEvent::LanguageChange);
+    QCoreApplication::sendEvent(QCoreApplication::instance(), &own);
+    EXPECT_EQ(options.count(), 1);
+}

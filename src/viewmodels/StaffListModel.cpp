@@ -21,7 +21,8 @@ QString firstLetter(const QString& word) {
 } // namespace
 
 StaffListModel::StaffListModel(QObject* parent) : QAbstractListModel(parent) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -100,7 +101,8 @@ QString StaffListModel::initials(const QString& name) {
 }
 
 bool StaffListModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange && !m_staff.empty()) {
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange &&
+        !m_staff.empty()) {
         emit dataChanged(index(0), index(rowCount() - 1), {RoleNameRole});
     }
     return QAbstractListModel::eventFilter(watched, event);

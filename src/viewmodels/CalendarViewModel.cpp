@@ -35,7 +35,8 @@ CalendarViewModel::CalendarViewModel(QObject* parent)
       m_session(ServiceRegistry::instance().session()),
       m_clock(ServiceRegistry::instance().clock()), m_items(new CalendarListModel(this)),
       m_week(new CalendarWeekModel(this)), m_today(m_clock.today()), m_monday(mondayOf(m_today)) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -229,7 +230,7 @@ bool CalendarViewModel::undoDelete() {
 }
 
 bool CalendarViewModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange) {
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit weekChanged();
         emit loadErrorChanged();
     }
