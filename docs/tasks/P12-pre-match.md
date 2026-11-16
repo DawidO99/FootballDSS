@@ -68,3 +68,85 @@ Screenshot of the board with the issues panel. The validator is a Strategy patte
 per rule), worth a class diagram.
 
 ## Decisions (accepted plan)
+1. **`.tactic.json` lives in the data layer**: `src/data/readers/TacticJson.hpp/.cpp` with
+   `QJsonDocument` (AGENTS §2 "JSON: data layer only", §4 `data/readers/`), not in `core/io` or
+   `services`. Version above 1: `IncompatibleVersion`; anything else that is not a valid v1 file:
+   `UnsupportedFormat` with field `tactic_file`; a file above 1 MB: `InvalidInput`, field
+   `tactic_file_size`. Positions are written in upper case as in the SPEC example and read in any case.
+2. **Bench in `.tactic.json`**: an optional `"bench": [playerId, …]` key of v1 (missing = empty bench,
+   at most 12); SPEC §6 says so. `playerId` null or missing = an empty slot.
+3. **Yellow-card threshold**: one global threshold in `AppSettings` (QSettings, default 4, range 2–15),
+   edited in Settings by `ManageSettings`. A threshold per competition goes to `docs/BACKLOG.md` (it needs
+   a settings table, i.e. a migration). Cards accumulate up to a suspension and the count starts again:
+   the warning shows when `yellows mod threshold == threshold − 1`, where `yellows` are the yellow
+   cards of the player in matches of the same team (the team row is the season) and the same
+   competition (no competition counts with no competition), `live` or `finished`, before the match
+   date, leaving out matches in which the player got a red card.
+4. **Synchronous lineup check**: the database reads of Pre-match run on the main thread (small
+   queries), load statuses come from the existing `LoadService` future (P11), and the rules run
+   synchronously after every change (8 rules × ≤ 23 players). AGENTS §5 now says that `QtConcurrent` is
+   for long computations and import validation, not for checks of a form or a lineup.
+5. **Which availability is an error**: every status other than available on the match date (injury,
+   illness, suspension, absence); the text names the status.
+6. **No goalkeeper**: an error when no slot has the position GK with a player in it. An outfield player
+   in the GK slot is an out-of-position warning.
+7. **Rules and the bench**: unavailable, duplicate, high load, missed sessions and yellow cards check the
+   XI and the bench; out of position checks the XI only.
+8. **Missed sessions**: the last 3 sessions of the team with saved attendance, before the match date
+   and not after today. Warning when the saved status of the player is not `present` in all three. A
+   player without a row in one of them, or fewer than 3 such sessions: no warning.
+9. **Load status** is the P11 status "as of today" (the tooltip says so), not on the match date.
+10. **Editing**: only `planned` matches; a `live` or `finished` match (for example from
+    `navigationArgs.matchId`) shows its saved lineup read-only. The match field lists every planned match
+    of the team by date; the default is the first one on or after today, otherwise the last planned one.
+    No planned match: empty state with a button to the Calendar (`EditCalendar`), otherwise "ask the coach
+    or the assistant".
+11. **Formation change with a full bench**: players who do not fit on the bench leave the lineup (back
+    to the list) and a toast says how many.
+12. **Free positions on the pitch** (replaces the fixed catalogue coordinates of the plan):
+    - The pitch is split into position zones, from the own goal: GK | LB CB RB | LWB DM RWB | LM CM RM |
+      LW AM RW | ST. The GK and ST rows are one zone across the width (tokens stay in the middle half);
+      the other rows have a narrow left, a wide centre and a narrow right zone. There are 14 positions
+      (SPEC §6) and no CF, so the forward row is the ST zone. Zones are drawn subtly (Theme tokens), with
+      labels while a token is dragged.
+    - Catalogue formations are the starting point. Dropping a token in another zone changes the position
+      of the slot to that of the zone (e.g. LM → LW); several tokens in one zone are laid out
+      automatically (x spread over the zone, kept in their left-to-right order; y of the zone). The GK
+      zone holds at most one token. Dropping a token on another token swaps the players (positions
+      stay). Keyboard path: the selected slot has a `SelectField` "Position" with the same zones.
+    - Name of the shape: the catalogue name when the slot positions are exactly those of a catalogue
+      formation; otherwise counted from the rows (defence to attack, empty rows left out, the goalkeeper
+      not counted), shown as e.g. "4-2-3-1 (custom)". `match.formation` and `"formation"` in
+      `.tactic.json` hold the name without the suffix, so no translated text reaches the database; the
+      suffix is shown whenever the positions differ from the catalogue.
+    - Import of a file accepts any valid positions (11 slots, at most one GK) and coordinates 0–1 as they
+      are (no normalisation); it rejects only invalid data. The name is counted again from the slots.
+    - Choosing a formation from the list works as `changeFormation` in the plan, also from a custom
+      shape. Swapping two slots swaps players, not positions. The validator does not change.
+    - Catalogue (positions; coordinates come from the zone layout): 4-4-2 gk · rb cb cb lb · rm cm cm lm ·
+      st st; 4-3-3 gk · rb cb cb lb · cm dm cm · rw st lw; 4-2-3-1 gk · rb cb cb lb · dm dm · rm am lm ·
+      st; 4-1-4-1 gk · rb cb cb lb · dm · rm cm cm lm · st; 3-5-2 gk · cb cb cb · rwb cm dm cm lwb · st
+      st; 3-4-3 gk · cb cb cb · rwb cm cm lwb · rw st lw; 5-3-2 gk · rwb cb cb cb lwb · cm cm cm · st st.
+13. **Templates** are club-wide (`lineup` has no `team_id`): players of another team or archived ones are
+    dropped on load with a message, as for a saved lineup or a file. Name 1–50 characters after trimming,
+    unique regardless of case (checked by the service: no UNIQUE in the schema and no migration in P12);
+    a taken name asks "Replace?". Deleting a template has a 10 s undo toast.
+14. **Permissions**: export of a file for every role (read-only); import, templates and saving need
+    `EditLineup`.
+15. **Calendar delete** of a planned match with a saved lineup deletes the lineup in the same
+    transaction; `DeletedMatch` keeps it and `restoreMatch` restores it (scope extension:
+    `CalendarService`, its test).
+16. **File dialog**: `QtQuick.Dialogs` `FileDialog`, no ADR (part of Qt Quick). `scripts/package-windows.ps1`
+    checks the QML modules of the package, so `qml\QtQuick\Dialogs` is added to its required list.
+17. **Scope extensions**: `ui/Main.qml` (the leave guard of `trainingPage` becomes one guarded page,
+    Training or Pre-match), `ui/components/LineupPlayerList.qml`, `src/core/domain/Ids.hpp` (`LineupId`),
+    `src/core/domain/Lineup.cpp`, `src/core/algorithms/LineupRules.hpp/.cpp`,
+    `src/viewmodels/LineupTexts.*`, `RowsModel.*` (the base of the list models and `ChoiceListModel`),
+    `LineupModels.*` (the four list models), `ErrorPresenter.cpp`, `ui/theme/Theme.qml` (new tokens),
+    `ui/components/Icon.qml` (a `swap` icon), `src/services/CalendarService.*`,
+    `scripts/package-windows.ps1`, `docs/SPEC.md` §6, `AGENTS.md` §5 (one line), `docs/BACKLOG.md`,
+    `tests/qml_components/tst_tacticspitch.qml`.
+18. **Tests added by the decisions**: core: yellow cards 3, 4, 5, 7 at threshold 4; changing the position
+    of a slot; the name counted from the rows; at most one GK. `qml_components`: dragging a token to
+    another zone. Viewmodel: the keyboard path of a position change. `TacticJson`: round trip of an
+    asymmetric shape. Service: delete and undo of a match with a lineup.

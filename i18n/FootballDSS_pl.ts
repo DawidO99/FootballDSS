@@ -102,6 +102,29 @@
     </message>
 </context>
 <context>
+    <name>BenchList</name>
+    <message>
+        <source>Bench</source>
+        <translation>Ławka</translation>
+    </message>
+    <message>
+        <source>%1 / %2</source>
+        <translation>%1 / %2</translation>
+    </message>
+    <message>
+        <source>Take out of the lineup (Del)</source>
+        <translation>Usuń ze składu (Del)</translation>
+    </message>
+    <message>
+        <source>Drag players here or use Add to bench in the list.</source>
+        <translation>Przeciągnij tu zawodników albo użyj przycisku „Dodaj na ławkę” na liście.</translation>
+    </message>
+    <message>
+        <source>No players on the bench.</source>
+        <translation>Na ławce nie ma zawodników.</translation>
+    </message>
+</context>
+<context>
     <name>CalendarView</name>
     <message>
         <source>The match against %1 was deleted.</source>
@@ -526,6 +549,10 @@
         <translation>Wykresy</translation>
     </message>
     <message>
+        <source>Tactics board</source>
+        <translation>Tablica taktyczna</translation>
+    </message>
+    <message>
         <source>Live</source>
         <translation>W trakcie</translation>
     </message>
@@ -730,6 +757,10 @@
         <translation>Jan Kowalski</translation>
     </message>
     <message>
+        <source>Swap with another slot</source>
+        <translation>Zamień z innym miejscem</translation>
+    </message>
+    <message>
         <source>Coach</source>
         <translation>Trener</translation>
     </message>
@@ -870,6 +901,50 @@
         <translation>LoadChart (dane przykładowe, najedź na dzień)</translation>
     </message>
     <message>
+        <source>Activated slot: %1</source>
+        <translation>Aktywne miejsce: %1</translation>
+    </message>
+    <message>
+        <source>Swap: %1 and %2</source>
+        <translation>Zamiana: %1 i %2</translation>
+    </message>
+    <message>
+        <source>Player %1 on slot %2</source>
+        <translation>Zawodnik %1 na miejscu %2</translation>
+    </message>
+    <message>
+        <source>PlayerToken</source>
+        <translation>PlayerToken</translation>
+    </message>
+    <message>
+        <source>Marek Zieliński plays out of position: Left winger.</source>
+        <translation>Marek Zieliński gra poza nominalną pozycją: lewy skrzydłowy.</translation>
+    </message>
+    <message>
+        <source>Jan Szczepaniak-Wojciechowski is not available on the match day: injured.</source>
+        <translation>Jan Szczepaniak-Wojciechowski nie może zagrać w dniu meczu (status: kontuzjowany).</translation>
+    </message>
+    <message>
+        <source>Pick: %1</source>
+        <translation>Wybór: %1</translation>
+    </message>
+    <message>
+        <source>Remove: %1</source>
+        <translation>Usunięcie: %1</translation>
+    </message>
+    <message>
+        <source>To the bench: %1</source>
+        <translation>Na ławkę: %1</translation>
+    </message>
+    <message>
+        <source>Errors: %1 · Warnings: %2</source>
+        <translation>Błędy: %1 · Ostrzeżenia: %2</translation>
+    </message>
+    <message>
+        <source>Issue: %1</source>
+        <translation>Problem: %1</translation>
+    </message>
+    <message>
         <source>Card with header actions</source>
         <translation>Karta z akcjami w nagłówku</translation>
     </message>
@@ -956,6 +1031,38 @@
     <message>
         <source>Position</source>
         <translation>Pozycja</translation>
+    </message>
+    <message>
+        <source>Cezary Mur is not available on the match day: injured.</source>
+        <translation>Cezary Mur nie może zagrać w dniu meczu (status: kontuzjowany).</translation>
+    </message>
+    <message>
+        <source>Filip Skrzydło has a high load. A signal to talk to the player.</source>
+        <translation>Filip Skrzydło ma wysokie obciążenie. Sygnał do rozmowy z zawodnikiem.</translation>
+    </message>
+    <message>
+        <source>Leon Rezerwa missed each of the last training sessions: 3.</source>
+        <translation>Leon Rezerwa – nieobecność na każdym z ostatnich treningów: 3.</translation>
+    </message>
+    <message>
+        <source>In the XI</source>
+        <translation>W jedenastce</translation>
+    </message>
+    <message>
+        <source>No baseline</source>
+        <translation>Mało danych</translation>
+    </message>
+    <message>
+        <source>High</source>
+        <translation>Wysokie</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Błąd</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation>Ostrzeżenie</translation>
     </message>
 </context>
 <context>
@@ -1081,6 +1188,32 @@
     <message>
         <source>Switch to dark theme</source>
         <translation>Przełącz na ciemny motyw</translation>
+    </message>
+</context>
+<context>
+    <name>LineupIssuesPanel</name>
+    <message>
+        <source>Checking the load…</source>
+        <translation>Sprawdzanie obciążenia…</translation>
+    </message>
+    <message>
+        <source>Lineup issues</source>
+        <translation>Problemy ze składem</translation>
+    </message>
+</context>
+<context>
+    <name>LineupPlayerList</name>
+    <message>
+        <source>Squad</source>
+        <translation>Kadra</translation>
+    </message>
+    <message>
+        <source>Add to bench</source>
+        <translation>Dodaj na ławkę</translation>
+    </message>
+    <message>
+        <source>Click or Enter: put in the selected slot.</source>
+        <translation>Kliknięcie lub Enter: wstaw na zaznaczone miejsce.</translation>
     </message>
 </context>
 <context>
@@ -1595,14 +1728,233 @@
     </message>
 </context>
 <context>
+    <name>PlayerToken</name>
+    <message>
+        <source>%1, number %2</source>
+        <translation>%1, numer %2</translation>
+    </message>
+    <message>
+        <source>free slot</source>
+        <translation>wolne miejsce</translation>
+    </message>
+</context>
+<context>
     <name>PreMatchView</name>
+    <message>
+        <source>Undo</source>
+        <translation>Cofnij</translation>
+    </message>
     <message>
         <source>Pre-match</source>
         <translation>Przed meczem</translation>
     </message>
     <message>
+        <source>Unsaved changes</source>
+        <translation>Niezapisane zmiany</translation>
+    </message>
+    <message>
+        <source>Saved</source>
+        <translation>Zapisano</translation>
+    </message>
+    <message>
+        <source>Not saved yet</source>
+        <translation>Jeszcze nie zapisano</translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation>Mecz</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>Save (%1)</source>
+        <translation>Zapisz (%1)</translation>
+    </message>
+    <message>
+        <source>Formation</source>
+        <translation>Ustawienie</translation>
+    </message>
+    <message>
+        <source>Templates</source>
+        <translation>Szablony</translation>
+    </message>
+    <message>
+        <source>Import file</source>
+        <translation>Importuj plik</translation>
+    </message>
+    <message>
+        <source>Export file</source>
+        <translation>Eksportuj plik</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>Wyczyść</translation>
+    </message>
+    <message>
+        <source>Take every player out of the lineup. The formation stays.</source>
+        <translation>Usuwa wszystkich zawodników ze składu. Ustawienie zostaje.</translation>
+    </message>
+    <message>
+        <source>Selected: %1</source>
+        <translation>Zaznaczono: %1</translation>
+    </message>
+    <message>
+        <source>Selected: free slot</source>
+        <translation>Zaznaczono: wolne miejsce</translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation>Pozycja</translation>
+    </message>
+    <message>
+        <source>Now choose the slot to swap with</source>
+        <translation>Teraz wybierz miejsce do zamiany</translation>
+    </message>
+    <message>
+        <source>Swap with another slot</source>
+        <translation>Zamień z innym miejscem</translation>
+    </message>
+    <message>
+        <source>Move to the bench</source>
+        <translation>Przenieś na ławkę</translation>
+    </message>
+    <message>
+        <source>Take out of the lineup (Del)</source>
+        <translation>Usuń ze składu (Del)</translation>
+    </message>
+    <message>
+        <source>Pick a player for the selected slot: click or Enter.</source>
+        <translation>Wybierz zawodnika na zaznaczone miejsce: kliknięcie lub Enter.</translation>
+    </message>
+    <message>
+        <source>Select a slot on the board, then pick a player.</source>
+        <translation>Zaznacz miejsce na tablicy, potem wybierz zawodnika.</translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation>Kadra</translation>
+    </message>
+    <message>
+        <source>The match could not be read</source>
+        <translation>Nie udało się odczytać meczu</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>No planned match</source>
+        <translation>Brak zaplanowanego meczu</translation>
+    </message>
+    <message>
+        <source>Add the next match in the Calendar to set up its lineup.</source>
+        <translation>Dodaj najbliższy mecz w kalendarzu, aby ustalić jego skład.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add the next match in the Calendar.</source>
+        <translation>Poproś trenera lub asystenta o dodanie najbliższego meczu w kalendarzu.</translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation>Otwórz kalendarz</translation>
+    </message>
+    <message>
+        <source>No players yet</source>
+        <translation>Nie ma jeszcze zawodników</translation>
+    </message>
+    <message>
+        <source>Add players in Squad to set up the lineup.</source>
+        <translation>Dodaj zawodników w kadrze, aby ustalić skład.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add players in Squad.</source>
+        <translation>Poproś trenera lub asystenta o dodanie zawodników w kadrze.</translation>
+    </message>
+    <message>
+        <source>Save the changes?</source>
+        <translation>Zapisać zmiany?</translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation>Zostań</translation>
+    </message>
+    <message>
+        <source>Discard changes</source>
+        <translation>Odrzuć zmiany</translation>
+    </message>
+    <message>
+        <source>The lineup of this match has changes that are not saved.</source>
+        <translation>Skład tego meczu ma niezapisane zmiany.</translation>
+    </message>
+    <message>
+        <source>Save as template</source>
+        <translation>Zapisz jako szablon</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Zamknij</translation>
+    </message>
+    <message>
+        <source>Save the current lineup as</source>
+        <translation>Zapisz bieżący skład jako</translation>
+    </message>
+    <message>
+        <source>Template name</source>
+        <translation>Nazwa szablonu</translation>
+    </message>
+    <message>
+        <source>Saved templates</source>
+        <translation>Zapisane szablony</translation>
+    </message>
+    <message>
+        <source>No templates yet.</source>
+        <translation>Nie ma jeszcze szablonów.</translation>
+    </message>
+    <message>
+        <source>Load into the board</source>
+        <translation>Wczytaj na tablicę</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Usuń</translation>
+    </message>
+    <message>
+        <source>Replace the template?</source>
+        <translation>Zastąpić szablon?</translation>
+    </message>
+    <message>
+        <source>Replace</source>
+        <translation>Zastąp</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Anuluj</translation>
+    </message>
+    <message>
+        <source>A template named %1 already exists. Replace it with the current lineup?</source>
+        <translation>Szablon o nazwie %1 już istnieje. Zastąpić go bieżącym składem?</translation>
+    </message>
+    <message>
+        <source>Export the lineup</source>
+        <translation>Eksport składu</translation>
+    </message>
+    <message>
+        <source>Tactics files (*.tactic.json)</source>
+        <translation>Pliki taktyki (*.tactic.json)</translation>
+    </message>
+    <message>
+        <source>Import a lineup</source>
+        <translation>Import składu</translation>
+    </message>
+    <message>
+        <source>Tactics files (*.tactic.json *.json)</source>
+        <translation>Pliki taktyki (*.tactic.json *.json)</translation>
+    </message>
+    <message>
         <source>Pick the opponent, set up the tactics board and check the lineup.</source>
-        <translation>Wybierz rywala, ustaw tablicę taktyczną i sprawdź skład.</translation>
+        <translation type="vanished">Wybierz rywala, ustaw tablicę taktyczną i sprawdź skład.</translation>
     </message>
     <message>
         <source>Open the squad</source>
@@ -1734,6 +2086,18 @@
     <message>
         <source>Settings</source>
         <translation>Ustawienia</translation>
+    </message>
+    <message>
+        <source>Match rules</source>
+        <translation>Zasady meczu</translation>
+    </message>
+    <message>
+        <source>Yellow cards before a suspension</source>
+        <translation>Żółte kartki do pauzy</translation>
+    </message>
+    <message>
+        <source>Pre-match warns when a player is one yellow card away from a suspension in the competition of the match.</source>
+        <translation>Ekran „Przed meczem” ostrzega, gdy zawodnikowi brakuje jednej żółtej kartki do pauzy w rozgrywkach danego meczu.</translation>
     </message>
     <message>
         <source>Club details, custom metrics and backups will be configured here.</source>
@@ -2199,6 +2563,13 @@
     </message>
 </context>
 <context>
+    <name>TacticsPitch</name>
+    <message>
+        <source>Tactics board</source>
+        <translation>Tablica taktyczna</translation>
+    </message>
+</context>
+<context>
     <name>TextInputField</name>
     <message>
         <source>Invalid value</source>
@@ -2517,12 +2888,20 @@
         <translation>Plik bazy danych jest uszkodzony. Zamknij aplikację i zastąp plik kopią z folderu backups.</translation>
     </message>
     <message>
+        <source>This tactics file was saved by a newer version of FootballDSS. Install the newer version to open it.</source>
+        <translation>Ten plik taktyki zapisała nowsza wersja FootballDSS. Zainstaluj nowszą wersję, aby go otworzyć.</translation>
+    </message>
+    <message>
         <source>This data was saved by a newer version of FootballDSS. Install the newer version to use it.</source>
         <translation>Te dane zostały zapisane przez nowszą wersję FootballDSS. Zainstaluj nowszą wersję, aby z nich korzystać.</translation>
     </message>
     <message>
         <source>A file cannot be read or written. Check that the disk is not full and that you may write to the folder.</source>
         <translation>Nie można odczytać ani zapisać pliku. Sprawdź, czy dysk nie jest pełny i czy masz prawo zapisu w folderze.</translation>
+    </message>
+    <message>
+        <source>This is not a tactics file of FootballDSS (.tactic.json), or it is damaged. Choose another file.</source>
+        <translation>To nie jest plik taktyki FootballDSS (.tactic.json) albo jest uszkodzony. Wybierz inny plik.</translation>
     </message>
     <message>
         <source>This file format is not supported. Save the file as CSV or XLSX and try again.</source>
@@ -2629,6 +3008,18 @@
         <translation>Nie można zapisać tego zawodnika w tej sesji. Otwórz sesję ponownie.</translation>
     </message>
     <message>
+        <source>Enter a template name, up to 50 characters.</source>
+        <translation>Wpisz nazwę szablonu, do 50 znaków.</translation>
+    </message>
+    <message>
+        <source>This file is too large to be a tactics file. Choose a .tactic.json file.</source>
+        <translation>Ten plik jest za duży jak na plik taktyki. Wybierz plik .tactic.json.</translation>
+    </message>
+    <message>
+        <source>This lineup cannot be saved. Open the match again and set up the lineup.</source>
+        <translation>Nie można zapisać tego składu. Otwórz mecz ponownie i ustal skład.</translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation>Jedna z wartości jest niepoprawna. Sprawdź, co zostało wpisane, i spróbuj ponownie.</translation>
     </message>
@@ -2657,8 +3048,16 @@
         <translation>Ten mecz już się rozpoczął lub zakończył, więc nie można go tu zmienić.</translation>
     </message>
     <message>
+        <source>This match has data attached to it, such as metrics, so it cannot be deleted.</source>
+        <translation>Z tym meczem są powiązane dane, na przykład metryki, więc nie można go usunąć.</translation>
+    </message>
+    <message>
+        <source>A template with this name already exists. Choose a different name.</source>
+        <translation>Szablon o tej nazwie już istnieje. Wybierz inną nazwę.</translation>
+    </message>
+    <message>
         <source>This match has data attached to it, such as a lineup or metrics, so it cannot be deleted.</source>
-        <translation>Z tym meczem są powiązane dane, na przykład skład lub metryki, więc nie można go usunąć.</translation>
+        <translation type="vanished">Z tym meczem są powiązane dane, na przykład skład lub metryki, więc nie można go usunąć.</translation>
     </message>
     <message>
         <source>This session has metric values attached to it, so it cannot be deleted.</source>
@@ -2699,6 +3098,81 @@
         <source>dd/MM/yyyy</source>
         <extracomment>Qt date format of the app language. Keep it the same as in DateField: dd.MM.yyyy in Polish.</extracomment>
         <translation>dd.MM.yyyy</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::LineupTexts</name>
+    <message>
+        <source>Error</source>
+        <translation>Błąd</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation>Ostrzeżenie</translation>
+    </message>
+    <message>
+        <source>Players in the starting XI: %1 of 11.</source>
+        <translation>Zawodnicy w pierwszej jedenastce: %1 z 11.</translation>
+    </message>
+    <message>
+        <source>No goalkeeper: put a player in the GK slot.</source>
+        <translation>Brak bramkarza: wstaw zawodnika na miejsce GK.</translation>
+    </message>
+    <message>
+        <source>%1 is not available on the match day: %2.</source>
+        <translation>%1 nie może zagrać w dniu meczu (status: %2).</translation>
+    </message>
+    <message>
+        <source>%1 is in the lineup more than once.</source>
+        <translation>%1 występuje w składzie więcej niż raz.</translation>
+    </message>
+    <message>
+        <source>%1 has a high load. A signal to talk to the player.</source>
+        <translation>%1 ma wysokie obciążenie. Sygnał do rozmowy z zawodnikiem.</translation>
+    </message>
+    <message>
+        <source>%1 plays out of position: %2.</source>
+        <translation>%1 gra poza nominalną pozycją: %2.</translation>
+    </message>
+    <message>
+        <source>%1 missed each of the last training sessions: %2.</source>
+        <translation>%1 – nieobecność na każdym z ostatnich treningów: %2.</translation>
+    </message>
+    <message>
+        <source>%1 has yellow cards: %2. One more means a suspension.</source>
+        <translation>%1 ma żółte kartki: %2. Kolejna oznacza pauzę.</translation>
+    </message>
+    <message>
+        <source>%1 (custom)</source>
+        <translation>%1 (własne)</translation>
+    </message>
+    <message>
+        <source>%1 · %2 (%3)</source>
+        <translation>%1 · %2 (%3)</translation>
+    </message>
+    <message>
+        <source>No earlier match against this opponent.</source>
+        <translation>Brak wcześniejszego meczu z tym rywalem.</translation>
+    </message>
+    <message>
+        <source>Last meeting: won %1:%2 on %3 (%4).</source>
+        <translation>Ostatni mecz: wygrana %1:%2, %3 (%4).</translation>
+    </message>
+    <message>
+        <source>Last meeting: lost %1:%2 on %3 (%4).</source>
+        <translation>Ostatni mecz: porażka %1:%2, %3 (%4).</translation>
+    </message>
+    <message>
+        <source>Last meeting: drew %1:%2 on %3 (%4).</source>
+        <translation>Ostatni mecz: remis %1:%2, %3 (%4).</translation>
+    </message>
+    <message>
+        <source>In the XI</source>
+        <translation>W jedenastce</translation>
+    </message>
+    <message>
+        <source>On the bench</source>
+        <translation>Na ławce</translation>
     </message>
 </context>
 <context>
@@ -2898,6 +3372,81 @@
     <message>
         <source>Ratio</source>
         <translation>Stosunek</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::PreMatchViewModel</name>
+    <message>
+        <source>Moved to the bench: %1.</source>
+        <translation>Przeniesiono na ławkę: %1.</translation>
+    </message>
+    <message>
+        <source>The bench is full. Left out of the lineup: %1.</source>
+        <translation>Ławka jest pełna. Poza składem: %1.</translation>
+    </message>
+    <message>
+        <source>No issues: the lineup is ready for Match Day.</source>
+        <translation>Brak problemów: skład jest gotowy na tryb meczowy.</translation>
+    </message>
+    <message>
+        <source>Errors: %1 · Warnings: %2</source>
+        <translation>Błędy: %1 · Ostrzeżenia: %2</translation>
+    </message>
+    <message>
+        <source>Only the coach or the assistant can change the lineup.</source>
+        <translation>Skład może zmienić tylko trener albo asystent.</translation>
+    </message>
+    <message>
+        <source>This match has already started or finished, so its lineup is shown read-only.</source>
+        <translation>Ten mecz już się rozpoczął lub zakończył, więc jego skład jest tylko do odczytu.</translation>
+    </message>
+    <message>
+        <source>Every slot is taken. Select a slot first to replace its player.</source>
+        <translation>Wszystkie miejsca są zajęte. Najpierw zaznacz miejsce, aby wymienić zawodnika.</translation>
+    </message>
+    <message>
+        <source>Lineup saved as a draft. Errors to fix before Match Day: %1.</source>
+        <translation>Skład zapisano jako szkic. Błędy do poprawienia przed trybem meczowym: %1.</translation>
+    </message>
+    <message>
+        <source>Lineup saved.</source>
+        <translation>Skład zapisano.</translation>
+    </message>
+    <message>
+        <source>Template saved: %1.</source>
+        <translation>Zapisano szablon: %1.</translation>
+    </message>
+    <message>
+        <source>Template deleted: %1.</source>
+        <translation>Usunięto szablon: %1.</translation>
+    </message>
+    <message>
+        <source>Lineup exported: %1.</source>
+        <translation>Wyeksportowano skład: %1.</translation>
+    </message>
+    <message>
+        <source>Lineup imported: %1.</source>
+        <translation>Zaimportowano skład: %1.</translation>
+    </message>
+    <message>
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <source>The bench is full: at most %1 players.</source>
+        <translation>Ławka jest pełna: najwyżej %1 zawodników.</translation>
+    </message>
+    <message>
+        <source>Only one slot can be in goal. Move the goalkeeper out first.</source>
+        <translation>W bramce może być tylko jedno miejsce. Najpierw przesuń bramkarza.</translation>
+    </message>
+    <message>
+        <source>Players no longer in the squad were left out of the lineup: %1.</source>
+        <translation>Pominięto w składzie zawodników, których nie ma już w kadrze: %1.</translation>
+    </message>
+    <message>
+        <source>Unknown player</source>
+        <translation>Nieznany zawodnik</translation>
     </message>
 </context>
 <context>

@@ -3,6 +3,7 @@
 #include "data/db/DatabaseManager.hpp"
 #include "data/repositories/AvailabilityRepository.hpp"
 #include "data/repositories/ClubRepository.hpp"
+#include "data/repositories/LineupRepository.hpp"
 #include "data/repositories/MatchRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
@@ -10,6 +11,7 @@
 #include "data/repositories/TrainingRepository.hpp"
 #include "services/CalendarService.hpp"
 #include "services/DemoDataService.hpp"
+#include "services/LineupService.hpp"
 #include "services/LoadService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
@@ -66,6 +68,7 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
       m_opponents(std::make_unique<data::OpponentRepository>(*m_database)),
       m_matches(std::make_unique<data::MatchRepository>(*m_database)),
       m_training(std::make_unique<data::TrainingRepository>(*m_database)),
+      m_lineups(std::make_unique<data::LineupRepository>(*m_database)),
       m_session(std::make_unique<services::Session>()),
       m_auth(std::make_unique<services::AuthService>(*m_database, *m_staff, *m_session, *m_clock,
                                                      options.pinIterations)),
@@ -74,14 +77,17 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
       m_squad(std::make_unique<services::SquadService>(*m_players, *m_availability, *m_session,
                                                        *m_clock)),
       m_calendar(std::make_unique<services::CalendarService>(*m_database, *m_opponents, *m_matches,
-                                                             *m_training, *m_session)),
+                                                             *m_training, *m_lineups, *m_session)),
       m_trainingService(std::make_unique<services::TrainingService>(
           *m_database, *m_training, *m_players, *m_availability, *m_session)),
       m_demoData(std::make_unique<services::DemoDataService>(
           *m_database, *m_players, *m_availability, *m_opponents, *m_matches, *m_training, *m_staff,
           *m_auth, *m_session, *m_clock)),
       m_load(std::make_unique<services::LoadService>(*m_players, *m_training, *m_matches,
-                                                     *m_session, *m_clock)) {}
+                                                     *m_session, *m_clock)),
+      m_lineup(std::make_unique<services::LineupService>(*m_database, *m_lineups, *m_matches,
+                                                         *m_opponents, *m_players, *m_availability,
+                                                         *m_training, *m_session, *m_clock)) {}
 
 ServiceRegistry::~ServiceRegistry() = default;
 
@@ -102,5 +108,6 @@ services::TrainingService& ServiceRegistry::training() { return *m_trainingServi
 services::DemoDataService& ServiceRegistry::demoData() { return *m_demoData; }
 
 services::LoadService& ServiceRegistry::load() { return *m_load; }
+services::LineupService& ServiceRegistry::lineup() { return *m_lineup; }
 
 } // namespace fdss::viewmodels

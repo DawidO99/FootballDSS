@@ -23,19 +23,30 @@ ApplicationWindow {
     // P06b: Ctrl+Shift+K toggles the hidden UI kit component gallery.
     property bool componentGalleryOpen: false
     readonly property Item componentGallery: galleryLoader.item as Item
-    // The view that can hold changes that are not saved; null without the shell.
-    property TrainingView trainingPage: null
+    // The view holding changes that are not saved (Training or Pre-match); null: none. Only one can:
+    // leaving a view always saves or drops its changes. A view takes part with hasUnsavedChanges,
+    // askBeforeLeaving() and the signals leaveAccepted and leaveCancelled.
+    property var guardedPage: null
     // What runGuarded() waits to do; null: the guard of navigationModel has the target.
     property var pendingLeaveAction: null
 
     // Does the action, after asking about changes that are not saved when there are any.
     function runGuarded(action) {
-        if (!navigationModel.leaveGuard || !window.trainingPage) {
+        if (!navigationModel.leaveGuard || !window.guardedPage) {
             action();
             return;
         }
         window.pendingLeaveAction = action;
-        window.trainingPage.askBeforeLeaving();
+        window.guardedPage.askBeforeLeaving();
+    }
+
+    // A view got or lost changes that are not saved.
+    function guardChanged(page, unsaved) {
+        if (unsaved)
+            window.guardedPage = page;
+        else if (window.guardedPage === page)
+            window.guardedPage = null;
+        navigationModel.leaveGuard = window.guardedPage !== null;
     }
 
     function finishLeaving() {
@@ -98,7 +109,7 @@ ApplicationWindow {
 
     // Without changes this asks nothing and the window closes at once.
     onClosing: close => {
-        if (navigationModel.leaveGuard && window.trainingPage) {
+        if (navigationModel.leaveGuard && window.guardedPage) {
             close.accepted = false;
             window.runGuarded(() => window.close());
         }
@@ -108,8 +119,8 @@ ApplicationWindow {
         id: navigationModel
 
         onLeaveRequested: {
-            if (window.trainingPage)
-                window.trainingPage.askBeforeLeaving();
+            if (window.guardedPage)
+                window.guardedPage.askBeforeLeaving();
         }
     }
 
@@ -121,6 +132,7 @@ ApplicationWindow {
             window.pendingLeaveAction = null;
             navigationModel.cancelLeave();
             navigationModel.leaveGuard = false;
+            window.guardedPage = null;
             // An undo toast belongs to the last user, whose views are going away.
             Toasts.dismiss();
             // The next user starts on the dashboard: the section of the last one may be hidden.
@@ -325,10 +337,9 @@ ApplicationWindow {
             id: trainingViewItem
 
             onNavigateRequested: (key, args) => navigationModel.activate(key, args)
-            onHasUnsavedChangesChanged: navigationModel.leaveGuard = hasUnsavedChanges
+            onHasUnsavedChangesChanged: window.guardChanged(trainingViewItem, hasUnsavedChanges)
             onLeaveAccepted: window.finishLeaving()
             onLeaveCancelled: window.cancelLeaving()
-            Component.onCompleted: window.trainingPage = trainingViewItem
         }
     }
 
@@ -336,7 +347,12 @@ ApplicationWindow {
         id: preMatchView
 
         PreMatchView {
+            id: preMatchViewItem
+
             onNavigateRequested: (key, args) => navigationModel.activate(key, args)
+            onHasUnsavedChangesChanged: window.guardChanged(preMatchViewItem, hasUnsavedChanges)
+            onLeaveAccepted: window.finishLeaving()
+            onLeaveCancelled: window.cancelLeaving()
         }
     }
 

@@ -49,10 +49,14 @@ add_library(fdss_data STATIC
     db/Migrations.cpp
     db/Transaction.hpp
     db/Transaction.cpp
+    readers/TacticJson.hpp
+    readers/TacticJson.cpp
     repositories/AvailabilityRepository.hpp
     repositories/AvailabilityRepository.cpp
     repositories/ClubRepository.hpp
     repositories/ClubRepository.cpp
+    repositories/LineupRepository.hpp
+    repositories/LineupRepository.cpp
     repositories/MatchRepository.hpp
     repositories/MatchRepository.cpp
     repositories/OpponentRepository.hpp

@@ -1,8 +1,10 @@
 #include "services/CalendarService.hpp"
 
 #include "ServiceFixture.hpp"
+#include "core/algorithms/Formations.hpp"
 #include "core/domain/Permissions.hpp"
 #include "core/domain/Validation.hpp"
+#include "data/repositories/LineupRepository.hpp"
 #include "data/repositories/MatchRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/TrainingRepository.hpp"
@@ -38,8 +40,9 @@ protected:
         m_opponents = std::make_unique<OpponentRepository>(*m_db);
         m_matches = std::make_unique<MatchRepository>(*m_db);
         m_training = std::make_unique<TrainingRepository>(*m_db);
+        m_lineups = std::make_unique<LineupRepository>(*m_db);
         m_calendar = std::make_unique<CalendarService>(*m_db, *m_opponents, *m_matches, *m_training,
-                                                       m_session);
+                                                       *m_lineups, m_session);
     }
 
     void logInAs(Role role) {
@@ -87,6 +90,7 @@ protected:
     std::unique_ptr<OpponentRepository> m_opponents;
     std::unique_ptr<MatchRepository> m_matches;
     std::unique_ptr<TrainingRepository> m_training;
+    std::unique_ptr<LineupRepository> m_lineups;
     std::unique_ptr<CalendarService> m_calendar;
 };
 
@@ -438,6 +442,39 @@ TEST_F(CalendarServiceTest, RestoredMatchHasItsFieldsAndChildRowsUnderANewId) {
     ASSERT_TRUE(restoredEvents.has_value());
     ASSERT_EQ(restoredEvents->size(), 1U);
     EXPECT_EQ(restoredEvents->front().minute, 12);
+}
+
+// P12 decision 15: the lineup goes with the match and comes back with the undo.
+TEST_F(CalendarServiceTest, DeletingAMatchTakesItsLineupAndUndoBringsItBack) {
+    logInAs(Role::Coach);
+    Lineup lineup = emptyLineup(*findFormation("4-4-2"));
+    ASSERT_EQ(moveSlot(lineup, 8, Position::Lw), LineupEdit::Done); // a custom shape
+    lineup.pitchSlots[0].player = kPlayer;
+    lineup.bench = {kOtherPlayer};
+    ASSERT_TRUE(m_lineups->saveForMatch(kMatch, lineup).has_value());
+
+    const auto deleted = m_calendar->deleteMatch(kMatch);
+    ASSERT_TRUE(deleted.has_value()) << deleted.error().detail;
+    EXPECT_EQ(deleted->lineup, lineup);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM match"), 0);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM lineup"), 0);
+
+    const auto id = m_calendar->restoreMatch(*deleted);
+    ASSERT_TRUE(id.has_value()) << id.error().detail;
+    EXPECT_EQ(m_lineups->findForMatch(*id).value(), lineup);
+    EXPECT_EQ(m_calendar->match(*id).value().formation, "4-3-1-2");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM lineup"), 1);
+}
+
+TEST_F(CalendarServiceTest, DeletingAMatchWithoutALineup) {
+    logInAs(Role::Coach);
+    const auto deleted = m_calendar->deleteMatch(kMatch);
+    ASSERT_TRUE(deleted.has_value());
+    EXPECT_EQ(deleted->lineup, std::nullopt);
+    const auto id = m_calendar->restoreMatch(*deleted);
+    ASSERT_TRUE(id.has_value());
+    EXPECT_EQ(count("SELECT COUNT(*) FROM lineup"), 0);
+    EXPECT_EQ(m_calendar->match(*id).value().formation, std::nullopt);
 }
 
 TEST_F(CalendarServiceTest, MatchRestoreIsAtomic) {

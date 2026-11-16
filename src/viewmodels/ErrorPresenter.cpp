@@ -22,12 +22,20 @@ QString ErrorPresenter::message(const core::Error& error) {
         return tr("The database file is damaged. Close the app and replace the file with a copy "
                   "from the backups folder.");
     case core::ErrorCode::IncompatibleVersion:
+        if (error.field == "tactic_version") {
+            return tr("This tactics file was saved by a newer version of FootballDSS. Install the "
+                      "newer version to open it.");
+        }
         return tr("This data was saved by a newer version of FootballDSS. Install the newer "
                   "version to use it.");
     case core::ErrorCode::Io:
         return tr("A file cannot be read or written. Check that the disk is not full and that you "
                   "may write to the folder.");
     case core::ErrorCode::UnsupportedFormat:
+        if (error.field == "tactic_file") {
+            return tr("This is not a tactics file of FootballDSS (.tactic.json), or it is damaged. "
+                      "Choose another file.");
+        }
         return tr("This file format is not supported. Save the file as CSV or XLSX and try again.");
     case core::ErrorCode::Database:
     case core::ErrorCode::Internal:
@@ -119,6 +127,15 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     if (field == "player_id") {
         return tr("This player cannot be saved in this session. Open the session again.");
     }
+    if (field == "template_name") {
+        return tr("Enter a template name, up to 50 characters.");
+    }
+    if (field == "tactic_file_size") {
+        return tr("This file is too large to be a tactics file. Choose a .tactic.json file.");
+    }
+    if (field == "lineup_shape") {
+        return tr("This lineup cannot be saved. Open the match again and set up the lineup.");
+    }
     return tr("One of the values is not valid. Check what you entered and try again.");
 }
 
@@ -148,9 +165,10 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
         return tr("This match has already started or finished, so it cannot be changed here.");
     }
     if (field == "match_in_use") {
-        return tr(
-            "This match has data attached to it, such as a lineup or metrics, so it cannot be "
-            "deleted.");
+        return tr("This match has data attached to it, such as metrics, so it cannot be deleted.");
+    }
+    if (field == "template_name") {
+        return tr("A template with this name already exists. Choose a different name.");
     }
     if (field == "session_in_use") {
         return tr("This session has metric values attached to it, so it cannot be deleted.");

@@ -2,17 +2,20 @@
 
 #include "core/domain/Appearance.hpp"
 #include "core/domain/Attendance.hpp"
+#include "core/domain/Lineup.hpp"
 #include "core/domain/Match.hpp"
 #include "core/domain/MatchEvent.hpp"
 #include "core/domain/Opponent.hpp"
 #include "core/domain/TrainingSession.hpp"
 #include "core/util/Error.hpp"
 
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace fdss::data {
 class DatabaseManager;
+class LineupRepository;
 class MatchRepository;
 class OpponentRepository;
 class TrainingRepository;
@@ -37,6 +40,8 @@ struct DeletedMatch {
     core::Match match;
     std::vector<core::AppearanceDraft> appearances;
     std::vector<core::MatchEventDraft> events;
+    // The saved lineup of Pre-match (P12 decision 15).
+    std::optional<core::Lineup> lineup;
 };
 
 struct DeletedSession {
@@ -50,7 +55,7 @@ class CalendarService {
 public:
     CalendarService(data::DatabaseManager& db, data::OpponentRepository& opponents,
                     data::MatchRepository& matches, data::TrainingRepository& training,
-                    Session& session);
+                    data::LineupRepository& lineups, Session& session);
 
     [[nodiscard]] core::Result<CalendarItems> listItems(core::TeamId team) const;
     [[nodiscard]] core::Result<core::Match> match(core::MatchId id) const;
@@ -69,10 +74,10 @@ public:
     // Not planned: Conflict with field "match_not_planned".
     [[nodiscard]] core::Status updateMatch(core::MatchId id, const core::MatchDraft& draft);
     // Not planned: Conflict with field "match_not_planned". Other rows refer to it: Conflict with
-    // field "match_in_use".
+    // field "match_in_use". The saved lineup goes with it.
     [[nodiscard]] core::Result<DeletedMatch> deleteMatch(core::MatchId id);
-    // A new row with a new id. Its import_id and formation stay empty: the repository cannot set
-    // them.
+    // A new row with a new id, with its lineup and formation again. Its import_id stays empty: the
+    // repository cannot set it.
     [[nodiscard]] core::Result<core::MatchId> restoreMatch(const DeletedMatch& deleted);
     [[nodiscard]] core::Result<core::TrainingSessionId>
     addSession(core::TeamId team, const core::TrainingSessionDraft& draft);
@@ -91,6 +96,7 @@ private:
     data::OpponentRepository& m_opponents;
     data::MatchRepository& m_matches;
     data::TrainingRepository& m_training;
+    data::LineupRepository& m_lineups;
     Session& m_session;
 };
 

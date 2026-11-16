@@ -11,6 +11,8 @@ add_library(fdss_services STATIC
     SetupService.cpp
     DemoDataService.hpp
     DemoDataService.cpp
+    LineupService.hpp
+    LineupService.cpp
     LoadService.hpp
     LoadService.cpp
     SquadService.hpp

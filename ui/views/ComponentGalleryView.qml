@@ -262,6 +262,7 @@ Item {
                 qsTr("Form fields"),
                 qsTr("Data table"),
                 qsTr("Charts"),
+                qsTr("Tactics board"),
                 qsTr("Containers & feedback")
             ]
 
@@ -328,6 +329,11 @@ Item {
                                 IconButton {
                                     iconName: "undo"
                                     text: qsTr("Undo last change")
+                                }
+
+                                IconButton {
+                                    iconName: "swap"
+                                    text: qsTr("Swap with another slot")
                                 }
                             }
 
@@ -1341,7 +1347,122 @@ Item {
                 }
             }
 
-            // Tab 4: Card, EmptyState, AppDialog and Toasts
+            // Tab 4: the tactics board (P12) on constant sample values: TacticsPitch, PlayerToken in
+            // every state, BenchList, LineupPlayerList and LineupIssuesPanel.
+            RowLayout {
+                spacing: Theme.spacing.l
+
+                TacticsPitch {
+                    objectName: "galleryPitch"
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: height * Theme.pitch.aspect
+                    model: samplePitch
+                    onSlotActivated: slot => Toasts.info(qsTr("Activated slot: %1").arg(slot))
+                    onSlotsSwapped: (from, to) => Toasts.info(qsTr("Swap: %1 and %2").arg(from).arg(to))
+                    onPlayerDropped: (slot, playerId) => Toasts.info(qsTr("Player %1 on slot %2").arg(playerId).arg(slot))
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: Theme.spacing.l
+
+                    Card {
+                        Layout.fillWidth: true
+                        title: qsTr("PlayerToken")
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: tokenRow.implicitHeight + 2 * Theme.spacing.m
+                            radius: Theme.radius.m
+                            color: Theme.pitch.grass
+
+                            Row {
+                                id: tokenRow
+
+                                anchors.centerIn: parent
+                                spacing: Theme.spacing.m
+
+                                PlayerToken {
+                                    positionText: "CM"
+                                    shirtNumber: 8
+                                    shortName: "Kowalczyk"
+                                    fullName: "Piotr Kowalczyk"
+                                }
+
+                                PlayerToken {
+                                    positionText: "ST"
+                                    shirtNumber: 9
+                                    shortName: "Wiśniewski"
+                                    fullName: "Tomasz Wiśniewski"
+                                    selected: true
+                                }
+
+                                PlayerToken {
+                                    positionText: "LW"
+                                    shirtNumber: 11
+                                    shortName: "Zieliński"
+                                    fullName: "Marek Zieliński"
+                                    severity: "warning"
+                                    issueText: qsTr("Marek Zieliński plays out of position: Left winger.")
+                                }
+
+                                PlayerToken {
+                                    positionText: "CB"
+                                    shirtNumber: 4
+                                    shortName: "Szczepaniak-Wojciechowski"
+                                    fullName: "Jan Szczepaniak-Wojciechowski"
+                                    severity: "error"
+                                    issueText: qsTr("Jan Szczepaniak-Wojciechowski is not available on the match day: injured.")
+                                }
+
+                                PlayerToken {
+                                    positionText: "GK"
+                                }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: Theme.spacing.l
+
+                        BenchList {
+                            Layout.preferredWidth: Theme.benchColumnWidth
+                            Layout.fillHeight: true
+                            model: sampleBench
+                            onPickRequested: playerId => Toasts.info(qsTr("Pick: %1").arg(playerId))
+                            onRemoveRequested: playerId => Toasts.info(qsTr("Remove: %1").arg(playerId))
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            spacing: Theme.spacing.m
+
+                            LineupPlayerList {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                model: samplePlayers
+                                onPickRequested: playerId => Toasts.info(qsTr("Pick: %1").arg(playerId))
+                                onBenchRequested: playerId => Toasts.info(qsTr("To the bench: %1").arg(playerId))
+                            }
+
+                            LineupIssuesPanel {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Theme.issuesPanelHeight
+                                model: sampleIssues
+                                summary: qsTr("Errors: %1 · Warnings: %2").arg(1).arg(2)
+                                errorCount: 1
+                                onIssueActivated: row => Toasts.info(qsTr("Issue: %1").arg(row))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Tab 5: Card, EmptyState, AppDialog and Toasts
             GridLayout {
                 columns: 2
                 rowSpacing: Theme.spacing.l
@@ -1504,5 +1625,47 @@ Item {
                 }
             }
         }
+    }
+
+    // Tactics board samples (P12): a 4-4-2 with one free slot, the coordinates of its zone layout.
+    ListModel {
+        id: samplePitch
+
+        ListElement { slotIndex: 0; positionText: "GK"; pitchX: 0.5; pitchY: 0.94; playerId: 1; shirtNumber: 1; shortName: "Bramka"; fullName: "Adam Bramka"; severity: ""; issueText: ""; selected: false }
+        ListElement { slotIndex: 1; positionText: "RB"; pitchX: 0.875; pitchY: 0.8; playerId: 2; shirtNumber: 2; shortName: "Prawy"; fullName: "Bartosz Prawy"; severity: ""; issueText: ""; selected: false }
+        ListElement { slotIndex: 2; positionText: "CB"; pitchX: 0.375; pitchY: 0.8; playerId: 3; shirtNumber: 3; shortName: "Mur"; fullName: "Cezary Mur"; severity: "error"; issueText: qsTr("Cezary Mur is not available on the match day: injured."); selected: false }
+        ListElement { slotIndex: 3; positionText: "CB"; pitchX: 0.625; pitchY: 0.8; playerId: 4; shirtNumber: 4; shortName: "Skała"; fullName: "Damian Skała"; severity: ""; issueText: ""; selected: false }
+        ListElement { slotIndex: 4; positionText: "LB"; pitchX: 0.125; pitchY: 0.8; playerId: 5; shirtNumber: 5; shortName: "Lewy"; fullName: "Emil Lewy"; severity: ""; issueText: ""; selected: false }
+        ListElement { slotIndex: 5; positionText: "RM"; pitchX: 0.875; pitchY: 0.48; playerId: 6; shirtNumber: 7; shortName: "Skrzydło"; fullName: "Filip Skrzydło"; severity: "warning"; issueText: qsTr("Filip Skrzydło has a high load. A signal to talk to the player."); selected: false }
+        ListElement { slotIndex: 6; positionText: "CM"; pitchX: 0.375; pitchY: 0.48; playerId: 7; shirtNumber: 6; shortName: "Środek"; fullName: "Grzegorz Środek"; severity: ""; issueText: ""; selected: true }
+        ListElement { slotIndex: 7; positionText: "CM"; pitchX: 0.625; pitchY: 0.48; playerId: 0; shirtNumber: 0; shortName: ""; fullName: ""; severity: ""; issueText: ""; selected: false }
+        ListElement { slotIndex: 8; positionText: "LM"; pitchX: 0.125; pitchY: 0.48; playerId: 9; shirtNumber: 11; shortName: "Kowalczyk-Nowakowski"; fullName: "Hubert Kowalczyk-Nowakowski"; severity: ""; issueText: ""; selected: false }
+        ListElement { slotIndex: 9; positionText: "ST"; pitchX: 0.375; pitchY: 0.12; playerId: 10; shirtNumber: 9; shortName: "Gol"; fullName: "Igor Gol"; severity: ""; issueText: ""; selected: false }
+        ListElement { slotIndex: 10; positionText: "ST"; pitchX: 0.625; pitchY: 0.12; playerId: 11; shirtNumber: 10; shortName: "Strzał"; fullName: "Jakub Strzał"; severity: ""; issueText: ""; selected: false }
+    }
+
+    ListModel {
+        id: sampleBench
+
+        ListElement { benchIndex: 0; playerId: 12; shirtNumber: 12; name: "Kamil Zapas"; shortName: "Zapas"; positionsText: "GK"; severity: ""; issueText: "" }
+        ListElement { benchIndex: 1; playerId: 13; shirtNumber: 14; name: "Leon Rezerwa"; shortName: "Rezerwa"; positionsText: "CM (DM)"; severity: "warning"; issueText: qsTr("Leon Rezerwa missed each of the last training sessions: 3.") }
+        ListElement { benchIndex: 2; playerId: 14; shirtNumber: 18; name: "Michał Zmiennik"; shortName: "Zmiennik"; positionsText: "ST (RW, LW)"; severity: ""; issueText: "" }
+    }
+
+    ListModel {
+        id: samplePlayers
+
+        ListElement { playerId: 1; shirtNumber: 1; name: "Adam Bramka"; shortName: "Bramka"; positionsText: "GK"; statusKey: "available"; statusText: qsTr("Available"); loadStatusKey: "normal"; loadStatusText: qsTr("In range"); placement: "xi"; placementText: qsTr("In the XI"); severity: ""; issueText: "" }
+        ListElement { playerId: 3; shirtNumber: 3; name: "Cezary Mur"; shortName: "Mur"; positionsText: "CB"; statusKey: "injured"; statusText: qsTr("Injured"); loadStatusKey: "notEnoughData"; loadStatusText: qsTr("No baseline"); placement: "xi"; placementText: qsTr("In the XI"); severity: "error"; issueText: "" }
+        ListElement { playerId: 6; shirtNumber: 7; name: "Filip Skrzydło"; shortName: "Skrzydło"; positionsText: "RM (RW)"; statusKey: "available"; statusText: qsTr("Available"); loadStatusKey: "high"; loadStatusText: qsTr("High"); placement: "xi"; placementText: qsTr("In the XI"); severity: "warning"; issueText: "" }
+        ListElement { playerId: 15; shirtNumber: 21; name: "Norbert Wolny"; shortName: "Wolny"; positionsText: "CM"; statusKey: "suspended"; statusText: qsTr("Suspended"); loadStatusKey: ""; loadStatusText: ""; placement: ""; placementText: ""; severity: ""; issueText: "" }
+    }
+
+    ListModel {
+        id: sampleIssues
+
+        ListElement { severity: "error"; severityText: qsTr("Error"); ruleKey: "unavailable"; text: qsTr("Cezary Mur is not available on the match day: injured."); playerId: 3; slotIndex: 2; benchIndex: -1 }
+        ListElement { severity: "warning"; severityText: qsTr("Warning"); ruleKey: "highLoad"; text: qsTr("Filip Skrzydło has a high load. A signal to talk to the player."); playerId: 6; slotIndex: 5; benchIndex: -1 }
+        ListElement { severity: "warning"; severityText: qsTr("Warning"); ruleKey: "missedSessions"; text: qsTr("Leon Rezerwa missed each of the last training sessions: 3."); playerId: 13; slotIndex: -1; benchIndex: 1 }
     }
 }
