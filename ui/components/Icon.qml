@@ -9,6 +9,21 @@ Item {
     property color color: Theme.text
     property real size: Theme.iconSize.m
 
+    // Workaround for a Qt scene graph bug (fix: icons respect clipping in lists, docs/BACKLOG.md).
+    // What: four one-unit segments added to every path, far outside any window (in units of the
+    // grid, scaled with the icon, so still off screen for any size); they are never seen.
+    // Why: the scene graph does not clip a Shape that lies wholly outside the clip of an ancestor
+    // while that ancestor is drawn: the icons of the cut last row of a scrolled list were drawn
+    // below the list, with the CurveRenderer and the GeometryRenderer alike, and a clip on the icon
+    // does not help. A Shape that crosses the edge of the clip is clipped. With these segments the
+    // node always crosses it, so it is clipped like any item and the icon looks exactly as before.
+    // A layer clips too, but resamples a texture at a fractional position: blurred or thicker icons.
+    // Guarded by: tests/qml_components/tst_iconclip.qml (no pixel of the cut row below the list;
+    // an icon in view is the same, pixel for pixel, as a plain Shape) and the clip check of the
+    // squad list in qml_smoke.
+    // Remove when: a Qt version passes tst_iconclip.qml without these segments (set boundsGuide to
+    // "" and run it).
+    readonly property string boundsGuide: " M12 -100000v1 M12 100000v1 M-100000 12h1 M100000 12h1"
     readonly property var paths: ({
             "dashboard": "M3 3h7v9H3z M14 3h7v5h-7z M14 12h7v9h-7z M3 16h7v5H3z",
             "squad": "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1 "
@@ -71,7 +86,7 @@ Item {
             joinStyle: ShapePath.RoundJoin
 
             PathSvg {
-                path: root.paths[root.name] ?? ""
+                path: root.name in root.paths ? root.paths[root.name] + root.boundsGuide : ""
             }
         }
     }

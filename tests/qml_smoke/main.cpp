@@ -3663,6 +3663,40 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
     }
     settings->setDarkTheme(startDark);
 
+    // A scrolled list clips the icons of its rows: below the squad list, with the issues panel
+    // hidden, there is only the page background (fix: icons respect clipping in lists).
+    {
+        auto* rows = screen->find(QStringLiteral("playerListView"));
+        auto* panel = screen->find(QStringLiteral("lineupIssuesPanel"));
+        const QColor background = window->color();
+        panel->setOpacity(0);
+        // Half a row up: the last row in view is cut, the next ones lie below the list.
+        rows->setProperty("contentY", rows->property("originY").toReal() + 22);
+        settle();
+        const QImage image = window->grabWindow();
+        const qreal ratio = image.devicePixelRatio();
+        const QRectF below = rows->mapRectToScene(QRectF(0, rows->height() + 6, rows->width(), 56));
+        int foreign = 0;
+        for (int y = int(below.top() * ratio); y < int(below.bottom() * ratio); ++y) {
+            for (int x = int(below.left() * ratio); x < int(below.right() * ratio); ++x) {
+                const QColor pixel = image.pixelColor(x, y);
+                if (std::abs(pixel.red() - background.red()) > 8 ||
+                    std::abs(pixel.green() - background.green()) > 8 ||
+                    std::abs(pixel.blue() - background.blue()) > 8) {
+                    ++foreign;
+                }
+            }
+        }
+        if (foreign > 0) {
+            fail("icons of rows outside a scrolled list are drawn below it");
+            qWarning("qml_smoke: %d pixels below the squad list", foreign);
+            image.save(QDir::temp().filePath(QStringLiteral("fdss-clip.png")));
+        }
+        panel->setOpacity(1);
+        rows->setProperty("contentY", rows->property("originY"));
+        settle();
+    }
+
     // Three tokens in one side zone at the minimum window: they do not overlap (P12 review).
     for (const int slot : {8, 9, 10}) {
         screen->preMatch->setSlotPosition(slot, QStringLiteral("lw"));

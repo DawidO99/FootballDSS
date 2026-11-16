@@ -30,6 +30,10 @@
   AGENTS §6): `LoadChart` is the real chart now (ADR-006 consequence, P11 decision 10)
 - Yellow-card threshold per competition (SPEC §7.2); P12 has one global threshold in the app settings, a
   threshold per competition needs a settings table in the database (P12 decision 3)
+- Icon clip workaround — sprawdzić w kolejnej wersji Qt i ewentualnie zgłosić błąd do Qt: `Icon.qml`
+  adds far segments (`boundsGuide`) because the scene graph does not clip a Shape lying wholly outside the
+  clip of a list (Qt 6.12, both renderers). With `boundsGuide: ""` `tst_iconclip.qml` must pass before the
+  workaround goes; otherwise report it with that test as the reproduction (fix: icons respect clipping)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,
