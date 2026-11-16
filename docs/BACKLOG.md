@@ -34,6 +34,15 @@
   adds far segments (`boundsGuide`) because the scene graph does not clip a Shape lying wholly outside the
   clip of a list (Qt 6.12, both renderers). With `boundsGuide: ""` `tst_iconclip.qml` must pass before the
   workaround goes; otherwise report it with that test as the reproduction (fix: icons respect clipping)
+- JS garbage collector workaround — sprawdzić w kolejnej wersji Qt i ewentualnie zgłosić błąd do Qt:
+  `useNonIncrementalGarbageCollector()` (`src/viewmodels/JsGarbageCollector.hpp`) sets `QV4_GC_TIMELIMIT=0`
+  because the incremental collector of Qt 6.12 frees the property storage of live objects ("Cannot find
+  member data" in AppDialog and DateField on CI). Without the call, `qml_smoke` under `QV4_GC_TIMELIMIT=1`
+  must be clean before it goes (fix(P12): CI-only dialog failures)
+- CI: ręczne zadanie ze stresem GC (QV4_GC_TIMELIMIT=1, bez obejścia) — sprawdza, czy kolejna wersja Qt
+  naprawiła błąd. A `workflow_dispatch` job running `qml_smoke` and `qml_components` with
+  `QV4_GC_TIMELIMIT=1` and `useNonIncrementalGarbageCollector()` switched off (it needs a way to skip the
+  call, e.g. an environment variable read only by the test programs) (P19)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,

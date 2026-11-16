@@ -3,6 +3,8 @@
 // survive a restart.
 
 #include "../services/FakeClock.hpp"
+#include "core/algorithms/Formations.hpp"
+#include "core/algorithms/LineupValidator.hpp"
 #include "core/demo/DemoGenerator.hpp"
 #include "core/domain/Club.hpp"
 #include "core/domain/Player.hpp"
@@ -28,6 +30,7 @@
 #include "viewmodels/CalendarViewModel.hpp"
 #include "viewmodels/CalendarWeekModel.hpp"
 #include "viewmodels/ChangePinViewModel.hpp"
+#include "viewmodels/JsGarbageCollector.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/LoadTexts.hpp"
 #include "viewmodels/LoadViewModel.hpp"
@@ -86,6 +89,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -3204,13 +3208,23 @@ struct PreMatchScreen {
 
 // Goes to the section (again, so it reads anew), finds it anew (a login builds the views again)
 // and waits for the load statuses.
-std::optional<PreMatchScreen> openPreMatchScreen(QQmlApplicationEngine& engine) {
+// matchId: opens that match (0: the one the view has). A change left by a failed step is dropped
+// first, so leaving does not stop at the question.
+std::optional<PreMatchScreen> openPreMatchScreen(QQmlApplicationEngine& engine,
+                                                 qint64 matchId = 0) {
     PreMatchScreen screen;
     screen.window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
     screen.navigation = screen.window->property("navigation").value<NavigationModel*>();
+    if (QQuickItem* view = findQmlItem(screen.window->contentItem(), "PreMatchView")) {
+        if (auto* open = view->property("viewModel").value<PreMatchViewModel*>()) {
+            open->discardChanges();
+        }
+    }
     screen.navigation->activate(QStringLiteral("dashboard"));
     settle();
-    screen.navigation->activate(QStringLiteral("prematch"));
+    screen.navigation->activate(QStringLiteral("prematch"),
+                                matchId != 0 ? QVariantMap{{QStringLiteral("matchId"), matchId}}
+                                             : QVariantMap{});
     settle();
     screen.view = findQmlItem(screen.window->contentItem(), "PreMatchView");
     if (screen.view == nullptr) {
@@ -3258,28 +3272,105 @@ void arrowTo(QQuickWindow* window, QQuickItem* list, int row) {
     }
 }
 
-// Demo data -> next match -> 4-4-2 -> an injured player names an error, replacing him removes it;
-// 11 players by the keyboard alone; Ctrl+S; the lineup reads back the same; leaving asks; both
-// themes at the minimum window; another role sees the board read-only (packet P12, Done when).
-void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
-    if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
-        fail("cannot load the demo club for pre-match");
+// The next planned match of the smoke team, read anew for every step: a step that failed and
+// deleted or moved a match leaves no stale id behind. 0 with a failure: none.
+qint64 nextPreMatchMatch(const char* step) {
+    const auto next = ServiceRegistry::instance().lineup().nextPlannedMatch(smokeTeam());
+    if (!next || !*next) {
+        fail("pre-match: no planned match");
+        qWarning("qml_smoke: pre-match step without a match: %s", step);
+        return 0;
+    }
+    return (*next)->value;
+}
+
+// The precondition of the steps that need a saved lineup, through the service and not through an
+// earlier step: a 4-4-2 of available players, by their primary position where one fits. The
+// players of the slots in order; empty with a failure.
+std::vector<qint64> saveSmokeLineup(qint64 matchId) {
+    auto& lineups = ServiceRegistry::instance().lineup();
+    const auto data =
+        lineups.matchLineup(fdss::core::MatchId{matchId}, fdss::core::kDefaultYellowCardThreshold);
+    const fdss::core::Formation* formation = fdss::core::findFormation("4-4-2");
+    if (!data || formation == nullptr) {
+        fail("pre-match: cannot read the match for a saved lineup");
+        return {};
+    }
+    fdss::core::Lineup lineup = fdss::core::emptyLineup(*formation);
+    std::set<fdss::core::PlayerId> used;
+    const auto available = [&](const fdss::services::LineupCandidate& candidate) {
+        return candidate.facts.statusOnMatchDay == fdss::core::PlayerStatus::Available &&
+               !used.contains(candidate.player.id);
+    };
+    for (const bool samePosition : {true, false}) {
+        for (fdss::core::LineupSlot& slot : lineup.pitchSlots) {
+            if (slot.player) {
+                continue;
+            }
+            for (const auto& candidate : data->candidates) {
+                if (available(candidate) &&
+                    (!samePosition || candidate.player.primaryPosition == slot.position)) {
+                    slot.player = candidate.player.id;
+                    used.insert(candidate.player.id);
+                    break;
+                }
+            }
+        }
+    }
+    if (!lineups.save(fdss::core::MatchId{matchId}, lineup)) {
+        fail("pre-match: cannot save a lineup through the service");
+        return {};
+    }
+    std::vector<qint64> players;
+    for (const fdss::core::LineupSlot& slot : lineup.pitchSlots) {
+        players.push_back(slot.player ? slot.player->value : 0);
+    }
+    return players;
+}
+
+// Ctrl+S as the keyboard sends it. A shortcut fires only in the focus window, and on Xvfb without
+// a window manager (CI) the window may never get the focus: then the shortcut object is checked
+// to be enabled and triggered as Qt would, and the run says so.
+void pressSave(const PreMatchScreen& screen) {
+    screen.window->requestActivate();
+    QElapsedTimer waited;
+    waited.start();
+    while (QGuiApplication::focusWindow() != screen.window && waited.elapsed() < 1000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    }
+    if (QGuiApplication::focusWindow() == screen.window) {
+        QKeyEvent press(QEvent::KeyPress, Qt::Key_S, Qt::ControlModifier, QStringLiteral("s"));
+        QKeyEvent release(QEvent::KeyRelease, Qt::Key_S, Qt::ControlModifier, QStringLiteral("s"));
+        QCoreApplication::sendEvent(screen.window, &press);
+        QCoreApplication::sendEvent(screen.window, &release);
+        settle();
         return;
     }
-    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
-    if (engine.rootObjects().isEmpty()) {
-        fail("Main.qml did not load");
+    qInfo("qml_smoke: the window has no focus (no window manager): Ctrl+S through its shortcut");
+    auto* shortcut = screen.view->findChild<QObject*>(QStringLiteral("saveShortcut"));
+    if (shortcut == nullptr || !shortcut->property("enabled").toBool()) {
+        fail("the save shortcut is not there or not enabled");
         return;
     }
+    QMetaObject::invokeMethod(shortcut, "activated");
     settle();
-    auto screen = openPreMatchScreen(engine);
+}
+
+// The steps below are independent: each opens the screen on the next planned match read anew, sets
+// up what it needs through the services and leaves no unsaved change behind, so one failure does
+// not fail the steps after it (P12 CI).
+
+// A click on a slot opens its picker; the injured player picked there names an error, replacing
+// him in the squad list removes it.
+void preMatchPickerAndIssues(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    const qint64 matchId = nextPreMatchMatch("picker");
+    auto screen = openPreMatchScreen(engine, matchId);
     if (!screen) {
         return;
     }
     PreMatchViewModel* preMatch = screen->preMatch;
     QQuickWindow* window = screen->window;
-    const auto next = ServiceRegistry::instance().lineup().nextPlannedMatch(smokeTeam());
-    if (!next || !*next || preMatch->matchId() != (*next)->value) {
+    if (preMatch->matchId() != matchId) {
         fail("pre-match does not open the next planned match");
         return;
     }
@@ -3360,6 +3451,20 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
         fail("replacing the injured player leaves the error");
     }
 
+    preMatch->discardChanges();
+    settle();
+}
+
+// 11 players by the keyboard alone, Ctrl+S, and the lineup reads back the same.
+void preMatchKeyboardAndSave(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("keyboard");
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    PreMatchViewModel* preMatch = screen->preMatch;
+    QQuickWindow* window = screen->window;
+    auto* list = screen->find(QStringLiteral("playerListView"));
     // The keyboard alone: Tab to the first token, Enter, Tab to the squad, then arrows and Enter.
     clickItem(window, screen->find(QStringLiteral("clearButton")));
     if (preMatch->startingCount() != 0) {
@@ -3411,52 +3516,77 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
         fail("the keyboard path does not place 11 players");
     }
 
-    // Ctrl+S, then away and back: the same lineup.
-    QKeyEvent savePress(QEvent::KeyPress, Qt::Key_S, Qt::ControlModifier, QStringLiteral("s"));
-    QKeyEvent saveRelease(QEvent::KeyRelease, Qt::Key_S, Qt::ControlModifier, QStringLiteral("s"));
-    QCoreApplication::sendEvent(window, &savePress);
-    QCoreApplication::sendEvent(window, &saveRelease);
-    settle();
+    pressSave(*screen);
     if (preMatch->dirty() || !preMatch->hasSavedLineup()) {
         fail("Ctrl+S does not save the lineup");
     }
     const std::vector<qint64> saved = screen->boardPlayers();
-    screen = openPreMatchScreen(engine);
+    preMatch->discardChanges();
+    screen = openPreMatchScreen(engine, matchId);
     if (!screen) {
         return;
     }
     if (screen->boardPlayers() != saved || screen->preMatch->dirty()) {
         fail("the saved lineup does not read back the same");
     }
+}
 
-    // The Calendar asks before deleting a match with a saved lineup (P12 review).
-    {
-        const qint64 matchId = screen->preMatch->matchId();
-        screen->navigation->activate(QStringLiteral("calendar"));
-        settle();
-        QQuickItem* calendarView = findQmlItem(window->contentItem(), "CalendarView");
-        QMetaObject::invokeMethod(calendarView, "requestMatchDelete", Q_ARG(QVariant, matchId),
-                                  Q_ARG(QVariant, QStringLiteral("Rywal")));
-        settle();
-        auto* question = calendarView->property("deleteMatchDialog").value<QObject*>();
-        if (question == nullptr || !question->property("visible").toBool()) {
-            fail("deleting a match with a saved lineup does not ask first");
-        }
-        if (question != nullptr) {
-            QMetaObject::invokeMethod(question, "close");
-            settle();
-        }
-        if (!ServiceRegistry::instance().calendar().match(fdss::core::MatchId{matchId})) {
-            fail("the question deleted the match before an answer");
-        }
+// The Calendar asks before deleting a match with a saved lineup (P12 review). On a match of its own
+// four weeks after the next one, so even a delete without a question touches no other step.
+void preMatchCalendarDelete(QQmlApplicationEngine& engine) {
+    auto& calendar = ServiceRegistry::instance().calendar();
+    const qint64 nextId = nextPreMatchMatch("calendar delete");
+    const auto next = calendar.match(fdss::core::MatchId{nextId});
+    if (!next) {
+        fail("pre-match: cannot read the next match");
+        return;
     }
-    screen = openPreMatchScreen(engine);
+    fdss::core::MatchDraft draft = *next;
+    draft.date = fdss::core::Date{std::chrono::sys_days{next->date} + std::chrono::days{28}};
+    const auto own = calendar.addMatch(smokeTeam(), draft);
+    if (!own || saveSmokeLineup(own->value).empty()) {
+        fail("pre-match: cannot add a match with a lineup to delete");
+        return;
+    }
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    navigation->activate(QStringLiteral("calendar"));
+    settle();
+    QQuickItem* calendarView = findQmlItem(window->contentItem(), "CalendarView");
+    QMetaObject::invokeMethod(calendarView, "requestMatchDelete",
+                              Q_ARG(QVariant, static_cast<qint64>(own->value)),
+                              Q_ARG(QVariant, QStringLiteral("Rywal")));
+    settle();
+    auto* question = calendarView->property("deleteMatchDialog").value<QObject*>();
+    if (question == nullptr || !question->property("visible").toBool()) {
+        fail("deleting a match with a saved lineup does not ask first");
+    }
+    if (question != nullptr) {
+        QMetaObject::invokeMethod(question, "close");
+        settle();
+    }
+    if (!calendar.match(*own)) {
+        fail("the question deleted the match before an answer");
+        return;
+    }
+    if (!calendar.deleteMatch(*own)) {
+        fail("pre-match: cannot remove the match of the delete step");
+    }
+}
+
+// To the bench by keyboard, a refused second goalkeeper, and the touch sizes of the board.
+void preMatchBenchKeys(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("bench");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
     if (!screen) {
         return;
     }
-    preMatch = screen->preMatch;
-    list = screen->find(QStringLiteral("playerListView"));
-
+    PreMatchViewModel* preMatch = screen->preMatch;
+    QQuickWindow* window = screen->window;
+    auto* list = screen->find(QStringLiteral("playerListView"));
     // To the bench by keyboard: B on a token, Tab to the button, B in the squad (P12 review).
     {
         const int bench = preMatch->benchCount();
@@ -3517,7 +3647,18 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
         preMatch->discardChanges();
         settle();
     }
+}
 
+// Leaving with a change asks; Discard leaves and drops the change.
+void preMatchLeaveGuard(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("leave guard");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
     // Leaving with a change asks; Discard leaves and drops the change.
     screen->preMatch->swapSlots(1, 2);
     settle();
@@ -3537,13 +3678,23 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
         }
     }
 
-    // A double click on a token opens the card of its player, after the question about a change;
-    // Back on the card returns to the same match. The same from a row of the squad list and from
-    // Load (P12 manual test).
-    screen = openPreMatchScreen(engine);
+    screen->preMatch->discardChanges();
+    settle();
+}
+
+// A double click on a token opens the card of its player, after the question about a change; Back
+// on the card returns to the same match. The same from a row of the squad list and from Load (P12
+// manual test).
+void preMatchPlayerCard(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("player card");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
     if (!screen) {
         return;
     }
+    QQuickWindow* window = screen->window;
     {
         const auto backTo = [&](const char* key, const char* reason) {
             QQuickItem* squadView = findQmlItem(window->contentItem(), "SquadView");
@@ -3565,7 +3716,6 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
             }
             return shown;
         };
-        const qint64 matchId = screen->preMatch->matchId();
         const qint64 goalkeeper = screen->board(0, "playerId").toLongLong();
         screen->preMatch->swapSlots(1, 2);
         settle();
@@ -3619,12 +3769,20 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
             }
         }
     }
+}
 
-    // The minimum window in both themes: tokens of Theme.hitTouch that do not overlap.
-    screen = openPreMatchScreen(engine);
+// The minimum window in both themes: tokens of Theme.hitTouch that do not overlap, icons clipped by
+// a scrolled list, three tokens in one side zone.
+void preMatchMinimumWindow(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    const qint64 matchId = nextPreMatchMatch("minimum window");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
     if (!screen) {
         return;
     }
+    QQuickWindow* window = screen->window;
     auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
                                                             QStringLiteral("AppSettings"));
     const bool startDark = settings->darkTheme();
@@ -3733,13 +3891,20 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
     screen->preMatch->discardChanges();
     window->resize(originalSize);
     settle();
+}
 
-    // Another role: the board is read-only.
+// Another role: the saved lineup, read-only.
+void preMatchReadOnly(QQmlApplicationEngine& engine) {
+    const qint64 matchId = nextPreMatchMatch("read-only");
+    const std::vector<qint64> saved = saveSmokeLineup(matchId);
+    if (saved.empty()) {
+        return;
+    }
     const auto physio = addSmokeStaff("Fizjo Smoke", fdss::core::Role::Physio);
     if (!physio || !logInAgain(engine, *physio)) {
         return;
     }
-    screen = openPreMatchScreen(engine);
+    auto screen = openPreMatchScreen(engine, matchId);
     if (!screen) {
         return;
     }
@@ -3750,6 +3915,31 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
                "the board is interactive for a role without EditLineup");
     expectFlag(screen->find(QStringLiteral("saveButton")), "visible", false,
                "a role without EditLineup sees Save");
+}
+
+// Demo data -> next match -> 4-4-2 -> an injured player names an error, replacing him removes it;
+// 11 players by the keyboard alone; Ctrl+S; the lineup reads back the same; leaving asks; both
+// themes at the minimum window; another role sees the board read-only (packet P12, Done when).
+void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
+        fail("cannot load the demo club for pre-match");
+        return;
+    }
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    settle();
+    preMatchPickerAndIssues(engine, screenshotDirectory);
+    preMatchKeyboardAndSave(engine);
+    preMatchCalendarDelete(engine);
+    preMatchBenchKeys(engine);
+    preMatchLeaveGuard(engine);
+    preMatchPlayerCard(engine);
+    preMatchMinimumWindow(engine, screenshotDirectory);
+    // Last: it logs in another user.
+    preMatchReadOnly(engine);
 }
 
 } // namespace
@@ -4325,6 +4515,8 @@ void exerciseLoadDemo(QQmlApplicationEngine& engine, const std::optional<QString
 }
 
 int main(int argc, char* argv[]) {
+    // As the app does; without it this run shows the CI failures of P12 under QV4_GC_TIMELIMIT=1.
+    fdss::viewmodels::useNonIncrementalGarbageCollector();
     // Deterministic offscreen rendering without a GPU.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
     g_defaultHandler = qInstallMessageHandler(countingMessageHandler);

@@ -132,6 +132,7 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/ErrorPresenter.hpp
         src/viewmodels/ErrorPresenter.cpp
         src/viewmodels/IsoDates.hpp
+        src/viewmodels/JsGarbageCollector.hpp
         src/viewmodels/IsoDates.cpp
         src/viewmodels/LanguageManager.hpp
         src/viewmodels/LanguageManager.cpp
