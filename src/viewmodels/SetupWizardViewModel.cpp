@@ -66,7 +66,8 @@ SetupWizardViewModel::SetupWizardViewModel(QObject* parent)
       m_currentSeason(defaultSeason(ServiceRegistry::instance().clock().today())),
       m_category(QString::fromUtf8(core::toDbText(core::TeamCategory::Senior))),
       m_season(m_currentSeason) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -238,11 +239,11 @@ void SetupWizardViewModel::loadDemo() {
 }
 
 bool SetupWizardViewModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange) {
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit demoStaffChanged();
     }
     // The errors are texts made by the check, so the check makes them anew in the new language.
-    if (event->type() == QEvent::LanguageChange &&
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange &&
         !(m_clubNameError.isEmpty() && m_teamNameError.isEmpty() && m_seasonError.isEmpty() &&
           m_coachNameError.isEmpty() && m_pinError.isEmpty() && m_pinRepeatError.isEmpty())) {
         std::ignore = validateStep(m_currentStep);

@@ -1,4 +1,6 @@
 add_library(fdss_core STATIC
+    algorithms/Load.hpp
+    algorithms/Load.cpp
     domain/Appearance.hpp
     domain/Attendance.hpp
     domain/Availability.hpp

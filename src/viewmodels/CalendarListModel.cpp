@@ -12,7 +12,8 @@
 namespace fdss::viewmodels {
 
 CalendarListModel::CalendarListModel(QObject* parent) : QAbstractListModel(parent) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -96,7 +97,8 @@ bool CalendarListModel::earlierOnTheDay(const CalendarEntry& a, const CalendarEn
 }
 
 bool CalendarListModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange && !m_entries.empty()) {
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange &&
+        !m_entries.empty()) {
         emit dataChanged(index(0), index(rowCount() - 1));
     }
     return QAbstractListModel::eventFilter(watched, event);

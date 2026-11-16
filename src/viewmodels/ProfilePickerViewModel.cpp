@@ -14,7 +14,8 @@ ProfilePickerViewModel::ProfilePickerViewModel(QObject* parent)
     : QObject(parent), m_auth(ServiceRegistry::instance().auth()),
       m_lock(ServiceRegistry::instance().clock()), m_staff(new StaffListModel(this)) {
     connect(&m_lock, &LockCountdown::changed, this, &ProfilePickerViewModel::messageChanged);
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -120,7 +121,7 @@ void ProfilePickerViewModel::login(const QString& pin) {
 void ProfilePickerViewModel::tickLock() { m_lock.tick(); }
 
 bool ProfilePickerViewModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange) {
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit messageChanged();
         emit loadErrorChanged();
     }

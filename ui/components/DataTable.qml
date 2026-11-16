@@ -26,6 +26,11 @@ import QtQuick.Layouts
 //                           Empty = no headings
 //   count: int              read-only row count
 //   columnWidths: var       read-only width of each column in px
+//   cellPadding: int        read-only space left and right of the content of a cell: a pixel
+//                           column measured from its content adds it on both sides
+//   minimumColumnsWidth: real   read-only: the width at which every pixel column keeps its width
+//                           and every fraction column has its minimum. Narrower, the pixel columns
+//                           shrink; a layout keeps the table this wide when one must not
 //   sortRequested(string role, bool ascending)
 //   activated(int index)    Enter or double-click on a row
 // A sort request stays inside the table, so bindings on sortRole and sortAscending survive it. The
@@ -47,6 +52,11 @@ FocusScope {
     readonly property int effectiveRowHeight: touch ? Theme.controlHeightTouch : Theme.rowHeight
     readonly property int effectiveHeaderHeight: touch ? Math.max(Theme.tableHeaderHeight, Theme.hitTouch) : Theme.tableHeaderHeight
     readonly property var columnWidths: computeColumnWidths(columns, width - 2 * Theme.borderWidth)
+    readonly property int cellPadding: Theme.spacing.m
+    readonly property real minimumColumnsWidth: columns.reduce((sum, column) => {
+        const spec = column.width ?? 1;
+        return sum + (spec > 1 ? spec : internal.fractionMinimum);
+    }, 2 * Theme.borderWidth)
 
     signal sortRequested(string role, bool ascending)
     signal activated(int index)
@@ -58,7 +68,7 @@ FocusScope {
         const fractionCount = specs.filter(spec => spec <= 1).length;
 
         // When even the minimums do not fit, the fraction columns share the whole width equally.
-        const minimum = fractionCount > 0 ? Math.min(Theme.spacing.xxl * 2, available / fractionCount) : 0;
+        const minimum = fractionCount > 0 ? Math.min(internal.fractionMinimum, available / fractionCount) : 0;
         const roomForFixed = available - fractionCount * minimum;
         const fixedScale = fixedSum > roomForFixed ? roomForFixed / fixedSum : 1;
 
@@ -115,6 +125,8 @@ FocusScope {
     QtObject {
         id: internal
 
+        // The narrowest a fraction column gets while the table has room for it.
+        readonly property int fractionMinimum: Theme.spacing.xxl * 2
         property string sortRole
         property bool sortAscending: true
     }
@@ -183,8 +195,8 @@ FocusScope {
 
                             contentItem: RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: Theme.spacing.m
-                                anchors.rightMargin: Theme.spacing.m
+                                anchors.leftMargin: root.cellPadding
+                                anchors.rightMargin: root.cellPadding
                                 spacing: Theme.spacing.xs
 
                                 Label {
@@ -366,8 +378,8 @@ FocusScope {
 
                                     Label {
                                         anchors.fill: parent
-                                        anchors.leftMargin: Theme.spacing.m
-                                        anchors.rightMargin: Theme.spacing.m
+                                        anchors.leftMargin: root.cellPadding
+                                        anchors.rightMargin: root.cellPadding
                                         visible: !cell.hasCustomDelegate
                                         text: cell.cellValue !== undefined && cell.cellValue !== null ? String(cell.cellValue) : ""
                                         textFormat: Text.PlainText
@@ -382,8 +394,8 @@ FocusScope {
                                         id: cellLoader
 
                                         anchors.fill: parent
-                                        anchors.leftMargin: Theme.spacing.m
-                                        anchors.rightMargin: Theme.spacing.m
+                                        anchors.leftMargin: root.cellPadding
+                                        anchors.rightMargin: root.cellPadding
                                         active: cell.hasCustomDelegate
                                         sourceComponent: cell.columnData.delegate ?? null
                                         onLoaded: cell.syncCustomCell()

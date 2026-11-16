@@ -21,6 +21,8 @@ add_executable(fdss_tests
     core/DemoGeneratorTest.cpp
     core/EnumsTest.cpp
     core/ErrorTest.cpp
+    core/LoadDemoTest.cpp
+    core/LoadTest.cpp
     core/PermissionsTest.cpp
     core/ValidationTest.cpp
     core/VersionTest.cpp
@@ -47,6 +49,7 @@ add_executable(fdss_tests
     services/CalendarServiceTest.cpp
     services/DemoDataServiceTest.cpp
     services/FakeClock.hpp
+    services/LoadServiceTest.cpp
     services/ServiceFixture.hpp
     services/SessionTest.cpp
     services/SetupServiceTest.cpp
@@ -74,6 +77,7 @@ add_executable(fdss_vm_tests
     viewmodels/CalendarViewModelTest.cpp
     viewmodels/ChangePinViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
+    viewmodels/LoadViewModelTest.cpp
     viewmodels/MatchEditorViewModelTest.cpp
     viewmodels/NavigationModelTest.cpp
     viewmodels/PlayerCardViewModelTest.cpp

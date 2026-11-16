@@ -36,6 +36,22 @@ QtObject {
 
         readonly property int lineWidth: 2
         readonly property int markerSize: 8
+
+        // The ratio bands of the load chart: the status colors (ok, warn, danger) at low alpha, so
+        // the line on top stays readable. The legend names each band with its numbers too.
+        readonly property color bandNormal: dark ? "#3322C55E" : "#2615803D"
+        readonly property color bandElevated: dark ? "#40F59E0B" : "#33B45309"
+        readonly property color bandHigh: dark ? "#40EF4444" : "#2EB91C1C"
+        // The ratio line, drawn over the bands.
+        readonly property color ratioLine: dark ? "#E7ECF4" : "#111827"
+        // Legend swatch of a line and a band; width of the tooltip; the day marker under the mouse.
+        readonly property int legendSwatchWidth: 18
+        readonly property int tooltipWidth: 240
+        readonly property int hoverMarkerWidth: 1
+        // Share of a day taken by its bar.
+        readonly property real barWidth: 0.7
+        // The least room for one label of a date axis.
+        readonly property int minTickSpacing: 56
     }
 
     // The size a window opens with and the smallest it can be made.
@@ -133,6 +149,9 @@ QtObject {
     // The bar beside the current section of the sidebar.
     readonly property int sidebarMarkerWidth: 3
     readonly property int badgeHeight: 24
+    // Added to a width measured from text (FontMetrics) for a column that must hold it: the
+    // measurement and the laid-out text may round and hint differently.
+    readonly property int measuredTextSlack: 4
     readonly property int emptyStateWidth: 480
     // Icon.qml draws its paths on a square of this side and scales it to the size asked for.
     readonly property int iconGrid: 24

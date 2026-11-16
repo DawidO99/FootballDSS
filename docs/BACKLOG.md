@@ -25,6 +25,8 @@
   testing, a planned absence may be a reason to keep the sheet open before the session (P09b)
 - Status segments of the training grid shift by a few pixels between rows, because the selected word is bold in
   `SegmentedControl` (P09b)
+- Remove the P03 spike view `SpikeChartsView.qml` and its Ctrl+Shift+G (Main.qml, qml_smoke, the mention in
+  AGENTS §6): `LoadChart` is the real chart now (ADR-006 consequence, P11 decision 10)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,

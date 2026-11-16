@@ -95,7 +95,7 @@ CMake targets:
 - `data/`: `DatabaseManager`, `migrations/`, `repositories/`, `readers/` (CSV, XLSX,
   StatsBomb, `.tactic.json`).
 - `services/`: one class per use case (`MatchDayService`, `ImportService`,
-  `LoadMonitoringService`, `LineupService`, `CapabilityService`, `AuthService`).
+  `LoadService`, `LineupService`, `CapabilityService`, `AuthService`).
   Services own transactions.
 - `viewmodels/`: QObject classes exposed to QML. Permissions are checked here AND in services.
 - `ui/`: `Main.qml`, `theme/`, `components/`, `views/`. Presentation only.

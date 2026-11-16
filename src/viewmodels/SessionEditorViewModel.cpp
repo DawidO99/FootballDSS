@@ -34,7 +34,8 @@ bool isEditorField(std::string_view field) {
 SessionEditorViewModel::SessionEditorViewModel(QObject* parent)
     : QObject(parent), m_calendar(ServiceRegistry::instance().calendar()),
       m_session(ServiceRegistry::instance().session()) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -212,7 +213,7 @@ bool SessionEditorViewModel::save() {
 }
 
 bool SessionEditorViewModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange) {
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit optionsChanged();
         emit errorsChanged();
     }

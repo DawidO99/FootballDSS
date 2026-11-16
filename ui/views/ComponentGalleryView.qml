@@ -45,6 +45,26 @@ Item {
             firstPrimaryButton.forceActiveFocus(Qt.TabFocusReason);
     }
 
+    // Four weeks of one player for LoadChart, as constant sample values (no load arithmetic in QML):
+    // three sessions and a match a week, a spike in the last week, and on day 14 a session and a match
+    // of the same load (the tooltip tells them apart by series, not by value).
+    readonly property var sampleLoad: ({
+            "labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28"],
+            "sessions": [0, 300, 0, 450, 240, 0, 0, 0, 300, 0, 450, 240, 0, 360, 0, 300, 0, 450, 240, 0, 0, 0, 600, 0, 900, 480, 0, 0],
+            "matches": [0, 0, 0, 0, 0, 0, 540, 0, 0, 0, 0, 0, 0, 360, 0, 0, 0, 0, 0, 0, 540, 0, 0, 0, 0, 0, 0, 810],
+            "acute": [0, 75, 56, 155, 176, 132, 234, 176, 207, 155, 229, 232, 174, 310, 233, 250, 187, 253, 250, 187, 275, 207, 305, 229, 397, 417, 313, 437],
+            "chronic": [0, 21, 19, 49, 62, 58, 91, 85, 100, 93, 117, 126, 117, 159, 148, 158, 147, 168, 173, 161, 187, 174, 204, 190, 239, 255, 238, 277],
+            // From day 15 on.
+            "ratio": [1.57, 1.58, 1.27, 1.5, 1.44, 1.16, 1.47, 1.18, 1.5, 1.21, 1.66, 1.63, 1.32, 1.58]
+        })
+    // The day with a session and a match of the same load.
+    readonly property int sampleEqualDay: 13
+
+    // Values by day as chart points, starting at the given day.
+    function samplePoints(values, firstDay) {
+        return values.map((value, index) => Qt.point(firstDay + index, value));
+    }
+
     readonly property var sampleWeek: {
         const day = (date, dayName, dateText, items, today) => ({
                     "date": date,
@@ -241,6 +261,7 @@ Item {
                 qsTr("Buttons & badges"),
                 qsTr("Form fields"),
                 qsTr("Data table"),
+                qsTr("Charts"),
                 qsTr("Containers & feedback")
             ]
 
@@ -1167,7 +1188,160 @@ Item {
                 }
             }
 
-            // Tab 3: Card, EmptyState, AppDialog and Toasts
+            // Tab 3: LoadStatusBadge, ChartLegend, ChartTooltip and LoadChart
+            ColumnLayout {
+                spacing: Theme.spacing.l
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacing.l
+
+                    Card {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignTop
+                        title: qsTr("LoadStatusBadge")
+
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacing.m
+
+                            Repeater {
+                                model: [
+                                    {
+                                        "key": "high",
+                                        "text": qsTr("High load")
+                                    },
+                                    {
+                                        "key": "elevated",
+                                        "text": qsTr("Elevated")
+                                    },
+                                    {
+                                        "key": "normal",
+                                        "text": qsTr("In range")
+                                    },
+                                    {
+                                        "key": "underloaded",
+                                        "text": qsTr("Underloaded")
+                                    },
+                                    {
+                                        "key": "notEnoughData",
+                                        "text": qsTr("Not enough data")
+                                    }
+                                ]
+
+                                delegate: LoadStatusBadge {
+                                    required property var modelData
+
+                                    statusKey: modelData.key
+                                    text: modelData.text
+                                }
+                            }
+                        }
+
+                        ChartLegend {
+                            Layout.fillWidth: true
+                            items: [
+                                {
+                                    "label": qsTr("Bar"),
+                                    "color": Theme.chart.series1,
+                                    "shape": "bar"
+                                },
+                                {
+                                    "label": qsTr("Outlined bar"),
+                                    "color": Theme.chart.series3,
+                                    "shape": "barOutline"
+                                },
+                                {
+                                    "label": qsTr("Line"),
+                                    "color": Theme.chart.series2,
+                                    "shape": "line"
+                                },
+                                {
+                                    "label": qsTr("Dashed line"),
+                                    "color": Theme.chart.series4,
+                                    "shape": "dashedLine"
+                                },
+                                {
+                                    "label": qsTr("Band"),
+                                    "color": Theme.chart.bandElevated,
+                                    "borderColor": Theme.warn,
+                                    "shape": "band"
+                                }
+                            ]
+                        }
+                    }
+
+                    Card {
+                        Layout.preferredWidth: Theme.chart.tooltipWidth + 2 * Theme.spacing.xl
+                        Layout.preferredHeight: tooltipSample.height + Theme.spacing.xxl * 2
+                        title: qsTr("ChartTooltip")
+
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+
+                            ChartTooltip {
+                                id: tooltipSample
+
+                                title: qsTr("Sample day")
+                                rows: [
+                                    {
+                                        "label": qsTr("Training"),
+                                        "value": "450",
+                                        "color": Theme.chart.series1,
+                                        "shape": "bar"
+                                    },
+                                    {
+                                        "label": qsTr("Acute load"),
+                                        "value": "368",
+                                        "color": Theme.chart.series2,
+                                        "shape": "line"
+                                    }
+                                ]
+                                visible: true
+                            }
+                        }
+                    }
+                }
+
+                Card {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    title: qsTr("LoadChart (sample data, hover a day)")
+
+                    LoadChart {
+                        objectName: "galleryLoadChart"
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        dayLabels: root.sampleLoad.labels
+                        sessionLoads: root.sampleLoad.sessions
+                        matchLoads: root.sampleLoad.matches
+                        acutePoints: root.samplePoints(root.sampleLoad.acute, 0)
+                        chronicPoints: root.samplePoints(root.sampleLoad.chronic, 0)
+                        ratioPoints: root.samplePoints(root.sampleLoad.ratio, 14)
+                        loadAxisMax: 1000
+                        loadAxisStep: 250
+                        ratioAxisMax: 2.5
+                        tooltipAt: index => ({
+                                    "title": root.sampleLoad.labels[index],
+                                    "rows": [
+                                        {
+                                            "key": "sessions",
+                                            "label": qsTr("Training"),
+                                            "value": String(root.sampleLoad.sessions[index])
+                                        },
+                                        {
+                                            "key": "matches",
+                                            "label": qsTr("Match"),
+                                            "value": String(root.sampleLoad.matches[index])
+                                        }
+                                    ]
+                                })
+                    }
+                }
+            }
+
+            // Tab 4: Card, EmptyState, AppDialog and Toasts
             GridLayout {
                 columns: 2
                 rowSpacing: Theme.spacing.l

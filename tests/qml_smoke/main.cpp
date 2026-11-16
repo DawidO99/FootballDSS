@@ -3,6 +3,7 @@
 // survive a restart.
 
 #include "../services/FakeClock.hpp"
+#include "core/demo/DemoGenerator.hpp"
 #include "core/domain/Club.hpp"
 #include "core/domain/Player.hpp"
 #include "core/domain/StaffUser.hpp"
@@ -14,6 +15,8 @@
 #include "data/repositories/TrainingRepository.hpp"
 #include "services/AuthService.hpp"
 #include "services/CalendarService.hpp"
+#include "services/DemoDataService.hpp"
+#include "services/LoadService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
@@ -25,10 +28,13 @@
 #include "viewmodels/CalendarWeekModel.hpp"
 #include "viewmodels/ChangePinViewModel.hpp"
 #include "viewmodels/LanguageManager.hpp"
+#include "viewmodels/LoadTexts.hpp"
+#include "viewmodels/LoadViewModel.hpp"
 #include "viewmodels/MatchEditorViewModel.hpp"
 #include "viewmodels/NavigationModel.hpp"
 #include "viewmodels/PlayerCardViewModel.hpp"
 #include "viewmodels/PlayerEditorViewModel.hpp"
+#include "viewmodels/PlayerLoadViewModel.hpp"
 #include "viewmodels/ProfilePickerViewModel.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/SessionEditorViewModel.hpp"
@@ -44,6 +50,8 @@
 #include <QDirIterator>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QFont>
+#include <QFontMetricsF>
 #include <QGuiApplication>
 #include <QImage>
 #include <QKeyEvent>
@@ -52,6 +60,7 @@
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
+#include <QQmlIncubationController>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QRectF>
@@ -72,6 +81,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -83,10 +93,12 @@ using fdss::viewmodels::AvailabilityViewModel;
 using fdss::viewmodels::CalendarViewModel;
 using fdss::viewmodels::ChangePinViewModel;
 using fdss::viewmodels::LanguageManager;
+using fdss::viewmodels::LoadViewModel;
 using fdss::viewmodels::MatchEditorViewModel;
 using fdss::viewmodels::NavigationModel;
 using fdss::viewmodels::PlayerCardViewModel;
 using fdss::viewmodels::PlayerEditorViewModel;
+using fdss::viewmodels::PlayerLoadViewModel;
 using fdss::viewmodels::ProfilePickerViewModel;
 using fdss::viewmodels::ServiceRegistry;
 using fdss::viewmodels::SessionEditorViewModel;
@@ -183,6 +195,11 @@ void settle() {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 }
 
+// Polishes the layouts and renders: the geometry read after it is the one on screen.
+// processEvents() alone reaches a frame only when the render loop's timer has fired (see
+// exerciseTileScrolling).
+void renderFrame(QQuickWindow* window) { window->grabWindow(); }
+
 void saveScreenshot(QQuickWindow* window, const QString& directory, const QString& name) {
     const QString path = QDir(directory).filePath(name);
     if (!window->grabWindow().save(path)) {
@@ -190,10 +207,73 @@ void saveScreenshot(QQuickWindow* window, const QString& directory, const QStrin
     }
 }
 
+QQuickItem* findByObjectName(QQuickItem* item, const QString& name);
+
+// P11 review: hovering the first and the last day of the sample LoadChart, and the day whose
+// session and match have the same load: the tooltip names that day and puts each value under its
+// own series (found by the day's index, not by the value).
+void expectLoadChartTooltips(QQuickWindow* window, QQuickItem* gallery) {
+    auto* chart = findByObjectName(gallery, QStringLiteral("galleryLoadChart"));
+    auto* view =
+        chart != nullptr ? findByObjectName(chart, QStringLiteral("loadChartView")) : nullptr;
+    auto* tooltip =
+        chart != nullptr ? findByObjectName(chart, QStringLiteral("chartTooltip")) : nullptr;
+    if (view == nullptr || tooltip == nullptr) {
+        fail("the gallery has no LoadChart with a tooltip");
+        return;
+    }
+    const QVariantMap sample = gallery->property("sampleLoad").toMap();
+    const QVariantList labels = sample.value(QStringLiteral("labels")).toList();
+    const QVariantList sessions = sample.value(QStringLiteral("sessions")).toList();
+    const QVariantList matches = sample.value(QStringLiteral("matches")).toList();
+    const int equalDay = gallery->property("sampleEqualDay").toInt();
+    if (labels.isEmpty() || sessions.value(equalDay) != matches.value(equalDay)) {
+        fail("the sample load has no day with equal series");
+        return;
+    }
+    const auto move = [window](QPointF scene) {
+        QMouseEvent event(QEvent::MouseMove, scene, scene, window->mapToGlobal(scene), Qt::NoButton,
+                          Qt::NoButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(window, &event);
+        settle();
+    };
+    renderFrame(window);
+    const QRectF area = view->property("plotArea").toRectF();
+    const auto days = static_cast<qreal>(labels.size());
+    for (const int day : {0, static_cast<int>(labels.size()) - 1, equalDay}) {
+        move(view->mapToScene(
+            QPointF(area.x() + ((day + 0.5) * area.width() / days), area.center().y())));
+        if (chart->property("hoveredIndex").toInt() != day || !tooltip->isVisible()) {
+            fail("hovering a day of the load chart does not pick that day");
+            continue;
+        }
+        if (tooltip->property("title").toString() != labels.at(day).toString()) {
+            fail("the load chart tooltip names another day");
+        }
+        const QVariantList rows = tooltip->property("rows").toList();
+        const QVariantMap first = rows.value(0).toMap();
+        const QVariantMap second = rows.value(1).toMap();
+        if (first.value(QStringLiteral("key")) != QStringLiteral("sessions") ||
+            first.value(QStringLiteral("shape")) != QStringLiteral("bar") ||
+            first.value(QStringLiteral("value")).toString() != sessions.at(day).toString() ||
+            second.value(QStringLiteral("key")) != QStringLiteral("matches") ||
+            second.value(QStringLiteral("shape")) != QStringLiteral("barOutline") ||
+            second.value(QStringLiteral("value")).toString() != matches.at(day).toString()) {
+            fail("the load chart tooltip puts a value under the wrong series");
+        }
+    }
+    // Away from the chart: the tooltip goes.
+    move(QPointF(0, 0));
+    if (tooltip->isVisible() || chart->property("hoveredIndex").toInt() != -1) {
+        fail("the load chart tooltip stays after the pointer left");
+    }
+}
+
 void exerciseComponentGallery(QQmlApplicationEngine& engine, QQuickWindow* window,
                               const QString& language, const QString& theme,
                               const QString& screenshotDirectory) {
-    constexpr std::array<const char*, 4> kTabNames{"buttons", "inputs", "table", "feedback"};
+    constexpr std::array<const char*, 5> kTabNames{"buttons", "inputs", "table", "charts",
+                                                   "feedback"};
 
     window->setProperty("componentGalleryOpen", true);
     settle();
@@ -221,6 +301,9 @@ void exerciseComponentGallery(QQmlApplicationEngine& engine, QQuickWindow* windo
         gallery->setProperty("currentTabIndex", static_cast<int>(tab));
         settle();
 
+        if (QLatin1StringView(kTabNames.at(tab)) == QLatin1StringView("charts")) {
+            expectLoadChartTooltips(window, gallery);
+        }
         if (tab == kTabNames.size() - 1) {
             QMetaObject::invokeMethod(gallery, "openSampleDialog");
             QMetaObject::invokeMethod(gallery, "triggerSampleUndoToast");
@@ -3145,6 +3228,443 @@ void exerciseFailedDemoSetup(QQmlApplicationEngine& engine, fdss::data::Database
     }
 }
 
+// Packet P11: the Load screen. The computation runs on the thread pool, so every step waits for it.
+struct LoadScreen {
+    QQuickWindow* window = nullptr;
+    NavigationModel* navigation = nullptr;
+    QQuickItem* view = nullptr;
+    LoadViewModel* load = nullptr;
+
+    [[nodiscard]] QQuickItem* find(const QString& name) const {
+        return findByObjectName(view, name);
+    }
+};
+
+// Runs `start`, which must start a read of the team load, while the results are held: the read is
+// still running when `during` looks at the screen, whatever the speed of the runner (CI review of
+// P11: a result ready before the viewmodel attached its continuation came in inside the call that
+// started the read). Then the read is let go and waited for.
+template <class Start, class During>
+bool readLoad(LoadViewModel* load, Start start, During during, const char* what) {
+    fdss::services::LoadService& service = ServiceRegistry::instance().load();
+    service.holdResults();
+    start();
+    const QByteArray notStarted = what + QByteArrayLiteral(": no read of the load started");
+    const bool started = waitUntil([load] { return load->busy(); }, notStarted.constData());
+    if (started) {
+        settle();
+        during();
+    }
+    service.releaseResults();
+    const QByteArray notDone = what + QByteArrayLiteral(": the read of the load did not finish");
+    if (!started || !waitUntil([load] { return !load->busy(); }, notDone.constData())) {
+        return false;
+    }
+    settle();
+    return true;
+}
+
+// Goes to the section (again, so it reads anew) and waits for that read.
+std::optional<LoadScreen> openLoadScreen(QQmlApplicationEngine& engine) {
+    LoadScreen screen;
+    screen.window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    screen.navigation = screen.window->property("navigation").value<NavigationModel*>();
+    // Every section is loaded with the shell, the hidden ones too.
+    screen.view = findQmlItem(screen.window->contentItem(), "LoadView");
+    if (screen.view == nullptr) {
+        fail("the load view is not loaded");
+        return std::nullopt;
+    }
+    screen.load = screen.view->property("viewModel").value<LoadViewModel*>();
+    if (screen.load == nullptr) {
+        fail("the load view has no viewmodel");
+        return std::nullopt;
+    }
+    const bool read = readLoad(
+        screen.load,
+        [&screen] {
+            screen.navigation->activate(QStringLiteral("dashboard"));
+            settle();
+            screen.navigation->activate(QStringLiteral("load"));
+        },
+        [] {}, "opening the load screen");
+    if (!read) {
+        return std::nullopt;
+    }
+    return screen;
+}
+
+PlayerLoadViewModel* waitForPlayerLoad(QQuickItem* panel, const char* reason) {
+    auto* player =
+        panel != nullptr ? panel->property("viewModel").value<PlayerLoadViewModel*>() : nullptr;
+    if (player == nullptr) {
+        fail(reason);
+        return nullptr;
+    }
+    if (!waitUntil([player] { return !player->busy(); }, reason)) {
+        return nullptr;
+    }
+    settle();
+    return player;
+}
+
+// The language a load scenario starts in: the one an earlier scenario left (P11 review: the
+// checks must not depend on it), or the default of a run of the load scenarios alone (nullopt).
+void startLoadLanguage(QQmlApplicationEngine& engine, const std::optional<QString>& language) {
+    if (!language) {
+        return;
+    }
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    languages->setLanguage(*language);
+    settle();
+}
+
+// Empty club: the table says what to do; then three days of RPE: grey with a hint, no green.
+void exerciseLoadNewClub(QQmlApplicationEngine& engine, const std::optional<QString>& language,
+                         const QString& screenshotDirectory) {
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    settle();
+    startLoadLanguage(engine, language);
+    auto screen = openLoadScreen(engine);
+    if (!screen) {
+        return;
+    }
+    if (screen->load->playerCount() != 0) {
+        fail("an empty club shows players on the load screen");
+    }
+    grabOrSave(screen->window, screenshotDirectory, QStringLiteral("load-empty.png"));
+
+    const fdss::core::TeamId team = smokeTeam();
+    std::vector<fdss::core::PlayerId> players;
+    for (const auto& [first, last, number] :
+         {std::tuple{"Jan", "Kowalski", 7}, std::tuple{"Adam", "Nowak", 9}}) {
+        fdss::core::PlayerDraft draft;
+        draft.firstName = first;
+        draft.lastName = last;
+        draft.shirtNumber = number;
+        const auto id = ServiceRegistry::instance().squad().addPlayer(team, draft);
+        if (!id) {
+            fail("cannot add a player for the load screen");
+            return;
+        }
+        players.push_back(*id);
+    }
+    for (const int ago : {5, 3, 1}) {
+        fdss::core::TrainingSessionDraft draft;
+        draft.date =
+            fdss::core::Date{std::chrono::sys_days{g_clock->today()} - std::chrono::days{ago}};
+        const auto session = ServiceRegistry::instance().calendar().addSession(team, draft);
+        std::vector<fdss::core::AttendanceDraft> rows;
+        for (const fdss::core::PlayerId player : players) {
+            fdss::core::AttendanceDraft row;
+            row.playerId = player;
+            row.rpe = 6;
+            rows.push_back(row);
+        }
+        if (!session || !ServiceRegistry::instance().training().saveAttendance(*session, rows)) {
+            fail("cannot save RPE for the load screen");
+            return;
+        }
+    }
+    screen = openLoadScreen(engine);
+    if (!screen) {
+        return;
+    }
+    if (screen->load->playerCount() != 2) {
+        fail("the load screen does not show the two players");
+    }
+    for (int row = 0; row < screen->load->players()->rowCount(); ++row) {
+        if (screen->load->rowAt(row).value(QStringLiteral("statusKey")).toString() !=
+            QLatin1StringView("notEnoughData")) {
+            fail("three days of RPE give a status other than not enough data");
+        }
+    }
+    expectFlag(screen->find(QStringLiteral("teamHint")), "visible", true,
+               "three days of RPE, and no hint what to enter");
+    auto* panel = screen->find(QStringLiteral("loadPlayerPanel"));
+    if (auto* player = waitForPlayerLoad(panel, "the panel of a new player did not load")) {
+        if (!player->hasData() || player->baselineReady()) {
+            fail("the panel of a new player is not acute only");
+        }
+        expectFlag(findByObjectName(panel, QStringLiteral("ratioChartView")), "visible", false,
+                   "the ratio panel is shown without a baseline");
+    }
+    grabOrSave(screen->window, screenshotDirectory, QStringLiteral("load-new-club.png"));
+}
+
+// P11 review and CI: at 1280×720 with the sidebar expanded, the status cell holds the longest short
+// status of the language with the widest day beside it, in the font of the machine and in a wider
+// one: the column is measured in the font (a width in pixels did not fit the fonts of CI). Checked
+// in a real cell of the table, whose badge is given each text in turn; a read then restores the
+// bindings.
+void expectLoadStatusesFit(QQmlApplicationEngine& engine, LoadScreen& screen) {
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    const QString startLanguage = languages->language();
+    if (screen.window->property("sidebarCollapsed").toBool()) {
+        fail("the sidebar is collapsed for the status width check");
+    }
+    const auto startFont = screen.window->property("font").value<QFont>();
+    QFont wideFont = startFont;
+    constexpr qreal kWiderLetters = 2;
+    wideFont.setLetterSpacing(QFont::AbsoluteSpacing, kWiderLetters);
+
+    const auto fits = [&screen](const QString& language, const QFont& font) {
+        auto* badge = screen.find(QStringLiteral("loadStatus_0"));
+        QQuickItem* cell = badge != nullptr ? badge->parentItem() : nullptr;
+        auto* note =
+            badge != nullptr ? findByObjectName(badge, QStringLiteral("loadStatusNote")) : nullptr;
+        if (cell == nullptr || note == nullptr) {
+            fail("the load table has no status cell");
+            return false;
+        }
+        // The widest day in the font of the cell.
+        const QFontMetricsF metrics(note->property("font").value<QFont>());
+        const QStringList days = screen.load->asOfShortSamples();
+        const auto widestDay = std::ranges::max_element(
+            days, {}, [&metrics](const QString& day) { return metrics.horizontalAdvance(day); });
+        if (widestDay == days.end()) {
+            fail("the load screen has no days to measure");
+            return false;
+        }
+        bool allFit = true;
+        for (const auto status :
+             {fdss::core::LoadStatus::High, fdss::core::LoadStatus::Elevated,
+              fdss::core::LoadStatus::Normal, fdss::core::LoadStatus::Underloaded,
+              fdss::core::LoadStatus::NotEnoughData}) {
+            badge->setProperty("statusKey", fdss::viewmodels::LoadTexts::statusKey(status));
+            badge->setProperty("text", fdss::viewmodels::LoadTexts::statusShortName(status));
+            badge->setProperty("note", *widestDay);
+            // A frame lays the rows of the badge out (polish); events alone may not.
+            renderFrame(screen.window);
+            const qreal right = badge->mapToItem(cell, QPointF(badge->implicitWidth(), 0)).x();
+            if (badge->implicitWidth() > cell->width() || right > cell->width()) {
+                qWarning("qml_smoke: status '%s' with the day '%s' (%s, letter spacing %.0f) needs "
+                         "%.0f px, the cell has %.0f",
+                         qUtf8Printable(badge->property("text").toString()),
+                         qUtf8Printable(*widestDay), qUtf8Printable(language), font.letterSpacing(),
+                         badge->implicitWidth(), cell->width());
+                allFit = false;
+            }
+        }
+        return allFit;
+    };
+    bool allFit = true;
+    for (const QString& language : {QStringLiteral("pl"), QStringLiteral("en")}) {
+        for (const QFont& font : {startFont, wideFont}) {
+            languages->setLanguage(language);
+            screen.window->setProperty("font", font);
+            settle();
+            renderFrame(screen.window);
+            allFit = fits(language, font) && allFit;
+        }
+    }
+    if (!allFit) {
+        fail("a load status does not fit its column at the minimum window");
+    }
+    languages->setLanguage(startLanguage);
+    screen.window->setProperty("font", startFont);
+    settle();
+    readLoad(screen.load, [&screen] { screen.load->reload(); }, [] {}, "after the width check");
+}
+
+// P11 review: navigationArgs.playerId arrives while the table is read, for a player the status
+// filter hides: the filter is cleared and that player selected after the read, not the first row.
+// The read is held while the screen is checked, so nothing depends on the speed of the runner.
+void exerciseLoadNavigation(QQmlApplicationEngine& engine, LoadScreen& screen) {
+    LoadViewModel* load = screen.load;
+    // Rows beyond the visible ones are created asynchronously, and offscreen only frames move that
+    // on: finish it, so the filter below does not cancel a row that is no longer there (a Qt
+    // warning).
+    if (QQmlIncubationController* incubation = engine.incubationController()) {
+        incubation->incubateFor(1000);
+    }
+    settle();
+    qint64 requested = 0;
+    for (int row = load->players()->rowCount() - 1; row >= 0 && requested == 0; --row) {
+        if (load->rowAt(row).value(QStringLiteral("statusKey")).toString() !=
+            QLatin1StringView("high")) {
+            requested = load->rowAt(row).value(QStringLiteral("playerId")).toLongLong();
+        }
+    }
+    load->setStatusFilter(QStringLiteral("high"));
+    settle();
+    if (requested == 0 || load->rowOf(requested) >= 0) {
+        fail("the navigation check has no player hidden by the filter");
+        return;
+    }
+    const auto selected = [&screen] {
+        return screen.view->property("selectedPlayer").toMap().value(QStringLiteral("playerId"));
+    };
+    const bool read = readLoad(
+        load,
+        [&screen, requested] {
+            screen.navigation->activate(QStringLiteral("dashboard"));
+            settle();
+            screen.navigation->activate(QStringLiteral("load"),
+                                        QVariantMap{{QStringLiteral("playerId"), requested}});
+        },
+        [load, requested, &selected] {
+            // During the read the request waits: the old rows know nothing of it.
+            if (load->statusFilter() != QLatin1StringView("high") ||
+                selected().toLongLong() == requested) {
+                fail("navigationArgs.playerId was applied before the read finished");
+            }
+        },
+        "the navigation to a player");
+    if (!read) {
+        return;
+    }
+    if (load->statusFilter() != QLatin1StringView("all")) {
+        fail("a requested player hidden by the filter did not clear it");
+    }
+    if (selected() != requested) {
+        fail("navigationArgs.playerId did not select that player after the read");
+    }
+    auto* panel = screen.find(QStringLiteral("loadPlayerPanel"));
+    if (auto* player = waitForPlayerLoad(panel, "the panel of the requested player did not load")) {
+        if (player->playerId() != requested) {
+            fail("the panel does not show the requested player");
+        }
+    }
+}
+
+// Done when: the demo club shows one red player with a chart that explains why, on the Load screen
+// and on the player card, in both languages and themes and at the minimum window.
+void exerciseLoadDemo(QQmlApplicationEngine& engine, const std::optional<QString>& language,
+                      const QString& screenshotDirectory) {
+    if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
+        fail("cannot load the demo club for the load screen");
+        return;
+    }
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    settle();
+    startLoadLanguage(engine, language);
+    auto screen = openLoadScreen(engine);
+    if (!screen) {
+        return;
+    }
+    LoadViewModel* load = screen->load;
+    if (load->playerCount() != fdss::core::demo::kActivePlayers) {
+        fail("the load screen does not show the active players of the demo club");
+        return;
+    }
+    // Sorted by status: the red player first, selected, and nobody grey.
+    int red = 0;
+    for (int row = 0; row < load->players()->rowCount(); ++row) {
+        const QString key = load->rowAt(row).value(QStringLiteral("statusKey")).toString();
+        red += key == QLatin1StringView("high") ? 1 : 0;
+        if (key == QLatin1StringView("notEnoughData")) {
+            fail("a demo player has not enough data");
+        }
+    }
+    if (red < 1 ||
+        load->rowAt(0).value(QStringLiteral("statusKey")).toString() != QLatin1StringView("high")) {
+        fail("the demo club has no red player at the top of the load table");
+    }
+    const qint64 spike = load->rowAt(0).value(QStringLiteral("playerId")).toLongLong();
+    if (screen->view->property("selectedPlayer").toMap().value(QStringLiteral("playerId")) !=
+        spike) {
+        fail("the most urgent player is not selected");
+    }
+    auto* panel = screen->find(QStringLiteral("loadPlayerPanel"));
+    auto* player = waitForPlayerLoad(panel, "the panel of the red player did not load");
+    if (player == nullptr) {
+        return;
+    }
+    // Keys, not words: the language is whatever an earlier scenario left.
+    if (player->statusKey() != QLatin1StringView("high") || player->ratioPoints().isEmpty() ||
+        !player->reasonKeys().contains(QStringLiteral("ratioHigh")) ||
+        player->explanation().isEmpty()) {
+        fail("the panel of the red player does not explain why");
+    }
+    auto* chart = findByObjectName(panel, QStringLiteral("loadChart"));
+    expectFlag(chart, "visible", true, "the red player has no chart");
+    expectFlag(findByObjectName(panel, QStringLiteral("ratioChartView")), "visible", true,
+               "the red player has no ratio panel");
+
+    // Hover over the last day with data: the tooltip finds the day by its index.
+    if (auto* loadView = findByObjectName(panel, QStringLiteral("loadChartView"))) {
+        renderFrame(screen->window);
+        const QRectF area = loadView->property("plotArea").toRectF();
+        const QPointF inside(area.x() + area.width() * 0.97, area.y() + area.height() / 2);
+        const QPointF scene = loadView->mapToScene(inside);
+        QMouseEvent move(QEvent::MouseMove, scene, scene, screen->window->mapToGlobal(scene),
+                         Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(screen->window, &move);
+        settle();
+        if (chart->property("hoveredIndex").toInt() < 0) {
+            fail("hovering the chart does not pick a day");
+        }
+    }
+
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                            QStringLiteral("AppSettings"));
+    const QString startLanguage = languages->language();
+    const bool startDark = settings->darkTheme();
+    for (const QString& language : {QStringLiteral("pl"), QStringLiteral("en")}) {
+        for (const bool dark : {true, false}) {
+            languages->setLanguage(language);
+            settings->setDarkTheme(dark);
+            settle();
+            grabOrSave(screen->window, screenshotDirectory,
+                       QStringLiteral("load-%1-%2.png")
+                           .arg(language, dark ? QStringLiteral("dark") : QStringLiteral("light")));
+        }
+    }
+    languages->setLanguage(startLanguage);
+    settings->setDarkTheme(startDark);
+    settle();
+
+    // The minimum window keeps the table and a readable chart side by side.
+    const QSize originalSize = screen->window->size();
+    screen->window->resize(1280, 720);
+    settle();
+    renderFrame(screen->window);
+    auto* table = screen->find(QStringLiteral("loadTable"));
+    if (table == nullptr || chart->height() < 150 || chart->width() < 300 ||
+        table->mapToScene(QPointF(table->width(), 0)).x() > panel->mapToScene(QPointF(0, 0)).x()) {
+        fail("the load screen does not fit the minimum window");
+    }
+    grabOrSave(screen->window, screenshotDirectory, QStringLiteral("load-minimum.png"));
+    expectLoadStatusesFit(engine, *screen);
+    screen->window->resize(originalSize);
+    settle();
+
+    exerciseLoadNavigation(engine, *screen);
+
+    // The same panel on the "Load" tab of the player card.
+    screen->navigation->activate(QStringLiteral("squad"),
+                                 QVariantMap{{QStringLiteral("playerId"), spike}});
+    settle();
+    auto* card = findQmlItem(screen->window->contentItem(), "PlayerCardView");
+    auto* tabs = card != nullptr ? findQmlItem(card, "AppTabs") : nullptr;
+    if (tabs == nullptr) {
+        fail("the player card is not there");
+        return;
+    }
+    tabs->setProperty("currentIndex", 1);
+    settle();
+    auto* cardPanel = card->property("loadPanel").value<QQuickItem*>();
+    if (auto* cardLoad = waitForPlayerLoad(cardPanel, "the load tab of the card did not load")) {
+        if (cardLoad->playerId() != spike || cardLoad->statusKey() != QLatin1StringView("high")) {
+            fail("the load tab of the card does not show the red player");
+        }
+    }
+    grabOrSave(screen->window, screenshotDirectory, QStringLiteral("card-load.png"));
+}
+
 int main(int argc, char* argv[]) {
     // Deterministic offscreen rendering without a GPU.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
@@ -3176,9 +3696,16 @@ int main(int argc, char* argv[]) {
             screenshotDirectory = arguments.at(flag + 1);
         }
 
+        // qml_smoke --only-load runs the load scenarios alone, in the default language of the
+        // machine (P11 review: they must not depend on an earlier scenario).
+        const bool onlyLoad = arguments.contains(QStringLiteral("--only-load"));
+
         std::optional<UiPreferences> leftBehind;
         for (const AppState::State state :
              {AppState::State::NeedsSetup, AppState::State::NeedsLogin, AppState::State::Ready}) {
+            if (onlyLoad) {
+                break;
+            }
             // Same order as src/main.cpp: the registry is installed before any QML loads, and goes
             // after the engine, whose singletons hold on to its services.
             fdss::data::DatabaseManager* const database = installRegistry(state);
@@ -3207,7 +3734,9 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (installRegistry(AppState::State::Ready) == nullptr) {
+        if (onlyLoad) {
+            // Nothing ran before.
+        } else if (installRegistry(AppState::State::Ready) == nullptr) {
             fail("cannot install the service registry");
         } else {
             {
@@ -3221,10 +3750,14 @@ int main(int argc, char* argv[]) {
         QGuiApplication::setQuitOnLastWindowClosed(false);
         for (const CloseCase closeCase : {CloseCase::Clean, CloseCase::StayThenDiscard,
                                           CloseCase::Save, CloseCase::FailedSaveThenDiscard}) {
-            exerciseWindowClosing(closeCase);
+            if (!onlyLoad) {
+                exerciseWindowClosing(closeCase);
+            }
         }
         QGuiApplication::setQuitOnLastWindowClosed(true);
-        if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
+        if (onlyLoad) {
+            // Done.
+        } else if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
             fail("cannot install the service registry");
         } else {
             {
@@ -3236,7 +3769,9 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
+        if (onlyLoad) {
+            // Done.
+        } else if (installRegistry(AppState::State::NeedsSetup) == nullptr) {
             fail("cannot install the service registry");
         } else {
             {
@@ -3246,7 +3781,10 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (auto* database = installRegistry(AppState::State::NeedsSetup); database == nullptr) {
+        if (onlyLoad) {
+            // Done.
+        } else if (auto* database = installRegistry(AppState::State::NeedsSetup);
+                   database == nullptr) {
             fail("cannot install the service registry");
         } else {
             {
@@ -3259,9 +3797,29 @@ int main(int argc, char* argv[]) {
         if (leftBehind) {
             verifyPreferencesSurviveRestart(*leftBehind);
         }
+        // Last: the load scenarios change the language they start in.
+        // In the full run they start in Polish, as an earlier scenario may leave it.
+        const std::optional<QString> loadLanguage =
+            onlyLoad ? std::nullopt : std::optional(QStringLiteral("pl"));
+        for (const bool demo : {false, true}) {
+            if (installRegistry(AppState::State::Ready) == nullptr) {
+                fail("cannot install the service registry");
+                continue;
+            }
+            {
+                QQmlApplicationEngine engine;
+                if (demo) {
+                    exerciseLoadDemo(engine, loadLanguage, screenshotDirectory);
+                } else {
+                    exerciseLoadNewClub(engine, loadLanguage, screenshotDirectory);
+                }
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
         QSettings().clear();
 
-        if (viewCount == 0) {
+        if (viewCount == 0 && !onlyLoad) {
             fail("no views found in ui/views/");
         }
     } // Include application teardown messages in the final result.

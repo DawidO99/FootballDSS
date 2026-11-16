@@ -61,7 +61,8 @@ SquadViewModel::SquadViewModel(QObject* parent)
       m_clock(ServiceRegistry::instance().clock()), m_source(new SquadListModel(this)),
       m_filter(new SquadFilterModel(m_source, this)), m_statusGroup(kAll), m_positionGroup(kAll),
       m_sortRole(QStringLiteral("number")) {
-    // Installing a translator sends QEvent::LanguageChange to the application object only.
+    // Installing a translator sends QEvent::LanguageChange to the application object, which only
+    // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
     if (QCoreApplication* app = QCoreApplication::instance()) {
         app->installEventFilter(this);
     }
@@ -231,7 +232,7 @@ bool SquadViewModel::unarchive(qint64 playerId) {
 }
 
 bool SquadViewModel::eventFilter(QObject* watched, QEvent* event) {
-    if (event->type() == QEvent::LanguageChange) {
+    if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit optionsChanged();
         emit loadErrorChanged();
     }

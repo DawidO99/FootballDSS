@@ -43,6 +43,8 @@ qt_add_qml_module(fdss_ui
         ui/components/AvailabilityDialog.qml
         ui/components/CalendarWeekGrid.qml
         ui/components/Card.qml
+        ui/components/ChartLegend.qml
+        ui/components/ChartTooltip.qml
         ui/components/CheckBoxField.qml
         ui/components/DangerButton.qml
         ui/components/DataTable.qml
@@ -55,6 +57,8 @@ qt_add_qml_module(fdss_ui
         ui/components/Icon.qml
         ui/components/IconButton.qml
         ui/components/LanguageThemeSwitch.qml
+        ui/components/LoadChart.qml
+        ui/components/LoadStatusBadge.qml
         ui/components/MatchEditorDialog.qml
         ui/components/MatchStatusBadge.qml
         ui/components/MinutesCell.qml
@@ -65,6 +69,7 @@ qt_add_qml_module(fdss_ui
         ui/components/PinPad.qml
         ui/components/PlainToolTip.qml
         ui/components/PlayerEditorDialog.qml
+        ui/components/PlayerLoadPanel.qml
         ui/components/PlayerStatusBadge.qml
         ui/components/PrimaryButton.qml
         ui/components/ProfileTile.qml
@@ -124,6 +129,14 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/IsoDates.cpp
         src/viewmodels/LanguageManager.hpp
         src/viewmodels/LanguageManager.cpp
+        src/viewmodels/LoadFilterModel.hpp
+        src/viewmodels/LoadFilterModel.cpp
+        src/viewmodels/LoadListModel.hpp
+        src/viewmodels/LoadListModel.cpp
+        src/viewmodels/LoadTexts.hpp
+        src/viewmodels/LoadTexts.cpp
+        src/viewmodels/LoadViewModel.hpp
+        src/viewmodels/LoadViewModel.cpp
         src/viewmodels/LockCountdown.hpp
         src/viewmodels/LockCountdown.cpp
         src/viewmodels/MatchEditorViewModel.hpp
@@ -136,6 +149,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/PlayerCardViewModel.cpp
         src/viewmodels/PlayerEditorViewModel.hpp
         src/viewmodels/PlayerEditorViewModel.cpp
+        src/viewmodels/PlayerLoadViewModel.hpp
+        src/viewmodels/PlayerLoadViewModel.cpp
         src/viewmodels/QmlValues.hpp
         src/viewmodels/ProfilePickerViewModel.hpp
         src/viewmodels/ProfilePickerViewModel.cpp
