@@ -3,6 +3,7 @@
 #include "data/repositories/RepositorySupport.hpp"
 
 #include <string_view>
+#include <utility>
 
 namespace fdss::data {
 
@@ -10,19 +11,24 @@ namespace {
 
 ClockStepRow readStep(RowReader& row) {
     ClockStepRow step;
-    step.step = row.enumeration<core::ClockStep>();
+    step.step.period = row.integer();
+    step.step.kind = row.enumeration<core::ClockStepKind>();
     // `at` is NOT NULL, so an empty value cannot come back.
     step.at = row.optionalTimestamp().value_or(core::Timestamp{});
-    step.afterEvent = row.optionalId<core::MatchEventId>();
+    step.seq = row.integer();
     return step;
 }
 
+const auto kSelectStep = QStringLiteral("period, kind, at, seq");
+
 } // namespace
 
-core::Status MatchLiveRepository::create(core::MatchId match, int halfLength) {
-    const auto id = insertRow(
-        m_db, QStringLiteral("INSERT INTO match_live (match_id, half_length_min) VALUES (?, ?)"),
-        {idValue(match), halfLength}, "create live match");
+core::Status MatchLiveRepository::create(core::MatchId match, core::MatchFormat format) {
+    const auto id =
+        insertRow(m_db,
+                  QStringLiteral("INSERT INTO match_live (match_id, periods, "
+                                 "period_length) VALUES (?, ?, ?)"),
+                  {idValue(match), format.periods, format.periodLength}, "create live match");
     if (!id) {
         return std::unexpected(id.error());
     }
@@ -36,46 +42,77 @@ core::Status MatchLiveRepository::remove(core::MatchId match) {
 
 core::Result<std::optional<LiveMatchRow>> MatchLiveRepository::find(core::MatchId match) const {
     constexpr std::string_view kContext = "find live match";
-    auto halfLength =
-        selectAll(m_db, QStringLiteral("SELECT half_length_min FROM match_live WHERE match_id = ?"),
-                  {idValue(match)}, kContext, [](RowReader& row) { return row.integer(); });
-    if (!halfLength) {
-        return std::unexpected(halfLength.error());
+    auto rows = selectAll(m_db,
+                          QStringLiteral("SELECT periods, period_length, finished_seq, "
+                                         "ended_early FROM match_live WHERE match_id = ?"),
+                          {idValue(match)}, kContext, [](RowReader& row) {
+                              LiveMatchRow live;
+                              live.format.periods = row.integer();
+                              live.format.periodLength = row.integer();
+                              live.finishedSeq = row.optionalInteger();
+                              live.endedEarly = row.boolean();
+                              return live;
+                          });
+    if (!rows) {
+        return std::unexpected(rows.error());
     }
-    if (halfLength->empty()) {
+    if (rows->empty()) {
         return std::optional<LiveMatchRow>{};
     }
     auto steps = selectAll(m_db,
-                           QStringLiteral("SELECT step, at, after_event_id FROM match_clock_step "
-                                          "WHERE match_id = ? ORDER BY id"),
+                           QStringLiteral("SELECT ") + kSelectStep +
+                               QStringLiteral(" FROM match_clock_step WHERE match_id = ? "
+                                              "ORDER BY period, kind = 'end', id"),
                            {idValue(match)}, kContext, readStep);
     if (!steps) {
         return std::unexpected(steps.error());
     }
-    return std::optional<LiveMatchRow>{LiveMatchRow{halfLength->front(), std::move(*steps)}};
+    LiveMatchRow live = std::move(rows->front());
+    live.steps = std::move(*steps);
+    return std::optional<LiveMatchRow>{std::move(live)};
 }
 
 core::Status MatchLiveRepository::appendStep(core::MatchId match, core::ClockStep step,
-                                             core::Timestamp at,
-                                             std::optional<core::MatchEventId> afterEvent) {
-    const auto id = insertRow(
-        m_db,
-        QStringLiteral("INSERT INTO match_clock_step (match_id, step, at, "
-                       "after_event_id) VALUES (?, ?, ?, ?)"),
-        {idValue(match), enumValue(step), toIsoTimestamp(at), optionalIdValue(afterEvent)},
-        "append clock step");
+                                             core::Timestamp at, int seq) {
+    const auto id =
+        insertRow(m_db,
+                  QStringLiteral("INSERT INTO match_clock_step (match_id, period, kind, "
+                                 "at, seq) VALUES (?, ?, ?, ?, ?)"),
+                  {idValue(match), step.period, enumValue(step.kind), toIsoTimestamp(at), seq},
+                  "append clock step");
     if (!id) {
         return std::unexpected(id.error());
     }
     return {};
 }
 
-core::Result<ClockStepRow> MatchLiveRepository::deleteLastStep(core::MatchId match) {
-    return selectOne(m_db,
-                     QStringLiteral("DELETE FROM match_clock_step WHERE id = "
-                                    "(SELECT MAX(id) FROM match_clock_step WHERE match_id = ?) "
-                                    "RETURNING step, at, after_event_id"),
-                     {idValue(match)}, "delete last clock step", readStep);
+core::Result<std::vector<ClockStepRow>> MatchLiveRepository::deleteSteps(core::MatchId match,
+                                                                         int seq) {
+    return selectAll(m_db,
+                     QStringLiteral("DELETE FROM match_clock_step WHERE match_id = ? AND seq = ? "
+                                    "RETURNING ") +
+                         kSelectStep,
+                     {idValue(match), seq}, "delete clock steps", readStep);
+}
+
+core::Status MatchLiveRepository::setFinished(core::MatchId match, std::optional<int> seq,
+                                              bool endedEarly) {
+    return changeRow(m_db,
+                     QStringLiteral("UPDATE match_live SET finished_seq = ?, ended_early = ? "
+                                    "WHERE match_id = ?"),
+                     {optionalValue(seq), seq && endedEarly ? 1 : 0, idValue(match)},
+                     "set live match finished");
+}
+
+core::Result<int> MatchLiveRepository::lastSeq(core::MatchId match) const {
+    return selectOne(
+        m_db,
+        QStringLiteral("SELECT max(coalesce((SELECT max(seq) FROM match_event WHERE match_id = ?), "
+                       "0), coalesce((SELECT max(seq) FROM match_note WHERE match_id = ?), 0), "
+                       "coalesce((SELECT max(seq) FROM match_clock_step WHERE match_id = ?), 0), "
+                       "coalesce((SELECT finished_seq FROM match_live WHERE match_id = ?), 0))"),
+        {idValue(match), idValue(match), idValue(match), idValue(match)}, "last seq of a match",
+        [](RowReader& row) { return row.integer(); });
 }
 
 } // namespace fdss::data

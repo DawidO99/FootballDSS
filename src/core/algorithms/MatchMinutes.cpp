@@ -4,6 +4,7 @@
 #include <map>
 #include <numeric>
 #include <ranges>
+#include <tuple>
 
 namespace fdss::core {
 
@@ -17,18 +18,25 @@ seconds elapsedSince(Timestamp start, Timestamp now) noexcept {
     return std::max(seconds{0}, now - start);
 }
 
-// One half: regular time up to `halfEnd` match minutes, then stoppage time.
-void readHalf(ClockReading& reading, int halfStartMinute, int halfLength,
-              seconds elapsed) noexcept {
-    const seconds length = halfLength * kMinute;
-    reading.regular = halfStartMinute * kMinute + std::min(elapsed, length);
-    reading.stoppage = std::max(seconds{0}, elapsed - length);
-    const auto fullMinutes = static_cast<int>(elapsed / kMinute);
-    if (fullMinutes >= halfLength) {
-        reading.eventTime = {halfStartMinute + halfLength, fullMinutes - halfLength + 1};
+int fullMinutes(seconds elapsed) noexcept { return static_cast<int>(elapsed / kMinute); }
+
+// One running part: regular time up to its end, then stoppage time.
+void readPeriod(ClockReading& reading, int period, int length, seconds elapsed) noexcept {
+    const int startMinute = (period - 1) * length;
+    reading.regular = startMinute * kMinute + std::min(elapsed, length * kMinute);
+    reading.stoppage = std::max(seconds{0}, elapsed - length * kMinute);
+    const int full = fullMinutes(elapsed);
+    if (full >= length) {
+        reading.eventTime = {period * length, full - length + 1};
     } else {
-        reading.eventTime = {halfStartMinute + fullMinutes, std::nullopt};
+        reading.eventTime = {startMinute + full, std::nullopt};
     }
+}
+
+// The added minutes played at the end of a part that has ended; 0 without stoppage time.
+int addedPlayed(const PeriodTimes& times, int length) noexcept {
+    const int full = fullMinutes(elapsedSince(times.start, *times.end));
+    return full >= length ? full - length + 1 : 0;
 }
 
 bool isOnPitch(const PlayerInMatch* player) noexcept {
@@ -72,87 +80,79 @@ std::optional<MatchEventProblem> comingOnReason(const PlayerInMatch* player) noe
 
 } // namespace
 
-int defaultHalfLength(TeamCategory category) noexcept {
+MatchFormat defaultMatchFormat(TeamCategory category) noexcept {
     switch (category) {
     case TeamCategory::Senior:
     case TeamCategory::U19:
     case TeamCategory::Other:
-        return 45;
+        return {2, 45};
     case TeamCategory::U17:
-        return 40;
+        return {2, 40};
     case TeamCategory::U15:
-        return 35;
+        return {2, 35};
     case TeamCategory::U13:
-        return 30;
+        return {2, 30};
     case TeamCategory::U11:
-        return 25;
+        return {2, 25};
     }
-    return 45;
+    return {2, 45};
 }
 
 MatchPhase phaseOf(const MatchClock& clock) noexcept {
-    if (clock.matchEnd) {
+    if (clock.finished) {
         return MatchPhase::Finished;
     }
-    if (clock.secondHalfStart) {
-        return MatchPhase::SecondHalf;
+    if (clock.periods.empty()) {
+        return MatchPhase::NotStarted;
     }
-    if (clock.firstHalfEnd) {
-        return MatchPhase::HalfTime;
-    }
-    if (clock.firstHalfStart) {
-        return MatchPhase::FirstHalf;
-    }
-    return MatchPhase::NotStarted;
+    return clock.periods.back().end ? MatchPhase::Break : MatchPhase::Running;
+}
+
+int currentPeriod(const MatchClock& clock) noexcept {
+    return static_cast<int>(clock.periods.size());
 }
 
 std::optional<ClockStep> nextStep(const MatchClock& clock) noexcept {
     switch (phaseOf(clock)) {
     case MatchPhase::NotStarted:
-        return ClockStep::FirstHalfStart;
-    case MatchPhase::FirstHalf:
-        return ClockStep::FirstHalfEnd;
-    case MatchPhase::HalfTime:
-        return ClockStep::SecondHalfStart;
-    case MatchPhase::SecondHalf:
-        return ClockStep::MatchEnd;
+        return ClockStep{1, ClockStepKind::Start};
+    case MatchPhase::Running:
+        return ClockStep{currentPeriod(clock), ClockStepKind::End};
+    case MatchPhase::Break:
+        return ClockStep{currentPeriod(clock) + 1, ClockStepKind::Start};
     case MatchPhase::Finished:
         return std::nullopt;
     }
     return std::nullopt;
 }
 
-std::optional<ClockStep> lastStep(const MatchClock& clock) noexcept {
-    switch (phaseOf(clock)) {
-    case MatchPhase::NotStarted:
-        return std::nullopt;
-    case MatchPhase::FirstHalf:
-        return ClockStep::FirstHalfStart;
-    case MatchPhase::HalfTime:
-        return ClockStep::FirstHalfEnd;
-    case MatchPhase::SecondHalf:
-        return ClockStep::SecondHalfStart;
-    case MatchPhase::Finished:
-        return ClockStep::MatchEnd;
+void applyStep(MatchClock& clock, ClockStep step, Timestamp at) {
+    const int period = currentPeriod(clock);
+    if (step.kind == ClockStepKind::Start && step.period == period + 1 &&
+        (clock.periods.empty() || clock.periods.back().end)) {
+        clock.periods.push_back({at, std::nullopt});
+    } else if (step.kind == ClockStepKind::End && step.period == period && period > 0 &&
+               !clock.periods.back().end) {
+        clock.periods.back().end = at;
     }
-    return std::nullopt;
 }
 
-void setStep(MatchClock& clock, ClockStep step, std::optional<Timestamp> at) noexcept {
-    switch (step) {
-    case ClockStep::FirstHalfStart:
-        clock.firstHalfStart = at;
-        return;
-    case ClockStep::FirstHalfEnd:
-        clock.firstHalfEnd = at;
-        return;
-    case ClockStep::SecondHalfStart:
-        clock.secondHalfStart = at;
-        return;
-    case ClockStep::MatchEnd:
-        clock.matchEnd = at;
-        return;
+int finalMinute(const MatchClock& clock) noexcept {
+    const int length = clock.format.periodLength;
+    const int played = currentPeriod(clock);
+    if (played == 0) {
+        return 0;
     }
+    const PeriodTimes& last = clock.periods.back();
+    if (!clock.endedEarly) {
+        return clock.format.totalMinutes();
+    }
+    if (!last.end) {
+        return (played - 1) * length;
+    }
+    // Ended early: the minute the last part ended, at most its end.
+    return (played - 1) * length +
+           std::min(fullMinutes(elapsedSince(last.start, *last.end)), length);
 }
 
 DisplayMinute displayMinute(const MatchTime& time) noexcept {
@@ -162,29 +162,138 @@ DisplayMinute displayMinute(const MatchTime& time) noexcept {
     return {time.minute + 1, std::nullopt};
 }
 
+std::optional<DisplayMinute> parseDisplayMinute(std::string_view text) {
+    const auto trim = [](std::string_view value) {
+        while (!value.empty() && (value.front() == ' ' || value.front() == '\t')) {
+            value.remove_prefix(1);
+        }
+        while (!value.empty() && (value.back() == ' ' || value.back() == '\t')) {
+            value.remove_suffix(1);
+        }
+        return value;
+    };
+    text = trim(text);
+    if (!text.empty() && text.back() == '\'') {
+        text = trim(text.substr(0, text.size() - 1));
+    }
+    const auto number = [](std::string_view digits) -> std::optional<int> {
+        if (digits.empty() || digits.size() > 3) {
+            return std::nullopt;
+        }
+        int value = 0;
+        for (const char digit : digits) {
+            if (digit < '0' || digit > '9') {
+                return std::nullopt;
+            }
+            value = value * 10 + (digit - '0');
+        }
+        return value;
+    };
+    const std::size_t plus = text.find('+');
+    if (plus == std::string_view::npos) {
+        const auto minute = number(text);
+        if (!minute || *minute < 1) {
+            return std::nullopt;
+        }
+        return DisplayMinute{*minute, std::nullopt};
+    }
+    const auto minute = number(trim(text.substr(0, plus)));
+    const auto added = number(trim(text.substr(plus + 1)));
+    if (!minute || !added || *minute < 1 || *added < 1) {
+        return std::nullopt;
+    }
+    return DisplayMinute{*minute, *added};
+}
+
+std::optional<MatchTime> matchTimeOf(DisplayMinute shown, MatchFormat format) {
+    if (shown.added) {
+        if (shown.minute % format.periodLength != 0 ||
+            shown.minute / format.periodLength > format.periods || *shown.added < 1) {
+            return std::nullopt;
+        }
+        return MatchTime{shown.minute, shown.added};
+    }
+    if (shown.minute < 1 || shown.minute > format.totalMinutes()) {
+        return std::nullopt;
+    }
+    return MatchTime{shown.minute - 1, std::nullopt};
+}
+
 ClockReading readClock(const MatchClock& clock, Timestamp now) noexcept {
     ClockReading reading;
     reading.phase = phaseOf(clock);
-    const int half = clock.halfLength;
+    reading.period = currentPeriod(clock);
+    const int length = clock.format.periodLength;
     switch (reading.phase) {
     case MatchPhase::NotStarted:
         break;
-    case MatchPhase::FirstHalf:
-        readHalf(reading, 0, half, elapsedSince(*clock.firstHalfStart, now));
+    case MatchPhase::Running:
+        readPeriod(reading, reading.period, length, elapsedSince(clock.periods.back().start, now));
         break;
-    case MatchPhase::HalfTime:
-        reading.regular = half * kMinute;
-        reading.eventTime = {half, std::nullopt};
+    case MatchPhase::Break:
+        reading.regular = reading.period * length * kMinute;
+        reading.eventTime = {reading.period * length, std::nullopt};
         break;
-    case MatchPhase::SecondHalf:
-        readHalf(reading, half, half, elapsedSince(*clock.secondHalfStart, now));
-        break;
-    case MatchPhase::Finished:
-        reading.regular = 2 * half * kMinute;
-        reading.eventTime = {2 * half, std::nullopt};
+    case MatchPhase::Finished: {
+        const int last = finalMinute(clock);
+        reading.regular = last * kMinute;
+        reading.eventTime = {last, std::nullopt};
         break;
     }
+    }
     return reading;
+}
+
+bool isPlayedTime(const MatchClock& clock, Timestamp now, MatchTime time, bool substitution) {
+    const int length = clock.format.periodLength;
+    const MatchPhase phase = phaseOf(clock);
+    const int played = currentPeriod(clock);
+    if (time.minute < 0 || played == 0) {
+        return false;
+    }
+    const ClockReading reading = readClock(clock, now);
+    if (time.addedTime) {
+        const int period = time.minute / length;
+        if (time.minute % length != 0 || period < 1 || period > played || *time.addedTime < 1) {
+            return false;
+        }
+        const PeriodTimes& times = clock.periods[static_cast<std::size_t>(period - 1)];
+        if (!times.end) {
+            return reading.eventTime.addedTime && *time.addedTime <= *reading.eventTime.addedTime;
+        }
+        return *time.addedTime <= addedPlayed(times, length);
+    }
+    const int period = time.minute / length + 1;
+    if (period > clock.format.periods) {
+        return false;
+    }
+    if (period > played) {
+        // The minute that starts the next part: only a substitution in the break before it.
+        return substitution && phase == MatchPhase::Break && period == played + 1 &&
+               time.minute == played * length;
+    }
+    const PeriodTimes& times = clock.periods[static_cast<std::size_t>(period - 1)];
+    if (!times.end) {
+        return reading.eventTime.addedTime || time.minute <= reading.eventTime.minute;
+    }
+    // An ended part: its minutes as far as they were played.
+    return time.minute - (period - 1) * length <=
+           std::min(fullMinutes(elapsedSince(times.start, *times.end)), length - 1);
+}
+
+MatchTime defaultTime(const MatchClock& clock, Timestamp now, bool substitution) {
+    const ClockReading reading = readClock(clock, now);
+    if (reading.phase != MatchPhase::Break || substitution) {
+        return reading.eventTime;
+    }
+    const int length = clock.format.periodLength;
+    const PeriodTimes& times = clock.periods.back();
+    const int added = addedPlayed(times, length);
+    if (added > 0) {
+        return {reading.period * length, added};
+    }
+    const int full = std::min(fullMinutes(elapsedSince(times.start, *times.end)), length - 1);
+    return {(reading.period - 1) * length + full, std::nullopt};
 }
 
 MatchSheet matchSheetOf(const Lineup& lineup) {
@@ -321,7 +430,12 @@ std::optional<MatchEventProblem> applyEvent(MatchSituation& situation,
 std::vector<std::size_t> replayOrder(std::span<const MatchEventDraft> events) {
     std::vector<std::size_t> order(events.size());
     std::iota(order.begin(), order.end(), std::size_t{0});
-    std::ranges::stable_sort(order, {}, [&](std::size_t index) { return events[index].minute; });
+    // At the end of a part its added time comes first; the same minute without added time is the
+    // break or the start of the next part.
+    std::ranges::stable_sort(order, {}, [&](std::size_t index) {
+        const MatchEventDraft& event = events[index];
+        return std::tuple{event.minute, event.addedTime ? 0 : 1, event.addedTime.value_or(0)};
+    });
     return order;
 }
 
@@ -347,7 +461,8 @@ std::expected<MatchSituation, MatchEventError> replayMatch(const MatchSheet& she
                                                            std::optional<int> finalMinute) {
     const std::vector<std::size_t> order = replayOrder(events);
     MatchSituation situation = startingSituation(sheet);
-    for (const std::size_t index : order) {
+    for (std::size_t position = 0; position < order.size(); ++position) {
+        const std::size_t index = order[position];
         const MatchEventDraft& event = events[index];
         if (finalMinute && event.minute > *finalMinute) {
             return std::unexpected(MatchEventError{MatchEventProblem::AfterFinalMinute, index});
@@ -355,8 +470,32 @@ std::expected<MatchSituation, MatchEventError> replayMatch(const MatchSheet& she
         if (auto problem = applyEvent(situation, event)) {
             return std::unexpected(MatchEventError{*problem, index});
         }
+        // A second yellow card is followed by its red row: the next event of the player, at the
+        // same time.
+        if (event.type == MatchEventType::Yellow &&
+            situation.find(*event.playerId)->yellowCards == 2) {
+            const auto next =
+                std::ranges::find_if(order.begin() + static_cast<std::ptrdiff_t>(position) + 1,
+                                     order.end(), [&](std::size_t other) {
+                                         return events[other].playerId == event.playerId ||
+                                                events[other].relatedPlayerId == event.playerId;
+                                     });
+            const bool redFollows =
+                next != order.end() && events[*next].type == MatchEventType::Red &&
+                events[*next].playerId == event.playerId && !events[*next].relatedPlayerId &&
+                events[*next].minute == event.minute && events[*next].addedTime == event.addedTime;
+            if (!redFollows) {
+                return std::unexpected(
+                    MatchEventError{MatchEventProblem::SecondYellowWithoutRed, index});
+            }
+        }
     }
     return situation;
+}
+
+int onPitchCount(const MatchSituation& situation) noexcept {
+    return static_cast<int>(
+        std::ranges::count(situation.players, PlayerMatchState::OnPitch, &PlayerInMatch::state));
 }
 
 MatchMinutes minutesOf(const MatchSituation& situation, std::optional<int> finalMinute) {

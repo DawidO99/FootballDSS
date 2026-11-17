@@ -4133,7 +4133,7 @@ template <class Unchanged>
 void expectShortcutsOff(const MatchDayScreen& screen, bool off, Unchanged unchanged,
                         const char* reason) {
     for (const char* name : {"goalShortcut", "opponentGoalShortcut", "yellowShortcut",
-                             "redShortcut", "subShortcut", "undoShortcut"}) {
+                             "redShortcut", "subShortcut", "noteShortcut", "undoShortcut"}) {
         auto* shortcut = screen.view->findChild<QObject*>(QString::fromLatin1(name));
         if (shortcut == nullptr) {
             fail("match day: a shortcut is not there");
@@ -4249,9 +4249,8 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     }
     renderFrame(screen->window);
     expectPopupHitTargets(startDialog, "start dialog");
-    auto* halfLength = startDialog->property("halfLengthInput").value<QQuickItem*>();
-    if (halfLength == nullptr || halfLength->property("value").toInt() != 45) {
-        fail("match day: the half length is not 45 for a senior team");
+    if (startDialog->property("chosenFormat").toString() != QLatin1StringView("2x45")) {
+        fail("match day: the format is not 2 x 45 for a senior team");
     }
     pressKey(screen->window, Qt::Key_Return);
     settle();
@@ -4296,7 +4295,9 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     g_clock->advance(20min);
     screen->click(QStringLiteral("yellowButton"));
     screen->tap(QStringLiteral("pitchTile"), xi(3));
+    // The opponent goal waits for its minute: Save.
     screen->click(QStringLiteral("opponentGoalButton"));
+    screen->click(QStringLiteral("saveActionButton"));
     {
         auto* undoButton = screen->find(QStringLiteral("undoButton"));
         auto* tip = undoButton != nullptr
@@ -4318,6 +4319,51 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     expectMatchDayHitTargets(*screen, "first half");
     if (!screenshotDirectory.isEmpty()) {
         saveScreenshot(screen->window, screenshotDirectory, QStringLiteral("match-day.png"));
+    }
+    // A goal entered late at 3': the minute field of the action, typed over.
+    screen->click(QStringLiteral("goalButton"));
+    if (!screenshotDirectory.isEmpty()) {
+        renderFrame(screen->window);
+        saveScreenshot(screen->window, screenshotDirectory, QStringLiteral("match-day-minute.png"));
+    }
+    if (auto* minute = screen->find(QStringLiteral("minuteField"))) {
+        minute->forceActiveFocus();
+        QMetaObject::invokeMethod(minute, "selectAll");
+        typeText(screen->window, QStringLiteral("3"));
+        if (matchDay->pendingMinute() != QLatin1StringView("3") ||
+            !matchDay->pendingMinuteError().isEmpty()) {
+            fail("match day: the typed minute does not reach the action");
+        }
+    } else {
+        fail("match day: the minute field is not there");
+    }
+    screen->tap(QStringLiteral("pitchTile"), xi(10));
+    screen->click(QStringLiteral("noAssistButton"));
+    if (matchDay->goalsFor() != 2 ||
+        matchDay->timeline()->value(matchDay->timeline()->rowCount() - 1, "minuteText") !=
+            QStringLiteral("3'")) {
+        fail("match day: the goal entered late is not at 3'");
+    }
+    // Undo takes back that goal, the action entered last, whatever its minute.
+    screen->click(QStringLiteral("undoButton"));
+    if (matchDay->goalsFor() != 1) {
+        fail("match day: undo did not take back the goal entered late");
+    }
+    // A note from its dialog: Enter saves it with the last minute played.
+    screen->click(QStringLiteral("noteButton"));
+    auto* noteDialog = screen->view->property("noteEditor").value<QObject*>();
+    if (noteDialog == nullptr || !noteDialog->property("opened").toBool()) {
+        fail("match day: Note does not open its dialog");
+    } else {
+        renderFrame(screen->window);
+        expectPopupHitTargets(noteDialog, "note dialog");
+        typeText(screen->window, QStringLiteral("Wiatr"));
+        pressKey(screen->window, Qt::Key_Return);
+        settle();
+        if (noteDialog->property("visible").toBool() ||
+            matchDay->timeline()->value(0, "kind") != QStringLiteral("note")) {
+            fail("match day: the note was not saved on the timeline");
+        }
     }
     screen->click(QStringLiteral("clockButton")); // half time
     // A substitution in the break.
@@ -4403,8 +4449,8 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     g_clock->advance(12min);
     screen->click(QStringLiteral("clockButton")); // the end
     if (matchDay->statusKey() != QLatin1StringView("finished") || matchDay->goalsFor() != 2 ||
-        matchDay->goalsAgainst() != 1 || matchDay->timeline()->rowCount() != 7) {
-        fail("match day: the finished match does not show 2:1 and its seven events");
+        matchDay->goalsAgainst() != 1 || matchDay->timeline()->rowCount() != 8) {
+        fail("match day: the finished match does not show 2:1, its seven events and the note");
     }
     expectFlag(screen->navigation, "leaveGuard", false, "a finished match guards leaving");
 

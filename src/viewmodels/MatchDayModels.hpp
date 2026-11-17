@@ -21,9 +21,10 @@ public:
     explicit MatchDayPlayersModel(QObject* parent = nullptr);
 };
 
-// The events, the newest first: eventId, minuteText ("45+3'"), typeKey (goal, opponentGoal,
-// yellow, red, secondYellow, sub, assist), iconName, typeText, playerText, relatedText ("Assist:
-// …", "Off: …" or empty).
+// Events and notes, the latest in the match first: kind (event, note), eventId, noteId,
+// minuteText ("45+3'"), typeKey (goal, opponentGoal, yellow, red, secondYellow, sub, assist, note),
+// iconName, typeText, playerText, relatedText ("Assist: …", "Off: …", the text of a note or empty),
+// and for a note its field values: noteMinute ("45+3"), notePlayerId (0: none), noteText.
 class MatchTimelineModel : public RowsModel {
     Q_OBJECT
     QML_ELEMENT

@@ -8,8 +8,8 @@ MatchDayPlayersModel::MatchDayPlayersModel(QObject* parent)
                 parent) {}
 
 MatchTimelineModel::MatchTimelineModel(QObject* parent)
-    : RowsModel(
-          {"eventId", "minuteText", "typeKey", "iconName", "typeText", "playerText", "relatedText"},
-          parent) {}
+    : RowsModel({"kind", "eventId", "noteId", "minuteText", "typeKey", "iconName", "typeText",
+                 "playerText", "relatedText", "noteMinute", "notePlayerId", "noteText"},
+                parent) {}
 
 } // namespace fdss::viewmodels

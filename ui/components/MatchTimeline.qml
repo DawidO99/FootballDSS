@@ -4,15 +4,24 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// The events of a match, the newest first (packet P13): minute, icon and word, players.
+// The events and notes of a match, the latest in the match first (packet P13): minute, icon and
+// word, players or the text of a note. A note can be edited or deleted from its row.
 // API:
-//   model                   rows with eventId, minuteText, typeKey, iconName, typeText,
-//                           playerText, relatedText (MatchTimelineModel)
+//   model                   rows of MatchTimelineModel (kind, eventId, noteId, minuteText, typeKey,
+//                           iconName, typeText, playerText, relatedText, noteMinute,
+//                           notePlayerId, noteText)
 //   emptyText: string       shown without events
+//   notesEditable: bool     the buttons of the notes are shown
+//   noteEditRequested(double noteId, string minute, double playerId, string text)
+//   noteDeleteRequested(double noteId)
 ListView {
     id: root
 
     property string emptyText: qsTr("No events yet.")
+    property bool notesEditable: false
+
+    signal noteEditRequested(double noteId, string minute, double playerId, string text)
+    signal noteDeleteRequested(double noteId)
 
     clip: true
     spacing: Theme.spacing.xs
@@ -31,6 +40,8 @@ ListView {
             return Theme.ok;
         case "opponentGoal":
             return Theme.danger;
+        case "note":
+            return Theme.info;
         default:
             return Theme.textMuted;
         }
@@ -54,6 +65,11 @@ ListView {
         id: row
 
         required property int index
+        required property string kind
+        required property var noteId
+        required property string noteMinute
+        required property var notePlayerId
+        required property string noteText
         required property string minuteText
         required property string typeKey
         required property string iconName
@@ -117,10 +133,31 @@ ListView {
                     visible: row.relatedText.length > 0
                     text: row.relatedText
                     textFormat: Text.PlainText
-                    color: Theme.textMuted
-                    font.pixelSize: Theme.fontSize.caption
+                    color: row.kind === "note" ? Theme.text : Theme.textMuted
+                    font.pixelSize: row.kind === "note" ? Theme.fontSize.body : Theme.fontSize.caption
                     wrapMode: Text.WordWrap
                 }
+            }
+
+            IconButton {
+                objectName: "editNoteButton"
+                Layout.alignment: Qt.AlignTop
+                visible: row.kind === "note" && root.notesEditable
+                touch: true
+                iconName: "edit"
+                text: qsTr("Edit note")
+                onClicked: root.noteEditRequested(row.noteId, row.noteMinute, row.notePlayerId, row.noteText)
+            }
+
+            IconButton {
+                objectName: "deleteNoteButton"
+                Layout.alignment: Qt.AlignTop
+                visible: row.kind === "note" && root.notesEditable
+                touch: true
+                iconName: "trash"
+                iconColor: Theme.danger
+                text: qsTr("Delete note")
+                onClicked: root.noteDeleteRequested(row.noteId)
             }
         }
     }

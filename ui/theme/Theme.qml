@@ -206,6 +206,7 @@ QtObject {
     readonly property int matchTileHeight: 64
     readonly property int matchTimelineWidth: 320
     readonly property int matchActionWidth: 148
+    readonly property int matchMinuteFieldWidth: 96
     // The clock and the score.
     readonly property int matchClockFontSize: 40
     // The shirt number column of a player list.

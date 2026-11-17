@@ -134,3 +134,40 @@ Record a short GIF of Match Day. Describe "events as the single source of truth"
     - *Yellow card on a tile*: icon and the words "Yellow card", also in the accessible name.
     - *Shortcuts* G/O/Y/R/S/Ctrl+Z (and F11, Esc) are off while any dialog or popup holds the focus and
       while a text field does; qml_smoke checks both.
+17. **Manual test of the human (before merge; 0002 is not on `main`, so it was changed in place).** Where
+    it differs, this replaces decisions 2, 3, 6, 7 and 8.
+    - *A. Minute of every action*: goal, opponent goal, cards, substitution and note have a "Minute" field
+      (`23`, `45+2`), the current minute until edited (in a break: the last minute played, for a
+      substitution the start of the next part). Any minute already played can be entered, not the future;
+      a late event goes through a full replay. When a later stored event no longer fits (a red card for a
+      player who scored later; a yellow that would make a later card a second one without its red,
+      `SecondYellowWithoutRed`), the action is refused, naming that event
+      (`MatchDayService::checkEvent`). The order of the match puts the added time of a part before the
+      start of the next part (also `ORDER BY` of `listEvents`). The opponent goal is a pending action with
+      a minute and Save.
+    - *Undo of the action entered last*: instead of `after_event_id` (decision 2) every action has a `seq`
+      of the match on `match_event`, `match_note` and `match_clock_step`, and `match_live.finished_seq`
+      for the finish; undo removes everything with the highest `seq`. The rows of a second yellow share
+      it. This deviates from the column list of the manual test because notes must join the same stack as
+      events and clock steps.
+    - *B. Match format*: 1–4 parts × 10–60 minutes, at most 130 minutes in all (the `CHECK` of the minutes
+      of 0001), presets 2×45, 2×40, 2×35, 2×30, 2×25, 3×30, 4×20 and a custom one; the default by category
+      as before (2 × the old half length). `match_live(periods, period_length)`,
+      `match_clock_step(period, kind start|end, at, seq)`. Minutes are cut at the end of the current part,
+      `added_time` over it ("30+2'", "60+1'"); a whole match is parts × length. Texts: "1st/2nd half" with
+      2 parts, otherwise "1st/2nd/3rd/4th period"; the end of the last part is "End match".
+    - *C. Minimum of players*: `core::kMinPlayersOnPitch = 7`; "On the pitch: N" under the score (with a
+      warning icon at 7 or fewer). An action that leaves 7 shows a warning toast; fewer than 7 opens
+      "By the laws of the game the match cannot go on… End the match?" and a banner with End match. Until
+      then events and clock steps (except the end of the last part) are refused (`too_few_players`); notes
+      and undo stay. `MatchDayService::endMatch()` ends the running part and finishes the match with
+      `match_live.ended_early = 1`: its final minute is the minute of the end (in a break, the end of the
+      part played), not parts × length.
+    - *D. Notes*: `match_note` (minute, `added_time`, optional player, text 1–500, plain text, `seq`),
+      `MatchNoteRepository`. Button "Note" (N) with a dialog (minute, player, text); on the timeline with
+      an icon and the word "Note", with Edit and Delete. Adding a note is in the undo stack; editing keeps
+      its place; deleting has a 10 s undo toast that restores it with its `seq`. Notes never change the
+      score or the minutes.
+    - *Scope extensions*: `src/core/domain/MatchNote.hpp`, `Ids.hpp` (`MatchNoteId`),
+      `src/data/repositories/MatchNoteRepository.*`, `ui/components/MatchNoteDialog.qml`.
+

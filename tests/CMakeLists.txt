@@ -38,6 +38,7 @@ add_executable(fdss_tests
     data/EnumsSchemaTest.cpp
     data/LineupRepositoryTest.cpp
     data/MatchLiveRepositoryTest.cpp
+    data/MatchNoteRepositoryTest.cpp
     data/MatchRepositoryTest.cpp
     data/MigrationsTest.cpp
     data/OpponentRepositoryTest.cpp

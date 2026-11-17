@@ -102,7 +102,7 @@ protected:
     std::unique_ptr<MatchDayViewModel> kickedOff() {
         saveLineup();
         auto vm = open();
-        EXPECT_TRUE(vm->start(45));
+        EXPECT_TRUE(vm->start("2x45", 0, 0));
         EXPECT_TRUE(vm->advanceClock());
         return vm;
     }
@@ -148,7 +148,8 @@ TEST_F(MatchDayViewModelTest, WithoutALineupTheStartIsBlockedWithAReason) {
     EXPECT_EQ(vm->startBlock(), "noLineup");
     EXPECT_FALSE(vm->startBlockText().isEmpty());
     EXPECT_FALSE(vm->canStart());
-    EXPECT_EQ(vm->defaultHalfLength(), 45);
+    EXPECT_EQ(vm->defaultFormat(), "2x45");
+    EXPECT_EQ(vm->formatOptions().size(), 8);
     EXPECT_FALSE(vm->guardLeaving());
 
     saveLineup();
@@ -160,7 +161,8 @@ TEST_F(MatchDayViewModelTest, WithoutALineupTheStartIsBlockedWithAReason) {
 TEST_F(MatchDayViewModelTest, StartThenTheClockSteps) {
     saveLineup();
     const auto vm = open();
-    ASSERT_TRUE(vm->start(40));
+    ASSERT_TRUE(vm->start("2x40", 0, 0));
+    EXPECT_EQ(vm->formatText(), "2 × 40 min");
     EXPECT_EQ(vm->statusKey(), "live");
     EXPECT_TRUE(vm->guardLeaving());
     EXPECT_EQ(vm->phase(), "notStarted");
@@ -172,7 +174,8 @@ TEST_F(MatchDayViewModelTest, StartThenTheClockSteps) {
     EXPECT_EQ(vm->bench()->rowCount(), 3);
 
     ASSERT_TRUE(vm->advanceClock());
-    EXPECT_EQ(vm->phase(), "firstHalf");
+    EXPECT_EQ(vm->phase(), "running");
+    EXPECT_EQ(vm->phaseText(), "1st half");
     EXPECT_FALSE(vm->canCancelStart());
     EXPECT_TRUE(vm->canRecordEvents());
     m_clock->advance(23min + 41s);
@@ -210,7 +213,10 @@ TEST_F(MatchDayViewModelTest, GoalByTapsWithAndWithoutAssist) {
     EXPECT_EQ(vm->goalsFor(), 2);
     EXPECT_EQ(vm->timeline()->value(0, "relatedText"), "");
 
-    ASSERT_TRUE(vm->recordOpponentGoal());
+    vm->beginAction("opponentGoal");
+    EXPECT_EQ(vm->pendingAction(), "opponentGoal");
+    EXPECT_EQ(selectableCount(*vm->pitch()), 0);
+    ASSERT_TRUE(vm->confirmAction());
     EXPECT_EQ(vm->goalsAgainst(), 1);
     EXPECT_EQ(vm->timeline()->value(0, "typeKey"), "opponentGoal");
     EXPECT_EQ(vm->timeline()->value(0, "playerText"), "Rywal");
@@ -297,9 +303,16 @@ TEST_F(MatchDayViewModelTest, EndOfTheMatchAndAFinishedMatch) {
     const auto vm = kickedOff();
     m_clock->advance(46min);
     ASSERT_TRUE(vm->advanceClock());
-    EXPECT_EQ(vm->phase(), "halfTime");
-    EXPECT_FALSE(vm->canRecordEvents());
+    EXPECT_EQ(vm->phase(), "break");
+    EXPECT_EQ(vm->phaseText(), "Half time");
+    // Late entries in the break: a goal at the last minute played, a substitution at 46'.
+    EXPECT_TRUE(vm->canRecordEvents());
     EXPECT_TRUE(vm->canSubstitute());
+    vm->beginAction("goal");
+    EXPECT_EQ(vm->pendingMinute(), "45+2"); // the half ended at 46:00
+    vm->beginAction("sub");
+    EXPECT_EQ(vm->pendingMinute(), "46");
+    vm->cancelAction();
     m_clock->advance(15min);
     ASSERT_TRUE(vm->advanceClock());
     m_clock->advance(47min);
@@ -325,7 +338,7 @@ TEST_F(MatchDayViewModelTest, TheLiveMatchOpensFirst) {
     {
         auto vm = std::make_unique<MatchDayViewModel>();
         vm->openMatch(m_match.value);
-        ASSERT_TRUE(vm->start(45));
+        ASSERT_TRUE(vm->start("2x45", 0, 0));
     }
     const auto vm = open();
     EXPECT_EQ(vm->matchId(), m_match.value);
@@ -382,7 +395,7 @@ TEST_F(MatchDayViewModelTest, UndoOfTheEndNamesTheOtherLiveMatch) {
         lineup.pitchSlots[slot].player = m_players[slot];
     }
     ASSERT_TRUE(registry().lineup().save(otherMatch, lineup).has_value());
-    ASSERT_TRUE(registry().matchDay().start(otherMatch, 45, 4).has_value());
+    ASSERT_TRUE(registry().matchDay().start(otherMatch, {2, 45}, 4).has_value());
 
     Messages errors(vm.get(), &MatchDayViewModel::errorOccurred);
     EXPECT_EQ(vm->undo(), "");
@@ -391,4 +404,133 @@ TEST_F(MatchDayViewModelTest, UndoOfTheEndNamesTheOtherLiveMatch) {
               "Another match of this team is live. First finish it, or undo "
               "its start, in the match against Inny Rywal.");
     EXPECT_EQ(vm->statusKey(), "finished");
+}
+
+// --- Manual test of P13: format, minute field, late entry, notes, minimum of players ---
+
+TEST_F(MatchDayViewModelTest, ThreePartsAndACustomFormat) {
+    saveLineup();
+    const auto vm = open();
+    ASSERT_TRUE(vm->start("3x30", 0, 0));
+    EXPECT_EQ(vm->formatText(), "3 × 30 min");
+    EXPECT_EQ(vm->clockActionText(), "Start 1st period");
+    ASSERT_TRUE(vm->advanceClock());
+    m_clock->advance(31min + 10s);
+    EXPECT_EQ(vm->phaseText(), "1st period");
+    EXPECT_EQ(vm->clockText(), "30+1:10");
+    EXPECT_EQ(vm->clockActionText(), "End 1st period");
+    ASSERT_TRUE(vm->advanceClock());
+    EXPECT_EQ(vm->phaseText(), "Break");
+    EXPECT_EQ(vm->clockActionText(), "Start 2nd period");
+    EXPECT_EQ(vm->undoText(), "end of the 1st period");
+
+    ASSERT_TRUE(vm->undo().size() > 0);
+    ASSERT_TRUE(vm->undo().size() > 0);
+    ASSERT_TRUE(vm->cancelStart());
+    ASSERT_TRUE(vm->start("custom", 4, 20));
+    EXPECT_EQ(vm->formatText(), "4 × 20 min");
+    Messages errors(vm.get(), &MatchDayViewModel::errorOccurred);
+    ASSERT_TRUE(vm->cancelStart());
+    EXPECT_FALSE(vm->start("custom", 4, 40)); // 160 minutes
+    EXPECT_EQ(errors.texts().size(), 1);
+}
+
+TEST_F(MatchDayViewModelTest, TheMinuteCanBeChangedAndEnteredLate) {
+    const auto vm = kickedOff();
+    m_clock->advance(20min + 30s);
+    vm->beginAction("goal");
+    EXPECT_EQ(vm->pendingMinute(), "21");
+    EXPECT_EQ(vm->pendingMinuteError(), "");
+    vm->setPendingMinute("25");
+    EXPECT_FALSE(vm->pendingMinuteError().isEmpty()); // not played yet
+    vm->setPendingMinute("abc");
+    EXPECT_FALSE(vm->pendingMinuteError().isEmpty());
+    vm->setPendingMinute("5");
+    EXPECT_EQ(vm->pendingMinuteError(), "");
+    ASSERT_TRUE(vm->choosePlayer(player(9)));
+    EXPECT_EQ(vm->pendingMinute(), "5"); // kept for the assist step
+    ASSERT_TRUE(vm->skipAssist());
+    EXPECT_EQ(vm->timeline()->value(0, "minuteText"), "5'");
+    EXPECT_EQ(vm->pendingMinute(), "");
+
+    // A red card at 3' for the scorer of 5' is refused, naming that goal.
+    Messages errors(vm.get(), &MatchDayViewModel::errorOccurred);
+    vm->beginAction("red");
+    vm->setPendingMinute("3");
+    EXPECT_FALSE(vm->choosePlayer(player(9)));
+    ASSERT_EQ(errors.texts().size(), 1);
+    EXPECT_EQ(errors.texts().front(),
+              "This cannot be recorded at 3': it conflicts with a later event, Goal · Gracz "
+              "Numer09 5'. Undo or correct that event first.");
+    EXPECT_EQ(vm->timeline()->rowCount(), 1);
+    // A minute not played yet.
+    vm->setPendingMinute("30");
+    EXPECT_FALSE(vm->choosePlayer(player(4)));
+    EXPECT_EQ(errors.texts().size(), 2);
+}
+
+TEST_F(MatchDayViewModelTest, NotesOnTheTimeline) {
+    const auto vm = kickedOff();
+    m_clock->advance(15min);
+    EXPECT_TRUE(vm->canAddNote());
+    EXPECT_EQ(vm->defaultNoteMinute(), "16");
+    EXPECT_FALSE(vm->noteMinuteError("20").isEmpty());
+    EXPECT_EQ(vm->noteMinuteError("12"), "");
+    EXPECT_EQ(vm->notePlayerOptions().size(), 15); // no player + 14
+    ASSERT_TRUE(vm->addNote("12", player(7), "Uraz kostki"));
+    ASSERT_EQ(vm->timeline()->rowCount(), 1);
+    EXPECT_EQ(vm->timeline()->value(0, "kind"), "note");
+    EXPECT_EQ(vm->timeline()->value(0, "typeKey"), "note");
+    EXPECT_EQ(vm->timeline()->value(0, "typeText"), "Note");
+    EXPECT_EQ(vm->timeline()->value(0, "minuteText"), "12'");
+    EXPECT_EQ(vm->timeline()->value(0, "playerText"), "Gracz Numer07");
+    EXPECT_EQ(vm->timeline()->value(0, "relatedText"), "Uraz kostki");
+    EXPECT_EQ(vm->timeline()->value(0, "noteMinute"), "12");
+    EXPECT_EQ(vm->undoText(), "Note · Uraz kostki 12'");
+    const qint64 noteId = vm->timeline()->value(0, "noteId").toLongLong();
+
+    // A goal at 14' comes above the note on the timeline.
+    vm->beginAction("goal");
+    vm->setPendingMinute("14");
+    ASSERT_TRUE(vm->choosePlayer(player(9)));
+    ASSERT_TRUE(vm->skipAssist());
+    EXPECT_EQ(vm->timeline()->value(0, "kind"), "event");
+    EXPECT_EQ(vm->timeline()->value(1, "kind"), "note");
+
+    ASSERT_TRUE(vm->updateNote(noteId, "11", 0, "Kostka"));
+    EXPECT_EQ(vm->timeline()->value(1, "relatedText"), "Kostka");
+    EXPECT_EQ(vm->timeline()->value(1, "playerText"), "");
+    EXPECT_EQ(vm->deleteNote(noteId), "Note deleted: 11'");
+    EXPECT_EQ(vm->timeline()->rowCount(), 1);
+    vm->restoreDeletedNote();
+    EXPECT_EQ(vm->timeline()->rowCount(), 2);
+    EXPECT_EQ(vm->goalsFor(), 1);
+}
+
+TEST_F(MatchDayViewModelTest, SevenPlayersWarnAndFewerEndTheMatch) {
+    const auto vm = kickedOff();
+    m_clock->advance(10min);
+    Messages notices(vm.get(), &MatchDayViewModel::notice);
+    SignalCount tooFew(vm.get(), &MatchDayViewModel::tooFewPlayersReached);
+    for (const int i : {2, 3, 4, 5}) {
+        vm->beginAction("red");
+        ASSERT_TRUE(vm->choosePlayer(player(i)));
+    }
+    EXPECT_EQ(vm->onPitchCount(), 7);
+    EXPECT_EQ(notices.texts().size(), 1);
+    EXPECT_EQ(tooFew.count(), 0);
+    vm->beginAction("red");
+    ASSERT_TRUE(vm->choosePlayer(player(6)));
+    EXPECT_EQ(tooFew.count(), 1);
+    EXPECT_TRUE(vm->tooFewPlayers());
+    EXPECT_FALSE(vm->canRecordEvents());
+    EXPECT_FALSE(vm->canAdvanceClock());
+    EXPECT_TRUE(vm->canAddNote());
+    EXPECT_TRUE(vm->canUndo());
+    vm->beginAction("goal");
+    EXPECT_EQ(vm->pendingAction(), "");
+    ASSERT_TRUE(vm->endMatch());
+    EXPECT_EQ(vm->statusKey(), "finished");
+    EXPECT_EQ(vm->undoText(), "early end of the match");
+    EXPECT_FALSE(vm->tooFewPlayers());
 }

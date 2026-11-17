@@ -43,9 +43,10 @@
   naprawiła błąd. A `workflow_dispatch` job running `qml_smoke` and `qml_components` with
   `QV4_GC_TIMELIMIT=1` and `useNonIncrementalGarbageCollector()` switched off (it needs a way to skip the
   call, e.g. an environment variable read only by the test programs) (P19)
-- Match Day: cards in the half-time break (P13 records only substitutions there), own goals of the
-  opponent (a `goal` row needs our scorer), cards for players on the bench, and a limit of substitutions
-  per competition (P13 decision 7)
+- Match Day: cards at the time of a break itself (a break takes events at minutes already played and
+  substitutions at the start of the next part), own goals of the opponent (a `goal` row needs our
+  scorer), cards for players on the bench, and a limit of substitutions per competition (P13 decision 7)
+- Match Day: editing an event (P14 corrections); undo of a note edit or delete other than its 10 s toast
 - Match Day: leaving asks only while Match Day is the section shown; logging out or closing the window from
   another section during a live match does not ask (one guarded page in `Main.qml`, P13)
 

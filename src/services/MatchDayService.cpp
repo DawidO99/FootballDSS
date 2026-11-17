@@ -1,10 +1,12 @@
 #include "services/MatchDayService.hpp"
 
 #include "core/algorithms/LineupValidator.hpp"
+#include "core/domain/Validation.hpp"
 #include "data/db/Transaction.hpp"
 #include "data/repositories/ClubRepository.hpp"
 #include "data/repositories/LineupRepository.hpp"
 #include "data/repositories/MatchLiveRepository.hpp"
+#include "data/repositories/MatchNoteRepository.hpp"
 #include "data/repositories/MatchRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
@@ -14,7 +16,6 @@
 
 #include <algorithm>
 #include <format>
-#include <map>
 #include <ranges>
 #include <set>
 #include <string>
@@ -32,13 +33,21 @@ constexpr std::string_view kLineupErrors = "lineup_errors";
 constexpr std::string_view kMatchNotLive = "match_not_live";
 constexpr std::string_view kMatchNotRunning = "match_not_running";
 constexpr std::string_view kMatchStarted = "match_started";
-constexpr std::string_view kHalfLength = "half_length";
+constexpr std::string_view kMatchFormat = "match_format";
+constexpr std::string_view kMinuteNotPlayed = "minute_not_played";
+constexpr std::string_view kTooFewPlayers = "too_few_players";
+constexpr std::string_view kEventConflict = "event_conflict";
+constexpr std::string_view kNoteText = "note_text";
 constexpr std::string_view kNothingToUndo = "nothing_to_undo";
 constexpr std::string_view kUndoEndAnotherLive = "undo_end_another_live";
 constexpr std::string_view kMatchHistory = "match_history";
 
 core::Error conflict(std::string_view field, std::string detail) {
     return core::Error{core::ErrorCode::Conflict, std::move(detail), std::string(field)};
+}
+
+core::Error invalid(std::string_view field, std::string detail) {
+    return core::Error{core::ErrorCode::InvalidInput, std::move(detail), std::string(field)};
 }
 
 std::string_view problemField(core::MatchEventProblem problem) {
@@ -61,14 +70,15 @@ std::string_view problemField(core::MatchEventProblem problem) {
         return "minute_out_of_range";
     case core::MatchEventProblem::AfterFinalMinute:
         return "after_final_minute";
+    case core::MatchEventProblem::SecondYellowWithoutRed:
+        return "second_yellow_without_red";
     }
     return "player_unknown";
 }
 
 core::Error eventError(core::MatchEventProblem problem, std::string_view context) {
     const std::string_view field = problemField(problem);
-    return core::Error{core::ErrorCode::InvalidInput, std::format("{}: {}", context, field),
-                       std::string(field)};
+    return invalid(field, std::format("{}: {}", context, field));
 }
 
 // Stored events that do not fit the lineup: the history of the match is inconsistent (written
@@ -86,54 +96,78 @@ std::vector<core::MatchEventDraft> draftsOf(const std::vector<core::MatchEvent>&
 
 core::MatchClock clockOf(const data::LiveMatchRow& row) {
     core::MatchClock clock;
-    clock.halfLength = row.halfLength;
+    clock.format = row.format;
     for (const data::ClockStepRow& step : row.steps) {
-        core::setStep(clock, step.step, step.at);
+        core::applyStep(clock, step.step, step.at);
     }
+    clock.finished = row.finishedSeq.has_value();
+    clock.endedEarly = row.endedEarly;
     return clock;
 }
 
-std::optional<core::MatchEventId> lastEventId(const std::vector<core::MatchEvent>& events) {
-    const auto last = std::ranges::max_element(events, {}, &core::MatchEvent::id);
-    return last == events.end() ? std::nullopt : std::optional{last->id};
+// The highest seq of a match: the action entered last.
+int lastSeqOf(const std::vector<core::MatchEvent>& events,
+              const std::vector<core::MatchNote>& notes, const data::LiveMatchRow& row) {
+    int seq = row.finishedSeq.value_or(0);
+    for (const core::MatchEvent& event : events) {
+        seq = std::max(seq, event.seq.value_or(0));
+    }
+    for (const core::MatchNote& note : notes) {
+        seq = std::max(seq, note.seq.value_or(0));
+    }
+    for (const data::ClockStepRow& step : row.steps) {
+        seq = std::max(seq, step.seq);
+    }
+    return seq;
 }
 
-// The red card of a second yellow (core::secondYellowReds(), counted in replay order) and the
-// second yellow card of its player, the last one before the red in that order.
-std::optional<core::MatchEvent> secondYellowOf(const std::vector<core::MatchEvent>& events,
-                                               const core::MatchEvent& red) {
-    const auto drafts = draftsOf(events);
-    const std::vector<bool> flags = core::secondYellowReds(drafts);
-    const auto redAt = std::ranges::find(events, red.id, &core::MatchEvent::id);
-    if (redAt == events.end() || !flags[static_cast<std::size_t>(redAt - events.begin())]) {
+// What the action with the highest seq is.
+std::optional<MatchDayAction> lastActionOf(const std::vector<core::MatchEvent>& events,
+                                           const std::vector<core::MatchNote>& notes,
+                                           const data::LiveMatchRow& row) {
+    const int seq = lastSeqOf(events, notes, row);
+    if (seq == 0) {
         return std::nullopt;
     }
+    std::optional<core::ClockStep> step;
+    for (const data::ClockStepRow& taken : row.steps) {
+        if (taken.seq == seq) {
+            step = taken.step;
+        }
+    }
+    if (row.finishedSeq == seq) {
+        return MatchDayAction{MatchDayAction::Kind::Finish, std::nullopt, std::nullopt, step};
+    }
+    if (step) {
+        return MatchDayAction{MatchDayAction::Kind::ClockStep, std::nullopt, std::nullopt, step};
+    }
+    // A second yellow is recognised by counting the cards in replay order (P13 review).
+    const std::vector<bool> secondYellows = core::secondYellowReds(draftsOf(events));
+    std::optional<core::MatchEvent> first;
+    bool secondYellow = false;
     std::optional<core::MatchEvent> yellow;
-    for (const std::size_t index : core::replayOrder(drafts)) {
-        const core::MatchEvent& event = events[index];
-        if (event.id == red.id) {
-            break;
+    for (std::size_t index = 0; index < events.size(); ++index) {
+        if (events[index].seq != seq) {
+            continue;
         }
-        if (event.type == core::MatchEventType::Yellow && event.playerId == red.playerId) {
-            yellow = event;
+        if (!first) {
+            first = events[index];
+        }
+        secondYellow = secondYellow || secondYellows[index];
+        if (events[index].type == core::MatchEventType::Yellow) {
+            yellow = events[index];
         }
     }
-    return yellow;
-}
-
-std::optional<MatchDayAction> lastActionOf(const std::vector<core::MatchEvent>& events,
-                                           const std::vector<data::ClockStepRow>& steps) {
-    const auto lastEvent = std::ranges::max_element(events, {}, &core::MatchEvent::id);
-    const data::ClockStepRow* lastStep = steps.empty() ? nullptr : &steps.back();
-    if (lastEvent != events.end() &&
-        (lastStep == nullptr || !lastStep->afterEvent || lastEvent->id > *lastStep->afterEvent)) {
-        if (auto yellow = secondYellowOf(events, *lastEvent)) {
-            return MatchDayAction{MatchDayAction::Kind::SecondYellow, yellow, std::nullopt};
-        }
-        return MatchDayAction{MatchDayAction::Kind::Event, *lastEvent, std::nullopt};
+    if (secondYellow && yellow) {
+        return MatchDayAction{MatchDayAction::Kind::SecondYellow, yellow, std::nullopt,
+                              std::nullopt};
     }
-    if (lastStep != nullptr) {
-        return MatchDayAction{MatchDayAction::Kind::ClockStep, std::nullopt, lastStep->step};
+    if (first) {
+        return MatchDayAction{MatchDayAction::Kind::Event, first, std::nullopt, std::nullopt};
+    }
+    const auto note = std::ranges::find(notes, std::optional{seq}, &core::MatchNote::seq);
+    if (note != notes.end()) {
+        return MatchDayAction{MatchDayAction::Kind::Note, std::nullopt, *note, std::nullopt};
     }
     return std::nullopt;
 }
@@ -146,15 +180,18 @@ struct MatchDayService::Live {
     core::MatchClock clock;
     core::MatchSheet sheet;
     std::vector<core::MatchEvent> events;
+    std::vector<core::MatchNote> notes;
+    core::MatchSituation situation;
 };
 
 MatchDayService::MatchDayService(data::DatabaseManager& db, data::MatchRepository& matches,
-                                 data::MatchLiveRepository& live, data::LineupRepository& lineups,
-                                 data::ClubRepository& clubs, data::OpponentRepository& opponents,
+                                 data::MatchLiveRepository& live, data::MatchNoteRepository& notes,
+                                 data::LineupRepository& lineups, data::ClubRepository& clubs,
+                                 data::OpponentRepository& opponents,
                                  data::PlayerRepository& players, LineupService& lineupService,
                                  Session& session, const Clock& clock)
-    : m_db(db), m_matches(matches), m_live(live), m_lineups(lineups), m_clubs(clubs),
-      m_opponents(opponents), m_players(players), m_lineupService(lineupService),
+    : m_db(db), m_matches(matches), m_live(live), m_notes(notes), m_lineups(lineups),
+      m_clubs(clubs), m_opponents(opponents), m_players(players), m_lineupService(lineupService),
       m_session(session), m_clock(clock) {}
 
 core::Status MatchDayService::requireLogin() const {
@@ -249,6 +286,11 @@ core::Result<MatchDayState> MatchDayService::state(core::MatchId matchId) const 
         return std::unexpected(events.error());
     }
     state.events = std::move(*events);
+    auto notes = m_notes.list(matchId);
+    if (!notes) {
+        return std::unexpected(notes.error());
+    }
+    state.notes = std::move(*notes);
     const auto drafts = draftsOf(state.events);
     auto situation = core::replayMatch(state.sheet, drafts);
     if (*live) {
@@ -256,15 +298,13 @@ core::Result<MatchDayState> MatchDayService::state(core::MatchId matchId) const 
             return std::unexpected(historyError(situation.error(), "match day state"));
         }
         state.situation = std::move(*situation);
+        state.lastAction = lastActionOf(state.events, state.notes, **live);
     } else {
         // Data that Match Day did not write (an import, a match without a lineup): show the
         // lineup and the stored score.
         state.situation = situation ? std::move(*situation) : core::startingSituation(state.sheet);
         state.situation.goalsFor = match->goalsFor.value_or(0);
         state.situation.goalsAgainst = match->goalsAgainst.value_or(0);
-    }
-    if (*live) {
-        state.lastAction = lastActionOf(state.events, (*live)->steps);
     }
     return state;
 }
@@ -283,7 +323,7 @@ core::Result<MatchDayStartCheck> MatchDayService::startCheck(core::MatchId match
     if (!category) {
         return std::unexpected(category.error());
     }
-    check.defaultHalfLength = core::defaultHalfLength(*category);
+    check.defaultFormat = core::defaultMatchFormat(*category);
     if (match->status != core::MatchStatus::Planned) {
         check.block = MatchDayStartCheck::Block::NotPlanned;
         return check;
@@ -318,14 +358,15 @@ core::Result<MatchDayStartCheck> MatchDayService::startCheck(core::MatchId match
     return check;
 }
 
-core::Status MatchDayService::start(core::MatchId match, int halfLength, int yellowCardThreshold) {
+core::Status MatchDayService::start(core::MatchId match, core::MatchFormat format,
+                                    int yellowCardThreshold) {
     if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
         return allowed;
     }
-    if (!core::isValidHalfLength(halfLength)) {
-        return std::unexpected(core::Error{core::ErrorCode::InvalidInput,
-                                           std::format("half length {}", halfLength),
-                                           std::string(kHalfLength)});
+    if (!core::isValidMatchFormat(format)) {
+        return std::unexpected(
+            invalid(kMatchFormat,
+                    std::format("match format {} x {}", format.periods, format.periodLength)));
     }
     auto transaction = data::Transaction::begin(m_db);
     if (!transaction) {
@@ -347,7 +388,7 @@ core::Status MatchDayService::start(core::MatchId match, int halfLength, int yel
     case MatchDayStartCheck::Block::LineupErrors:
         return std::unexpected(conflict(kLineupErrors, "match day start: lineup has errors"));
     }
-    if (auto created = m_live.create(match, halfLength); !created) {
+    if (auto created = m_live.create(match, format); !created) {
         return created;
     }
     if (auto status = m_matches.setStatus(match, core::MatchStatus::Live); !status) {
@@ -371,7 +412,7 @@ core::Result<MatchDayService::Live> MatchDayService::readLive(core::MatchId matc
     }
     const bool accepted = match->status == core::MatchStatus::Live ||
                           (allowFinished && match->status == core::MatchStatus::Finished);
-    const auto row = m_live.find(matchId);
+    auto row = m_live.find(matchId);
     if (!row) {
         return std::unexpected(row.error());
     }
@@ -386,8 +427,18 @@ core::Result<MatchDayService::Live> MatchDayService::readLive(core::MatchId matc
     if (!events) {
         return std::unexpected(events.error());
     }
-    Live live{std::move(*match), **row, clockOf(**row), std::move(*sheet), std::move(*events)};
-    return live;
+    auto notes = m_notes.list(matchId);
+    if (!notes) {
+        return std::unexpected(notes.error());
+    }
+    const auto drafts = draftsOf(*events);
+    auto situation = core::replayMatch(*sheet, drafts);
+    if (!situation) {
+        return std::unexpected(historyError(situation.error(), "replay stored events"));
+    }
+    core::MatchClock clock = clockOf(**row);
+    return Live{std::move(*match),  std::move(**row),  std::move(clock),     std::move(*sheet),
+                std::move(*events), std::move(*notes), std::move(*situation)};
 }
 
 core::Result<core::MatchMinutes> MatchDayService::recompute(core::MatchId match,
@@ -421,6 +472,19 @@ core::Result<core::MatchMinutes> MatchDayService::recompute(core::MatchId match,
     return std::move(*minutes);
 }
 
+core::Status MatchDayService::finish(const Live& live, core::MatchClock clock, int seq) {
+    clock.finished = true;
+    if (auto finished = m_live.setFinished(live.match.id, seq, clock.endedEarly); !finished) {
+        return finished;
+    }
+    const auto minutes = recompute(live.match.id, live.sheet, core::finalMinute(clock));
+    if (!minutes) {
+        return std::unexpected(minutes.error());
+    }
+    return m_matches.setResult(live.match.id, minutes->goalsFor, minutes->goalsAgainst,
+                               core::MatchStatus::Finished);
+}
+
 core::Status MatchDayService::cancelStart(core::MatchId match) {
     if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
         return allowed;
@@ -433,7 +497,8 @@ core::Status MatchDayService::cancelStart(core::MatchId match) {
     if (!live) {
         return std::unexpected(live.error());
     }
-    if (core::phaseOf(live->clock) != core::MatchPhase::NotStarted || !live->events.empty()) {
+    if (core::phaseOf(live->clock) != core::MatchPhase::NotStarted || !live->events.empty() ||
+        !live->notes.empty()) {
         return std::unexpected(conflict(kMatchStarted, "match day: the match has kicked off"));
     }
     if (auto removed = m_live.remove(match); !removed) {
@@ -460,29 +525,34 @@ core::Status MatchDayService::advanceClock(core::MatchId match) {
     if (!live) {
         return std::unexpected(live.error());
     }
-    // A live match is never finished: the end of the match makes it finished.
-    const core::ClockStep step = core::nextStep(live->clock).value_or(core::ClockStep::MatchEnd);
-    if (auto appended = m_live.appendStep(match, step, m_clock.now(), lastEventId(live->events));
-        !appended) {
+    const auto step = core::nextStep(live->clock);
+    if (!step) {
+        return std::unexpected(conflict(kMatchNotLive, "match day: the match is finished"));
+    }
+    const bool last =
+        step->kind == core::ClockStepKind::End && step->period == live->clock.format.periods;
+    if (!last && core::onPitchCount(live->situation) < core::kMinPlayersOnPitch) {
+        return std::unexpected(conflict(kTooFewPlayers, "match day: fewer than 7 players"));
+    }
+    const auto seq = m_live.lastSeq(match);
+    if (!seq) {
+        return std::unexpected(seq.error());
+    }
+    const core::Timestamp now = m_clock.now();
+    if (auto appended = m_live.appendStep(match, *step, now, *seq + 1); !appended) {
         return appended;
     }
-    if (step == core::ClockStep::MatchEnd) {
-        const auto minutes = recompute(match, live->sheet, 2 * live->clock.halfLength);
-        if (!minutes) {
-            return std::unexpected(minutes.error());
-        }
-        if (auto result = m_matches.setResult(match, minutes->goalsFor, minutes->goalsAgainst,
-                                              core::MatchStatus::Finished);
-            !result) {
-            return result;
+    if (last) {
+        core::MatchClock clock = live->clock;
+        core::applyStep(clock, *step, now);
+        if (auto finished = finish(*live, clock, *seq + 1); !finished) {
+            return finished;
         }
     }
     return transaction->commit();
 }
 
-core::Status MatchDayService::recordEvents(core::MatchId match,
-                                           std::vector<core::MatchEventDraft> events,
-                                           bool allowedAtHalfTime) {
+core::Status MatchDayService::endMatch(core::MatchId match) {
     if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
         return allowed;
     }
@@ -494,42 +564,139 @@ core::Status MatchDayService::recordEvents(core::MatchId match,
     if (!live) {
         return std::unexpected(live.error());
     }
-    const core::ClockReading reading = core::readClock(live->clock, m_clock.now());
-    const bool running = reading.phase == core::MatchPhase::FirstHalf ||
-                         reading.phase == core::MatchPhase::SecondHalf ||
-                         (allowedAtHalfTime && reading.phase == core::MatchPhase::HalfTime);
-    if (!running) {
-        return std::unexpected(conflict(kMatchNotRunning, "match day: no half is running"));
+    const core::MatchPhase phase = core::phaseOf(live->clock);
+    if (phase == core::MatchPhase::NotStarted) {
+        return std::unexpected(conflict(kMatchNotRunning, "match day: before the kick-off"));
     }
-    const auto drafts = draftsOf(live->events);
-    auto situation = core::replayMatch(live->sheet, drafts);
-    if (!situation) {
-        return std::unexpected(historyError(situation.error(), "replay stored events"));
+    const auto seq = m_live.lastSeq(match);
+    if (!seq) {
+        return std::unexpected(seq.error());
     }
-    std::vector<core::MatchEventDraft> written;
-    for (core::MatchEventDraft& event : events) {
-        event.minute = reading.eventTime.minute;
-        event.addedTime = reading.eventTime.addedTime;
-        if (auto problem = core::applyEvent(*situation, event)) {
-            return std::unexpected(eventError(*problem, "record match event"));
+    core::MatchClock clock = live->clock;
+    clock.endedEarly = true;
+    if (phase == core::MatchPhase::Running) {
+        const core::ClockStep end{core::currentPeriod(clock), core::ClockStepKind::End};
+        const core::Timestamp now = m_clock.now();
+        if (auto appended = m_live.appendStep(match, end, now, *seq + 1); !appended) {
+            return appended;
         }
-        written.push_back(event);
-        // A second yellow card sends the player off: a red row at the same time.
-        if (event.type == core::MatchEventType::Yellow) {
-            const core::PlayerInMatch* player = situation->find(*event.playerId);
-            if (player != nullptr && player->yellowCards >= 2) {
-                core::MatchEventDraft red = event;
-                red.type = core::MatchEventType::Red;
-                red.relatedPlayerId.reset();
-                if (auto problem = core::applyEvent(*situation, red)) {
-                    return std::unexpected(eventError(*problem, "record second yellow"));
-                }
-                written.push_back(red);
+        core::applyStep(clock, end, now);
+    }
+    if (auto finished = finish(*live, clock, *seq + 1); !finished) {
+        return finished;
+    }
+    return transaction->commit();
+}
+
+core::Result<core::MatchTime> MatchDayService::timeFor(const Live& live,
+                                                       std::optional<core::MatchTime> time,
+                                                       bool substitution) const {
+    if (core::phaseOf(live.clock) == core::MatchPhase::NotStarted) {
+        return std::unexpected(conflict(kMatchNotRunning, "match day: before the kick-off"));
+    }
+    const core::Timestamp now = m_clock.now();
+    const core::MatchTime chosen = time.value_or(core::defaultTime(live.clock, now, substitution));
+    if (!core::isPlayedTime(live.clock, now, chosen, substitution)) {
+        return std::unexpected(
+            invalid(kMinuteNotPlayed, std::format("match day: minute {}+{} not played",
+                                                  chosen.minute, chosen.addedTime.value_or(0))));
+    }
+    return chosen;
+}
+
+core::Result<std::vector<core::MatchEventDraft>>
+MatchDayService::prepareEvents(const Live& live, const core::MatchEventDraft& event,
+                               std::optional<EventConflict>& conflictFound) const {
+    std::vector<core::MatchEventDraft> all = draftsOf(live.events);
+    const std::size_t stored = all.size();
+    std::vector<core::MatchEventDraft> rows{event};
+    // A second yellow at its time (counted in the order of the match) brings its red row.
+    if (event.type == core::MatchEventType::Yellow && event.playerId) {
+        all.push_back(event);
+        int earlier = 0;
+        for (const std::size_t index : core::replayOrder(all)) {
+            if (index == stored) {
+                break;
+            }
+            if (all[index].type == core::MatchEventType::Yellow &&
+                all[index].playerId == event.playerId) {
+                ++earlier;
             }
         }
+        all.pop_back();
+        if (earlier == 1) {
+            core::MatchEventDraft red = event;
+            red.type = core::MatchEventType::Red;
+            red.relatedPlayerId.reset();
+            rows.push_back(red);
+        }
     }
-    for (const core::MatchEventDraft& event : written) {
-        if (auto appended = m_matches.appendEvent(match, event); !appended) {
+    all.insert(all.end(), rows.begin(), rows.end());
+    const auto replayed = core::replayMatch(live.sheet, all);
+    if (!replayed) {
+        const core::MatchEventError& error = replayed.error();
+        if (error.index >= stored) {
+            conflictFound = EventConflict{error.problem, std::nullopt};
+            return std::unexpected(eventError(error.problem, "record match event"));
+        }
+        conflictFound = EventConflict{error.problem, live.events[error.index]};
+        return std::unexpected(
+            conflict(kEventConflict,
+                     std::format("match day: a later event {} no longer fits ({})",
+                                 live.events[error.index].id.value, problemField(error.problem))));
+    }
+    return rows;
+}
+
+core::Result<std::optional<EventConflict>>
+MatchDayService::checkEvent(core::MatchId match, const core::MatchEventDraft& event) const {
+    if (auto allowed = requireLogin(); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    const auto live = readLive(match, false);
+    if (!live) {
+        return std::unexpected(live.error());
+    }
+    std::optional<EventConflict> found;
+    if (const auto rows = prepareEvents(*live, event, found); !rows && !found) {
+        return std::unexpected(rows.error());
+    }
+    return found;
+}
+
+core::Status MatchDayService::recordEvent(core::MatchId match, core::MatchEventDraft event,
+                                          std::optional<core::MatchTime> time) {
+    if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
+        return allowed;
+    }
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    const auto live = readLive(match, false);
+    if (!live) {
+        return std::unexpected(live.error());
+    }
+    if (core::onPitchCount(live->situation) < core::kMinPlayersOnPitch) {
+        return std::unexpected(conflict(kTooFewPlayers, "match day: fewer than 7 players"));
+    }
+    const auto chosen = timeFor(*live, time, event.type == core::MatchEventType::Sub);
+    if (!chosen) {
+        return std::unexpected(chosen.error());
+    }
+    event.minute = chosen->minute;
+    event.addedTime = chosen->addedTime;
+    std::optional<EventConflict> found;
+    const auto rows = prepareEvents(*live, event, found);
+    if (!rows) {
+        return std::unexpected(rows.error());
+    }
+    const auto seq = m_live.lastSeq(match);
+    if (!seq) {
+        return std::unexpected(seq.error());
+    }
+    for (const core::MatchEventDraft& row : *rows) {
+        if (auto appended = m_matches.appendEvent(match, row, *seq + 1); !appended) {
             return std::unexpected(appended.error());
         }
     }
@@ -540,41 +707,168 @@ core::Status MatchDayService::recordEvents(core::MatchId match,
 }
 
 core::Status MatchDayService::recordGoal(core::MatchId match, core::PlayerId scorer,
-                                         std::optional<core::PlayerId> assistant) {
+                                         std::optional<core::PlayerId> assistant,
+                                         std::optional<core::MatchTime> time) {
     core::MatchEventDraft goal;
     goal.type = core::MatchEventType::Goal;
     goal.playerId = scorer;
     goal.relatedPlayerId = assistant;
-    return recordEvents(match, {goal}, false);
+    return recordEvent(match, goal, time);
 }
 
-core::Status MatchDayService::recordOpponentGoal(core::MatchId match) {
+core::Status MatchDayService::recordOpponentGoal(core::MatchId match,
+                                                 std::optional<core::MatchTime> time) {
     core::MatchEventDraft goal;
     goal.type = core::MatchEventType::OpponentGoal;
-    return recordEvents(match, {goal}, false);
+    return recordEvent(match, goal, time);
 }
 
-core::Status MatchDayService::recordYellow(core::MatchId match, core::PlayerId player) {
+core::Status MatchDayService::recordYellow(core::MatchId match, core::PlayerId player,
+                                           std::optional<core::MatchTime> time) {
     core::MatchEventDraft card;
     card.type = core::MatchEventType::Yellow;
     card.playerId = player;
-    return recordEvents(match, {card}, false);
+    return recordEvent(match, card, time);
 }
 
-core::Status MatchDayService::recordRed(core::MatchId match, core::PlayerId player) {
+core::Status MatchDayService::recordRed(core::MatchId match, core::PlayerId player,
+                                        std::optional<core::MatchTime> time) {
     core::MatchEventDraft card;
     card.type = core::MatchEventType::Red;
     card.playerId = player;
-    return recordEvents(match, {card}, false);
+    return recordEvent(match, card, time);
 }
 
 core::Status MatchDayService::recordSubstitution(core::MatchId match, core::PlayerId comingOn,
-                                                 core::PlayerId goingOff) {
+                                                 core::PlayerId goingOff,
+                                                 std::optional<core::MatchTime> time) {
     core::MatchEventDraft sub;
     sub.type = core::MatchEventType::Sub;
     sub.playerId = comingOn;
     sub.relatedPlayerId = goingOff;
-    return recordEvents(match, {sub}, true);
+    return recordEvent(match, sub, time);
+}
+
+core::Status MatchDayService::checkNote(const Live& live, std::optional<core::PlayerId> player,
+                                        std::string_view text) const {
+    const std::size_t length = core::characterCount(core::trimmed(text));
+    if (length == 0 || length > static_cast<std::size_t>(core::kMaxNoteLength)) {
+        return std::unexpected(invalid(kNoteText, "match note: empty or too long"));
+    }
+    if (player && live.situation.find(*player) == nullptr) {
+        return std::unexpected(invalid("player_unknown", "match note: player not in the lineup"));
+    }
+    return {};
+}
+
+core::Result<core::MatchNoteId> MatchDayService::addNote(core::MatchId match,
+                                                         std::optional<core::MatchTime> time,
+                                                         std::optional<core::PlayerId> player,
+                                                         std::string_view text) {
+    if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    const auto live = readLive(match, false);
+    if (!live) {
+        return std::unexpected(live.error());
+    }
+    const auto chosen = timeFor(*live, time, false);
+    if (!chosen) {
+        return std::unexpected(chosen.error());
+    }
+    if (auto checked = checkNote(*live, player, text); !checked) {
+        return std::unexpected(checked.error());
+    }
+    const auto seq = m_live.lastSeq(match);
+    if (!seq) {
+        return std::unexpected(seq.error());
+    }
+    const core::MatchNoteDraft draft{chosen->minute, chosen->addedTime, player,
+                                     core::trimmed(text)};
+    const auto id = m_notes.add(match, draft, *seq + 1);
+    if (!id) {
+        return std::unexpected(id.error());
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(committed.error());
+    }
+    return *id;
+}
+
+core::Status MatchDayService::updateNote(core::MatchId match, core::MatchNoteId note,
+                                         core::MatchTime time, std::optional<core::PlayerId> player,
+                                         std::string_view text) {
+    if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
+        return allowed;
+    }
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    const auto live = readLive(match, false);
+    if (!live) {
+        return std::unexpected(live.error());
+    }
+    const auto chosen = timeFor(*live, time, false);
+    if (!chosen) {
+        return std::unexpected(chosen.error());
+    }
+    if (auto checked = checkNote(*live, player, text); !checked) {
+        return checked;
+    }
+    const core::MatchNoteDraft draft{chosen->minute, chosen->addedTime, player,
+                                     core::trimmed(text)};
+    if (auto updated = m_notes.update(match, note, draft); !updated) {
+        return updated;
+    }
+    return transaction->commit();
+}
+
+core::Result<core::MatchNote> MatchDayService::deleteNote(core::MatchId match,
+                                                          core::MatchNoteId note) {
+    if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    if (const auto live = readLive(match, false); !live) {
+        return std::unexpected(live.error());
+    }
+    auto removed = m_notes.remove(match, note);
+    if (!removed) {
+        return std::unexpected(removed.error());
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(committed.error());
+    }
+    return removed;
+}
+
+core::Result<core::MatchNoteId> MatchDayService::restoreNote(const core::MatchNote& note) {
+    if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    if (const auto live = readLive(note.matchId, false); !live) {
+        return std::unexpected(live.error());
+    }
+    const auto id = m_notes.add(note.matchId, note, note.seq);
+    if (!id) {
+        return std::unexpected(id.error());
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(committed.error());
+    }
+    return *id;
 }
 
 core::Result<MatchDayAction> MatchDayService::undoLast(core::MatchId match) {
@@ -589,51 +883,41 @@ core::Result<MatchDayAction> MatchDayService::undoLast(core::MatchId match) {
     if (!live) {
         return std::unexpected(live.error());
     }
-    const auto action = lastActionOf(live->events, live->row.steps);
+    const auto action = lastActionOf(live->events, live->notes, live->row);
     if (!action) {
         return std::unexpected(core::Error{core::ErrorCode::NotFound, "match day: nothing to undo",
                                            std::string(kNothingToUndo)});
     }
-    switch (action->kind) {
-    case MatchDayAction::Kind::SecondYellow:
-        // The red row (the last one), then the yellow card that sent the player off.
-        if (auto deleted = m_matches.deleteLastEvent(match); !deleted) {
-            return std::unexpected(deleted.error());
-        }
-        if (auto deleted = m_matches.deleteEvent(match, action->event->id); !deleted) {
-            return std::unexpected(deleted.error());
-        }
-        break;
-    case MatchDayAction::Kind::Event:
-        if (auto deleted = m_matches.deleteLastEvent(match); !deleted) {
-            return std::unexpected(deleted.error());
-        }
-        break;
-    case MatchDayAction::Kind::ClockStep:
+    const int seq = lastSeqOf(live->events, live->notes, live->row);
+    if (action->kind == MatchDayAction::Kind::Finish) {
         // A finished match made live again next to another live match of the team: two live
         // matches, and the start of the other one would refuse that (P13 review).
-        if (action->step == core::ClockStep::MatchEnd) {
-            const auto other = m_matches.findLive(live->match.teamId);
-            if (!other) {
-                return std::unexpected(other.error());
-            }
-            if (*other && **other != match) {
-                return std::unexpected(conflict(
-                    kUndoEndAnotherLive,
-                    std::format("match day undo: match {} of the team is live", (*other)->value)));
-            }
+        const auto other = m_matches.findLive(live->match.teamId);
+        if (!other) {
+            return std::unexpected(other.error());
         }
-        if (auto deleted = m_live.deleteLastStep(match); !deleted) {
-            return std::unexpected(deleted.error());
+        if (*other && **other != match) {
+            return std::unexpected(conflict(
+                kUndoEndAnotherLive,
+                std::format("match day undo: match {} of the team is live", (*other)->value)));
         }
-        if (action->step == core::ClockStep::MatchEnd) {
-            if (auto result =
-                    m_matches.setResult(match, std::nullopt, std::nullopt, core::MatchStatus::Live);
-                !result) {
-                return std::unexpected(result.error());
-            }
+        if (auto reopened = m_live.setFinished(match, std::nullopt); !reopened) {
+            return std::unexpected(reopened.error());
         }
-        break;
+        if (auto result =
+                m_matches.setResult(match, std::nullopt, std::nullopt, core::MatchStatus::Live);
+            !result) {
+            return std::unexpected(result.error());
+        }
+    }
+    if (const auto steps = m_live.deleteSteps(match, seq); !steps) {
+        return std::unexpected(steps.error());
+    }
+    if (const auto events = m_matches.deleteEventsWithSeq(match, seq); !events) {
+        return std::unexpected(events.error());
+    }
+    if (const auto notes = m_notes.deleteWithSeq(match, seq); !notes) {
+        return std::unexpected(notes.error());
     }
     if (const auto minutes = recompute(match, live->sheet, std::nullopt); !minutes) {
         return std::unexpected(minutes.error());

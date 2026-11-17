@@ -51,8 +51,7 @@ TEST(EnumsTest, ListTheValuesOfTheSpec) {
     EXPECT_EQ(listedTexts<SessionType>(), "training,match_prep,recovery,gym,other");
     EXPECT_EQ(listedTexts<AttendanceStatus>(), "present,absent,excused,injured");
     EXPECT_EQ(listedTexts<MatchEventType>(), "goal,assist,yellow,red,sub,opponent_goal");
-    EXPECT_EQ(listedTexts<ClockStep>(),
-              "first_half_start,first_half_end,second_half_start,match_end");
+    EXPECT_EQ(listedTexts<ClockStepKind>(), "start,end");
     EXPECT_EQ(listedTexts<MetricValueType>(), "integer,decimal,boolean");
     EXPECT_EQ(listedTexts<MetricAggregation>(), "sum,avg,min,max,last");
     EXPECT_EQ(listedTexts<MetricScope>(), "match,training,player");
@@ -69,7 +68,7 @@ TEST(EnumsTest, EveryValueRoundTrips) {
     expectRoundTrip<SessionType>();
     expectRoundTrip<AttendanceStatus>();
     expectRoundTrip<MatchEventType>();
-    expectRoundTrip<ClockStep>();
+    expectRoundTrip<ClockStepKind>();
     expectRoundTrip<MetricValueType>();
     expectRoundTrip<MetricAggregation>();
     expectRoundTrip<MetricScope>();
@@ -86,7 +85,7 @@ TEST(EnumsTest, UnknownTextFails) {
     expectUnknownTextFails<SessionType>();
     expectUnknownTextFails<AttendanceStatus>();
     expectUnknownTextFails<MatchEventType>();
-    expectUnknownTextFails<ClockStep>();
+    expectUnknownTextFails<ClockStepKind>();
     expectUnknownTextFails<MetricValueType>();
     expectUnknownTextFails<MetricAggregation>();
     expectUnknownTextFails<MetricScope>();

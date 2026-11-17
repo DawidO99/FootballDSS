@@ -64,6 +64,7 @@ qt_add_qml_module(fdss_ui
         ui/components/LoadStatusBadge.qml
         ui/components/MatchClockBar.qml
         ui/components/MatchEditorDialog.qml
+        ui/components/MatchNoteDialog.qml
         ui/components/MatchPlayerTile.qml
         ui/components/MatchStartDialog.qml
         ui/components/MatchStatusBadge.qml

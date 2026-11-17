@@ -1562,6 +1562,7 @@ Item {
                         goalsAgainst: 1
                         clockText: "45+2:10"
                         phaseText: qsTr("1st half")
+                        onPitchCount: 7
 
                         PrimaryButton {
                             touch: true
@@ -1640,8 +1641,11 @@ Item {
 
                         MatchTimeline {
                             Layout.preferredWidth: Theme.matchTimelineWidth
-                            Layout.preferredHeight: 4 * Theme.matchTileHeight
+                            Layout.preferredHeight: 5 * Theme.matchTileHeight
                             model: sampleTimeline
+                            notesEditable: true
+                            onNoteEditRequested: noteId => Toasts.info(qsTr("Edit note: %1").arg(noteId))
+                            onNoteDeleteRequested: noteId => Toasts.info(qsTr("Delete note: %1").arg(noteId))
                         }
                     }
                 }
@@ -1731,10 +1735,11 @@ Item {
     ListModel {
         id: sampleTimeline
 
-        ListElement { eventId: 4; minuteText: "45+2'"; typeKey: "secondYellow"; iconName: "card"; typeText: qsTr("Second yellow, red card"); playerText: "Cezary Mur"; relatedText: "" }
-        ListElement { eventId: 3; minuteText: "38'"; typeKey: "sub"; iconName: "swap"; typeText: qsTr("Substitution"); playerText: qsTr("On: Leon Rezerwa"); relatedText: qsTr("Off: Filip Skrzydło") }
-        ListElement { eventId: 2; minuteText: "23'"; typeKey: "opponentGoal"; iconName: "goal"; typeText: qsTr("Opponent goal"); playerText: "Victoria Wzór"; relatedText: "" }
-        ListElement { eventId: 1; minuteText: "11'"; typeKey: "goal"; iconName: "goal"; typeText: qsTr("Goal"); playerText: "Igor Gol"; relatedText: qsTr("Assist: Jan Szczepaniak-Wojciechowski") }
+        ListElement { kind: "note"; eventId: 0; noteId: 9; minuteText: "45+3'"; typeKey: "note"; iconName: "note"; typeText: qsTr("Note"); playerText: "Cezary Mur"; relatedText: qsTr("Ankle after the tackle, watch him in the break."); noteMinute: "45+3"; notePlayerId: 3; noteText: qsTr("Ankle after the tackle, watch him in the break.") }
+        ListElement { kind: "event"; eventId: 4; noteId: 0; minuteText: "45+2'"; typeKey: "secondYellow"; iconName: "card"; typeText: qsTr("Second yellow, red card"); playerText: "Cezary Mur"; relatedText: ""; noteMinute: ""; notePlayerId: 0; noteText: "" }
+        ListElement { kind: "event"; eventId: 3; noteId: 0; minuteText: "38'"; typeKey: "sub"; iconName: "swap"; typeText: qsTr("Substitution"); playerText: qsTr("On: Leon Rezerwa"); relatedText: qsTr("Off: Filip Skrzydło"); noteMinute: ""; notePlayerId: 0; noteText: "" }
+        ListElement { kind: "event"; eventId: 2; noteId: 0; minuteText: "23'"; typeKey: "opponentGoal"; iconName: "goal"; typeText: qsTr("Opponent goal"); playerText: "Victoria Wzór"; relatedText: ""; noteMinute: ""; notePlayerId: 0; noteText: "" }
+        ListElement { kind: "event"; eventId: 1; noteId: 0; minuteText: "11'"; typeKey: "goal"; iconName: "goal"; typeText: qsTr("Goal"); playerText: "Igor Gol"; relatedText: qsTr("Assist: Jan Szczepaniak-Wojciechowski"); noteMinute: ""; notePlayerId: 0; noteText: "" }
     }
 
     // Tactics board samples (P12): a 4-4-2 with one free slot, the coordinates of its zone layout.

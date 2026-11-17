@@ -7,55 +7,101 @@
 #include "core/domain/Lineup.hpp"
 #include "core/domain/MatchEvent.hpp"
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <expected>
 #include <optional>
 #include <span>
+#include <string_view>
 #include <vector>
 
 // Match Day (SPEC section 6 `match_event`, packet P13): the clock of a live match and the minutes
 // of every player, recomputed from the lineup and the events, which are the single source of truth.
 //
-// Minutes (P13 decision 3 and 4): an event stores the full minutes elapsed in the match, 0-based,
-// cut at the end of its half (the first half at most halfLength, the second at most 2 ×
-// halfLength); the minutes over the end of the half go to `addedTime` for display only. A whole
-// match is 2 × halfLength minutes, whatever the stoppage time.
+// Format: 1–4 parts of 10–60 minutes (2 parts are the halves). Minutes (P13 decisions): an event
+// stores the full minutes elapsed in the match, 0-based, cut at the end of its part (part p ends at
+// p × length); the minutes over it go to `addedTime` for display only. A whole match is
+// parts × length minutes, whatever the stoppage time.
 
 namespace fdss::core {
 
-inline constexpr int kMinHalfLength = 10;
-inline constexpr int kMaxHalfLength = 60;
+inline constexpr int kMinPeriods = 1;
+inline constexpr int kMaxPeriods = 4;
+inline constexpr int kMinPeriodLength = 10;
+inline constexpr int kMaxPeriodLength = 60;
+// The CHECK of `match_event.minute` and of the appearance minutes (migration 0001).
 inline constexpr int kMaxMatchMinute = 130;
+// By the laws of the game a team needs at least 7 players on the pitch to go on.
+inline constexpr int kMinPlayersOnPitch = 7;
 
-// SPEC: senior 45, U19 45, U17 40, U15 35, U13 30, U11 25, other 45.
-[[nodiscard]] int defaultHalfLength(TeamCategory category) noexcept;
-[[nodiscard]] constexpr bool isValidHalfLength(int minutes) noexcept {
-    return minutes >= kMinHalfLength && minutes <= kMaxHalfLength;
+struct MatchFormat {
+    int periods = 2;
+    int periodLength = 45;
+
+    [[nodiscard]] constexpr int totalMinutes() const noexcept { return periods * periodLength; }
+
+    friend bool operator==(const MatchFormat&, const MatchFormat&) = default;
+};
+
+// 1–4 parts of 10–60 minutes, at most kMaxMatchMinute in all.
+[[nodiscard]] constexpr bool isValidMatchFormat(MatchFormat format) noexcept {
+    return format.periods >= kMinPeriods && format.periods <= kMaxPeriods &&
+           format.periodLength >= kMinPeriodLength && format.periodLength <= kMaxPeriodLength &&
+           format.totalMinutes() <= kMaxMatchMinute;
 }
 
-enum class MatchPhase { NotStarted, FirstHalf, HalfTime, SecondHalf, Finished };
+// The variants offered at the start (packet P13): 2×45, 2×40, 2×35, 2×30, 2×25, 3×30, 4×20.
+inline constexpr std::array<MatchFormat, 7> kMatchFormatPresets{
+    {{2, 45}, {2, 40}, {2, 35}, {2, 30}, {2, 25}, {3, 30}, {4, 20}}};
 
-// The persisted clock: when each step happened (UTC).
+// By team category: senior 2×45, U19 2×45, U17 2×40, U15 2×35, U13 2×30, U11 2×25, other 2×45.
+[[nodiscard]] MatchFormat defaultMatchFormat(TeamCategory category) noexcept;
+
+// NotStarted: before the first part; Running: a part is played; Break: between two parts;
+// Finished: after the last part, or ended early.
+enum class MatchPhase { NotStarted, Running, Break, Finished };
+
+struct PeriodTimes {
+    Timestamp start{};
+    std::optional<Timestamp> end;
+
+    friend bool operator==(const PeriodTimes&, const PeriodTimes&) = default;
+};
+
+// The persisted clock: the parts started so far, in order (UTC).
 struct MatchClock {
-    int halfLength = 45;
-    std::optional<Timestamp> firstHalfStart;
-    std::optional<Timestamp> firstHalfEnd;
-    std::optional<Timestamp> secondHalfStart;
-    std::optional<Timestamp> matchEnd;
+    MatchFormat format;
+    std::vector<PeriodTimes> periods;
+    // The match was finished: after the last part, or early (fewer than 7 players).
+    bool finished = false;
+    // Finished early: the final minute is the minute of the end, not parts × length.
+    bool endedEarly = false;
 
     friend bool operator==(const MatchClock&, const MatchClock&) = default;
 };
 
-[[nodiscard]] MatchPhase phaseOf(const MatchClock& clock) noexcept;
-// The step the clock button takes next; nullopt once the match is finished.
-[[nodiscard]] std::optional<ClockStep> nextStep(const MatchClock& clock) noexcept;
-// The last step taken; nullopt before the first half.
-[[nodiscard]] std::optional<ClockStep> lastStep(const MatchClock& clock) noexcept;
-// Sets (or with nullopt clears) the time of a step.
-void setStep(MatchClock& clock, ClockStep step, std::optional<Timestamp> at) noexcept;
+struct ClockStep {
+    int period = 1; // 1-based
+    ClockStepKind kind = ClockStepKind::Start;
 
-// What an event recorded at a moment stores.
+    friend bool operator==(const ClockStep&, const ClockStep&) = default;
+};
+
+[[nodiscard]] MatchPhase phaseOf(const MatchClock& clock) noexcept;
+// The part being played, or the last one played; 0 before the first.
+[[nodiscard]] int currentPeriod(const MatchClock& clock) noexcept;
+// The step the clock button takes next; nullopt once the match is finished. The end of the last
+// part ends the match.
+[[nodiscard]] std::optional<ClockStep> nextStep(const MatchClock& clock) noexcept;
+// Records a step; a step out of order is ignored.
+void applyStep(MatchClock& clock, ClockStep step, Timestamp at);
+// The minute the match ended: parts × length (whatever the stoppage time, or a last part ended a
+// little before its length), or for a match ended early the minute its last part ended, at most the
+// end of that part.
+[[nodiscard]] int finalMinute(const MatchClock& clock) noexcept;
+
+// What an event stores.
 struct MatchTime {
     int minute = 0;
     std::optional<int> addedTime;
@@ -63,7 +109,7 @@ struct MatchTime {
     friend bool operator==(const MatchTime&, const MatchTime&) = default;
 };
 
-// The football way of showing a minute: 0 → 1', 44 → 45', {45, +3} → 45+3'.
+// The football way of showing a minute: 0 → 1', 44 → 45', {45, +3} → 45+3', {30, +2} → 30+2'.
 struct DisplayMinute {
     int minute = 1;
     std::optional<int> added;
@@ -71,18 +117,33 @@ struct DisplayMinute {
     friend bool operator==(const DisplayMinute&, const DisplayMinute&) = default;
 };
 [[nodiscard]] DisplayMinute displayMinute(const MatchTime& time) noexcept;
+// "23", "23'", "45+2", "45+2'" (spaces allowed around); nullopt for anything else.
+[[nodiscard]] std::optional<DisplayMinute> parseDisplayMinute(std::string_view text);
+// The stored time of a shown minute; added time only at the end of a part ("30+2" in 3×30).
+[[nodiscard]] std::optional<MatchTime> matchTimeOf(DisplayMinute shown, MatchFormat format);
 
 struct ClockReading {
     MatchPhase phase = MatchPhase::NotStarted;
-    // The regular part of the clock: the match time up to the end of the current half.
+    int period = 0;
+    // The regular part of the clock: the match time up to the end of the current part.
     std::chrono::seconds regular{0};
-    // Time over the end of the half; 0 outside stoppage time. The clock shows "45+2:10".
+    // Time over the end of the part; 0 outside stoppage time. The clock shows "45+2:10".
     std::chrono::seconds stoppage{0};
-    // What an event recorded now stores. In the half-time break: the end of the first half.
+    // What an event recorded now stores. In a break: the end of the part played (the minute of a
+    // substitution in the break); finished: the final minute.
     MatchTime eventTime;
 };
-// A time before the start of a half (the system clock went back) counts as 0.
+// A time before the start of a part (the system clock went back) counts as 0.
 [[nodiscard]] ClockReading readClock(const MatchClock& clock, Timestamp now) noexcept;
+
+// Whether a time was already played: a minute of a part started so far, not later than now, or the
+// added time of a part as far as it was played. A substitution in a break may also take the minute
+// that starts the next part ("46'" in the half-time break).
+[[nodiscard]] bool isPlayedTime(const MatchClock& clock, Timestamp now, MatchTime time,
+                                bool substitution);
+// What the minute field offers: the time now while a part runs; in a break the minute of a
+// substitution, or for anything else the last minute played.
+[[nodiscard]] MatchTime defaultTime(const MatchClock& clock, Timestamp now, bool substitution);
 
 // Who starts and who is on the bench, from the saved lineup.
 struct StartingPlayer {
@@ -140,7 +201,10 @@ enum class MatchEventProblem {
     AlreadySubstituted, // the player has left by a substitution and cannot come back
     SentOff,            // a sent-off player cannot be substituted or come on
     MinuteOutOfRange,   // outside 0–130, or added time below 1
-    AfterFinalMinute    // after the end of the match
+    AfterFinalMinute,   // after the end of the match
+    // A second yellow card not followed by its red row at the same time: a yellow entered later
+    // made a later card the second one (P13 late entry).
+    SecondYellowWithoutRed
 };
 
 struct MatchEventError {
@@ -157,20 +221,23 @@ struct MatchEventError {
 [[nodiscard]] std::optional<MatchEventProblem> checkEvent(const MatchSituation& situation,
                                                           const MatchEventDraft& event);
 
-// Applies the events by minute, keeping the given order within one minute (the repository lists
-// them by minute, then as recorded). finalMinute: nullopt while the match runs; otherwise events
+// Applies the events in replayOrder(). finalMinute: nullopt while the match runs; otherwise events
 // after it are rejected.
 [[nodiscard]] std::expected<MatchSituation, MatchEventError>
 replayMatch(const MatchSheet& sheet, std::span<const MatchEventDraft> events,
             std::optional<int> finalMinute = std::nullopt);
 
-// The order in which replayMatch() applies the events: by minute, then as given.
+// The order of the match: by minute; at one minute the added time of the part that ends there (by
+// added minutes) comes before the minute that starts the next part; then as given (the repository
+// lists them as recorded).
 [[nodiscard]] std::vector<std::size_t> replayOrder(std::span<const MatchEventDraft> events);
 
 // For each event: true for the red card of a second yellow, i.e. a `red` row without a related
 // player whose player already had two yellow cards, counted in replay order (P13 review). A yellow
 // and a straight red at the same minute is a red card.
 [[nodiscard]] std::vector<bool> secondYellowReds(std::span<const MatchEventDraft> events);
+
+[[nodiscard]] int onPitchCount(const MatchSituation& situation) noexcept;
 
 struct MatchMinutes {
     // The starters and every player who came on, in the order of the situation. Starters from 0,

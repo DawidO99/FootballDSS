@@ -21,7 +21,7 @@ Item {
     readonly property bool failed: matchDay.loadError.length > 0
     readonly property bool started: matchDay.statusKey === "live" || matchDay.statusKey === "finished"
     readonly property bool choosing: matchDay.pendingAction.length > 0
-    readonly property bool dialogOpen: startDialog.visible || leaveQuestion.visible
+    readonly property bool dialogOpen: startDialog.visible || leaveQuestion.visible || noteDialog.visible || tooFewDialog.visible
     // The single-letter accelerators and Ctrl+Z stay off while a dialog (of this view or any other
     // popup, e.g. Change PIN) holds the focus, and while a text field does: there the letters are
     // typed and Ctrl+Z undoes the typing (P13 review).
@@ -32,6 +32,8 @@ Item {
     readonly property alias viewModel: matchDay
     readonly property alias startMatchDialog: startDialog
     readonly property alias leaveDialog: leaveQuestion
+    readonly property alias noteEditor: noteDialog
+    readonly property alias tooFewPlayersDialog: tooFewDialog
 
     signal navigateRequested(string key, var args)
     // The answer to askBeforeLeaving(): leave the live match, or stay.
@@ -79,6 +81,17 @@ Item {
             window.showNormal();
     }
 
+    function addNote() {
+        if (matchDay.canAddNote)
+            noteDialog.openForAdding(matchDay.defaultNoteMinute());
+    }
+
+    function deleteNote(noteId) {
+        const text = matchDay.deleteNote(noteId);
+        if (text.length > 0)
+            Toasts.show(text, qsTr("Undo"), () => matchDay.restoreDeletedNote());
+    }
+
     function undo() {
         const text = matchDay.undo();
         if (text.length > 0)
@@ -122,6 +135,8 @@ Item {
         teamId: AppState.teamId
         yellowCardThreshold: AppSettings.yellowCardThreshold
         onErrorOccurred: message => Toasts.error(message)
+        onNotice: message => Toasts.info(message)
+        onTooFewPlayersReached: tooFewDialog.open()
     }
 
     Shortcut {
@@ -139,7 +154,16 @@ Item {
         objectName: "opponentGoalShortcut"
         sequence: "O"
         enabled: root.shortcutsFree && matchDay.canRecordEvents
-        onActivated: matchDay.recordOpponentGoal()
+        onActivated: matchDay.beginAction("opponentGoal")
+    }
+
+    Shortcut {
+        id: noteShortcut
+
+        objectName: "noteShortcut"
+        sequence: "N"
+        enabled: root.shortcutsFree && matchDay.canAddNote
+        onActivated: root.addNote()
     }
 
     Shortcut {
@@ -352,6 +376,8 @@ Item {
             goalsAgainst: matchDay.goalsAgainst
             clockText: matchDay.clockText
             phaseText: matchDay.phaseText
+            onPitchCount: matchDay.statusKey === "live" ? matchDay.onPitchCount : -1
+            minPlayers: matchDay.minPlayers
 
             SecondaryButton {
                 objectName: "cancelStartButton"
@@ -397,7 +423,7 @@ Item {
                 ToolTip.visible: hovered
                 ToolTip.delay: Theme.tooltipDelay
                 ToolTip.text: qsTr("Opponent goal (%1)").arg(opponentGoalShortcut.nativeText)
-                onClicked: matchDay.recordOpponentGoal()
+                onClicked: matchDay.beginAction("opponentGoal")
             }
 
             SecondaryButton {
@@ -436,6 +462,18 @@ Item {
                 onClicked: matchDay.beginAction("sub")
             }
 
+            SecondaryButton {
+                objectName: "noteButton"
+                Layout.preferredWidth: Theme.matchActionWidth
+                touch: true
+                enabled: matchDay.canAddNote
+                text: qsTr("Note")
+                ToolTip.visible: hovered
+                ToolTip.delay: Theme.tooltipDelay
+                ToolTip.text: qsTr("Note (%1)").arg(noteShortcut.nativeText)
+                onClicked: root.addNote()
+            }
+
             Item {
                 Layout.fillWidth: true
             }
@@ -457,6 +495,36 @@ Item {
                     delay: Theme.tooltipDelay
                     text: matchDay.canUndo ? qsTr("Undo: %1 (%2)").arg(matchDay.undoText).arg(undoShortcut.nativeText) : qsTr("Nothing to undo (%1)").arg(undoShortcut.nativeText)
                 }
+            }
+        }
+
+        // Fewer than 7 players: the match cannot go on (laws of the game); only its end and undo.
+        RowLayout {
+            objectName: "tooFewPlayersNote"
+            Layout.fillWidth: true
+            visible: matchDay.tooFewPlayers
+            spacing: Theme.spacing.s
+
+            Icon {
+                name: "danger"
+                size: Theme.iconSize.s
+                color: Theme.danger
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Fewer than %1 players on the pitch: by the laws of the game the match cannot go on. End the match, or undo the last action.").arg(matchDay.minPlayers)
+                color: Theme.text
+                font.pixelSize: Theme.fontSize.body
+                wrapMode: Text.WordWrap
+            }
+
+            DangerButton {
+                objectName: "endMatchButton"
+                visible: !matchDay.readOnly
+                touch: true
+                text: qsTr("End match")
+                onClicked: matchDay.endMatch()
             }
         }
 
@@ -490,6 +558,37 @@ Item {
                     color: Theme.text
                     font.pixelSize: Theme.fontSize.body
                     wrapMode: Text.WordWrap
+                }
+
+                FormField {
+                    id: minuteFormField
+
+                    Layout.preferredWidth: Theme.matchMinuteFieldWidth
+                    label: qsTr("Minute")
+                    error: matchDay.pendingMinuteError
+
+                    TextInputField {
+                        objectName: "minuteField"
+                        implicitWidth: Theme.matchMinuteFieldWidth
+                        implicitHeight: Theme.hitTouch
+                        maximumLength: 7
+                        text: matchDay.pendingMinute
+                        error: matchDay.pendingMinuteError
+                        Accessible.name: minuteFormField.label
+                        onTextEdited: matchDay.setPendingMinute(text)
+                        onAccepted: {
+                            if (matchDay.pendingAction === "opponentGoal")
+                                matchDay.confirmAction();
+                        }
+                    }
+                }
+
+                PrimaryButton {
+                    objectName: "saveActionButton"
+                    visible: matchDay.pendingAction === "opponentGoal"
+                    touch: true
+                    text: qsTr("Save")
+                    onClicked: matchDay.confirmAction()
                 }
 
                 SecondaryButton {
@@ -631,6 +730,9 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     model: matchDay.timeline
+                    notesEditable: matchDay.canAddNote
+                    onNoteEditRequested: (noteId, minute, playerId, text) => noteDialog.openForEditing(noteId, minute, playerId, text)
+                    onNoteDeleteRequested: noteId => root.deleteNote(noteId)
                 }
             }
         }
@@ -640,12 +742,52 @@ Item {
         id: startDialog
 
         objectName: "startDialog"
-        defaultHalfLength: matchDay.defaultHalfLength
-        from: matchDay.minHalfLength
-        to: matchDay.maxHalfLength
-        onStartRequested: halfLength => {
-            if (matchDay.start(halfLength))
+        formatOptions: matchDay.formatOptions
+        defaultFormat: matchDay.defaultFormat
+        minPeriods: matchDay.minPeriods
+        maxPeriods: matchDay.maxPeriods
+        minPeriodLength: matchDay.minPeriodLength
+        maxPeriodLength: matchDay.maxPeriodLength
+        onStartRequested: (format, periods, periodLength) => {
+            if (matchDay.start(format, periods, periodLength))
                 startDialog.close();
+        }
+    }
+
+    MatchNoteDialog {
+        id: noteDialog
+
+        objectName: "noteDialog"
+        playerOptions: matchDay.notePlayerOptions
+        minuteError: noteDialog.visible ? matchDay.noteMinuteError(noteDialog.minuteText) : ""
+        onSaveRequested: (noteId, minute, playerId, text) => {
+            const saved = noteId > 0 ? matchDay.updateNote(noteId, minute, playerId, text) : matchDay.addNote(minute, playerId, text);
+            if (saved)
+                noteDialog.close();
+        }
+    }
+
+    // An action left fewer than 7 players on the pitch.
+    AppDialog {
+        id: tooFewDialog
+
+        objectName: "tooFewPlayersDialog"
+        size: AppDialog.Small
+        touch: true
+        title: qsTr("Fewer than %1 players").arg(matchDay.minPlayers)
+        primaryText: qsTr("End match")
+        secondaryText: qsTr("Not now")
+        onPrimaryClicked: {
+            tooFewDialog.close();
+            matchDay.endMatch();
+        }
+
+        Label {
+            Layout.fillWidth: true
+            text: qsTr("By the laws of the game the match cannot go on (fewer than %1 players). End the match?").arg(matchDay.minPlayers)
+            color: Theme.text
+            font.pixelSize: Theme.fontSize.body
+            wrapMode: Text.Wrap
         }
     }
 

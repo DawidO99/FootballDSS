@@ -61,6 +61,8 @@ add_library(fdss_data STATIC
     repositories/MatchRepository.cpp
     repositories/MatchLiveRepository.hpp
     repositories/MatchLiveRepository.cpp
+    repositories/MatchNoteRepository.hpp
+    repositories/MatchNoteRepository.cpp
     repositories/OpponentRepository.hpp
     repositories/OpponentRepository.cpp
     repositories/PlayerRepository.hpp

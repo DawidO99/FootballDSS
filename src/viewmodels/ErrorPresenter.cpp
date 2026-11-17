@@ -145,8 +145,18 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     if (field == "lineup_shape") {
         return tr("This lineup cannot be saved. Open the match again and set up the lineup.");
     }
-    if (field == "half_length") {
-        return tr("Enter a half length from 10 to 60 minutes.");
+    if (field == "match_format") {
+        return tr("Choose 1 to 4 parts of 10 to 60 minutes, at most 130 minutes in all.");
+    }
+    if (field == "minute_not_played") {
+        return tr("This minute has not been played yet. Enter a minute up to the current one.");
+    }
+    if (field == "second_yellow_without_red") {
+        return tr("This yellow card would make another one the second, without its red card. "
+                  "Check the cards of the player.");
+    }
+    if (field == "note_text") {
+        return tr("Write the note, up to 500 characters.");
     }
     if (field == "player_not_on_pitch") {
         return tr("This player is not on the pitch. Choose a player on the pitch.");
@@ -218,6 +228,13 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
     if (field == "match_not_running") {
         return tr("No half is running. Start the half first; in the break only substitutions "
                   "can be recorded.");
+    }
+    if (field == "too_few_players") {
+        return tr("Fewer than 7 players are on the pitch, so the match cannot go on. End the match "
+                  "or undo the last action.");
+    }
+    if (field == "event_conflict") {
+        return tr("This event conflicts with a later one. Undo or correct the later event first.");
     }
     if (field == "undo_end_another_live") {
         return tr("Another match of this team is live. Finish it or undo its start first.");

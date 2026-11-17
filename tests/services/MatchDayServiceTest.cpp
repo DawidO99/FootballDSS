@@ -6,6 +6,7 @@
 #include "data/repositories/ClubRepository.hpp"
 #include "data/repositories/LineupRepository.hpp"
 #include "data/repositories/MatchLiveRepository.hpp"
+#include "data/repositories/MatchNoteRepository.hpp"
 #include "data/repositories/MatchRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
@@ -39,6 +40,7 @@ namespace {
 constexpr MatchId kFinished{5};
 constexpr MatchId kOtherPlanned{6};
 constexpr MatchId kMatchId{1};
+constexpr MatchFormat kHalves{2, 45};
 
 PlayerId pid(std::int64_t id) { return PlayerId{id}; }
 
@@ -66,6 +68,7 @@ protected:
         m_lineups = std::make_unique<LineupRepository>(*m_db);
         m_matches = std::make_unique<MatchRepository>(*m_db);
         m_live = std::make_unique<MatchLiveRepository>(*m_db);
+        m_notes = std::make_unique<MatchNoteRepository>(*m_db);
         m_opponents = std::make_unique<OpponentRepository>(*m_db);
         m_players = std::make_unique<PlayerRepository>(*m_db);
         m_availability = std::make_unique<AvailabilityRepository>(*m_db);
@@ -78,9 +81,9 @@ protected:
 
     // A new service on the same database and clock, as after closing and opening the app.
     void restart() {
-        m_service = std::make_unique<MatchDayService>(*m_db, *m_matches, *m_live, *m_lineups,
-                                                      *m_clubs, *m_opponents, *m_players,
-                                                      *m_lineupService, m_session, m_clock);
+        m_service = std::make_unique<MatchDayService>(
+            *m_db, *m_matches, *m_live, *m_notes, *m_lineups, *m_clubs, *m_opponents, *m_players,
+            *m_lineupService, m_session, m_clock);
     }
 
     void logInAs(Role role) { logIn(addUser(std::string(toDbText(role)).c_str(), role)); }
@@ -106,7 +109,7 @@ protected:
     void startMatch() {
         logInAs(Role::Coach);
         saveLineup();
-        const auto started = m_service->start(kMatch, 45, 4);
+        const auto started = m_service->start(kMatch, kHalves, 4);
         ASSERT_TRUE(started.has_value()) << started.error().detail;
     }
 
@@ -146,6 +149,7 @@ protected:
     std::unique_ptr<LineupRepository> m_lineups;
     std::unique_ptr<MatchRepository> m_matches;
     std::unique_ptr<MatchLiveRepository> m_live;
+    std::unique_ptr<MatchNoteRepository> m_notes;
     std::unique_ptr<OpponentRepository> m_opponents;
     std::unique_ptr<PlayerRepository> m_players;
     std::unique_ptr<AvailabilityRepository> m_availability;
@@ -169,7 +173,7 @@ TEST_F(MatchDayServiceTest, ActionsNeedRunMatchDay) {
         logInAs(role);
         // Every role reads.
         EXPECT_TRUE(m_service->state(kMatch).has_value());
-        expectError(m_service->start(kMatch, 45, 4), ErrorCode::PermissionDenied);
+        expectError(m_service->start(kMatch, kHalves, 4), ErrorCode::PermissionDenied);
         expectError(m_service->cancelStart(kMatch), ErrorCode::PermissionDenied);
         expectError(m_service->advanceClock(kMatch), ErrorCode::PermissionDenied);
         expectError(m_service->recordGoal(kMatch, pid(9), std::nullopt),
@@ -184,7 +188,7 @@ TEST_F(MatchDayServiceTest, ActionsNeedRunMatchDay) {
     for (const Role role : {Role::Assistant, Role::Coach}) {
         SCOPED_TRACE(toDbText(role));
         logInAs(role);
-        ASSERT_TRUE(m_service->start(kMatch, 45, 4).has_value());
+        ASSERT_TRUE(m_service->start(kMatch, kHalves, 4).has_value());
         ASSERT_TRUE(m_service->cancelStart(kMatch).has_value());
     }
 }
@@ -194,14 +198,14 @@ TEST_F(MatchDayServiceTest, StartCheckNamesWhatBlocksTheStart) {
     auto check = m_service->startCheck(kMatch, 4);
     ASSERT_TRUE(check.has_value()) << check.error().detail;
     EXPECT_EQ(check->block, MatchDayStartCheck::Block::NoLineup);
-    EXPECT_EQ(check->defaultHalfLength, 45);
-    expectError(m_service->start(kMatch, 45, 4), ErrorCode::Conflict, "no_lineup");
+    EXPECT_EQ(check->defaultFormat, (MatchFormat{2, 45}));
+    expectError(m_service->start(kMatch, kHalves, 4), ErrorCode::Conflict, "no_lineup");
 
     saveLineup(kMatch, false);
     check = m_service->startCheck(kMatch, 4);
     EXPECT_EQ(check->block, MatchDayStartCheck::Block::LineupErrors);
     EXPECT_GT(check->lineupErrors, 0);
-    expectError(m_service->start(kMatch, 45, 4), ErrorCode::Conflict, "lineup_errors");
+    expectError(m_service->start(kMatch, kHalves, 4), ErrorCode::Conflict, "lineup_errors");
 
     saveLineup();
     check = m_service->startCheck(kMatch, 4);
@@ -209,21 +213,23 @@ TEST_F(MatchDayServiceTest, StartCheckNamesWhatBlocksTheStart) {
     EXPECT_EQ(check->lineupErrors, 0);
 
     EXPECT_EQ(m_service->startCheck(kFinished, 4)->block, MatchDayStartCheck::Block::NotPlanned);
-    expectError(m_service->start(kFinished, 45, 4), ErrorCode::Conflict, "match_not_planned");
+    expectError(m_service->start(kFinished, kHalves, 4), ErrorCode::Conflict, "match_not_planned");
 
-    expectError(m_service->start(kMatch, 9, 4), ErrorCode::InvalidInput, "half_length");
-    expectError(m_service->start(kMatch, 61, 4), ErrorCode::InvalidInput, "half_length");
-    ASSERT_TRUE(m_service->start(kMatch, 45, 4).has_value());
+    expectError(m_service->start(kMatch, {2, 9}, 4), ErrorCode::InvalidInput, "match_format");
+    expectError(m_service->start(kMatch, {5, 20}, 4), ErrorCode::InvalidInput, "match_format");
+    expectError(m_service->start(kMatch, {4, 40}, 4), ErrorCode::InvalidInput, "match_format");
+    ASSERT_TRUE(m_service->start(kMatch, kHalves, 4).has_value());
     ASSERT_TRUE(m_lineups->saveForMatch(kOtherPlanned, lineup()));
     EXPECT_EQ(m_service->startCheck(kOtherPlanned, 4)->block,
               MatchDayStartCheck::Block::AnotherLive);
-    expectError(m_service->start(kOtherPlanned, 45, 4), ErrorCode::Conflict, "another_live_match");
+    expectError(m_service->start(kOtherPlanned, kHalves, 4), ErrorCode::Conflict,
+                "another_live_match");
 }
 
 TEST_F(MatchDayServiceTest, DefaultHalfLengthFollowsTheCategory) {
     logInAs(Role::Coach);
     ASSERT_TRUE(sql("UPDATE team SET category = 'u13' WHERE id = 1"));
-    EXPECT_EQ(m_service->startCheck(kMatch, 4)->defaultHalfLength, 30);
+    EXPECT_EQ(m_service->startCheck(kMatch, 4)->defaultFormat, (MatchFormat{2, 30}));
 }
 
 TEST_F(MatchDayServiceTest, StartMakesTheMatchLiveWithStartersOnThePitch) {
@@ -232,7 +238,7 @@ TEST_F(MatchDayServiceTest, StartMakesTheMatchLiveWithStartersOnThePitch) {
     EXPECT_EQ(m_service->liveMatch(kTeam).value(), kMatch);
     const MatchDayState state = read();
     ASSERT_TRUE(state.clock.has_value());
-    EXPECT_EQ(state.clock->halfLength, 45);
+    EXPECT_EQ(state.clock->format, kHalves);
     EXPECT_EQ(phaseOf(*state.clock), MatchPhase::NotStarted);
     EXPECT_EQ(state.players.size(), 14U);
     EXPECT_EQ(state.lastAction.has_value(), false);
@@ -250,7 +256,7 @@ TEST_F(MatchDayServiceTest, BackToPlannedOnlyBeforeTheKickOff) {
     EXPECT_EQ(count("SELECT count(*) FROM appearance"), 0);
     EXPECT_EQ(count("SELECT count(*) FROM match_live"), 0);
 
-    ASSERT_TRUE(m_service->start(kMatch, 45, 4).has_value());
+    ASSERT_TRUE(m_service->start(kMatch, kHalves, 4).has_value());
     advance();
     expectError(m_service->cancelStart(kMatch), ErrorCode::Conflict, "match_started");
 }
@@ -273,8 +279,9 @@ TEST_F(MatchDayServiceTest, FullMatchGivesTheMinutesCountedByHand) {
     m_clock.advance(10min);
     // A substitution in the break: minute 45.
     ASSERT_TRUE(m_service->recordSubstitution(kMatch, pid(12), pid(5)).has_value());
-    // No cards or goals in the break.
-    expectError(m_service->recordYellow(kMatch, pid(6)), ErrorCode::Conflict, "match_not_running");
+    // Nothing in the break at the minute that starts the second half, except a substitution.
+    expectError(m_service->recordYellow(kMatch, pid(6), MatchTime{45, std::nullopt}),
+                ErrorCode::InvalidInput, "minute_not_played");
     m_clock.advance(5min);
     advance(); // second half
     m_clock.advance(15min);
@@ -361,8 +368,8 @@ TEST_F(MatchDayServiceTest, UndoTakesBackEventsAndClockStepsInOrder) {
     auto undone = m_service->undoLast(kMatch);
     ASSERT_TRUE(undone.has_value()) << undone.error().detail;
     EXPECT_EQ(undone->kind, MatchDayAction::Kind::ClockStep);
-    EXPECT_EQ(undone->step, ClockStep::FirstHalfEnd);
-    EXPECT_EQ(phaseOf(*read().clock), MatchPhase::FirstHalf);
+    EXPECT_EQ(undone->step, (ClockStep{1, ClockStepKind::End}));
+    EXPECT_EQ(phaseOf(*read().clock), MatchPhase::Running);
 
     m_clock.advance(1min);
     ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value()); // second yellow: two rows
@@ -383,7 +390,7 @@ TEST_F(MatchDayServiceTest, UndoTakesBackEventsAndClockStepsInOrder) {
 
     undone = m_service->undoLast(kMatch);
     ASSERT_TRUE(undone.has_value());
-    EXPECT_EQ(undone->step, ClockStep::FirstHalfStart);
+    EXPECT_EQ(undone->step, (ClockStep{1, ClockStepKind::Start}));
     EXPECT_EQ(phaseOf(*read().clock), MatchPhase::NotStarted);
     expectError(m_service->undoLast(kMatch), ErrorCode::NotFound, "nothing_to_undo");
     // Still live: back to planned is a separate action.
@@ -406,13 +413,15 @@ TEST_F(MatchDayServiceTest, UndoOfTheEndMakesTheMatchLiveAgain) {
 
     const auto undone = m_service->undoLast(kMatch);
     ASSERT_TRUE(undone.has_value()) << undone.error().detail;
-    EXPECT_EQ(undone->step, ClockStep::MatchEnd);
+    EXPECT_EQ(undone->kind, MatchDayAction::Kind::Finish);
+    EXPECT_EQ(undone->step, (ClockStep{2, ClockStepKind::End}));
     const auto match = m_matches->get(kMatch);
     EXPECT_EQ(match->status, MatchStatus::Live);
     EXPECT_EQ(match->goalsFor, std::nullopt);
     EXPECT_EQ(match->goalsAgainst, std::nullopt);
     expectMinutes(9, 0, std::nullopt);
-    EXPECT_EQ(phaseOf(*read().clock), MatchPhase::SecondHalf);
+    EXPECT_EQ(phaseOf(*read().clock), MatchPhase::Running);
+    EXPECT_EQ(currentPeriod(*read().clock), 2);
 }
 
 TEST_F(MatchDayServiceTest, ResumesAfterARestartWhileTimePassed) {
@@ -425,7 +434,7 @@ TEST_F(MatchDayServiceTest, ResumesAfterARestartWhileTimePassed) {
     const MatchDayState state = read();
     ASSERT_TRUE(state.clock.has_value());
     const ClockReading reading = readClock(*state.clock, m_clock.now());
-    EXPECT_EQ(reading.phase, MatchPhase::FirstHalf);
+    EXPECT_EQ(reading.phase, MatchPhase::Running);
     EXPECT_EQ(reading.regular, 25min);
     ASSERT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt).has_value());
     EXPECT_EQ(m_matches->listEvents(kMatch)->at(0).minute, 25);
@@ -491,7 +500,7 @@ TEST_F(MatchDayServiceTest, UndoOfTheEndIsRefusedWhileAnotherMatchIsLive) {
     advance();
     ASSERT_EQ(m_matches->get(kMatch)->status, MatchStatus::Finished);
     ASSERT_TRUE(m_lineups->saveForMatch(kOtherPlanned, lineup()));
-    ASSERT_TRUE(m_service->start(kOtherPlanned, 45, 4).has_value());
+    ASSERT_TRUE(m_service->start(kOtherPlanned, kHalves, 4).has_value());
 
     const QString before = snapshot(*m_db);
     expectError(m_service->undoLast(kMatch), ErrorCode::Conflict, "undo_end_another_live");
@@ -609,7 +618,7 @@ TEST_F(MatchDayServiceTest, AFailureWhileUndoingKeepsWhatWasThere) {
     ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value());
     m_clock.advance(10min);
     ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value());
-    // The red row goes first; the failure comes at the yellow one.
+    // Both rows of the action go in one statement; the failure comes at the yellow one.
     QString before = snapshot(*m_db);
     ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_undo BEFORE DELETE ON match_event "
                     "WHEN OLD.type = 'yellow' BEGIN SELECT RAISE(ABORT, 'forced'); END"));
@@ -617,7 +626,7 @@ TEST_F(MatchDayServiceTest, AFailureWhileUndoingKeepsWhatWasThere) {
     EXPECT_EQ(snapshot(*m_db), before);
     ASSERT_TRUE(sql("DROP TRIGGER fail_undo"));
 
-    // Undo of the end: the step goes first; the failure comes when the match is made live again.
+    // Undo of the end: the failure comes when the match is made live again.
     m_clock.advance(31min);
     advance();
     m_clock.advance(15min);
@@ -638,18 +647,19 @@ namespace {
 // The services of Match Day on one database, as the app builds them.
 struct MatchDayStack {
     explicit MatchDayStack(DatabaseManager& db, FakeClock& clock)
-        : staff(db), clubs(db), lineups(db), matches(db), live(db), opponents(db), players(db),
-          availability(db), training(db), auth(db, staff, session, clock, 4),
+        : staff(db), clubs(db), lineups(db), matches(db), live(db), notes(db), opponents(db),
+          players(db), availability(db), training(db), auth(db, staff, session, clock, 4),
           lineupService(db, lineups, matches, opponents, players, availability, training, session,
                         clock),
-          matchDay(db, matches, live, lineups, clubs, opponents, players, lineupService, session,
-                   clock) {}
+          matchDay(db, matches, live, notes, lineups, clubs, opponents, players, lineupService,
+                   session, clock) {}
 
     StaffRepository staff;
     ClubRepository clubs;
     LineupRepository lineups;
     MatchRepository matches;
     MatchLiveRepository live;
+    MatchNoteRepository notes;
     OpponentRepository opponents;
     PlayerRepository players;
     AvailabilityRepository availability;
@@ -712,7 +722,7 @@ TEST_F(MatchDayRestartTest, AFileDatabaseResumesTheRunningMatch) {
         }
         lineup.bench = {pid(12), pid(13), pid(14)};
         ASSERT_TRUE(stack.lineups.saveForMatch(kMatchId, lineup));
-        ASSERT_TRUE(stack.matchDay.start(kMatchId, 45, 4).has_value());
+        ASSERT_TRUE(stack.matchDay.start(kMatchId, kHalves, 4).has_value());
         ASSERT_TRUE(stack.matchDay.advanceClock(kMatchId).has_value());
         m_clock.advance(12min);
         ASSERT_TRUE(stack.matchDay.recordGoal(kMatchId, pid(9), std::nullopt).has_value());
@@ -729,7 +739,7 @@ TEST_F(MatchDayRestartTest, AFileDatabaseResumesTheRunningMatch) {
     ASSERT_TRUE(state.has_value()) << state.error().detail;
     ASSERT_TRUE(state->clock.has_value());
     const ClockReading reading = readClock(*state->clock, m_clock.now());
-    EXPECT_EQ(reading.phase, MatchPhase::FirstHalf);
+    EXPECT_EQ(reading.phase, MatchPhase::Running);
     EXPECT_EQ(reading.regular, 25min);
     EXPECT_EQ(state->situation.goalsFor, 1);
     ASSERT_EQ(state->events.size(), 1U);
@@ -737,4 +747,223 @@ TEST_F(MatchDayRestartTest, AFileDatabaseResumesTheRunningMatch) {
     ASSERT_TRUE(stack.matchDay.recordGoal(kMatchId, pid(10), std::nullopt).has_value());
     EXPECT_EQ(stack.matches.listEvents(kMatchId)->back().minute, 25);
     EXPECT_EQ(stack.matches.listAppearances(kMatchId)->size(), 11U);
+}
+
+// --- Manual test of P13: late entry, match format, minimum of players, notes ---
+
+TEST_F(MatchDayServiceTest, AnEventCanBeEnteredLateAtAPlayedMinute) {
+    startMatch();
+    advance();
+    m_clock.advance(30min);
+    // A goal at 12' (stored 11), entered at 30:00.
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(9), pid(10), MatchTime{11, std::nullopt}));
+    // A substitution at 20' (stored 19): the minutes follow it.
+    ASSERT_TRUE(
+        m_service->recordSubstitution(kMatch, pid(12), pid(5), MatchTime{19, std::nullopt}));
+    expectMinutes(5, 0, 19);
+    expectMinutes(12, 19, std::nullopt);
+    // Not yet played: 32' (stored 31) at 30:00, or stoppage time of the first half.
+    expectError(m_service->recordGoal(kMatch, pid(9), std::nullopt, MatchTime{31, std::nullopt}),
+                ErrorCode::InvalidInput, "minute_not_played");
+    expectError(m_service->recordGoal(kMatch, pid(9), std::nullopt, MatchTime{45, 1}),
+                ErrorCode::InvalidInput, "minute_not_played");
+    // The events come in the order of the match.
+    const auto events = m_matches->listEvents(kMatch);
+    ASSERT_EQ(events->size(), 2U);
+    EXPECT_EQ(events->at(0).minute, 11);
+    // Undo takes back the substitution, the action entered last, not the latest minute.
+    m_clock.advance(1min);
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(10), std::nullopt, MatchTime{2, std::nullopt}));
+    const auto undone = m_service->undoLast(kMatch);
+    ASSERT_TRUE(undone.has_value());
+    EXPECT_EQ(undone->event->minute, 2);
+    EXPECT_EQ(m_matches->listEvents(kMatch)->size(), 2U);
+}
+
+TEST_F(MatchDayServiceTest, ALateEventThatALaterOneNoLongerFitsIsRefusedNamingIt) {
+    startMatch();
+    advance();
+    m_clock.advance(60min); // stoppage time of the first half: 45+16
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt, MatchTime{40, std::nullopt}));
+    const MatchEvent goal = m_matches->listEvents(kMatch)->front();
+    // A red card for the scorer at 31' would send him off before his goal.
+    MatchEventDraft red;
+    red.type = MatchEventType::Red;
+    red.playerId = pid(9);
+    red.minute = 30;
+    const auto check = m_service->checkEvent(kMatch, red);
+    ASSERT_TRUE(check.has_value()) << check.error().detail;
+    ASSERT_TRUE(check->has_value());
+    EXPECT_EQ((*check)->problem, MatchEventProblem::SentOff);
+    ASSERT_TRUE((*check)->laterEvent.has_value());
+    EXPECT_EQ((*check)->laterEvent->id, goal.id);
+    const int events = eventCount();
+    expectError(m_service->recordRed(kMatch, pid(9), MatchTime{30, std::nullopt}),
+                ErrorCode::Conflict, "event_conflict");
+    EXPECT_EQ(eventCount(), events);
+    // The new event itself not fitting is named by its own problem.
+    MatchEventDraft sub;
+    sub.type = MatchEventType::Sub;
+    sub.playerId = pid(9);
+    sub.relatedPlayerId = pid(10);
+    sub.minute = 30;
+    const auto own = m_service->checkEvent(kMatch, sub);
+    ASSERT_TRUE(own.has_value() && own->has_value());
+    EXPECT_FALSE((*own)->laterEvent.has_value());
+    EXPECT_EQ((*own)->problem, MatchEventProblem::NotOnBench);
+    // A fitting event: no conflict.
+    red.playerId = pid(4);
+    EXPECT_FALSE(m_service->checkEvent(kMatch, red).value().has_value());
+}
+
+TEST_F(MatchDayServiceTest, ALateYellowCountsTheCardsAtItsTime) {
+    startMatch();
+    advance();
+    m_clock.advance(40min);
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4), MatchTime{30, std::nullopt}));
+    // A yellow at 21' entered later is the first; the one at 31' becomes the second without its
+    // red: refused, naming the card at 31'.
+    MatchEventDraft yellow;
+    yellow.type = MatchEventType::Yellow;
+    yellow.playerId = pid(4);
+    yellow.minute = 20;
+    const auto check = m_service->checkEvent(kMatch, yellow);
+    ASSERT_TRUE(check.has_value() && check->has_value());
+    EXPECT_EQ((*check)->problem, MatchEventProblem::SecondYellowWithoutRed);
+    EXPECT_EQ((*check)->laterEvent->minute, 30);
+    // A yellow at 36' entered late is the second: it brings its red at that time.
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4), MatchTime{35, std::nullopt}));
+    expectMinutes(4, 0, 35);
+    EXPECT_EQ(read().lastAction->kind, MatchDayAction::Kind::SecondYellow);
+}
+
+TEST_F(MatchDayServiceTest, ThreePartsOfThirty) {
+    logInAs(Role::Coach);
+    saveLineup();
+    ASSERT_TRUE(m_service->start(kMatch, {3, 30}, 4).has_value());
+    advance(); // 1st part
+    m_clock.advance(31min + 10s);
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt)); // 30+2'
+    advance();                                                        // end of the 1st part
+    m_clock.advance(10min);
+    ASSERT_TRUE(m_service->recordSubstitution(kMatch, pid(12), pid(5))); // in the break: 31'
+    advance();                                                           // 2nd part
+    m_clock.advance(30min + 30s);
+    ASSERT_TRUE(m_service->recordOpponentGoal(kMatch)); // 60+1'
+    advance();
+    m_clock.advance(5min);
+    advance(); // 3rd part
+    m_clock.advance(31min);
+    advance(); // the end
+    const auto events = m_matches->listEvents(kMatch);
+    ASSERT_EQ(events->size(), 3U);
+    EXPECT_EQ((MatchTime{events->at(0).minute, events->at(0).addedTime}), (MatchTime{30, 2}));
+    EXPECT_EQ((MatchTime{events->at(1).minute, events->at(1).addedTime}),
+              (MatchTime{30, std::nullopt}));
+    EXPECT_EQ((MatchTime{events->at(2).minute, events->at(2).addedTime}), (MatchTime{60, 1}));
+    EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Finished);
+    expectMinutes(5, 0, 30);
+    expectMinutes(12, 30, 90);
+    expectMinutes(9, 0, 90);
+}
+
+TEST_F(MatchDayServiceTest, FewerThanSevenPlayersEndTheMatch) {
+    startMatch();
+    advance();
+    m_clock.advance(10min);
+    for (const std::int64_t player : {1, 2, 4, 5}) {
+        ASSERT_TRUE(m_service->recordRed(kMatch, pid(player)));
+    }
+    EXPECT_EQ(onPitchCount(read().situation), 7);
+    m_clock.advance(10min);
+    ASSERT_TRUE(m_service->recordRed(kMatch, pid(6))); // 6 left
+    EXPECT_EQ(onPitchCount(read().situation), 6);
+    // Only the end, notes and undo.
+    expectError(m_service->recordGoal(kMatch, pid(9), std::nullopt), ErrorCode::Conflict,
+                "too_few_players");
+    expectError(m_service->recordSubstitution(kMatch, pid(12), pid(9)), ErrorCode::Conflict,
+                "too_few_players");
+    expectError(m_service->advanceClock(kMatch), ErrorCode::Conflict, "too_few_players");
+    EXPECT_TRUE(m_service->addNote(kMatch, std::nullopt, std::nullopt, "Mecz przerwany"));
+    ASSERT_TRUE(m_service->endMatch(kMatch).has_value());
+    const auto match = m_matches->get(kMatch);
+    EXPECT_EQ(match->status, MatchStatus::Finished);
+    EXPECT_EQ(match->goalsFor, 0);
+    // Ended at 20:00: those on the pitch play until 20, the final minute.
+    expectMinutes(9, 0, 20);
+    expectMinutes(6, 0, 20);
+    expectMinutes(5, 0, 10);
+    EXPECT_EQ(finalMinute(*read().clock), 20);
+    // Undo: live again, still 6 players; then the red goes and the match goes on.
+    const auto finishUndone = m_service->undoLast(kMatch);
+    ASSERT_TRUE(finishUndone.has_value());
+    EXPECT_EQ(finishUndone->kind, MatchDayAction::Kind::Finish);
+    EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Live);
+    ASSERT_TRUE(m_service->undoLast(kMatch)); // the note
+    ASSERT_TRUE(m_service->undoLast(kMatch)); // the red of 6
+    EXPECT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt).has_value());
+}
+
+TEST_F(MatchDayServiceTest, EndingEarlyInABreak) {
+    startMatch();
+    advance();
+    m_clock.advance(46min);
+    advance(); // half time
+    ASSERT_TRUE(m_service->endMatch(kMatch).has_value());
+    EXPECT_EQ(finalMinute(*read().clock), 45);
+    expectMinutes(9, 0, 45);
+    expectError(m_service->endMatch(kMatch), ErrorCode::Conflict, "match_not_live");
+}
+
+TEST_F(MatchDayServiceTest, NotesWithTheirMinute) {
+    startMatch();
+    expectError(m_service->addNote(kMatch, std::nullopt, std::nullopt, "Przed meczem"),
+                ErrorCode::Conflict, "match_not_running");
+    advance();
+    m_clock.advance(20min);
+    const auto appearancesBefore = count("SELECT count(*) FROM appearance");
+    const auto first = m_service->addNote(kMatch, std::nullopt, pid(9), "  Uraz kostki  ");
+    ASSERT_TRUE(first.has_value()) << first.error().detail;
+    const auto late = m_service->addNote(kMatch, MatchTime{4, std::nullopt}, std::nullopt, "Wiatr");
+    ASSERT_TRUE(late.has_value());
+    expectError(m_service->addNote(kMatch, MatchTime{30, std::nullopt}, std::nullopt, "x"),
+                ErrorCode::InvalidInput, "minute_not_played");
+    expectError(m_service->addNote(kMatch, std::nullopt, std::nullopt, "   "),
+                ErrorCode::InvalidInput, "note_text");
+    expectError(m_service->addNote(kMatch, std::nullopt, std::nullopt, std::string(501, 'x')),
+                ErrorCode::InvalidInput, "note_text");
+    expectError(m_service->addNote(kMatch, std::nullopt, pid(99), "x"), ErrorCode::InvalidInput,
+                "player_unknown");
+
+    MatchDayState state = read();
+    ASSERT_EQ(state.notes.size(), 2U);
+    EXPECT_EQ(state.notes.front().text, "Wiatr"); // 5' before 21'
+    EXPECT_EQ(state.notes.back().text, "Uraz kostki");
+    EXPECT_EQ(state.notes.back().minute, 20);
+    EXPECT_EQ(state.notes.back().playerId, pid(9));
+    EXPECT_EQ(state.situation.goalsFor, 0);
+    EXPECT_EQ(count("SELECT count(*) FROM appearance"), appearancesBefore);
+    EXPECT_EQ(state.lastAction->kind, MatchDayAction::Kind::Note);
+
+    ASSERT_TRUE(
+        m_service->updateNote(kMatch, *first, MatchTime{19, std::nullopt}, std::nullopt, "Kostka"));
+    state = read();
+    EXPECT_EQ(state.notes.back().text, "Kostka");
+    EXPECT_EQ(state.notes.back().playerId, std::nullopt);
+    const auto deleted = m_service->deleteNote(kMatch, *first);
+    ASSERT_TRUE(deleted.has_value());
+    EXPECT_EQ(read().notes.size(), 1U);
+    ASSERT_TRUE(m_service->restoreNote(*deleted).has_value());
+    EXPECT_EQ(read().notes.size(), 2U);
+    // Undo takes back the note added last.
+    const auto undone = m_service->undoLast(kMatch);
+    ASSERT_TRUE(undone.has_value());
+    EXPECT_EQ(undone->kind, MatchDayAction::Kind::Note);
+    EXPECT_EQ(undone->note->text, "Wiatr");
+    ASSERT_EQ(read().notes.size(), 1U);
+    // Another role reads them; only RunMatchDay writes.
+    logInAs(Role::Physio);
+    EXPECT_EQ(read().notes.size(), 1U);
+    expectError(m_service->addNote(kMatch, std::nullopt, std::nullopt, "x"),
+                ErrorCode::PermissionDenied);
 }

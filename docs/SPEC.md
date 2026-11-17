@@ -120,7 +120,7 @@ newest kept).
 Schema = numbered migrations; the first migration (`src/data/migrations/0001_initial.sql`) creates
 every table below at once so later packets do not reshape it. The tables below list the exact column
 names and types of that migration, plus what later migrations added: `0002_match_live.sql` (P13) adds
-`match_live`, `match_clock_step` and `match_event.added_time`.
+`match_live`, `match_clock_step`, `match_note`, `match_event.added_time` and `match_event.seq`.
 
 Enumerations (stored as lowercase text with a `CHECK` constraint; C++ enums in `core/domain`):
 - Team category: `senior`, `u19`, `u17`, `u15`, `u13`, `u11`, `other`. Season text `2026/27`.
@@ -149,7 +149,7 @@ first and last names and staff names 1–50 characters after trimming, club, tea
 dates (including `archived_at`) stored as ISO text (`YYYY-MM-DD`,
 local, no time zone), times of day as `HH:MM`, lockout and `import_log` timestamps as UTC ISO datetime;
 wellness scores 1–5; every foreign key indexed; `ON DELETE RESTRICT` except for pure child rows
-(attendance → session, appearance/match_event/match_live → match, match_clock_step → match_live:
+(attendance → session, appearance/match_event/match_live/match_note → match, match_clock_step → match_live:
 `CASCADE`).
 
 Availability status: `actual_to` is the first available day; with `actual_to` empty, `suspension` and
@@ -176,9 +176,10 @@ the import can be undone.
 | `opponent` | `name` TEXT, `name_key` TEXT UNIQUE, `notes` TEXT *null* | `name_key` = `QString::toCaseFolded()`, because SQLite `NOCASE` folds ASCII only |
 | `match` | `team_id` INTEGER, `opponent_id` INTEGER, `date` TEXT, `kickoff_time` TEXT *null*, `venue` TEXT, `competition` TEXT *null*, `goals_for` INTEGER *null*, `goals_against` INTEGER *null*, `status` TEXT (default `planned`), `formation` TEXT *null*, `import_id` INTEGER | |
 | `appearance` | `match_id` INTEGER, `player_id` INTEGER, `started` INTEGER 0/1 (default 0), `minute_on` INTEGER *null*, `minute_off` INTEGER *null*, `position` TEXT *null*, `rating` INTEGER *null* (1–10), `rpe` INTEGER *null* (0–10), `import_id` INTEGER | Minutes from Match Day, 0–130. UNIQUE (`match_id`, `player_id`) |
-| `match_event` | `match_id` INTEGER, `minute` INTEGER (0–130), `type` TEXT, `player_id` INTEGER *null*, `related_player_id` INTEGER *null*, `added_time` INTEGER *null* (≥ 1, since 0002) | `player_id` empty only for `opponent_goal`. Semantics below |
-| `match_live` | `match_id` INTEGER UNIQUE, `half_length_min` INTEGER (10–60) | Since 0002 (P13): a match that Match Day has started |
-| `match_clock_step` | `match_id` INTEGER (→ `match_live.match_id`), `step` TEXT, `at` TEXT (UTC ISO datetime), `after_event_id` INTEGER *null* | Since 0002 (P13). `step`: `first_half_start`, `first_half_end`, `second_half_start`, `match_end`; UNIQUE (`match_id`, `step`). `after_event_id`: the highest `match_event.id` of the match when the step was taken (no foreign key), so undo knows whether an event or a step came last |
+| `match_event` | `match_id` INTEGER, `minute` INTEGER (0–130), `type` TEXT, `player_id` INTEGER *null*, `related_player_id` INTEGER *null*, `added_time` INTEGER *null* (≥ 1, since 0002), `seq` INTEGER *null* (≥ 1, since 0002) | `player_id` empty only for `opponent_goal`. Semantics below |
+| `match_live` | `match_id` INTEGER UNIQUE, `periods` INTEGER (1–4), `period_length` INTEGER (10–60), `finished_seq` INTEGER *null*, `ended_early` INTEGER 0/1 (default 0) | Since 0002 (P13): a match that Match Day has started, in its format; `periods` × `period_length` ≤ 130 |
+| `match_clock_step` | `match_id` INTEGER (→ `match_live.match_id`), `period` INTEGER (1–4), `kind` TEXT, `at` TEXT (UTC ISO datetime), `seq` INTEGER | Since 0002 (P13). `kind`: `start`, `end`; UNIQUE (`match_id`, `period`, `kind`) |
+| `match_note` | `match_id` INTEGER, `minute` INTEGER (0–130), `added_time` INTEGER *null* (≥ 1), `player_id` INTEGER *null*, `text` TEXT (1–500 after trimming), `seq` INTEGER *null* | Since 0002 (P13): a note of Match Day with its minute; never changes the score or the minutes. Plain text |
 | `training_session` | `team_id` INTEGER, `date` TEXT, `start_time` TEXT *null*, `duration_min` INTEGER (15–240), `type` TEXT, `note` TEXT *null*, `import_id` INTEGER | |
 | `attendance` | `session_id` INTEGER, `player_id` INTEGER, `status` TEXT, `rpe` INTEGER *null* (0–10), `minutes_override` INTEGER *null* (0–240), `import_id` INTEGER | session load = rpe × minutes; rpe and minutes empty unless `present`. UNIQUE (`session_id`, `player_id`) |
 | `wellness` | `player_id` INTEGER, `date` TEXT, `sleep`, `fatigue`, `soreness`, `stress`, `mood` INTEGER (1–5) | SHOULD. UNIQUE (`player_id`, `date`) |
@@ -195,19 +196,32 @@ the import can be undone.
   separate `assist` rows.
 - `sub`: `player_id` = the player coming on, `related_player_id` = the player going off.
 - `yellow`, `red`: `player_id` = the player. A second yellow card is a `yellow` row followed by a `red` row
-  at the same minute with `related_player_id` empty.
+  at the same time with `related_player_id` empty; it is recognised by counting the yellow cards of the
+  player in the order of the match. A yellow and a straight red at the same minute is a red card.
 - `opponent_goal`: no player.
-- `minute`: the full minutes elapsed in the match, 0-based, cut at the end of the half: the first half at
-  most `half_length_min`, the second half at most 2 × `half_length_min` (the second half starts at
-  `half_length_min`). The minutes over the end of the half go to `added_time` (display only, ≥ 1); a
-  substitution in the half-time break is at `half_length_min` without `added_time`. Display follows the
-  football convention: `minute` + 1 without `added_time` (0:30 → 1', 44:20 → 45'); with it, the end of the
-  half plus the added minutes (45:30 → 45+1', 47:10 → 45+3', the same as 90+N' in the second half).
+- Format: `periods` parts of `period_length` minutes (2 parts are the halves; "1st/2nd half", otherwise
+  "1st/2nd/3rd period"). Part p runs from (p − 1) × `period_length` to p × `period_length`.
+- `minute`: the full minutes elapsed in the match, 0-based, cut at the end of the part. The minutes over
+  the end of the part go to `added_time` (display only, ≥ 1); a substitution in a break is at the end of
+  the part played, without `added_time`. Display follows the football convention: `minute` + 1 without
+  `added_time` (0:30 → 1', 44:20 → 45'); with it, the end of the part plus the added minutes (45:30 →
+  45+1', 47:10 → 45+3'; in 3 × 30 "30+2'", "60+1'").
+- Order of the match: by `minute`; at the end of a part its added time (by `added_time`) comes before the
+  same minute without it (the break or the start of the next part); then as entered.
+- Every action of Match Day (an event with its rows, a note, a clock step, the finish) has the next `seq`
+  of the match; undo takes back the highest `seq`, whatever its minute. Rows not written by Match Day
+  have it empty.
+- Late entry: every action has a minute, the current one by default. Any minute already played can be
+  entered (not the future); the event then goes through a full replay, and one that a later event no
+  longer fits (e.g. a red card for a player who scored later) is refused, naming that later event.
 - Minutes of `appearance` are recomputed from the saved lineup and the events (`core::computeMatchMinutes`,
   the single source of truth): starters from 0, substitutes from their minute, a player sent off until
-  the card, everyone else on the pitch until the final minute, which is 2 × `half_length_min` whatever
-  the stoppage time. While the match is live, players on the pitch have `minute_off` empty. A substituted
-  player cannot come back; a sent-off player cannot be substituted. Rating and RPE are kept.
+  the card, everyone else on the pitch until the final minute, which is `periods` × `period_length`
+  whatever the stoppage time. While the match is live, players on the pitch have `minute_off` empty. A
+  substituted player cannot come back; a sent-off player cannot be substituted. Rating and RPE are kept.
+- At least 7 players on the pitch (laws of the game, `core::kMinPlayersOnPitch`): with 7 left Match Day
+  warns; with fewer only the end of the match, notes and undo are possible. A match ended that way has
+  `ended_early` = 1 and its final minute is the minute of the end.
 
 `.tactic.json`: `{ "version": 1, "formation": "4-3-3", "slots": [{ "position": "GK", "x": 0.5, "y": 0.95, "playerId": 12 }] }`
 — coordinates normalised 0–1 relative to the pitch (own goal at y = 1). Optional `"bench": [playerId, …]`

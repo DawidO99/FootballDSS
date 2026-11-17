@@ -1041,6 +1041,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Edit note: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete note: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Add player</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1066,6 +1074,14 @@
     </message>
     <message>
         <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ankle after the tackle, watch him in the break.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1476,6 +1492,10 @@
         <source>Score %1 to %2</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>On the pitch: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>MatchDayView</name>
@@ -1568,11 +1588,35 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Undo: %1 (%2)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Nothing to undo (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fewer than %1 players on the pitch: by the laws of the game the match cannot go on. End the match, or undo the last action.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minute</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1597,6 +1641,18 @@
     </message>
     <message>
         <source>Events</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fewer than %1 players</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not now</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>By the laws of the game the match cannot go on (fewer than %1 players). End the match?</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1696,6 +1752,41 @@
     </message>
 </context>
 <context>
+    <name>MatchNoteDialog</name>
+    <message>
+        <source>Edit note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minute</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player (optional)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 / %2 characters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>At most %1 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>MatchPlayerTile</name>
     <message>
         <source>Yellow card</source>
@@ -1713,11 +1804,23 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Half length (minutes)</source>
+        <source>Match format</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The clock starts when you start the 1st half.</source>
+        <source>Parts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minutes per part</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>At most %1 minutes in all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clock starts when you start the first part.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1729,6 +1832,14 @@
     </message>
     <message>
         <source>Events</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete note</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3323,7 +3434,19 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Enter a half length from 10 to 60 minutes.</source>
+        <source>Choose 1 to 4 parts of 10 to 60 minutes, at most 130 minutes in all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This minute has not been played yet. Enter a minute up to the current one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This yellow card would make another one the second, without its red card. Check the cards of the player.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Write the note, up to 500 characters.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3408,6 +3531,14 @@
     </message>
     <message>
         <source>No half is running. Start the half first; in the break only substitutions can be recorded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fewer than 7 players are on the pitch, so the match cannot go on. End the match or undo the last action.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This event conflicts with a later one. Undo or correct the later event first.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3702,6 +3833,54 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>1st period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>2nd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>3rd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4th period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Break</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start 1st period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End 1st period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start 2nd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End 2nd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start 3rd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End 3rd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start 4th period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>start of the 1st half</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3714,7 +3893,51 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>end of the 2nd half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>start of the 1st period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>end of the 1st period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>start of the 2nd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>end of the 2nd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>start of the 3rd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>end of the 3rd period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>start of the 4th period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>end of the 4th period</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>end of the match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>early end of the match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 × %2 min</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3743,6 +3966,10 @@
     </message>
     <message>
         <source>Opponent goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3797,6 +4024,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Custom…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Goal: who scored? Tap a player on the pitch.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3821,6 +4056,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Opponent goal: check the minute and save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>%1 for %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3841,7 +4080,27 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Only %1 players are left on the pitch. With fewer the match cannot go on.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the minute as 23, or 45+2 in stoppage time.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This minute has not been played yet. Enter a minute up to the current one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This cannot be recorded at %1: it conflicts with a later event, %2. Undo or correct that event first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Undone: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note deleted: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -54,6 +54,7 @@ core::MatchEvent readEvent(RowReader& row) {
     event.playerId = row.optionalId<core::PlayerId>();
     event.relatedPlayerId = row.optionalId<core::PlayerId>();
     event.addedTime = row.optionalInteger();
+    event.seq = row.optionalInteger();
     return event;
 }
 
@@ -213,13 +214,15 @@ MatchRepository::listAppearances(core::MatchId match) const {
 }
 
 core::Result<core::MatchEventId> MatchRepository::appendEvent(core::MatchId match,
-                                                              const core::MatchEventDraft& draft) {
+                                                              const core::MatchEventDraft& draft,
+                                                              std::optional<int> seq) {
     const auto id = insertRow(
         m_db,
         QStringLiteral("INSERT INTO match_event (match_id, minute, type, player_id, "
-                       "related_player_id, added_time) VALUES (?, ?, ?, ?, ?, ?)"),
+                       "related_player_id, added_time, seq) VALUES (?, ?, ?, ?, ?, ?, ?)"),
         {idValue(match), draft.minute, enumValue(draft.type), optionalIdValue(draft.playerId),
-         optionalIdValue(draft.relatedPlayerId), optionalValue(draft.addedTime)},
+         optionalIdValue(draft.relatedPlayerId), optionalValue(draft.addedTime),
+         optionalValue(seq)},
         "append match event");
     if (!id) {
         return std::unexpected(id.error());
@@ -230,29 +233,28 @@ core::Result<core::MatchEventId> MatchRepository::appendEvent(core::MatchId matc
 core::Result<std::vector<core::MatchEvent>> MatchRepository::listEvents(core::MatchId match) const {
     return selectAll(m_db,
                      QStringLiteral("SELECT id, match_id, minute, type, player_id, "
-                                    "related_player_id, added_time FROM match_event "
-                                    "WHERE match_id = ? ORDER BY minute, id"),
+                                    "related_player_id, added_time, seq FROM match_event "
+                                    "WHERE match_id = ? "
+                                    "ORDER BY minute, added_time IS NULL, added_time, id"),
                      {idValue(match)}, "list match events", readEvent);
 }
 
 core::Result<core::MatchEvent> MatchRepository::deleteLastEvent(core::MatchId match) {
-    return selectOne(
-        m_db,
-        QStringLiteral(
-            "DELETE FROM match_event WHERE id = "
-            "(SELECT MAX(id) FROM match_event WHERE match_id = ?) "
-            "RETURNING id, match_id, minute, type, player_id, related_player_id, added_time"),
-        {idValue(match)}, "delete last match event", readEvent);
+    return selectOne(m_db,
+                     QStringLiteral("DELETE FROM match_event WHERE id = "
+                                    "(SELECT MAX(id) FROM match_event WHERE match_id = ?) "
+                                    "RETURNING id, match_id, minute, type, player_id, "
+                                    "related_player_id, added_time, seq"),
+                     {idValue(match)}, "delete last match event", readEvent);
 }
 
-core::Result<core::MatchEvent> MatchRepository::deleteEvent(core::MatchId match,
-                                                            core::MatchEventId event) {
-    return selectOne(
-        m_db,
-        QStringLiteral("DELETE FROM match_event WHERE id = ? AND match_id = ? "
-                       "RETURNING id, match_id, minute, type, player_id, related_player_id, "
-                       "added_time"),
-        {idValue(event), idValue(match)}, "delete match event", readEvent);
+core::Result<std::vector<core::MatchEvent>>
+MatchRepository::deleteEventsWithSeq(core::MatchId match, int seq) {
+    return selectAll(m_db,
+                     QStringLiteral("DELETE FROM match_event WHERE match_id = ? AND seq = ? "
+                                    "RETURNING id, match_id, minute, type, player_id, "
+                                    "related_player_id, added_time, seq"),
+                     {idValue(match), seq}, "delete match events of an action", readEvent);
 }
 
 } // namespace fdss::data

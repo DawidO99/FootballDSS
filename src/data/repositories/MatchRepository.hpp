@@ -44,15 +44,18 @@ public:
     [[nodiscard]] core::Result<std::vector<core::Appearance>>
     listAppearances(core::MatchId match) const;
 
-    [[nodiscard]] core::Result<core::MatchEventId> appendEvent(core::MatchId match,
-                                                               const core::MatchEventDraft& draft);
-    // By minute, then in the order they were added.
+    // seq: the order of entry of a Match Day action (P13); empty for other writers.
+    [[nodiscard]] core::Result<core::MatchEventId>
+    appendEvent(core::MatchId match, const core::MatchEventDraft& draft,
+                std::optional<int> seq = std::nullopt);
+    // In the order of the match: by minute, at one minute the added time first (by added
+    // minutes), then in the order they were added (core::replayOrder()).
     [[nodiscard]] core::Result<std::vector<core::MatchEvent>> listEvents(core::MatchId match) const;
     // Removes the event added last, whatever its minute, and returns it. No events: NotFound.
     [[nodiscard]] core::Result<core::MatchEvent> deleteLastEvent(core::MatchId match);
-    // Removes one event of the match and returns it. Not an event of that match: NotFound.
-    [[nodiscard]] core::Result<core::MatchEvent> deleteEvent(core::MatchId match,
-                                                             core::MatchEventId event);
+    // Removes the events of one Match Day action (one seq) and returns them; none: empty.
+    [[nodiscard]] core::Result<std::vector<core::MatchEvent>>
+    deleteEventsWithSeq(core::MatchId match, int seq);
 
 private:
     DatabaseManager& m_db;

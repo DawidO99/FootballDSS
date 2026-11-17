@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <format>
+#include <string>
 #include <vector>
 
 using namespace fdss::core;
@@ -67,25 +69,32 @@ void expectMinutes(const MatchMinutes& minutes, std::int64_t player, int on, int
 
 const Timestamp kKickoff = std::chrono::sys_days{std::chrono::year{2026} / 11 / 1} + 14h;
 
-MatchClock firstHalfClock(int halfLength = 45) {
+// A clock whose parts started 15 minutes after the end of the one before; `ends` holds how long
+// each part ended so far lasted (a part beyond them is running).
+MatchClock clockOf(MatchFormat format, std::vector<seconds> ends, bool running) {
     MatchClock clock;
-    clock.halfLength = halfLength;
-    clock.firstHalfStart = kKickoff;
+    clock.format = format;
+    Timestamp at = kKickoff;
+    for (const seconds length : ends) {
+        clock.periods.push_back({at, at + length});
+        at += length + 15min;
+    }
+    if (running) {
+        clock.periods.push_back({at, std::nullopt});
+    }
     return clock;
 }
 
-MatchClock secondHalfClock(int halfLength = 45) {
-    MatchClock clock = firstHalfClock(halfLength);
-    clock.firstHalfEnd = kKickoff + minutes{halfLength + 2};
-    clock.secondHalfStart = kKickoff + minutes{halfLength + 17};
-    return clock;
+// The time of the part running now, `into` after its start.
+MatchTime timeAt(const MatchClock& clock, seconds into) {
+    return readClock(clock, clock.periods.back().start + into).eventTime;
 }
 
-MatchTime timeAt(const MatchClock& clock, seconds sinceHalfStart) {
-    const Timestamp start = clock.secondHalfStart ? *clock.secondHalfStart : *clock.firstHalfStart;
-    return readClock(clock, start + sinceHalfStart).eventTime;
+std::string shown(MatchTime time) {
+    const DisplayMinute display = displayMinute(time);
+    return display.added ? std::format("{}+{}'", display.minute, *display.added)
+                         : std::format("{}'", display.minute);
 }
-
 } // namespace
 
 TEST(MatchMinutesTest, StartersPlayTheWholeMatch) {
@@ -238,111 +247,199 @@ TEST(MatchMinutesTest, SheetFromLineupSkipsEmptySlots) {
     EXPECT_EQ(result.bench, std::vector{pid(12)});
 }
 
-TEST(MatchClockTest, DefaultHalfLengthByCategory) {
-    EXPECT_EQ(defaultHalfLength(TeamCategory::Senior), 45);
-    EXPECT_EQ(defaultHalfLength(TeamCategory::U19), 45);
-    EXPECT_EQ(defaultHalfLength(TeamCategory::U17), 40);
-    EXPECT_EQ(defaultHalfLength(TeamCategory::U15), 35);
-    EXPECT_EQ(defaultHalfLength(TeamCategory::U13), 30);
-    EXPECT_EQ(defaultHalfLength(TeamCategory::U11), 25);
-    EXPECT_EQ(defaultHalfLength(TeamCategory::Other), 45);
-    EXPECT_TRUE(isValidHalfLength(10));
-    EXPECT_TRUE(isValidHalfLength(60));
-    EXPECT_FALSE(isValidHalfLength(9));
-    EXPECT_FALSE(isValidHalfLength(61));
+TEST(MatchClockTest, FormatsAndTheDefaultByCategory) {
+    EXPECT_EQ(defaultMatchFormat(TeamCategory::Senior), (MatchFormat{2, 45}));
+    EXPECT_EQ(defaultMatchFormat(TeamCategory::U19), (MatchFormat{2, 45}));
+    EXPECT_EQ(defaultMatchFormat(TeamCategory::U17), (MatchFormat{2, 40}));
+    EXPECT_EQ(defaultMatchFormat(TeamCategory::U15), (MatchFormat{2, 35}));
+    EXPECT_EQ(defaultMatchFormat(TeamCategory::U13), (MatchFormat{2, 30}));
+    EXPECT_EQ(defaultMatchFormat(TeamCategory::U11), (MatchFormat{2, 25}));
+    EXPECT_EQ(defaultMatchFormat(TeamCategory::Other), (MatchFormat{2, 45}));
+    for (const MatchFormat preset : kMatchFormatPresets) {
+        EXPECT_TRUE(isValidMatchFormat(preset));
+    }
+    EXPECT_TRUE(isValidMatchFormat({1, 60}));
+    EXPECT_TRUE(isValidMatchFormat({4, 30}));
+    EXPECT_FALSE(isValidMatchFormat({0, 45}));
+    EXPECT_FALSE(isValidMatchFormat({5, 20}));
+    EXPECT_FALSE(isValidMatchFormat({2, 9}));
+    EXPECT_FALSE(isValidMatchFormat({2, 61}));
+    // The minutes of 0001 go up to 130.
+    EXPECT_FALSE(isValidMatchFormat({4, 40}));
+    EXPECT_EQ((MatchFormat{3, 30}).totalMinutes(), 90);
 }
 
-TEST(MatchClockTest, StepsInOrder) {
+TEST(MatchClockTest, StepsInOrderForFourParts) {
     MatchClock clock;
-    EXPECT_EQ(phaseOf(clock), MatchPhase::NotStarted);
-    EXPECT_EQ(nextStep(clock), ClockStep::FirstHalfStart);
-    EXPECT_EQ(lastStep(clock), std::nullopt);
-    setStep(clock, ClockStep::FirstHalfStart, kKickoff);
-    EXPECT_EQ(phaseOf(clock), MatchPhase::FirstHalf);
-    setStep(clock, ClockStep::FirstHalfEnd, kKickoff + 46min);
-    EXPECT_EQ(phaseOf(clock), MatchPhase::HalfTime);
-    setStep(clock, ClockStep::SecondHalfStart, kKickoff + 60min);
-    EXPECT_EQ(phaseOf(clock), MatchPhase::SecondHalf);
-    EXPECT_EQ(nextStep(clock), ClockStep::MatchEnd);
-    setStep(clock, ClockStep::MatchEnd, kKickoff + 107min);
+    clock.format = {4, 20};
+    std::vector<ClockStep> steps;
+    Timestamp at = kKickoff;
+    while (const auto step = nextStep(clock)) {
+        steps.push_back(*step);
+        applyStep(clock, *step, at);
+        at += 25min;
+        if (phaseOf(clock) == MatchPhase::Break) {
+            EXPECT_EQ(nextStep(clock)->kind, ClockStepKind::Start);
+        }
+        if (step->period == 4 && step->kind == ClockStepKind::End) {
+            clock.finished = true; // the end of the last part ends the match
+        }
+    }
+    ASSERT_EQ(steps.size(), 8U);
+    EXPECT_EQ(steps.front(), (ClockStep{1, ClockStepKind::Start}));
+    EXPECT_EQ(steps[3], (ClockStep{2, ClockStepKind::End}));
+    EXPECT_EQ(steps.back(), (ClockStep{4, ClockStepKind::End}));
     EXPECT_EQ(phaseOf(clock), MatchPhase::Finished);
-    EXPECT_EQ(nextStep(clock), std::nullopt);
-    EXPECT_EQ(lastStep(clock), ClockStep::MatchEnd);
-    setStep(clock, ClockStep::MatchEnd, std::nullopt);
-    EXPECT_EQ(lastStep(clock), ClockStep::SecondHalfStart);
+    EXPECT_EQ(finalMinute(clock), 80);
+    // A step out of order changes nothing.
+    MatchClock fresh;
+    applyStep(fresh, {2, ClockStepKind::Start}, kKickoff);
+    EXPECT_EQ(phaseOf(fresh), MatchPhase::NotStarted);
 }
 
-TEST(MatchClockTest, FirstHalfMinutesAndDisplay) {
-    const MatchClock clock = firstHalfClock();
-    // 00:30 → stored 0, shown 1'.
-    EXPECT_EQ(timeAt(clock, 30s), (MatchTime{0, std::nullopt}));
-    EXPECT_EQ(displayMinute(timeAt(clock, 30s)), (DisplayMinute{1, std::nullopt}));
-    // 44:20 → stored 44, shown 45'.
-    EXPECT_EQ(timeAt(clock, 44min + 20s), (MatchTime{44, std::nullopt}));
-    EXPECT_EQ(displayMinute(timeAt(clock, 44min + 20s)), (DisplayMinute{45, std::nullopt}));
-    // 45:30 in stoppage time → stored 45 + 1, shown 45+1'.
-    EXPECT_EQ(timeAt(clock, 45min + 30s), (MatchTime{45, 1}));
-    EXPECT_EQ(displayMinute(timeAt(clock, 45min + 30s)), (DisplayMinute{45, 1}));
-    // 47:10 → stored 45 + 3, shown 45+3'.
-    EXPECT_EQ(timeAt(clock, 47min + 10s), (MatchTime{45, 3}));
-    EXPECT_EQ(displayMinute(timeAt(clock, 47min + 10s)), (DisplayMinute{45, 3}));
-
-    const ClockReading reading = readClock(clock, kKickoff + 47min + 10s);
-    EXPECT_EQ(reading.phase, MatchPhase::FirstHalf);
+TEST(MatchClockTest, HalvesMinutesAndDisplay) {
+    const MatchClock first = clockOf({2, 45}, {}, true);
+    EXPECT_EQ(timeAt(first, 30s), (MatchTime{0, std::nullopt}));
+    EXPECT_EQ(shown(timeAt(first, 30s)), "1'");
+    EXPECT_EQ(shown(timeAt(first, 44min + 20s)), "45'");
+    EXPECT_EQ(timeAt(first, 45min + 30s), (MatchTime{45, 1}));
+    EXPECT_EQ(shown(timeAt(first, 45min + 30s)), "45+1'");
+    EXPECT_EQ(shown(timeAt(first, 47min + 10s)), "45+3'");
+    const ClockReading reading = readClock(first, kKickoff + 47min + 10s);
+    EXPECT_EQ(reading.phase, MatchPhase::Running);
+    EXPECT_EQ(reading.period, 1);
     EXPECT_EQ(reading.regular, 45min);
     EXPECT_EQ(reading.stoppage, 2min + 10s);
-    EXPECT_EQ(readClock(clock, kKickoff + 23min + 41s).regular, 23min + 41s);
-    EXPECT_EQ(readClock(clock, kKickoff + 23min + 41s).stoppage, 0s);
+
+    const MatchClock second = clockOf({2, 45}, {47min}, true);
+    EXPECT_EQ(shown(timeAt(second, 0s)), "46'");
+    EXPECT_EQ(shown(timeAt(second, 44min + 59s)), "90'");
+    EXPECT_EQ(shown(timeAt(second, 45min)), "90+1'");
+    EXPECT_EQ(readClock(second, second.periods.back().start + 20min).regular, 65min);
 }
 
-TEST(MatchClockTest, SecondHalfMinutesAndDisplay) {
-    const MatchClock clock = secondHalfClock();
-    // Kick-off of the second half → stored 45, shown 46'.
-    EXPECT_EQ(timeAt(clock, 0s), (MatchTime{45, std::nullopt}));
-    EXPECT_EQ(displayMinute(timeAt(clock, 0s)), (DisplayMinute{46, std::nullopt}));
-    // 44:59 into the half → stored 89, shown 90'.
-    EXPECT_EQ(timeAt(clock, 44min + 59s), (MatchTime{89, std::nullopt}));
-    EXPECT_EQ(displayMinute(timeAt(clock, 44min + 59s)), (DisplayMinute{90, std::nullopt}));
-    EXPECT_EQ(timeAt(clock, 45min), (MatchTime{90, 1}));
-    EXPECT_EQ(displayMinute(timeAt(clock, 47min + 10s)), (DisplayMinute{90, 3}));
-    const ClockReading reading = readClock(clock, *clock.secondHalfStart + 47min + 10s);
-    EXPECT_EQ(reading.regular, 90min);
-    EXPECT_EQ(reading.stoppage, 2min + 10s);
-    EXPECT_EQ(readClock(clock, *clock.secondHalfStart + 20min).regular, 65min);
+TEST(MatchClockTest, ThreePartsOfThirty) {
+    const MatchClock first = clockOf({3, 30}, {}, true);
+    EXPECT_EQ(shown(timeAt(first, 29min + 59s)), "30'");
+    EXPECT_EQ(timeAt(first, 31min + 10s), (MatchTime{30, 2}));
+    EXPECT_EQ(shown(timeAt(first, 31min + 10s)), "30+2'");
+    EXPECT_EQ(readClock(first, kKickoff + 31min + 10s).regular, 30min);
+
+    const MatchClock second = clockOf({3, 30}, {32min}, true);
+    EXPECT_EQ(shown(timeAt(second, 0s)), "31'");
+    EXPECT_EQ(timeAt(second, 30min + 30s), (MatchTime{60, 1}));
+    EXPECT_EQ(shown(timeAt(second, 30min + 30s)), "60+1'");
+
+    const MatchClock third = clockOf({3, 30}, {32min, 31min}, true);
+    EXPECT_EQ(timeAt(third, 10min), (MatchTime{70, std::nullopt}));
+    EXPECT_EQ(readClock(third, third.periods.back().start + 10min).regular, 70min);
+
+    MatchClock finished = clockOf({3, 30}, {32min, 31min, 33min}, false);
+    finished.finished = true;
+    EXPECT_EQ(finalMinute(finished), 90);
+    EXPECT_EQ(readClock(finished, kKickoff + 5h).eventTime, (MatchTime{90, std::nullopt}));
 }
 
-TEST(MatchClockTest, ShortHalvesOfYouthTeams) {
-    const MatchClock clock = secondHalfClock(25);
-    EXPECT_EQ(timeAt(clock, 10min), (MatchTime{35, std::nullopt}));
-    EXPECT_EQ(timeAt(clock, 26min), (MatchTime{50, 2}));
+TEST(MatchClockTest, FourPartsOfTwenty) {
+    const MatchClock fourth = clockOf({4, 20}, {21min, 20min, 22min}, true);
+    EXPECT_EQ(readClock(fourth, fourth.periods.back().start).period, 4);
+    EXPECT_EQ(shown(timeAt(fourth, 0s)), "61'");
+    EXPECT_EQ(shown(timeAt(fourth, 19min)), "80'");
+    EXPECT_EQ(timeAt(fourth, 20min + 30s), (MatchTime{80, 1}));
+    EXPECT_EQ(shown(timeAt(fourth, 20min + 30s)), "80+1'");
+    // A break after the second part: the clock stands at 40:00, a substitution is at 40 (41').
+    const MatchClock inBreak = clockOf({4, 20}, {21min, 20min}, false);
+    const ClockReading reading = readClock(inBreak, kKickoff + 70min);
+    EXPECT_EQ(reading.phase, MatchPhase::Break);
+    EXPECT_EQ(reading.period, 2);
+    EXPECT_EQ(reading.regular, 40min);
+    EXPECT_EQ(reading.eventTime, (MatchTime{40, std::nullopt}));
 }
 
-TEST(MatchClockTest, BreakEndAndBeforeKickoff) {
-    MatchClock clock = firstHalfClock();
-    clock.firstHalfEnd = kKickoff + 47min;
-    const ClockReading halfTime = readClock(clock, kKickoff + 55min);
-    EXPECT_EQ(halfTime.phase, MatchPhase::HalfTime);
-    EXPECT_EQ(halfTime.regular, 45min);
-    EXPECT_EQ(halfTime.stoppage, 0s);
-    EXPECT_EQ(halfTime.eventTime, (MatchTime{45, std::nullopt}));
+TEST(MatchClockTest, EndedEarly) {
+    // Ended 10:30 into the third part of 3×30: the final minute is 70.
+    MatchClock early = clockOf({3, 30}, {31min, 30min, 10min + 30s}, false);
+    early.finished = true;
+    early.endedEarly = true;
+    EXPECT_EQ(phaseOf(early), MatchPhase::Finished);
+    EXPECT_EQ(finalMinute(early), 70);
+    // Ended in the break after the second part: 60.
+    MatchClock inBreak = clockOf({3, 30}, {31min, 30min}, false);
+    inBreak.finished = true;
+    inBreak.endedEarly = true;
+    EXPECT_EQ(finalMinute(inBreak), 60);
+    // A last part ended a little before its length by the clock button: still a whole match.
+    MatchClock regular = clockOf({3, 30}, {31min, 30min, 29min + 50s}, false);
+    regular.finished = true;
+    EXPECT_EQ(finalMinute(regular), 90);
+}
 
-    clock = secondHalfClock();
-    clock.matchEnd = *clock.secondHalfStart + 49min;
-    const ClockReading finished = readClock(clock, *clock.matchEnd + 3h);
-    EXPECT_EQ(finished.phase, MatchPhase::Finished);
-    EXPECT_EQ(finished.regular, 90min);
-    EXPECT_EQ(finished.eventTime, (MatchTime{90, std::nullopt}));
-
-    EXPECT_EQ(readClock(MatchClock{}, kKickoff).regular, 0s);
-    // The system clock went back: no negative time.
-    EXPECT_EQ(readClock(firstHalfClock(), kKickoff - 5min).regular, 0s);
-    EXPECT_EQ(timeAt(firstHalfClock(), -5min), (MatchTime{0, std::nullopt}));
+TEST(MatchClockTest, BeforeKickoffAndClockGoingBack) {
+    MatchClock clock;
+    EXPECT_EQ(phaseOf(clock), MatchPhase::NotStarted);
+    EXPECT_EQ(readClock(clock, kKickoff).regular, 0s);
+    EXPECT_FALSE(isPlayedTime(clock, kKickoff, {0, std::nullopt}, false));
+    const MatchClock running = clockOf({2, 45}, {}, true);
+    EXPECT_EQ(readClock(running, kKickoff - 5min).regular, 0s);
+    EXPECT_EQ(timeAt(running, -5min), (MatchTime{0, std::nullopt}));
 }
 
 TEST(MatchClockTest, ResumesFromThePersistedStart) {
     // The app closed at 20:00 and opened 5 minutes later: the clock is derived, so it shows 25:00.
-    const MatchClock clock = firstHalfClock();
-    EXPECT_EQ(readClock(clock, kKickoff + 25min).regular, 25min);
+    EXPECT_EQ(readClock(clockOf({2, 45}, {}, true), kKickoff + 25min).regular, 25min);
+}
+
+TEST(MatchClockTest, ShownMinutesAreParsed) {
+    EXPECT_EQ(parseDisplayMinute("23"), (DisplayMinute{23, std::nullopt}));
+    EXPECT_EQ(parseDisplayMinute(" 23' "), (DisplayMinute{23, std::nullopt}));
+    EXPECT_EQ(parseDisplayMinute("45+2"), (DisplayMinute{45, 2}));
+    EXPECT_EQ(parseDisplayMinute("45 + 2'"), (DisplayMinute{45, 2}));
+    for (const char* bad : {"", "0", "x", "45+", "+2", "45+0", "-3", "4 5", "1000", "45+2+1"}) {
+        EXPECT_EQ(parseDisplayMinute(bad), std::nullopt) << bad;
+    }
+    const MatchFormat halves{2, 45};
+    EXPECT_EQ(matchTimeOf({23, std::nullopt}, halves), (MatchTime{22, std::nullopt}));
+    EXPECT_EQ(matchTimeOf({45, 2}, halves), (MatchTime{45, 2}));
+    EXPECT_EQ(matchTimeOf({90, 4}, halves), (MatchTime{90, 4}));
+    EXPECT_EQ(matchTimeOf({44, 2}, halves), std::nullopt); // added time only at the end of a part
+    EXPECT_EQ(matchTimeOf({135, 1}, halves), std::nullopt);
+    EXPECT_EQ(matchTimeOf({91, std::nullopt}, halves), std::nullopt);
+    EXPECT_EQ(matchTimeOf({30, 2}, {3, 30}), (MatchTime{30, 2}));
+    EXPECT_EQ(matchTimeOf({60, 1}, {3, 30}), (MatchTime{60, 1}));
+    EXPECT_EQ(matchTimeOf({45, 1}, {3, 30}), std::nullopt);
+}
+
+TEST(MatchClockTest, OnlyPlayedTimeCanBeEntered) {
+    // Second half of 2×45, 15:00 in (the 61st minute); the first half lasted 47:10.
+    const MatchClock clock = clockOf({2, 45}, {47min + 10s}, true);
+    const Timestamp now = clock.periods.back().start + 15min;
+    EXPECT_TRUE(isPlayedTime(clock, now, {0, std::nullopt}, false));
+    EXPECT_TRUE(isPlayedTime(clock, now, {44, std::nullopt}, false));
+    EXPECT_TRUE(isPlayedTime(clock, now, {45, 3}, false)); // 45+3' was played
+    EXPECT_FALSE(isPlayedTime(clock, now, {45, 4}, false));
+    EXPECT_TRUE(isPlayedTime(clock, now, {60, std::nullopt}, false));  // 61', now
+    EXPECT_FALSE(isPlayedTime(clock, now, {61, std::nullopt}, false)); // the future
+    EXPECT_FALSE(isPlayedTime(clock, now, {90, 1}, false));
+
+    // The half-time break: the minute that starts the second half is a substitution only.
+    const MatchClock inBreak = clockOf({2, 45}, {44min + 30s}, false);
+    const Timestamp later = inBreak.periods.back().end.value() + 5min;
+    EXPECT_TRUE(isPlayedTime(inBreak, later, {45, std::nullopt}, true));
+    EXPECT_FALSE(isPlayedTime(inBreak, later, {45, std::nullopt}, false));
+    EXPECT_TRUE(isPlayedTime(inBreak, later, {44, std::nullopt}, false)); // ended at 44:30
+    EXPECT_FALSE(isPlayedTime(inBreak, later, {45, 1}, false));           // no stoppage time
+    EXPECT_EQ(defaultTime(inBreak, later, true), (MatchTime{45, std::nullopt}));
+    EXPECT_EQ(defaultTime(inBreak, later, false), (MatchTime{44, std::nullopt}));
+    const MatchClock afterStoppage = clockOf({2, 45}, {47min + 10s}, false);
+    EXPECT_EQ(defaultTime(afterStoppage, kKickoff + 1h, false), (MatchTime{45, 3}));
+    // In stoppage time of a running part.
+    const MatchClock stoppage = clockOf({3, 30}, {}, true);
+    const Timestamp inStoppage = kKickoff + 31min + 10s;
+    EXPECT_TRUE(isPlayedTime(stoppage, inStoppage, {29, std::nullopt}, false));
+    EXPECT_TRUE(isPlayedTime(stoppage, inStoppage, {30, 2}, false));
+    EXPECT_FALSE(isPlayedTime(stoppage, inStoppage, {30, 3}, false));
+    EXPECT_FALSE(isPlayedTime(stoppage, inStoppage, {30, std::nullopt}, false)); // next part
+    EXPECT_EQ(defaultTime(stoppage, inStoppage, false), (MatchTime{30, 2}));
 }
 
 TEST(MatchMinutesTest, SecondYellowIsCountedNotGuessedFromNeighbours) {
@@ -363,4 +460,33 @@ TEST(MatchMinutesTest, SecondYellowIsCountedNotGuessedFromNeighbours) {
                                 card(MatchEventType::Yellow, 10, 4),
                                 card(MatchEventType::Yellow, 50, 4)};
     EXPECT_EQ(secondYellowReds(unordered), (std::vector<bool>{true, false, false}));
+}
+
+TEST(MatchMinutesTest, AddedTimeComesBeforeTheNextPart) {
+    // Entered late: a yellow at 45+2 after the half-time substitution at 45 (46').
+    MatchEventDraft late = card(MatchEventType::Yellow, 45, 4);
+    late.addedTime = 2;
+    const std::vector events{sub(45, 12, 4), late};
+    EXPECT_EQ(replayOrder(events), (std::vector<std::size_t>{1, 0}));
+    // So the yellow is for a player still on the pitch.
+    EXPECT_TRUE(replayMatch(sheet(), events).has_value());
+}
+
+TEST(MatchMinutesTest, AYellowEnteredLaterCannotMakeASecondOneWithoutItsRed) {
+    // 4 got a yellow at 50 and a second one (with the red) at 70. A yellow entered later at 30
+    // would make the one at 50 the second, without a red: refused at that card.
+    const std::vector events{card(MatchEventType::Yellow, 50, 4),
+                             card(MatchEventType::Yellow, 70, 4), card(MatchEventType::Red, 70, 4),
+                             card(MatchEventType::Yellow, 30, 4)};
+    const auto replayed = replayMatch(sheet(), events);
+    ASSERT_FALSE(replayed.has_value());
+    EXPECT_EQ(replayed.error(), (MatchEventError{MatchEventProblem::SecondYellowWithoutRed, 0}));
+}
+
+TEST(MatchMinutesTest, PlayersOnThePitchAreCounted) {
+    EXPECT_EQ(onPitchCount(startingSituation(sheet())), 11);
+    const std::vector events{card(MatchEventType::Red, 10, 2), card(MatchEventType::Red, 20, 3),
+                             sub(30, 12, 5)};
+    EXPECT_EQ(onPitchCount(replayMatch(sheet(), events).value()), 9);
+    EXPECT_EQ(kMinPlayersOnPitch, 7);
 }

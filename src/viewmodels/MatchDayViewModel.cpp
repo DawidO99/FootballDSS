@@ -12,18 +12,32 @@
 
 #include <QCoreApplication>
 #include <QEvent>
+#include <QVariantMap>
 
 #include <algorithm>
 #include <ranges>
+#include <tuple>
 
 namespace fdss::viewmodels {
 
 namespace {
 
 constexpr int kTickMs = 500;
+// A note in the undo text: its beginning only.
+constexpr int kNotePreview = 40;
 
 QVariant shirtNumberValue(const std::optional<int>& number) {
     return number ? QVariant(*number) : QVariant{};
+}
+
+QString formatKey(core::MatchFormat format) {
+    return QStringLiteral("%1x%2").arg(format.periods).arg(format.periodLength);
+}
+
+// The order of the match for the timeline: by minute, the added time of a part before the start
+// of the next one.
+std::tuple<int, int, int> matchOrder(int minute, std::optional<int> addedTime) {
+    return {minute, addedTime ? 0 : 1, addedTime.value_or(0)};
 }
 
 } // namespace
@@ -85,9 +99,16 @@ QString MatchDayViewModel::statusText() const {
     return m_state ? MatchDayTexts::statusName(m_state->match.match.status) : QString{};
 }
 
-bool MatchDayViewModel::guardLeaving() const {
-    return m_state && m_state->match.match.status == core::MatchStatus::Live && !readOnly();
+QString MatchDayViewModel::formatText() const {
+    return m_state && m_state->clock ? MatchDayTexts::formatText(m_state->clock->format)
+                                     : QString{};
 }
+
+bool MatchDayViewModel::isLive() const {
+    return m_state && m_state->clock && m_state->match.match.status == core::MatchStatus::Live;
+}
+
+bool MatchDayViewModel::guardLeaving() const { return isLive() && !readOnly(); }
 
 bool MatchDayViewModel::readOnly() const {
     return !m_session.isAllowed(core::Permission::RunMatchDay);
@@ -143,14 +164,32 @@ bool MatchDayViewModel::canStart() const {
            m_startCheck->block == services::MatchDayStartCheck::Block::None && !readOnly();
 }
 
-int MatchDayViewModel::defaultHalfLength() const {
-    return m_startCheck ? m_startCheck->defaultHalfLength
-                        : (m_state ? core::defaultHalfLength(m_state->category) : 45);
+QVariantList MatchDayViewModel::formatOptions() const {
+    QVariantList options;
+    for (const core::MatchFormat preset : core::kMatchFormatPresets) {
+        options.append(QVariantMap{{QStringLiteral("value"), formatKey(preset)},
+                                   {QStringLiteral("text"), MatchDayTexts::formatText(preset)}});
+    }
+    options.append(QVariantMap{{QStringLiteral("value"), QStringLiteral("custom")},
+                               {QStringLiteral("text"), tr("Custom…")}});
+    return options;
 }
 
-int MatchDayViewModel::minHalfLength() { return core::kMinHalfLength; }
+QString MatchDayViewModel::defaultFormat() const {
+    const core::MatchFormat format =
+        m_startCheck
+            ? m_startCheck->defaultFormat
+            : (m_state ? core::defaultMatchFormat(m_state->category) : core::MatchFormat{});
+    return formatKey(format);
+}
 
-int MatchDayViewModel::maxHalfLength() { return core::kMaxHalfLength; }
+int MatchDayViewModel::minPeriods() { return core::kMinPeriods; }
+
+int MatchDayViewModel::maxPeriods() { return core::kMaxPeriods; }
+
+int MatchDayViewModel::minPeriodLength() { return core::kMinPeriodLength; }
+
+int MatchDayViewModel::maxPeriodLength() { return core::kMaxPeriodLength; }
 
 std::optional<core::ClockReading> MatchDayViewModel::reading() const {
     if (!m_state || !m_state->clock) {
@@ -169,12 +208,13 @@ QString MatchDayViewModel::phase() const {
 }
 
 QString MatchDayViewModel::phaseText() const {
-    return m_state && m_state->clock ? MatchDayTexts::phaseName(currentPhase()) : QString{};
+    const auto now = reading();
+    return now ? MatchDayTexts::phaseText(*now, m_state->clock->format.periods) : QString{};
 }
 
 QString MatchDayViewModel::clockText() const {
     const auto now = reading();
-    return now ? MatchDayTexts::clockText(*now, m_state->clock->halfLength)
+    return now ? MatchDayTexts::clockText(*now, m_state->clock->format.periodLength)
                : QStringLiteral("00:00");
 }
 
@@ -182,26 +222,43 @@ QString MatchDayViewModel::clockActionText() const {
     if (!m_state || !m_state->clock) {
         return {};
     }
-    return MatchDayTexts::clockActionText(core::nextStep(*m_state->clock));
+    return MatchDayTexts::clockActionText(core::nextStep(*m_state->clock),
+                                          m_state->clock->format.periods);
 }
 
 bool MatchDayViewModel::canAdvanceClock() const {
-    return m_state && m_state->clock && m_state->match.match.status == core::MatchStatus::Live &&
-           !readOnly();
+    if (!isLive() || readOnly()) {
+        return false;
+    }
+    // With fewer than 7 only the end of the match: its own button, or the end of the last part.
+    const auto step = core::nextStep(*m_state->clock);
+    const bool last = step && step->kind == core::ClockStepKind::End &&
+                      step->period == m_state->clock->format.periods;
+    return !tooFewPlayers() || last;
 }
 
 bool MatchDayViewModel::canCancelStart() const {
-    return canAdvanceClock() && currentPhase() == core::MatchPhase::NotStarted;
+    return isLive() && !readOnly() && currentPhase() == core::MatchPhase::NotStarted;
 }
 
-bool MatchDayViewModel::canRecordEvents() const {
+bool MatchDayViewModel::canAddNote() const {
     const core::MatchPhase phase = currentPhase();
-    return canAdvanceClock() &&
-           (phase == core::MatchPhase::FirstHalf || phase == core::MatchPhase::SecondHalf);
+    return isLive() && !readOnly() &&
+           (phase == core::MatchPhase::Running || phase == core::MatchPhase::Break);
 }
 
-bool MatchDayViewModel::canSubstitute() const {
-    return canRecordEvents() || (canAdvanceClock() && currentPhase() == core::MatchPhase::HalfTime);
+bool MatchDayViewModel::canRecordEvents() const { return canAddNote() && !tooFewPlayers(); }
+
+bool MatchDayViewModel::canSubstitute() const { return canRecordEvents(); }
+
+int MatchDayViewModel::onPitchCount() const {
+    return m_state ? core::onPitchCount(m_state->situation) : 0;
+}
+
+int MatchDayViewModel::minPlayers() { return core::kMinPlayersOnPitch; }
+
+bool MatchDayViewModel::tooFewPlayers() const {
+    return isLive() && onPitchCount() < core::kMinPlayersOnPitch;
 }
 
 int MatchDayViewModel::goalsFor() const { return m_state ? m_state->situation.goalsFor : 0; }
@@ -224,6 +281,25 @@ MatchDayPlayersModel* MatchDayViewModel::bench() const { return m_bench; }
 
 MatchTimelineModel* MatchDayViewModel::timeline() const { return m_timeline; }
 
+QVariantList MatchDayViewModel::notePlayerOptions() const {
+    QVariantList options{
+        QVariantMap{{QStringLiteral("value"), 0}, {QStringLiteral("text"), tr("No player")}}};
+    if (!m_state) {
+        return options;
+    }
+    for (const core::PlayerInMatch& player : m_state->situation.players) {
+        QString text = playerName(player.player);
+        const auto found = std::ranges::find(m_state->players, player.player, &core::Player::id);
+        if (found != m_state->players.end() && found->shirtNumber) {
+            text = QStringLiteral("%1 %2").arg(*found->shirtNumber).arg(text);
+        }
+        options.append(
+            QVariantMap{{QStringLiteral("value"), QVariant::fromValue(player.player.value)},
+                        {QStringLiteral("text"), text}});
+    }
+    return options;
+}
+
 QString MatchDayViewModel::pendingAction() const {
     switch (m_pending) {
     case Pending::None:
@@ -240,6 +316,8 @@ QString MatchDayViewModel::pendingAction() const {
         return QStringLiteral("subOff");
     case Pending::SubOn:
         return QStringLiteral("subOn");
+    case Pending::OpponentGoal:
+        return QStringLiteral("opponentGoal");
     }
     return {};
 }
@@ -262,8 +340,31 @@ QString MatchDayViewModel::pendingPrompt() const {
     case Pending::SubOn:
         return tr("%1 goes off: who comes on? Tap a player on the bench.")
             .arg(playerName(m_pendingFirst));
+    case Pending::OpponentGoal:
+        return tr("Opponent goal: check the minute and save.");
     }
     return {};
+}
+
+QString MatchDayViewModel::pendingMinute() const {
+    if (m_pendingMinute) {
+        return *m_pendingMinute;
+    }
+    if (!m_state || !m_state->clock || m_pending == Pending::None) {
+        return {};
+    }
+    const bool substitution = m_pending == Pending::SubOff || m_pending == Pending::SubOn;
+    return MatchDayTexts::minuteFieldText(
+        core::defaultTime(*m_state->clock, m_clock.now(), substitution));
+}
+
+QString MatchDayViewModel::pendingMinuteError() const {
+    if (m_pending == Pending::None) {
+        return {};
+    }
+    QString error;
+    (void)pendingTime(error);
+    return error;
 }
 
 QString MatchDayViewModel::loadError() const {
@@ -338,6 +439,10 @@ void MatchDayViewModel::read(core::MatchId match) {
     if (otherMatch || m_state->match.match.status != core::MatchStatus::Live) {
         m_pending = Pending::None;
         m_pendingFirst.reset();
+        m_pendingMinute.reset();
+    }
+    if (otherMatch) {
+        m_deletedNote.reset();
     }
     rebuildRows();
     updateTimer();
@@ -345,6 +450,7 @@ void MatchDayViewModel::read(core::MatchId match) {
     emit clockChanged();
     emit eventsChanged();
     emit pendingChanged();
+    emit pendingMinuteChanged();
     emit textsChanged();
     if (hadFailure) {
         emit loadErrorChanged();
@@ -357,6 +463,8 @@ void MatchDayViewModel::clearMatch(std::optional<core::Error> failure) {
     m_loadFailure = std::move(failure);
     m_pending = Pending::None;
     m_pendingFirst.reset();
+    m_pendingMinute.reset();
+    m_deletedNote.reset();
     m_pitch->setRows({});
     m_bench->setRows({});
     m_timeline->setRows({});
@@ -365,6 +473,7 @@ void MatchDayViewModel::clearMatch(std::optional<core::Error> failure) {
     emit clockChanged();
     emit eventsChanged();
     emit pendingChanged();
+    emit pendingMinuteChanged();
     emit textsChanged();
     emit loadErrorChanged();
 }
@@ -377,15 +486,7 @@ QString MatchDayViewModel::playerName(std::optional<core::PlayerId> player) cons
     return found == m_state->players.end() ? QString{} : SquadTexts::displayName(*found);
 }
 
-QString MatchDayViewModel::actionText(const services::MatchDayAction& action) const {
-    if (action.kind == services::MatchDayAction::Kind::ClockStep) {
-        return action.step ? MatchDayTexts::clockStepName(*action.step) : QString{};
-    }
-    if (!action.event) {
-        return {};
-    }
-    const core::MatchEvent& event = *action.event;
-    const bool secondYellow = action.kind == services::MatchDayAction::Kind::SecondYellow;
+QString MatchDayViewModel::eventText(const core::MatchEvent& event, bool secondYellow) const {
     const core::MatchEventType type = secondYellow ? core::MatchEventType::Red : event.type;
     QString who;
     if (event.type == core::MatchEventType::Sub) {
@@ -400,6 +501,35 @@ QString MatchDayViewModel::actionText(const services::MatchDayAction& action) co
              MatchDayTexts::minuteText(event.minute, event.addedTime));
 }
 
+QString MatchDayViewModel::actionText(const services::MatchDayAction& action) const {
+    const int periods = m_state && m_state->clock ? m_state->clock->format.periods : 2;
+    switch (action.kind) {
+    case services::MatchDayAction::Kind::ClockStep:
+        return action.step ? MatchDayTexts::clockStepName(*action.step, periods) : QString{};
+    case services::MatchDayAction::Kind::Finish:
+        return MatchDayTexts::finishName(m_state && m_state->clock && m_state->clock->endedEarly);
+    case services::MatchDayAction::Kind::Note: {
+        if (!action.note) {
+            return {};
+        }
+        QString text = QString::fromStdString(action.note->text);
+        if (text.size() > kNotePreview) {
+            text = text.left(kNotePreview) + QStringLiteral("…");
+        }
+        return tr("%1 · %2 %3")
+            .arg(MatchDayTexts::noteName(), text,
+                 MatchDayTexts::minuteText(action.note->minute, action.note->addedTime));
+    }
+    case services::MatchDayAction::Kind::Event:
+    case services::MatchDayAction::Kind::SecondYellow:
+        break;
+    }
+    if (!action.event) {
+        return {};
+    }
+    return eventText(*action.event, action.kind == services::MatchDayAction::Kind::SecondYellow);
+}
+
 void MatchDayViewModel::rebuildRows() {
     if (!m_state) {
         return;
@@ -407,8 +537,6 @@ void MatchDayViewModel::rebuildRows() {
     const auto now = reading();
     const int currentMinute = now ? now->eventTime.minute : 0;
     m_rowsMinute = currentMinute;
-    const bool finished = m_state->match.match.status == core::MatchStatus::Finished;
-    const int finalMinute = m_state->clock ? 2 * m_state->clock->halfLength : currentMinute;
 
     QList<QVariantList> pitchRows;
     QList<QVariantList> benchRows;
@@ -418,12 +546,13 @@ void MatchDayViewModel::rebuildRows() {
         const core::Player* info = found == m_state->players.end() ? nullptr : &*found;
         QString minutesText;
         if (player.minuteOn && m_state->clock) {
-            const int end = player.minuteOff.value_or(finished ? finalMinute : currentMinute);
+            const int end = player.minuteOff.value_or(currentMinute);
             minutesText = QStringLiteral("%1'").arg(std::max(0, end - *player.minuteOn));
         }
         bool selectable = false;
         switch (m_pending) {
         case Pending::None:
+        case Pending::OpponentGoal:
             break;
         case Pending::Scorer:
         case Pending::Yellow:
@@ -469,7 +598,13 @@ void MatchDayViewModel::rebuildRows() {
     m_pitch->setRows(std::move(pitchRows));
     m_bench->setRows(std::move(benchRows));
 
-    QList<QVariantList> events;
+    // Events and notes in the order of the match; the timeline shows the latest first.
+    struct Entry {
+        std::tuple<int, int, int> order;
+        int sequence;
+        QVariantList row;
+    };
+    std::vector<Entry> entries;
     const std::vector<core::MatchEvent>& list = m_state->events;
     const std::vector<core::MatchEventDraft> drafts(list.begin(), list.end());
     // Counted in replay order from the yellow cards before each red (P13 review).
@@ -499,20 +634,38 @@ void MatchDayViewModel::rebuildRows() {
             playerText = playerName(event.playerId);
             break;
         }
-        events.prepend(QVariantList{
-            QVariant::fromValue(event.id.value),
-            MatchDayTexts::minuteText(event.minute, event.addedTime),
-            MatchDayTexts::eventKey(event.type, secondYellow), MatchDayTexts::eventIcon(event.type),
-            MatchDayTexts::eventName(event.type, secondYellow), playerText, relatedText});
+        entries.push_back(
+            {matchOrder(event.minute, event.addedTime), static_cast<int>(entries.size()),
+             QVariantList{QStringLiteral("event"), QVariant::fromValue(event.id.value), 0,
+                          MatchDayTexts::minuteText(event.minute, event.addedTime),
+                          MatchDayTexts::eventKey(event.type, secondYellow),
+                          MatchDayTexts::eventIcon(event.type),
+                          MatchDayTexts::eventName(event.type, secondYellow), playerText,
+                          relatedText, QString{}, 0, QString{}}});
     }
-    m_timeline->setRows(std::move(events));
+    for (const core::MatchNote& note : m_state->notes) {
+        const QString text = QString::fromStdString(note.text);
+        entries.push_back(
+            {matchOrder(note.minute, note.addedTime), static_cast<int>(entries.size()),
+             QVariantList{QStringLiteral("note"), 0, QVariant::fromValue(note.id.value),
+                          MatchDayTexts::minuteText(note.minute, note.addedTime),
+                          QStringLiteral("note"), QStringLiteral("note"), MatchDayTexts::noteName(),
+                          playerName(note.playerId), text,
+                          MatchDayTexts::minuteFieldText({note.minute, note.addedTime}),
+                          QVariant::fromValue(note.playerId ? note.playerId->value : 0), text}});
+    }
+    std::ranges::stable_sort(entries, [](const Entry& left, const Entry& right) {
+        return std::tie(left.order, left.sequence) > std::tie(right.order, right.sequence);
+    });
+    QList<QVariantList> rows;
+    for (Entry& entry : entries) {
+        rows.append(std::move(entry.row));
+    }
+    m_timeline->setRows(std::move(rows));
 }
 
 void MatchDayViewModel::updateTimer() {
-    const core::MatchPhase phase = currentPhase();
-    const bool running =
-        m_state && m_state->clock &&
-        (phase == core::MatchPhase::FirstHalf || phase == core::MatchPhase::SecondHalf);
+    const bool running = m_state && m_state->clock && currentPhase() == core::MatchPhase::Running;
     if (running && !m_timer.isActive()) {
         m_timer.start();
     } else if (!running) {
@@ -522,6 +675,9 @@ void MatchDayViewModel::updateTimer() {
 
 void MatchDayViewModel::tick() {
     emit clockChanged();
+    if (m_pending != Pending::None && !m_pendingMinute) {
+        emit pendingMinuteChanged();
+    }
     const auto now = reading();
     if (now && now->eventTime.minute != m_rowsMinute) {
         rebuildRows();
@@ -545,6 +701,7 @@ bool MatchDayViewModel::checkRunnable() {
 }
 
 bool MatchDayViewModel::finish(const core::Status& status) {
+    const int before = onPitchCount();
     if (!status) {
         report(status.error());
         // The match may have changed meanwhile (e.g. finished elsewhere): show what is stored.
@@ -553,14 +710,31 @@ bool MatchDayViewModel::finish(const core::Status& status) {
     }
     setPending(Pending::None);
     reload();
+    // The laws of the game: at least 7 players on the pitch.
+    const int after = onPitchCount();
+    if (isLive() && after < before) {
+        if (after < core::kMinPlayersOnPitch) {
+            emit tooFewPlayersReached();
+        } else if (after == core::kMinPlayersOnPitch) {
+            emit notice(tr("Only %1 players are left on the pitch. With fewer the match cannot go "
+                           "on.")
+                            .arg(after));
+        }
+    }
     return true;
 }
 
-bool MatchDayViewModel::start(int halfLength) {
+bool MatchDayViewModel::start(const QString& format, int periods, int periodLength) {
     if (!checkRunnable()) {
         return false;
     }
-    return finish(m_service.start(m_state->match.match.id, halfLength, m_yellowCardThreshold));
+    core::MatchFormat chosen{periods, periodLength};
+    for (const core::MatchFormat preset : core::kMatchFormatPresets) {
+        if (formatKey(preset) == format) {
+            chosen = preset;
+        }
+    }
+    return finish(m_service.start(m_state->match.match.id, chosen, m_yellowCardThreshold));
 }
 
 bool MatchDayViewModel::cancelStart() {
@@ -577,14 +751,28 @@ bool MatchDayViewModel::advanceClock() {
     return finish(m_service.advanceClock(m_state->match.match.id));
 }
 
+bool MatchDayViewModel::endMatch() {
+    if (!checkRunnable()) {
+        return false;
+    }
+    return finish(m_service.endMatch(m_state->match.match.id));
+}
+
 void MatchDayViewModel::setPending(Pending pending, std::optional<core::PlayerId> first) {
     if (pending == m_pending && first == m_pendingFirst) {
         return;
+    }
+    // A new action starts at the current minute; its next step keeps what was typed.
+    const bool sameAction = (pending == Pending::Assist && m_pending == Pending::Scorer) ||
+                            (pending == Pending::SubOn && m_pending == Pending::SubOff);
+    if (!sameAction) {
+        m_pendingMinute.reset();
     }
     m_pending = pending;
     m_pendingFirst = first;
     rebuildRows();
     emit pendingChanged();
+    emit pendingMinuteChanged();
 }
 
 void MatchDayViewModel::beginAction(const QString& action) {
@@ -592,42 +780,141 @@ void MatchDayViewModel::beginAction(const QString& action) {
         setPending(Pending::None);
         return;
     }
-    if (action == QStringLiteral("goal") && canRecordEvents()) {
+    if (!canRecordEvents()) {
+        setPending(Pending::None);
+        return;
+    }
+    if (action == QStringLiteral("goal")) {
         setPending(Pending::Scorer);
-    } else if (action == QStringLiteral("yellow") && canRecordEvents()) {
+    } else if (action == QStringLiteral("opponentGoal")) {
+        setPending(Pending::OpponentGoal);
+    } else if (action == QStringLiteral("yellow")) {
         setPending(Pending::Yellow);
-    } else if (action == QStringLiteral("red") && canRecordEvents()) {
+    } else if (action == QStringLiteral("red")) {
         setPending(Pending::Red);
-    } else if (action == QStringLiteral("sub") && canSubstitute()) {
+    } else if (action == QStringLiteral("sub")) {
         setPending(Pending::SubOff);
     } else {
         setPending(Pending::None);
     }
 }
 
+void MatchDayViewModel::setPendingMinute(const QString& text) {
+    if (m_pending == Pending::None || m_pendingMinute == text) {
+        return;
+    }
+    m_pendingMinute = text;
+    emit pendingMinuteChanged();
+}
+
+std::optional<core::MatchTime> MatchDayViewModel::timeOf(const QString& text, bool substitution,
+                                                         QString& error) const {
+    if (!m_state || !m_state->clock) {
+        return std::nullopt;
+    }
+    const auto shown = core::parseDisplayMinute(text.toStdString());
+    const auto time = shown ? core::matchTimeOf(*shown, m_state->clock->format) : std::nullopt;
+    if (!time) {
+        error = tr("Enter the minute as 23, or 45+2 in stoppage time.");
+        return std::nullopt;
+    }
+    if (!core::isPlayedTime(*m_state->clock, m_clock.now(), *time, substitution)) {
+        error = tr("This minute has not been played yet. Enter a minute up to the current one.");
+        return std::nullopt;
+    }
+    return time;
+}
+
+std::optional<core::MatchTime> MatchDayViewModel::pendingTime(QString& error) const {
+    if (!m_state || !m_state->clock) {
+        return std::nullopt;
+    }
+    const bool substitution = m_pending == Pending::SubOff || m_pending == Pending::SubOn;
+    if (!m_pendingMinute) {
+        return core::defaultTime(*m_state->clock, m_clock.now(), substitution);
+    }
+    return timeOf(*m_pendingMinute, substitution, error);
+}
+
+bool MatchDayViewModel::record(core::MatchEventDraft event) {
+    QString minuteError;
+    const auto time = pendingTime(minuteError);
+    if (!time) {
+        emit errorOccurred(minuteError);
+        return false;
+    }
+    event.minute = time->minute;
+    event.addedTime = time->addedTime;
+    // A late entry that a later event no longer fits: name that event (P13 manual test).
+    if (const auto check = m_service.checkEvent(m_state->match.match.id, event);
+        check && *check && (*check)->laterEvent) {
+        const core::MatchEvent& later = *(*check)->laterEvent;
+        const std::vector<core::MatchEventDraft> drafts(m_state->events.begin(),
+                                                        m_state->events.end());
+        const std::vector<bool> secondYellows = core::secondYellowReds(drafts);
+        const auto at = std::ranges::find(m_state->events, later.id, &core::MatchEvent::id);
+        const bool secondYellow =
+            at != m_state->events.end() &&
+            secondYellows[static_cast<std::size_t>(at - m_state->events.begin())];
+        emit errorOccurred(tr("This cannot be recorded at %1: it conflicts with a later event, "
+                              "%2. Undo or correct that event first.")
+                               .arg(MatchDayTexts::minuteText(event.minute, event.addedTime),
+                                    eventText(later, secondYellow)));
+        return false;
+    }
+    const core::MatchId match = m_state->match.match.id;
+    switch (event.type) {
+    case core::MatchEventType::Goal:
+        return finish(m_service.recordGoal(match, *event.playerId, event.relatedPlayerId, time));
+    case core::MatchEventType::OpponentGoal:
+        return finish(m_service.recordOpponentGoal(match, time));
+    case core::MatchEventType::Yellow:
+        return finish(m_service.recordYellow(match, *event.playerId, time));
+    case core::MatchEventType::Red:
+        return finish(m_service.recordRed(match, *event.playerId, time));
+    case core::MatchEventType::Sub:
+        return finish(
+            m_service.recordSubstitution(match, *event.playerId, *event.relatedPlayerId, time));
+    case core::MatchEventType::Assist:
+        break;
+    }
+    return false;
+}
+
 bool MatchDayViewModel::choosePlayer(qint64 playerId) {
     if (!checkRunnable() || m_pending == Pending::None) {
         return false;
     }
-    const core::MatchId match = m_state->match.match.id;
     const core::PlayerId player{playerId};
+    core::MatchEventDraft event;
     switch (m_pending) {
     case Pending::None:
+    case Pending::OpponentGoal:
         return false;
     case Pending::Scorer:
         setPending(Pending::Assist, player);
         return true;
     case Pending::Assist:
-        return finish(m_service.recordGoal(match, *m_pendingFirst, player));
+        event.type = core::MatchEventType::Goal;
+        event.playerId = m_pendingFirst;
+        event.relatedPlayerId = player;
+        return record(event);
     case Pending::Yellow:
-        return finish(m_service.recordYellow(match, player));
+        event.type = core::MatchEventType::Yellow;
+        event.playerId = player;
+        return record(event);
     case Pending::Red:
-        return finish(m_service.recordRed(match, player));
+        event.type = core::MatchEventType::Red;
+        event.playerId = player;
+        return record(event);
     case Pending::SubOff:
         setPending(Pending::SubOn, player);
         return true;
     case Pending::SubOn:
-        return finish(m_service.recordSubstitution(match, player, *m_pendingFirst));
+        event.type = core::MatchEventType::Sub;
+        event.playerId = player;
+        event.relatedPlayerId = m_pendingFirst;
+        return record(event);
     }
     return false;
 }
@@ -636,18 +923,22 @@ bool MatchDayViewModel::skipAssist() {
     if (!checkRunnable() || m_pending != Pending::Assist || !m_pendingFirst) {
         return false;
     }
-    return finish(m_service.recordGoal(m_state->match.match.id, *m_pendingFirst, std::nullopt));
+    core::MatchEventDraft goal;
+    goal.type = core::MatchEventType::Goal;
+    goal.playerId = m_pendingFirst;
+    return record(goal);
+}
+
+bool MatchDayViewModel::confirmAction() {
+    if (!checkRunnable() || m_pending != Pending::OpponentGoal) {
+        return false;
+    }
+    core::MatchEventDraft goal;
+    goal.type = core::MatchEventType::OpponentGoal;
+    return record(goal);
 }
 
 void MatchDayViewModel::cancelAction() { setPending(Pending::None); }
-
-bool MatchDayViewModel::recordOpponentGoal() {
-    if (!checkRunnable()) {
-        return false;
-    }
-    setPending(Pending::None);
-    return finish(m_service.recordOpponentGoal(m_state->match.match.id));
-}
 
 QString MatchDayViewModel::undo() {
     if (!checkRunnable()) {
@@ -672,6 +963,91 @@ QString MatchDayViewModel::undo() {
     return text;
 }
 
+QString MatchDayViewModel::defaultNoteMinute() const {
+    if (!m_state || !m_state->clock) {
+        return {};
+    }
+    return MatchDayTexts::minuteFieldText(core::defaultTime(*m_state->clock, m_clock.now(), false));
+}
+
+QString MatchDayViewModel::noteMinuteError(const QString& text) const {
+    QString error;
+    (void)timeOf(text, false, error);
+    return error;
+}
+
+bool MatchDayViewModel::addNote(const QString& minute, qint64 playerId, const QString& text) {
+    if (!checkRunnable()) {
+        return false;
+    }
+    QString error;
+    const auto time = timeOf(minute, false, error);
+    if (!time) {
+        emit errorOccurred(error);
+        return false;
+    }
+    const std::optional<core::PlayerId> player =
+        playerId > 0 ? std::optional{core::PlayerId{playerId}} : std::nullopt;
+    const auto added = m_service.addNote(m_state->match.match.id, time, player, text.toStdString());
+    if (!added) {
+        report(added.error());
+        return false;
+    }
+    reload();
+    return true;
+}
+
+bool MatchDayViewModel::updateNote(qint64 noteId, const QString& minute, qint64 playerId,
+                                   const QString& text) {
+    if (!checkRunnable()) {
+        return false;
+    }
+    QString error;
+    const auto time = timeOf(minute, false, error);
+    if (!time) {
+        emit errorOccurred(error);
+        return false;
+    }
+    const std::optional<core::PlayerId> player =
+        playerId > 0 ? std::optional{core::PlayerId{playerId}} : std::nullopt;
+    const auto updated = m_service.updateNote(m_state->match.match.id, core::MatchNoteId{noteId},
+                                              *time, player, text.toStdString());
+    if (!updated) {
+        report(updated.error());
+        return false;
+    }
+    reload();
+    return true;
+}
+
+QString MatchDayViewModel::deleteNote(qint64 noteId) {
+    if (!checkRunnable()) {
+        return {};
+    }
+    const auto deleted = m_service.deleteNote(m_state->match.match.id, core::MatchNoteId{noteId});
+    if (!deleted) {
+        report(deleted.error());
+        reload();
+        return {};
+    }
+    m_deletedNote = *deleted;
+    reload();
+    return tr("Note deleted: %1")
+        .arg(MatchDayTexts::minuteText(deleted->minute, deleted->addedTime));
+}
+
+void MatchDayViewModel::restoreDeletedNote() {
+    if (!m_deletedNote || !checkRunnable()) {
+        return;
+    }
+    const auto restored = m_service.restoreNote(*m_deletedNote);
+    m_deletedNote.reset();
+    if (!restored) {
+        report(restored.error());
+    }
+    reload();
+}
+
 QString MatchDayViewModel::anotherLiveMatchText() const {
     if (m_state) {
         if (const auto other = m_service.liveMatch(m_state->match.match.teamId); other && *other) {
@@ -693,6 +1069,7 @@ bool MatchDayViewModel::eventFilter(QObject* watched, QEvent* event) {
         emit clockChanged();
         emit eventsChanged();
         emit pendingChanged();
+        emit pendingMinuteChanged();
         emit loadErrorChanged();
     }
     return QObject::eventFilter(watched, event);

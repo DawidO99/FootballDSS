@@ -15,6 +15,8 @@ using namespace std::chrono_literals;
 namespace {
 
 const Timestamp kKickoff = std::chrono::sys_days{std::chrono::year{2026} / 11 / 1} + 14h;
+constexpr ClockStep kStart1{1, ClockStepKind::Start};
+constexpr ClockStep kEnd1{1, ClockStepKind::End};
 
 class MatchLiveRepositoryTest : public RepositoryTest {
 protected:
@@ -34,63 +36,81 @@ TEST_F(MatchLiveRepositoryTest, NoLiveRowIsNullopt) {
     EXPECT_FALSE(found->has_value());
 }
 
-TEST_F(MatchLiveRepositoryTest, StepsComeBackInOrderWithTheirTimes) {
+TEST_F(MatchLiveRepositoryTest, FormatAndStepsComeBackInOrder) {
     auto live = repository();
-    ASSERT_TRUE(live.create(kMatch, 40));
-    ASSERT_TRUE(live.appendStep(kMatch, ClockStep::FirstHalfStart, kKickoff, std::nullopt));
-    ASSERT_TRUE(
-        live.appendStep(kMatch, ClockStep::FirstHalfEnd, kKickoff + 42min, MatchEventId{7}));
+    ASSERT_TRUE(live.create(kMatch, {3, 30}));
+    ASSERT_TRUE(live.appendStep(kMatch, kStart1, kKickoff, 1));
+    ASSERT_TRUE(live.appendStep(kMatch, kEnd1, kKickoff + 32min, 4));
+    ASSERT_TRUE(live.appendStep(kMatch, {2, ClockStepKind::Start}, kKickoff + 40min, 5));
     const auto found = live.find(kMatch);
     ASSERT_TRUE(found.has_value()) << found.error().detail;
     ASSERT_TRUE(found->has_value());
-    EXPECT_EQ((*found)->halfLength, 40);
-    EXPECT_EQ((*found)->steps, (std::vector<ClockStepRow>{
-                                   {ClockStep::FirstHalfStart, kKickoff, std::nullopt},
-                                   {ClockStep::FirstHalfEnd, kKickoff + 42min, MatchEventId{7}}}));
+    EXPECT_EQ((*found)->format, (MatchFormat{3, 30}));
+    EXPECT_EQ((*found)->finishedSeq, std::nullopt);
+    EXPECT_EQ((*found)->steps,
+              (std::vector<ClockStepRow>{{kStart1, kKickoff, 1},
+                                         {kEnd1, kKickoff + 32min, 4},
+                                         {{2, ClockStepKind::Start}, kKickoff + 40min, 5}}));
 }
 
-TEST_F(MatchLiveRepositoryTest, DeleteLastStepReturnsIt) {
+TEST_F(MatchLiveRepositoryTest, StepsOfOneActionGoTogether) {
     auto live = repository();
-    ASSERT_TRUE(live.create(kMatch, 45));
-    ASSERT_TRUE(live.appendStep(kMatch, ClockStep::FirstHalfStart, kKickoff, std::nullopt));
-    ASSERT_TRUE(live.appendStep(kMatch, ClockStep::FirstHalfEnd, kKickoff + 47min, std::nullopt));
-    const auto deleted = live.deleteLastStep(kMatch);
+    ASSERT_TRUE(live.create(kMatch, {2, 45}));
+    ASSERT_TRUE(live.appendStep(kMatch, kStart1, kKickoff, 1));
+    ASSERT_TRUE(live.appendStep(kMatch, kEnd1, kKickoff + 47min, 2));
+    const auto deleted = live.deleteSteps(kMatch, 2);
     ASSERT_TRUE(deleted.has_value()) << deleted.error().detail;
-    EXPECT_EQ(deleted->step, ClockStep::FirstHalfEnd);
-    EXPECT_EQ(deleted->at, kKickoff + 47min);
-    ASSERT_TRUE(live.deleteLastStep(kMatch));
-    const auto none = live.deleteLastStep(kMatch);
-    ASSERT_FALSE(none.has_value());
-    EXPECT_EQ(none.error().code, ErrorCode::NotFound);
+    EXPECT_EQ(*deleted, (std::vector<ClockStepRow>{{kEnd1, kKickoff + 47min, 2}}));
+    EXPECT_TRUE(live.deleteSteps(kMatch, 9)->empty());
+    EXPECT_EQ(live.find(kMatch).value()->steps.size(), 1U);
+}
+
+TEST_F(MatchLiveRepositoryTest, LastSeqCoversEventsNotesStepsAndTheFinish) {
+    auto live = repository();
+    ASSERT_TRUE(live.create(kMatch, {2, 45}));
+    EXPECT_EQ(live.lastSeq(kMatch).value(), 0);
+    ASSERT_TRUE(live.appendStep(kMatch, kStart1, kKickoff, 1));
+    EXPECT_EQ(live.lastSeq(kMatch).value(), 1);
+    ASSERT_TRUE(sql("INSERT INTO match_event (match_id, minute, type, player_id, seq) "
+                    "VALUES (1, 5, 'goal', 1, 2)"));
+    EXPECT_EQ(live.lastSeq(kMatch).value(), 2);
+    ASSERT_TRUE(sql("INSERT INTO match_note (match_id, minute, text, seq) VALUES (1, 6, 'x', 3)"));
+    EXPECT_EQ(live.lastSeq(kMatch).value(), 3);
+    ASSERT_TRUE(live.setFinished(kMatch, 4, true));
+    EXPECT_EQ(live.lastSeq(kMatch).value(), 4);
+    EXPECT_EQ(live.find(kMatch).value()->finishedSeq, 4);
+    EXPECT_TRUE(live.find(kMatch).value()->endedEarly);
+    ASSERT_TRUE(live.setFinished(kMatch, std::nullopt, true));
+    EXPECT_EQ(live.lastSeq(kMatch).value(), 3);
+    EXPECT_FALSE(live.find(kMatch).value()->endedEarly);
 }
 
 TEST_F(MatchLiveRepositoryTest, ConstraintsMapToErrors) {
     auto live = repository();
-    const auto badLength = live.create(kMatch, 5);
-    ASSERT_FALSE(badLength.has_value());
-    EXPECT_EQ(badLength.error().code, ErrorCode::InvalidInput);
-    const auto missingMatch = live.create(MatchId{999}, 45);
+    const auto badFormat = live.create(kMatch, {4, 40});
+    ASSERT_FALSE(badFormat.has_value());
+    EXPECT_EQ(badFormat.error().code, ErrorCode::InvalidInput);
+    const auto missingMatch = live.create(MatchId{999}, {2, 45});
     ASSERT_FALSE(missingMatch.has_value());
     EXPECT_EQ(missingMatch.error().code, ErrorCode::InvalidInput);
-    const auto noRow = live.appendStep(kMatch, ClockStep::FirstHalfStart, kKickoff, std::nullopt);
+    const auto noRow = live.appendStep(kMatch, kStart1, kKickoff, 1);
     ASSERT_FALSE(noRow.has_value());
     EXPECT_EQ(noRow.error().code, ErrorCode::InvalidInput);
 
-    ASSERT_TRUE(live.create(kMatch, 45));
-    const auto twice = live.create(kMatch, 45);
+    ASSERT_TRUE(live.create(kMatch, {2, 45}));
+    const auto twice = live.create(kMatch, {2, 45});
     ASSERT_FALSE(twice.has_value());
     EXPECT_EQ(twice.error().code, ErrorCode::Conflict);
-    ASSERT_TRUE(live.appendStep(kMatch, ClockStep::FirstHalfStart, kKickoff, std::nullopt));
-    const auto stepTwice =
-        live.appendStep(kMatch, ClockStep::FirstHalfStart, kKickoff + 1min, std::nullopt);
+    ASSERT_TRUE(live.appendStep(kMatch, kStart1, kKickoff, 1));
+    const auto stepTwice = live.appendStep(kMatch, kStart1, kKickoff + 1min, 2);
     ASSERT_FALSE(stepTwice.has_value());
     EXPECT_EQ(stepTwice.error().code, ErrorCode::Conflict);
 }
 
 TEST_F(MatchLiveRepositoryTest, RemoveTakesTheStepsAlong) {
     auto live = repository();
-    ASSERT_TRUE(live.create(kMatch, 45));
-    ASSERT_TRUE(live.appendStep(kMatch, ClockStep::FirstHalfStart, kKickoff, std::nullopt));
+    ASSERT_TRUE(live.create(kMatch, {2, 45}));
+    ASSERT_TRUE(live.appendStep(kMatch, kStart1, kKickoff, 1));
     ASSERT_TRUE(live.remove(kMatch));
     EXPECT_EQ(count("SELECT count(*) FROM match_clock_step"), 0);
     const auto again = live.remove(kMatch);
@@ -102,7 +122,7 @@ TEST_F(MatchLiveRepositoryTest, WritesJoinTheTransactionOfTheCaller) {
     {
         auto transaction = Transaction::begin(*m_db);
         ASSERT_TRUE(transaction.has_value());
-        ASSERT_TRUE(repository().create(kMatch, 45));
+        ASSERT_TRUE(repository().create(kMatch, {2, 45}));
         // Rolled back by the destructor.
     }
     const auto found = repository().find(kMatch);

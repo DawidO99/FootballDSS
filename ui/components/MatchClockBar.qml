@@ -8,6 +8,8 @@ import QtQuick.Layouts
 //   goalsFor, goalsAgainst: int
 //   clockText: string       "23:41" or "45+2:10"
 //   phaseText: string       "1st half"…
+//   onPitchCount: int       players on the pitch, shown under the score; -1 hides it
+//   minPlayers: int         at most this many: a warning (icon and word)
 //   actions (default):      items on the right, e.g. the clock button
 Rectangle {
     id: root
@@ -18,6 +20,9 @@ Rectangle {
     property int goalsAgainst: 0
     property string clockText: "00:00"
     property string phaseText
+    property int onPitchCount: -1
+    property int minPlayers: 7
+    readonly property bool fewPlayers: root.onPitchCount >= 0 && root.onPitchCount <= root.minPlayers
     default property alias actions: actionsRow.data
 
     implicitHeight: layout.implicitHeight + 2 * Theme.spacing.m
@@ -49,13 +54,39 @@ Rectangle {
             elide: Text.ElideLeft
         }
 
-        Label {
-            objectName: "score"
-            text: root.goalsFor + " : " + root.goalsAgainst
-            color: Theme.text
-            font.pixelSize: Theme.matchClockFontSize
-            font.weight: Font.Bold
-            Accessible.name: qsTr("Score %1 to %2").arg(root.goalsFor).arg(root.goalsAgainst)
+        ColumnLayout {
+            spacing: 0
+
+            Label {
+                objectName: "score"
+                Layout.alignment: Qt.AlignHCenter
+                text: root.goalsFor + " : " + root.goalsAgainst
+                color: Theme.text
+                font.pixelSize: Theme.matchClockFontSize
+                font.weight: Font.Bold
+                Accessible.name: qsTr("Score %1 to %2").arg(root.goalsFor).arg(root.goalsAgainst)
+            }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                visible: root.onPitchCount >= 0
+                spacing: Theme.spacing.xs
+
+                Icon {
+                    visible: root.fewPlayers
+                    name: "warn"
+                    size: Theme.iconSize.xs
+                    color: Theme.warn
+                }
+
+                Label {
+                    objectName: "onPitchCount"
+                    text: qsTr("On the pitch: %1").arg(root.onPitchCount)
+                    color: root.fewPlayers ? Theme.text : Theme.textMuted
+                    font.pixelSize: Theme.fontSize.caption
+                    font.weight: root.fewPlayers ? Font.DemiBold : Font.Normal
+                }
+            }
         }
 
         Label {
