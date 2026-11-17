@@ -32,11 +32,11 @@ void collectProblems(QtMsgType type, const QMessageLogContext&, const QString& m
 TEST_F(DatabaseManagerTest, FreshFileIsCreatedAtTheLatestVersion) {
     const auto db = DatabaseManager::open(databasePath(), options());
     ASSERT_TRUE(db.has_value()) << db.error().detail;
-    EXPECT_EQ((*db)->schemaVersion(), 1);
+    EXPECT_EQ((*db)->schemaVersion(), 2);
     EXPECT_EQ((*db)->filePath(), databasePath());
     EXPECT_TRUE(QFileInfo::exists(databasePath()));
     EXPECT_EQ(
-        scalar((*db)->database(), QStringLiteral("SELECT version FROM schema_version")).toInt(), 1);
+        scalar((*db)->database(), QStringLiteral("SELECT version FROM schema_version")).toInt(), 2);
 }
 
 TEST_F(DatabaseManagerTest, FreshFileGetsNoBackup) {
@@ -54,7 +54,7 @@ TEST_F(DatabaseManagerTest, ReopenRunsNoMigrationAndMakesNoBackup) {
     }
     const auto second = DatabaseManager::open(databasePath(), options());
     ASSERT_TRUE(second.has_value()) << second.error().detail;
-    EXPECT_EQ((*second)->schemaVersion(), 1);
+    EXPECT_EQ((*second)->schemaVersion(), 2);
     EXPECT_EQ(scalar((*second)->database(), QStringLiteral("SELECT name FROM club")).toString(),
               QStringLiteral("KS Test"));
     EXPECT_TRUE(filesIn(backupDirectory()).isEmpty());
@@ -63,7 +63,7 @@ TEST_F(DatabaseManagerTest, ReopenRunsNoMigrationAndMakesNoBackup) {
 TEST_F(DatabaseManagerTest, InMemoryHasTheSchemaAndNoFilePath) {
     const auto db = DatabaseManager::openInMemory();
     ASSERT_TRUE(db.has_value()) << db.error().detail;
-    EXPECT_EQ((*db)->schemaVersion(), 1);
+    EXPECT_EQ((*db)->schemaVersion(), 2);
     EXPECT_TRUE((*db)->filePath().isEmpty());
     EXPECT_TRUE(tableExists((*db)->database(), QStringLiteral("player")));
 }
@@ -150,7 +150,7 @@ TEST_F(DatabaseManagerTest, EmptyFileIsTreatedAsNew) {
     ASSERT_TRUE(writeFile(databasePath(), QByteArray{}));
     const auto db = DatabaseManager::open(databasePath(), options());
     ASSERT_TRUE(db.has_value()) << db.error().detail;
-    EXPECT_EQ((*db)->schemaVersion(), 1);
+    EXPECT_EQ((*db)->schemaVersion(), 2);
 }
 
 TEST_F(DatabaseManagerTest, FileReplacedAfterACleanCloseIsNotADatabase) {

@@ -57,6 +57,9 @@ TEST_F(EnumsSchemaTest, EveryTextPassesTheCheckOfItsColumn) {
                                      "VALUES (1, 1, ?)");
     expectAccepted<MatchEventType>("INSERT INTO match_event (match_id, minute, player_id, type) "
                                    "VALUES (1, 10, 1, ?)");
+    ASSERT_TRUE(sql("INSERT INTO match_live (match_id, half_length_min) VALUES (1, 45)"));
+    expectAccepted<ClockStep>("INSERT INTO match_clock_step (match_id, at, step) "
+                              "VALUES (1, '2026-11-01T14:00:00Z', ?)");
     expectAccepted<MetricValueType>("INSERT INTO metric_definition (key, name_pl, name_en, "
                                     "aggregation, scope, value_type) "
                                     "VALUES ('k', 'x', 'x', 'sum', 'match', ?)");

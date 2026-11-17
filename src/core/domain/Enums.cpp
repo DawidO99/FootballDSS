@@ -175,6 +175,20 @@ std::string_view toDbText(MatchEventType value) noexcept {
     return {};
 }
 
+std::string_view toDbText(ClockStep value) noexcept {
+    switch (value) {
+    case ClockStep::FirstHalfStart:
+        return "first_half_start";
+    case ClockStep::FirstHalfEnd:
+        return "first_half_end";
+    case ClockStep::SecondHalfStart:
+        return "second_half_start";
+    case ClockStep::MatchEnd:
+        return "match_end";
+    }
+    return {};
+}
+
 std::string_view toDbText(MetricValueType value) noexcept {
     switch (value) {
     case MetricValueType::Integer:

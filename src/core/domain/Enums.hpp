@@ -23,6 +23,8 @@ enum class Venue { Home, Away, Neutral };
 enum class SessionType { Training, MatchPrep, Recovery, Gym, Other };
 enum class AttendanceStatus { Present, Absent, Excused, Injured };
 enum class MatchEventType { Goal, Assist, Yellow, Red, Sub, OpponentGoal };
+// The steps of the Match Day clock, in order (`match_clock_step.step`, packet P13).
+enum class ClockStep { FirstHalfStart, FirstHalfEnd, SecondHalfStart, MatchEnd };
 enum class MetricValueType { Integer, Decimal, Boolean };
 enum class MetricAggregation { Sum, Avg, Min, Max, Last };
 enum class MetricScope { Match, Training, Player };
@@ -37,6 +39,7 @@ enum class MetricScope { Match, Training, Player };
 [[nodiscard]] std::string_view toDbText(SessionType value) noexcept;
 [[nodiscard]] std::string_view toDbText(AttendanceStatus value) noexcept;
 [[nodiscard]] std::string_view toDbText(MatchEventType value) noexcept;
+[[nodiscard]] std::string_view toDbText(ClockStep value) noexcept;
 [[nodiscard]] std::string_view toDbText(MetricValueType value) noexcept;
 [[nodiscard]] std::string_view toDbText(MetricAggregation value) noexcept;
 [[nodiscard]] std::string_view toDbText(MetricScope value) noexcept;
@@ -85,6 +88,10 @@ template <> struct EnumValues<MatchEventType> {
     static constexpr std::array values{MatchEventType::Goal,   MatchEventType::Assist,
                                        MatchEventType::Yellow, MatchEventType::Red,
                                        MatchEventType::Sub,    MatchEventType::OpponentGoal};
+};
+template <> struct EnumValues<ClockStep> {
+    static constexpr std::array values{ClockStep::FirstHalfStart, ClockStep::FirstHalfEnd,
+                                       ClockStep::SecondHalfStart, ClockStep::MatchEnd};
 };
 template <> struct EnumValues<MetricValueType> {
     static constexpr std::array values{MetricValueType::Integer, MetricValueType::Decimal,

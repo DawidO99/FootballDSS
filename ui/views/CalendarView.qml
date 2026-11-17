@@ -47,8 +47,10 @@ Item {
     }
 
     function openItem(kind, itemId) {
-        if (kind === "match")
+        if (kind === "match") {
+            matchDialog.matchStatusKey = calendar.rowAt(calendar.rowOf("match", itemId)).statusKey ?? "";
             matchDialog.openForEditing(itemId);
+        }
         else
             sessionDialog.openForEditing(itemId);
     }
@@ -384,6 +386,12 @@ Item {
         objectName: "matchEditor"
         onSaved: (matchId, date) => root.showSaved("match", matchId, date)
         onDeleteRequested: (matchId, opponentName) => root.requestMatchDelete(matchId, opponentName)
+        onMatchDayRequested: matchId => {
+            matchDialog.close();
+            root.navigateRequested("matchday", {
+                "matchId": matchId
+            });
+        }
         onClosed: root.focusContent()
     }
 

@@ -1545,6 +1545,106 @@ Item {
                         onActionTriggered: root.openSampleDialog()
                     }
                 }
+
+                // Match Day (P13): the score and the clock, the player tiles in every state and the
+                // timeline, on constant sample values.
+                Card {
+                    objectName: "galleryMatchDay"
+                    Layout.fillWidth: true
+                    Layout.columnSpan: 2
+                    title: qsTr("Match Day: MatchClockBar, MatchPlayerTile, MatchTimeline")
+
+                    MatchClockBar {
+                        Layout.fillWidth: true
+                        teamName: "KS Przykład"
+                        opponentName: "Victoria Wzór"
+                        goalsFor: 2
+                        goalsAgainst: 1
+                        clockText: "45+2:10"
+                        phaseText: qsTr("1st half")
+
+                        PrimaryButton {
+                            touch: true
+                            text: qsTr("End 1st half")
+                            onClicked: Toasts.info(qsTr("Clock step"))
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing.l
+
+                        Flow {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            spacing: Theme.spacing.s
+
+                            MatchPlayerTile {
+                                shirtNumber: 9
+                                shortName: "Gol"
+                                fullName: "Igor Gol"
+                                positionCode: "ST"
+                                stateText: qsTr("On the pitch")
+                                minutesText: "47'"
+                                goals: 2
+                                onClicked: Toasts.info(qsTr("Tile: %1").arg(fullName))
+                            }
+
+                            MatchPlayerTile {
+                                shirtNumber: 4
+                                shortName: "Szczepaniak-Wojciechowski"
+                                fullName: "Jan Szczepaniak-Wojciechowski"
+                                positionCode: "CB"
+                                stateText: qsTr("On the pitch")
+                                minutesText: "47'"
+                                yellowCards: 1
+                                choosing: true
+                                selectable: true
+                                onClicked: Toasts.info(qsTr("Tile: %1").arg(fullName))
+                            }
+
+                            MatchPlayerTile {
+                                shirtNumber: 14
+                                shortName: "Rezerwa"
+                                fullName: "Leon Rezerwa"
+                                positionCode: "CM"
+                                stateKey: "bench"
+                                stateText: qsTr("On the bench")
+                                choosing: true
+                                onClicked: Toasts.info(qsTr("Tile: %1").arg(fullName))
+                            }
+
+                            MatchPlayerTile {
+                                shirtNumber: 7
+                                shortName: "Skrzydło"
+                                fullName: "Filip Skrzydło"
+                                positionCode: "RM"
+                                stateKey: "substitutedOff"
+                                stateText: qsTr("Substituted")
+                                minutesText: "45'"
+                                onClicked: Toasts.info(qsTr("Tile: %1").arg(fullName))
+                            }
+
+                            MatchPlayerTile {
+                                shirtNumber: 3
+                                shortName: "Mur"
+                                fullName: "Cezary Mur"
+                                positionCode: "CB"
+                                stateKey: "sentOff"
+                                stateText: qsTr("Sent off")
+                                minutesText: "38'"
+                                yellowCards: 2
+                                onClicked: Toasts.info(qsTr("Tile: %1").arg(fullName))
+                            }
+                        }
+
+                        MatchTimeline {
+                            Layout.preferredWidth: Theme.matchTimelineWidth
+                            Layout.preferredHeight: 4 * Theme.matchTileHeight
+                            model: sampleTimeline
+                        }
+                    }
+                }
             }
         }
     }
@@ -1625,6 +1725,16 @@ Item {
                 }
             }
         }
+    }
+
+    // Match Day samples (P13): the newest event first.
+    ListModel {
+        id: sampleTimeline
+
+        ListElement { eventId: 4; minuteText: "45+2'"; typeKey: "secondYellow"; iconName: "card"; typeText: qsTr("Second yellow, red card"); playerText: "Cezary Mur"; relatedText: "" }
+        ListElement { eventId: 3; minuteText: "38'"; typeKey: "sub"; iconName: "swap"; typeText: qsTr("Substitution"); playerText: qsTr("On: Leon Rezerwa"); relatedText: qsTr("Off: Filip Skrzydło") }
+        ListElement { eventId: 2; minuteText: "23'"; typeKey: "opponentGoal"; iconName: "goal"; typeText: qsTr("Opponent goal"); playerText: "Victoria Wzór"; relatedText: "" }
+        ListElement { eventId: 1; minuteText: "11'"; typeKey: "goal"; iconName: "goal"; typeText: qsTr("Goal"); playerText: "Igor Gol"; relatedText: qsTr("Assist: Jan Szczepaniak-Wojciechowski") }
     }
 
     // Tactics board samples (P12): a 4-4-2 with one free slot, the coordinates of its zone layout.

@@ -12,6 +12,9 @@ struct MatchEventDraft {
     MatchEventType type = MatchEventType::Goal;
     std::optional<PlayerId> playerId; // empty only for OpponentGoal
     std::optional<PlayerId> relatedPlayerId;
+    // Minutes over the end of the half, for display only: `minute` then holds the end of the half
+    // (packet P13, decision 3). Empty, or at least 1.
+    std::optional<int> addedTime;
 
     friend bool operator==(const MatchEventDraft&, const MatchEventDraft&) = default;
 };

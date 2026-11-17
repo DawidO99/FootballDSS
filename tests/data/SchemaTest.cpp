@@ -148,7 +148,9 @@ TEST_F(SchemaTest, HasExactlyTheTablesOfTheSpec) {
                                QStringLiteral("import_log"),
                                QStringLiteral("lineup"),
                                QStringLiteral("match"),
+                               QStringLiteral("match_clock_step"),
                                QStringLiteral("match_event"),
+                               QStringLiteral("match_live"),
                                QStringLiteral("metric_definition"),
                                QStringLiteral("metric_value"),
                                QStringLiteral("opponent"),
@@ -217,7 +219,9 @@ TEST_F(SchemaTest, CascadeOnlyWhereTheSpecSaysSo) {
         const QString onDelete = keys.value(2).toString();
         const bool shouldCascade = key == QStringLiteral("attendance.session_id") ||
                                    key == QStringLiteral("appearance.match_id") ||
-                                   key == QStringLiteral("match_event.match_id");
+                                   key == QStringLiteral("match_event.match_id") ||
+                                   key == QStringLiteral("match_live.match_id") ||
+                                   key == QStringLiteral("match_clock_step.match_id");
         EXPECT_EQ(onDelete.toStdString(), shouldCascade ? "CASCADE" : "RESTRICT")
             << key.toStdString();
     }
@@ -364,6 +368,36 @@ TEST_F(SchemaTest, MatchEventNeedsAPlayerExceptOpponentGoal) {
     }
 }
 
+TEST_F(SchemaTest, AddedTimeIsEmptyOrAtLeastOne) {
+    EXPECT_TRUE(sql("INSERT INTO match_event (match_id, minute, type, added_time) "
+                    "VALUES (1, 45, 'opponent_goal', 3)"));
+    EXPECT_TRUE(sql("INSERT INTO match_event (match_id, minute, type, added_time) "
+                    "VALUES (1, 45, 'opponent_goal', NULL)"));
+    EXPECT_FALSE(sql("INSERT INTO match_event (match_id, minute, type, added_time) "
+                     "VALUES (1, 45, 'opponent_goal', 0)"));
+}
+
+TEST_F(SchemaTest, LiveMatchHalfLengthAndOneRowPerStep) {
+    EXPECT_FALSE(sql("INSERT INTO match_live (match_id, half_length_min) VALUES (1, 9)"));
+    EXPECT_FALSE(sql("INSERT INTO match_live (match_id, half_length_min) VALUES (1, 61)"));
+    ASSERT_TRUE(sql("INSERT INTO match_live (match_id, half_length_min) VALUES (1, 45)"));
+    EXPECT_TRUE(sql("INSERT INTO match_clock_step (match_id, step, at) "
+                    "VALUES (1, 'first_half_start', '2026-11-01T14:00:00Z')"));
+    EXPECT_FALSE(sql("INSERT INTO match_clock_step (match_id, step, at) "
+                     "VALUES (1, 'first_half_start', '2026-11-01T14:01:00Z')"));
+    EXPECT_FALSE(sql("INSERT INTO match_clock_step (match_id, step, at) "
+                     "VALUES (1, 'kickoff', '2026-11-01T14:01:00Z')"));
+}
+
+TEST_F(SchemaTest, DeletingAMatchRemovesItsLiveState) {
+    ASSERT_TRUE(sql("INSERT INTO match_live (match_id, half_length_min) VALUES (1, 45)"));
+    ASSERT_TRUE(sql("INSERT INTO match_clock_step (match_id, step, at) "
+                    "VALUES (1, 'first_half_start', '2026-11-01T14:00:00Z')"));
+    ASSERT_TRUE(sql("DELETE FROM match WHERE id = 1"));
+    EXPECT_EQ(count("SELECT count(*) FROM match_live"), 0);
+    EXPECT_EQ(count("SELECT count(*) FROM match_clock_step"), 0);
+}
+
 TEST_F(SchemaTest, MinuteOffCannotPrecedeMinuteOn) {
     EXPECT_FALSE(sql("INSERT INTO appearance (match_id, player_id, minute_on, minute_off) VALUES "
                      "(1, 1, 60, 45)"));
@@ -423,7 +457,7 @@ TEST_F(SchemaTest, EveryTableIsStrict) {
         EXPECT_EQ(query.value(1).toInt(), 1) << query.value(0).toString().toStdString();
         ++tables;
     }
-    EXPECT_EQ(tables, 19);
+    EXPECT_EQ(tables, 21);
 }
 
 TEST_F(SchemaTest, NumericColumnsRejectValuesOfTheWrongType) {

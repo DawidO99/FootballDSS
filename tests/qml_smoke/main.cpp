@@ -34,6 +34,7 @@
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/LoadTexts.hpp"
 #include "viewmodels/LoadViewModel.hpp"
+#include "viewmodels/MatchDayViewModel.hpp"
 #include "viewmodels/MatchEditorViewModel.hpp"
 #include "viewmodels/NavigationModel.hpp"
 #include "viewmodels/PlayerCardViewModel.hpp"
@@ -72,6 +73,7 @@
 #include <QRectF>
 #include <QSet>
 #include <QSettings>
+#include <QSqlQuery>
 #include <QStyleHints>
 #include <QThread>
 #include <QVariantMap>
@@ -103,6 +105,7 @@ using fdss::viewmodels::CalendarViewModel;
 using fdss::viewmodels::ChangePinViewModel;
 using fdss::viewmodels::LanguageManager;
 using fdss::viewmodels::LoadViewModel;
+using fdss::viewmodels::MatchDayViewModel;
 using fdss::viewmodels::MatchEditorViewModel;
 using fdss::viewmodels::NavigationModel;
 using fdss::viewmodels::PlayerCardViewModel;
@@ -3942,6 +3945,344 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
     preMatchReadOnly(engine);
 }
 
+// --- Match Day (P13) ---
+
+struct MatchDayScreen {
+    QQuickWindow* window = nullptr;
+    NavigationModel* navigation = nullptr;
+    QQuickItem* view = nullptr;
+    MatchDayViewModel* matchDay = nullptr;
+
+    [[nodiscard]] QQuickItem* find(const QString& name) const {
+        return findByObjectName(view, name);
+    }
+    // The tile of a player on the pitch ("pitchTile") or on the bench ("benchTile").
+    [[nodiscard]] QQuickItem* tile(const QString& kind, qint64 playerId) const {
+        QQuickItem* found = nullptr;
+        const std::function<void(QQuickItem*)> walk = [&](QQuickItem* item) {
+            if (found != nullptr) {
+                return;
+            }
+            if (item->objectName() == kind && item->property("playerId").toLongLong() == playerId) {
+                found = item;
+                return;
+            }
+            for (QQuickItem* child : item->childItems()) {
+                walk(child);
+            }
+        };
+        walk(view);
+        return found;
+    }
+    // Each renders a frame first: a pending action shows a bar that moves the tiles down, and the
+    // position must be the one on screen.
+    void click(const QString& name) const {
+        renderFrame(window);
+        QQuickItem* item = find(name);
+        if (item == nullptr || !item->isVisible() || !item->isEnabled()) {
+            qWarning("qml_smoke: match day: %s is missing, hidden or disabled",
+                     qUtf8Printable(name));
+            fail("match day: a button to click is not there");
+            return;
+        }
+        clickItem(window, item);
+        renderFrame(window);
+    }
+    void tap(const QString& kind, qint64 playerId) const {
+        renderFrame(window);
+        QQuickItem* item = tile(kind, playerId);
+        if (item == nullptr || !item->isEnabled()) {
+            qWarning("qml_smoke: match day: no enabled %s for player %lld", qUtf8Printable(kind),
+                     playerId);
+            fail("match day: a player tile to tap is not there");
+            return;
+        }
+        const QPointF c = item->mapToScene(QPointF(item->width() / 2, item->height() / 2));
+        // The tiles scroll at a small window.
+        QMetaObject::invokeMethod(find(QStringLiteral("tilesArea")), "reveal",
+                                  Q_ARG(QVariant, QVariant::fromValue(item)));
+        renderFrame(window);
+        clickItem(window, item);
+        renderFrame(window);
+    }
+};
+
+// Goes to Match Day with the match (0: the default one) and finds the view anew (a login builds
+// the views again).
+std::optional<MatchDayScreen> openMatchDayScreen(QQmlApplicationEngine& engine,
+                                                 qint64 matchId = 0) {
+    MatchDayScreen screen;
+    screen.window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    screen.navigation = screen.window->property("navigation").value<NavigationModel*>();
+    screen.navigation->activate(QStringLiteral("matchday"),
+                                matchId != 0 ? QVariantMap{{QStringLiteral("matchId"), matchId}}
+                                             : QVariantMap{});
+    settle();
+    screen.view = findQmlItem(screen.window->contentItem(), "MatchDayView");
+    if (screen.view == nullptr) {
+        fail("the match day view is not loaded");
+        return std::nullopt;
+    }
+    screen.matchDay = screen.view->property("viewModel").value<MatchDayViewModel*>();
+    if (screen.matchDay == nullptr) {
+        fail("the match day view has no viewmodel");
+        return std::nullopt;
+    }
+    settle();
+    renderFrame(screen.window);
+    return screen;
+}
+
+// A 4-4-2 of available players (saveSmokeLineup) and three more available players on the bench.
+// The XI in slot order, then the bench; empty with a failure.
+std::vector<qint64> saveMatchDayLineup(qint64 matchId) {
+    std::vector<qint64> players = saveSmokeLineup(matchId);
+    if (players.empty()) {
+        return {};
+    }
+    auto& lineups = ServiceRegistry::instance().lineup();
+    auto data =
+        lineups.matchLineup(fdss::core::MatchId{matchId}, fdss::core::kDefaultYellowCardThreshold);
+    if (!data) {
+        fail("match day: cannot read the saved lineup");
+        return {};
+    }
+    for (const auto& candidate : data->candidates) {
+        if (data->lineup.bench.size() == 3) {
+            break;
+        }
+        if (candidate.facts.statusOnMatchDay == fdss::core::PlayerStatus::Available &&
+            std::ranges::find(players, candidate.player.id.value) == players.end()) {
+            data->lineup.bench.push_back(candidate.player.id);
+        }
+    }
+    if (data->lineup.bench.size() != 3 ||
+        !lineups.save(fdss::core::MatchId{matchId}, data->lineup)) {
+        fail("match day: cannot save a bench");
+        return {};
+    }
+    for (const fdss::core::PlayerId player : data->lineup.bench) {
+        players.push_back(player.value);
+    }
+    return players;
+}
+
+// Every visible tile and button of the screen is at least Theme.hitTouch (44 px) both ways.
+void expectMatchDayHitTargets(const MatchDayScreen& screen, const char* when) {
+    constexpr qreal kHitTouch = 44;
+    int checked = 0;
+    const std::function<void(QQuickItem*)> walk = [&](QQuickItem* item) {
+        if (!item->isVisible()) {
+            return;
+        }
+        const QString name = item->objectName();
+        const bool target = name == QLatin1StringView("pitchTile") ||
+                            name == QLatin1StringView("benchTile") ||
+                            name.endsWith(QLatin1StringView("Button"));
+        if (target) {
+            ++checked;
+            if (item->width() < kHitTouch || item->height() < kHitTouch) {
+                qWarning("qml_smoke: match day (%s): %s is %.0f x %.0f", when, qUtf8Printable(name),
+                         item->width(), item->height());
+                fail("a match day hit target is smaller than 44 px");
+            }
+        }
+        for (QQuickItem* child : item->childItems()) {
+            walk(child);
+        }
+    };
+    walk(screen.view);
+    if (checked < 20) {
+        fail("match day: too few hit targets to measure");
+    }
+}
+
+int smokeMinutes(fdss::data::DatabaseManager& database, qint64 matchId, qint64 playerId,
+                 const char* column) {
+    QSqlQuery query(database.database());
+    query.prepare(QStringLiteral("SELECT %1 FROM appearance WHERE match_id = ? AND player_id = ?")
+                      .arg(QString::fromLatin1(column)));
+    query.addBindValue(matchId);
+    query.addBindValue(playerId);
+    if (!query.exec() || !query.next() || query.value(0).isNull()) {
+        return -1;
+    }
+    return query.value(0).toInt();
+}
+
+// Demo data -> planned match -> lineup -> Match Day by clicks and taps alone: two goals, a
+// substitution, a yellow and a second yellow, undo, the end; the minutes in the database match a
+// hand count (packet P13, Done when). Leaving the live match asks; a login opens the live match,
+// read-only for another role.
+void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database,
+                      const QString& screenshotDirectory) {
+    using namespace std::chrono_literals;
+    if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
+        fail("cannot load the demo club for match day");
+        return;
+    }
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    settle();
+    const fdss::core::StaffUserId coach = ServiceRegistry::instance().session().user()->id;
+    const qint64 matchId = nextPreMatchMatch("match day");
+    const std::vector<qint64> players = saveMatchDayLineup(matchId);
+    if (players.size() != 14) {
+        return;
+    }
+    const auto xi = [&](int slot) { return players[static_cast<std::size_t>(slot)]; };
+    const qint64 substitute = players[11];
+    auto screen = openMatchDayScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    MatchDayViewModel* matchDay = screen->matchDay;
+    if (matchDay->matchId() != matchId || !matchDay->canStart()) {
+        fail("match day: the planned match with a lineup cannot start");
+        return;
+    }
+
+    // Start: the dialog with the half length of a senior team, Enter starts.
+    screen->click(QStringLiteral("startButton"));
+    auto* startDialog = screen->view->property("startMatchDialog").value<QObject*>();
+    if (startDialog == nullptr || !startDialog->property("opened").toBool()) {
+        fail("match day: Start does not ask for the half length");
+        return;
+    }
+    auto* halfLength = startDialog->property("halfLengthInput").value<QQuickItem*>();
+    if (halfLength == nullptr || halfLength->property("value").toInt() != 45) {
+        fail("match day: the half length is not 45 for a senior team");
+    }
+    pressKey(screen->window, Qt::Key_Return);
+    settle();
+    if (matchDay->statusKey() != QLatin1StringView("live") ||
+        startDialog->property("visible").toBool()) {
+        fail("match day: Enter in the start dialog does not start the match");
+        return;
+    }
+    renderFrame(screen->window);
+    expectMatchDayHitTargets(*screen, "before the kick-off");
+
+    screen->click(QStringLiteral("clockButton")); // kick-off
+    g_clock->advance(10min + 20s);
+    screen->click(QStringLiteral("goalButton"));
+    screen->tap(QStringLiteral("pitchTile"), xi(9));
+    screen->tap(QStringLiteral("pitchTile"), xi(10)); // the assist
+    g_clock->advance(20min);
+    screen->click(QStringLiteral("yellowButton"));
+    screen->tap(QStringLiteral("pitchTile"), xi(3));
+    screen->click(QStringLiteral("opponentGoalButton"));
+    g_clock->advance(16min); // 46:20: stoppage time
+    renderFrame(screen->window);
+    if (!matchDay->clockText().startsWith(QLatin1StringView("45+1:"))) {
+        fail("match day: the clock does not show the stoppage time as 45+1");
+    }
+    expectMatchDayHitTargets(*screen, "first half");
+    if (!screenshotDirectory.isEmpty()) {
+        saveScreenshot(screen->window, screenshotDirectory, QStringLiteral("match-day.png"));
+    }
+    screen->click(QStringLiteral("clockButton")); // half time
+    // A substitution in the break.
+    screen->click(QStringLiteral("subButton"));
+    screen->tap(QStringLiteral("pitchTile"), xi(4));
+    screen->tap(QStringLiteral("benchTile"), substitute);
+    g_clock->advance(15min);
+    screen->click(QStringLiteral("clockButton")); // second half
+
+    // Leaving the live match asks; Stay stays.
+    expectFlag(screen->navigation, "leaveGuard", true, "a live match does not guard leaving");
+    screen->navigation->activate(QStringLiteral("dashboard"));
+    settle();
+    auto* question = screen->view->property("leaveDialog").value<QObject*>();
+    if (question == nullptr || !question->property("visible").toBool() ||
+        screen->navigation->currentKey() != QLatin1StringView("matchday")) {
+        fail("match day: leaving the live match does not ask");
+    } else {
+        QMetaObject::invokeMethod(question, "reject");
+        settle();
+        if (screen->navigation->currentKey() != QLatin1StringView("matchday")) {
+            fail("match day: Stay leaves the live match");
+        }
+    }
+
+    // Another role logs in: Match Day opens on the live match, read-only.
+    const auto physio = addSmokeStaff("Fizjo Mecz", fdss::core::Role::Physio);
+    if (!physio || !logInAgain(engine, *physio)) {
+        return;
+    }
+    if (screen->navigation->currentKey() != QLatin1StringView("matchday")) {
+        fail("match day: a login does not open the live match");
+    }
+    screen = openMatchDayScreen(engine);
+    if (!screen) {
+        return;
+    }
+    if (screen->matchDay->matchId() != matchId || !screen->matchDay->readOnly()) {
+        fail("match day: another role does not see the live match read-only");
+    }
+    expectFlag(screen->find(QStringLiteral("actionRow")), "visible", false,
+               "match day: a role without RunMatchDay sees the action buttons");
+    expectFlag(screen->navigation, "leaveGuard", false, "a read-only live match guards leaving");
+    if (!logInAgain(engine, coach)) {
+        return;
+    }
+    screen = openMatchDayScreen(engine);
+    if (!screen) {
+        return;
+    }
+    matchDay = screen->matchDay;
+
+    g_clock->advance(15min); // 60:00
+    screen->click(QStringLiteral("yellowButton"));
+    screen->tap(QStringLiteral("pitchTile"), xi(3)); // the second yellow: sent off
+    g_clock->advance(20min);                         // 80:00
+    screen->click(QStringLiteral("goalButton"));
+    screen->tap(QStringLiteral("pitchTile"), substitute);
+    screen->click(QStringLiteral("noAssistButton"));
+    // Undo takes the goal back; record it again.
+    screen->click(QStringLiteral("undoButton"));
+    if (matchDay->goalsFor() != 1) {
+        fail("match day: Undo does not take the last goal back");
+    }
+    screen->click(QStringLiteral("goalButton"));
+    screen->tap(QStringLiteral("pitchTile"), substitute);
+    screen->click(QStringLiteral("noAssistButton"));
+    g_clock->advance(12min);
+    screen->click(QStringLiteral("clockButton")); // the end
+    if (matchDay->statusKey() != QLatin1StringView("finished") || matchDay->goalsFor() != 2 ||
+        matchDay->goalsAgainst() != 1 || matchDay->timeline()->rowCount() != 7) {
+        fail("match day: the finished match does not show 2:1 and its seven events");
+    }
+    expectFlag(screen->navigation, "leaveGuard", false, "a finished match guards leaving");
+
+    // The hand count: XI 0–90, the player taken off at half time 0–45, the substitute 45–90, the
+    // player sent off at 60 0–60.
+    const auto expectPlayed = [&](qint64 player, int on, int off) {
+        if (smokeMinutes(database, matchId, player, "minute_on") != on ||
+            smokeMinutes(database, matchId, player, "minute_off") != off) {
+            qWarning("qml_smoke: match day: player %lld is not %d–%d", player, on, off);
+            fail("match day: the minutes in the database differ from the hand count");
+        }
+    };
+    expectPlayed(xi(0), 0, 90);
+    expectPlayed(xi(9), 0, 90);
+    expectPlayed(xi(4), 0, 45);
+    expectPlayed(substitute, 45, 90);
+    expectPlayed(xi(3), 0, 60);
+    if (smokeMinutes(database, matchId, players[12], "minute_on") != -1) {
+        fail("match day: an unused substitute has minutes");
+    }
+
+    // Full screen on and off.
+    screen->click(QStringLiteral("fullScreenButton"));
+    expectFlag(screen->view, "fullScreen", true, "match day: full screen does not turn on");
+    screen->click(QStringLiteral("fullScreenButton"));
+    expectFlag(screen->view, "fullScreen", false, "match day: full screen does not turn off");
+}
+
 } // namespace
 
 // Main.qml on the summary step of the wizard, with the club and the Coach filled in. Null when it
@@ -4608,6 +4949,19 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 exercisePreMatch(engine, screenshotDirectory);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (onlyOne) {
+            // Not this one.
+        } else if (fdss::data::DatabaseManager* database = installRegistry(AppState::State::Ready);
+                   database == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                exerciseMatchDay(engine, *database, screenshotDirectory);
             }
             settle();
             ServiceRegistry::reset();

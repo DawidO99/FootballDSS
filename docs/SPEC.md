@@ -119,7 +119,8 @@ Location: `QStandardPaths::AppDataLocation`/`club.sqlite`; backups in `…/backu
 newest kept).
 Schema = numbered migrations; the first migration (`src/data/migrations/0001_initial.sql`) creates
 every table below at once so later packets do not reshape it. The tables below list the exact column
-names and types of that migration.
+names and types of that migration, plus what later migrations added: `0002_match_live.sql` (P13) adds
+`match_live`, `match_clock_step` and `match_event.added_time`.
 
 Enumerations (stored as lowercase text with a `CHECK` constraint; C++ enums in `core/domain`):
 - Team category: `senior`, `u19`, `u17`, `u15`, `u13`, `u11`, `other`. Season text `2026/27`.
@@ -148,7 +149,8 @@ first and last names and staff names 1–50 characters after trimming, club, tea
 dates (including `archived_at`) stored as ISO text (`YYYY-MM-DD`,
 local, no time zone), times of day as `HH:MM`, lockout and `import_log` timestamps as UTC ISO datetime;
 wellness scores 1–5; every foreign key indexed; `ON DELETE RESTRICT` except for pure child rows
-(attendance → session, appearance/match_event → match: `CASCADE`).
+(attendance → session, appearance/match_event/match_live → match, match_clock_step → match_live:
+`CASCADE`).
 
 Availability status: `actual_to` is the first available day; with `actual_to` empty, `suspension` and
 `absence` stay active through `expected_to` inclusive, while for `injury` and `illness` `expected_to`
@@ -174,7 +176,9 @@ the import can be undone.
 | `opponent` | `name` TEXT, `name_key` TEXT UNIQUE, `notes` TEXT *null* | `name_key` = `QString::toCaseFolded()`, because SQLite `NOCASE` folds ASCII only |
 | `match` | `team_id` INTEGER, `opponent_id` INTEGER, `date` TEXT, `kickoff_time` TEXT *null*, `venue` TEXT, `competition` TEXT *null*, `goals_for` INTEGER *null*, `goals_against` INTEGER *null*, `status` TEXT (default `planned`), `formation` TEXT *null*, `import_id` INTEGER | |
 | `appearance` | `match_id` INTEGER, `player_id` INTEGER, `started` INTEGER 0/1 (default 0), `minute_on` INTEGER *null*, `minute_off` INTEGER *null*, `position` TEXT *null*, `rating` INTEGER *null* (1–10), `rpe` INTEGER *null* (0–10), `import_id` INTEGER | Minutes from Match Day, 0–130. UNIQUE (`match_id`, `player_id`) |
-| `match_event` | `match_id` INTEGER, `minute` INTEGER (0–130), `type` TEXT, `player_id` INTEGER *null*, `related_player_id` INTEGER *null* | `player_id` empty only for `opponent_goal` |
+| `match_event` | `match_id` INTEGER, `minute` INTEGER (0–130), `type` TEXT, `player_id` INTEGER *null*, `related_player_id` INTEGER *null*, `added_time` INTEGER *null* (≥ 1, since 0002) | `player_id` empty only for `opponent_goal`. Semantics below |
+| `match_live` | `match_id` INTEGER UNIQUE, `half_length_min` INTEGER (10–60) | Since 0002 (P13): a match that Match Day has started |
+| `match_clock_step` | `match_id` INTEGER (→ `match_live.match_id`), `step` TEXT, `at` TEXT (UTC ISO datetime), `after_event_id` INTEGER *null* | Since 0002 (P13). `step`: `first_half_start`, `first_half_end`, `second_half_start`, `match_end`; UNIQUE (`match_id`, `step`). `after_event_id`: the highest `match_event.id` of the match when the step was taken (no foreign key), so undo knows whether an event or a step came last |
 | `training_session` | `team_id` INTEGER, `date` TEXT, `start_time` TEXT *null*, `duration_min` INTEGER (15–240), `type` TEXT, `note` TEXT *null*, `import_id` INTEGER | |
 | `attendance` | `session_id` INTEGER, `player_id` INTEGER, `status` TEXT, `rpe` INTEGER *null* (0–10), `minutes_override` INTEGER *null* (0–240), `import_id` INTEGER | session load = rpe × minutes; rpe and minutes empty unless `present`. UNIQUE (`session_id`, `player_id`) |
 | `wellness` | `player_id` INTEGER, `date` TEXT, `sleep`, `fatigue`, `soreness`, `stress`, `mood` INTEGER (1–5) | SHOULD. UNIQUE (`player_id`, `date`) |
@@ -185,6 +189,25 @@ the import can be undone.
 | `event_data_file` | `match_id` INTEGER, `provider` TEXT, `path` TEXT, `hash` TEXT | Loaded on demand |
 | `import_log` | `timestamp` TEXT, `file` TEXT, `hash` TEXT, `type` TEXT, `rows_ok` INTEGER (default 0), `rows_failed` INTEGER (default 0), `report_json` TEXT *null* | Undo by `import_id` |
 | `schema_version` | `id` INTEGER PRIMARY KEY (always 1), `version` INTEGER | One row |
+
+`match_event` semantics (P10 decision 4, P13 decisions):
+- `goal`: `player_id` = scorer, `related_player_id` = the assisting player or empty. Match Day writes no
+  separate `assist` rows.
+- `sub`: `player_id` = the player coming on, `related_player_id` = the player going off.
+- `yellow`, `red`: `player_id` = the player. A second yellow card is a `yellow` row followed by a `red` row
+  at the same minute with `related_player_id` empty.
+- `opponent_goal`: no player.
+- `minute`: the full minutes elapsed in the match, 0-based, cut at the end of the half: the first half at
+  most `half_length_min`, the second half at most 2 × `half_length_min` (the second half starts at
+  `half_length_min`). The minutes over the end of the half go to `added_time` (display only, ≥ 1); a
+  substitution in the half-time break is at `half_length_min` without `added_time`. Display follows the
+  football convention: `minute` + 1 without `added_time` (0:30 → 1', 44:20 → 45'); with it, the end of the
+  half plus the added minutes (45:30 → 45+1', 47:10 → 45+3', the same as 90+N' in the second half).
+- Minutes of `appearance` are recomputed from the saved lineup and the events (`core::computeMatchMinutes`,
+  the single source of truth): starters from 0, substitutes from their minute, a player sent off until
+  the card, everyone else on the pitch until the final minute, which is 2 × `half_length_min` whatever
+  the stoppage time. While the match is live, players on the pitch have `minute_off` empty. A substituted
+  player cannot come back; a sent-off player cannot be substituted. Rating and RPE are kept.
 
 `.tactic.json`: `{ "version": 1, "formation": "4-3-3", "slots": [{ "position": "GK", "x": 0.5, "y": 0.95, "playerId": 12 }] }`
 — coordinates normalised 0–1 relative to the pitch (own goal at y = 1). Optional `"bench": [playerId, …]`

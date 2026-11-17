@@ -62,8 +62,12 @@ qt_add_qml_module(fdss_ui
         ui/components/LineupPlayerList.qml
         ui/components/LoadChart.qml
         ui/components/LoadStatusBadge.qml
+        ui/components/MatchClockBar.qml
         ui/components/MatchEditorDialog.qml
+        ui/components/MatchPlayerTile.qml
+        ui/components/MatchStartDialog.qml
         ui/components/MatchStatusBadge.qml
+        ui/components/MatchTimeline.qml
         ui/components/MinutesCell.qml
         ui/components/MultiSelectField.qml
         ui/components/NumberField.qml
@@ -150,6 +154,12 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/LoadViewModel.cpp
         src/viewmodels/LockCountdown.hpp
         src/viewmodels/LockCountdown.cpp
+        src/viewmodels/MatchDayModels.hpp
+        src/viewmodels/MatchDayModels.cpp
+        src/viewmodels/MatchDayTexts.hpp
+        src/viewmodels/MatchDayTexts.cpp
+        src/viewmodels/MatchDayViewModel.hpp
+        src/viewmodels/MatchDayViewModel.cpp
         src/viewmodels/MatchEditorViewModel.hpp
         src/viewmodels/MatchEditorViewModel.cpp
         src/viewmodels/NavigationModel.hpp

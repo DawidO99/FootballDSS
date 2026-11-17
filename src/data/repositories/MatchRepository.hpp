@@ -31,6 +31,10 @@ public:
     [[nodiscard]] core::Status removePlanned(core::MatchId id);
     [[nodiscard]] core::Status setResult(core::MatchId id, std::optional<int> goalsFor,
                                          std::optional<int> goalsAgainst, core::MatchStatus status);
+    // Only the status; the result stays. A missing match: NotFound.
+    [[nodiscard]] core::Status setStatus(core::MatchId id, core::MatchStatus status);
+    // The live match of the team (the earliest one, should there be more); nullopt: none.
+    [[nodiscard]] core::Result<std::optional<core::MatchId>> findLive(core::TeamId team) const;
     // Distinct, the most recently played first.
     [[nodiscard]] core::Result<std::vector<std::string>> listCompetitions(core::TeamId team) const;
 

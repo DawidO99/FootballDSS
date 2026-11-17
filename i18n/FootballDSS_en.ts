@@ -1005,6 +1005,42 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Match Day: MatchClockBar, MatchPlayerTile, MatchTimeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>1st half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End 1st half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clock step</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On the pitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tile: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On the bench</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Substituted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sent off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Add player</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1030,6 +1066,34 @@
     </message>
     <message>
         <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Second yellow, red card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On: Leon Rezerwa</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Off: Filip Skrzydło</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assist: Jan Szczepaniak-Wojciechowski</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1407,17 +1471,148 @@
     </message>
 </context>
 <context>
+    <name>MatchClockBar</name>
+    <message>
+        <source>Score %1 to %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>MatchDayView</name>
     <message>
         <source>Match Day</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Run the match clock, substitutions and events live during the game.</source>
+        <source>Leave full screen (%1)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Prepare the lineup</source>
+        <source>Full screen (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No match to run</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add a match in the Calendar, then set up its lineup in Pre-match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>There is no planned match. Ask the coach or the assistant to add one in the Calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start Match Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Pre-match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back to planned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goal (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent goal (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow card (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red card (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Substitution (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo: %1 (%2)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing to undo (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No assist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On the pitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Bench</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Events</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Leave the live match?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Leave</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The match is live. The clock keeps running, and you can come back to Match Day from the menu.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1489,6 +1684,44 @@
     </message>
     <message>
         <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Match Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save and open Match Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MatchStartDialog</name>
+    <message>
+        <source>Start Match Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Half length (minutes)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clock starts when you start the 1st half.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MatchTimeline</name>
+    <message>
+        <source>No events yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Events</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1866,6 +2099,10 @@
     </message>
     <message>
         <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Match Day</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2923,6 +3160,10 @@
 <context>
     <name>fdss::viewmodels::ErrorPresenter</name>
     <message>
+        <source>There is nothing to undo.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>This item no longer exists. Open the screen again and check the current data.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3071,6 +3312,38 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Enter a half length from 10 to 60 minutes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This player is not on the pitch. Choose a player on the pitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This player is already on the pitch. Choose a player from the bench.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This player has been substituted and cannot come back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This player has been sent off and cannot be substituted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose two different players.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This player is not in the lineup of the match. Choose another player.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The minute of this event is outside the match. Check the clock and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3104,6 +3377,30 @@
     </message>
     <message>
         <source>A template with this name already exists. Choose a different name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. Finish it in Match Day first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match has no saved lineup. Set up and save the lineup in Pre-match first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The lineup of this match has errors. Fix them in Pre-match first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match is not live. Open Match Day again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No half is running. Start the half first; in the break only substitutions can be recorded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The match has kicked off, so it cannot go back to planned. Undo the kick-off first.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3348,6 +3645,188 @@
     </message>
     <message>
         <source>This player is not in the load table. Archived players are not shown.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MatchDayTexts</name>
+    <message>
+        <source>Before kick-off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>1st half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Half time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>2nd half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Full time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start 1st half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End 1st half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start 2nd half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>End match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>start of the 1st half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>end of the 1st half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>start of the 2nd half</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>end of the match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Second yellow, red card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On the pitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On the bench</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Substituted</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sent off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Planned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Live</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MatchDayViewModel</name>
+    <message>
+        <source>Only the coach or the assistant can run Match Day. You see the match read-only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match is not planned, so Match Day cannot start it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. Finish it in Match Day first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match has no saved lineup. Set up and save the lineup in Pre-match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The lineup has errors to fix in Pre-match: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goal: who scored? Tap a player on the pitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goal by %1: who gave the assist? Tap a player, or choose No assist.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow card: tap the player on the pitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red card: tap the player on the pitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Substitution: who goes off? Tap a player on the pitch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 goes off: who comes on? Tap a player on the bench.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 for %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2 %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assist: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Off: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undone: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

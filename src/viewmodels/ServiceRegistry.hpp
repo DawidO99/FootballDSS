@@ -10,6 +10,7 @@ class AvailabilityRepository;
 class ClubRepository;
 class DatabaseManager;
 class LineupRepository;
+class MatchLiveRepository;
 class MatchRepository;
 class OpponentRepository;
 class PlayerRepository;
@@ -22,6 +23,7 @@ class CalendarService;
 class DemoDataService;
 class LineupService;
 class LoadService;
+class MatchDayService;
 class Session;
 class SetupService;
 class SquadService;
@@ -79,6 +81,7 @@ public:
     [[nodiscard]] services::DemoDataService& demoData();
     [[nodiscard]] services::LoadService& load();
     [[nodiscard]] services::LineupService& lineup();
+    [[nodiscard]] services::MatchDayService& matchDay();
 
 private:
     // Destroyed from the bottom up, the database last.
@@ -92,6 +95,7 @@ private:
     std::unique_ptr<data::MatchRepository> m_matches;
     std::unique_ptr<data::TrainingRepository> m_training;
     std::unique_ptr<data::LineupRepository> m_lineups;
+    std::unique_ptr<data::MatchLiveRepository> m_matchLive;
     std::unique_ptr<services::Session> m_session;
     std::unique_ptr<services::AuthService> m_auth;
     std::unique_ptr<services::SetupService> m_setup;
@@ -101,6 +105,7 @@ private:
     std::unique_ptr<services::DemoDataService> m_demoData;
     std::unique_ptr<services::LoadService> m_load;
     std::unique_ptr<services::LineupService> m_lineup;
+    std::unique_ptr<services::MatchDayService> m_matchDay;
 };
 
 } // namespace fdss::viewmodels

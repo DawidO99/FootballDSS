@@ -59,6 +59,8 @@ add_library(fdss_data STATIC
     repositories/LineupRepository.cpp
     repositories/MatchRepository.hpp
     repositories/MatchRepository.cpp
+    repositories/MatchLiveRepository.hpp
+    repositories/MatchLiveRepository.cpp
     repositories/OpponentRepository.hpp
     repositories/OpponentRepository.cpp
     repositories/PlayerRepository.hpp
@@ -76,6 +78,7 @@ qt_add_resources(fdss_data "fdss_migrations"
     PREFIX "/fdss"
     FILES
         migrations/0001_initial.sql
+        migrations/0002_match_live.sql
 )
 
 target_link_libraries(fdss_data

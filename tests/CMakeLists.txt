@@ -26,6 +26,7 @@ add_executable(fdss_tests
     core/LineupValidatorTest.cpp
     core/LoadDemoTest.cpp
     core/LoadTest.cpp
+    core/MatchMinutesTest.cpp
     core/PermissionsTest.cpp
     core/ValidationTest.cpp
     core/VersionTest.cpp
@@ -36,6 +37,7 @@ add_executable(fdss_tests
     data/DatabaseManagerTest.cpp
     data/EnumsSchemaTest.cpp
     data/LineupRepositoryTest.cpp
+    data/MatchLiveRepositoryTest.cpp
     data/MatchRepositoryTest.cpp
     data/MigrationsTest.cpp
     data/OpponentRepositoryTest.cpp
@@ -56,6 +58,7 @@ add_executable(fdss_tests
     services/FakeClock.hpp
     services/LineupServiceTest.cpp
     services/LoadServiceTest.cpp
+    services/MatchDayServiceTest.cpp
     services/ServiceFixture.hpp
     services/SessionTest.cpp
     services/SetupServiceTest.cpp
@@ -84,6 +87,7 @@ add_executable(fdss_vm_tests
     viewmodels/ChangePinViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
     viewmodels/LoadViewModelTest.cpp
+    viewmodels/MatchDayViewModelTest.cpp
     viewmodels/MatchEditorViewModelTest.cpp
     viewmodels/NavigationModelTest.cpp
     viewmodels/PlayerCardViewModelTest.cpp

@@ -60,7 +60,12 @@ Item {
             "ok": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M8 12.5l2.5 2.5 5.5-5.5",
             "warn": "M12 3l9.5 17h-19z M12 10v4 M12 17.5v.01",
             "danger": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M9 9l6 6 M15 9l-6 6",
-            "info": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 11v5 M12 7.5v.01"
+            "info": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 11v5 M12 7.5v.01",
+            // Match Day (P13): a ball, a card, full screen on and off.
+            "goal": "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 8l3.8 2.8-1.5 4.4H9.7l-1.5-4.4z M12 8V3.5 M15.8 10.8l4.3-1.4 M14.3 15.2l2.7 3.6 M9.7 15.2L7 18.8 M8.2 10.8L3.9 9.4",
+            "card": "M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z",
+            "fullscreen": "M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5",
+            "exitFullscreen": "M9 4v5H4 M15 4v5h5 M20 15h-5v5 M4 15h5v5"
         })
 
     implicitWidth: size
