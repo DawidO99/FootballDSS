@@ -50,6 +50,9 @@ public:
     [[nodiscard]] core::Result<std::vector<core::MatchEvent>> listEvents(core::MatchId match) const;
     // Removes the event added last, whatever its minute, and returns it. No events: NotFound.
     [[nodiscard]] core::Result<core::MatchEvent> deleteLastEvent(core::MatchId match);
+    // Removes one event of the match and returns it. Not an event of that match: NotFound.
+    [[nodiscard]] core::Result<core::MatchEvent> deleteEvent(core::MatchId match,
+                                                             core::MatchEventId event);
 
 private:
     DatabaseManager& m_db;

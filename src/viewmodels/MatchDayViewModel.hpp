@@ -197,6 +197,8 @@ private:
     [[nodiscard]] core::MatchPhase currentPhase() const;
     [[nodiscard]] QString playerName(std::optional<core::PlayerId> player) const;
     [[nodiscard]] QString actionText(const services::MatchDayAction& action) const;
+    // Undo of the end refused because another match of the team is live: which one.
+    [[nodiscard]] QString anotherLiveMatchText() const;
 
     services::MatchDayService& m_service;
     services::LineupService& m_lineupService;

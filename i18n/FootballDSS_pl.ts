@@ -1728,6 +1728,13 @@
     </message>
 </context>
 <context>
+    <name>MatchPlayerTile</name>
+    <message>
+        <source>Yellow card</source>
+        <translation>Żółta kartka</translation>
+    </message>
+</context>
+<context>
     <name>MatchStartDialog</name>
     <message>
         <source>Start Match Day</source>
@@ -3264,6 +3271,10 @@
         <translation>Ten format pliku nie jest obsługiwany. Zapisz plik jako CSV lub XLSX i spróbuj ponownie.</translation>
     </message>
     <message>
+        <source>The history of this match is inconsistent: its events do not fit the saved lineup, so Match Day cannot show it. Restore a backup of the database or ask for help.</source>
+        <translation>Historia tego meczu jest niespójna: jego zdarzenia nie pasują do zapisanego składu, więc tryb meczowy nie może go pokazać. Przywróć kopię zapasową bazy albo poproś o pomoc.</translation>
+    </message>
+    <message>
         <source>Something went wrong and the change was not saved. Try again. If this repeats, start the app again.</source>
         <translation>Coś poszło nie tak i zmiana nie została zapisana. Spróbuj ponownie. Jeśli błąd się powtórzy, uruchom aplikację ponownie.</translation>
     </message>
@@ -3462,6 +3473,10 @@
     <message>
         <source>No half is running. Start the half first; in the break only substitutions can be recorded.</source>
         <translation>Żadna połowa nie trwa. Najpierw rozpocznij połowę; w przerwie można zapisać tylko zmiany.</translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. Finish it or undo its start first.</source>
+        <translation>Inny mecz tej drużyny trwa. Najpierw go zakończ albo cofnij jego start.</translation>
     </message>
     <message>
         <source>The match has kicked off, so it cannot go back to planned. Undo the kick-off first.</source>
@@ -3896,6 +3911,10 @@
     <message>
         <source>Undone: %1</source>
         <translation>Cofnięto: %1</translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. First finish it, or undo its start, in the match against %1.</source>
+        <translation>Inny mecz tej drużyny trwa. Najpierw zakończ albo cofnij start meczu z %1.</translation>
     </message>
 </context>
 <context>

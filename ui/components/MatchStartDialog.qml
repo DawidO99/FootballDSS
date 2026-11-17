@@ -18,6 +18,7 @@ AppDialog {
     signal startRequested(int halfLength)
 
     size: AppDialog.Small
+    touch: true
     title: qsTr("Start Match Day")
     primaryText: qsTr("Start")
     primaryEnabled: halfLengthField.effectiveError.length === 0

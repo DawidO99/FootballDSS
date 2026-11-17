@@ -245,4 +245,14 @@ core::Result<core::MatchEvent> MatchRepository::deleteLastEvent(core::MatchId ma
         {idValue(match)}, "delete last match event", readEvent);
 }
 
+core::Result<core::MatchEvent> MatchRepository::deleteEvent(core::MatchId match,
+                                                            core::MatchEventId event) {
+    return selectOne(
+        m_db,
+        QStringLiteral("DELETE FROM match_event WHERE id = ? AND match_id = ? "
+                       "RETURNING id, match_id, minute, type, player_id, related_player_id, "
+                       "added_time"),
+        {idValue(event), idValue(match)}, "delete match event", readEvent);
+}
+
 } // namespace fdss::data

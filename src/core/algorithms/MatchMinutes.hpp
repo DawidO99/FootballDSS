@@ -164,6 +164,14 @@ struct MatchEventError {
 replayMatch(const MatchSheet& sheet, std::span<const MatchEventDraft> events,
             std::optional<int> finalMinute = std::nullopt);
 
+// The order in which replayMatch() applies the events: by minute, then as given.
+[[nodiscard]] std::vector<std::size_t> replayOrder(std::span<const MatchEventDraft> events);
+
+// For each event: true for the red card of a second yellow, i.e. a `red` row without a related
+// player whose player already had two yellow cards, counted in replay order (P13 review). A yellow
+// and a straight red at the same minute is a red card.
+[[nodiscard]] std::vector<bool> secondYellowReds(std::span<const MatchEventDraft> events);
+
 struct MatchMinutes {
     // The starters and every player who came on, in the order of the situation. Starters from 0,
     // substitutes from their minute; minuteOff is the substitution, the red card or the final

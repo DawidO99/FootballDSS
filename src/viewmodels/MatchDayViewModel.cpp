@@ -471,12 +471,12 @@ void MatchDayViewModel::rebuildRows() {
 
     QList<QVariantList> events;
     const std::vector<core::MatchEvent>& list = m_state->events;
+    const std::vector<core::MatchEventDraft> drafts(list.begin(), list.end());
+    // Counted in replay order from the yellow cards before each red (P13 review).
+    const std::vector<bool> secondYellows = core::secondYellowReds(drafts);
     for (std::size_t index = 0; index < list.size(); ++index) {
         const core::MatchEvent& event = list[index];
-        const bool secondYellow =
-            event.type == core::MatchEventType::Red && !event.relatedPlayerId && index > 0 &&
-            list[index - 1].type == core::MatchEventType::Yellow &&
-            list[index - 1].playerId == event.playerId && list[index - 1].minute == event.minute;
+        const bool secondYellow = secondYellows[index];
         QString playerText;
         QString relatedText;
         switch (event.type) {
@@ -657,13 +657,33 @@ QString MatchDayViewModel::undo() {
     // Names come from the state before the undo.
     const auto undone = m_service.undoLast(m_state->match.match.id);
     if (!undone) {
-        report(undone.error());
+        if (undone.error().field == "undo_end_another_live") {
+            // Names the match to finish or to take back to planned first (P13 review).
+            qWarning("MatchDayViewModel: %s", undone.error().detail.c_str());
+            emit errorOccurred(anotherLiveMatchText());
+        } else {
+            report(undone.error());
+        }
         reload();
         return {};
     }
     const QString text = tr("Undone: %1").arg(actionText(*undone));
     reload();
     return text;
+}
+
+QString MatchDayViewModel::anotherLiveMatchText() const {
+    if (m_state) {
+        if (const auto other = m_service.liveMatch(m_state->match.match.teamId); other && *other) {
+            if (const auto state = m_service.state(**other)) {
+                return tr("Another match of this team is live. First finish it, or undo its start, "
+                          "in the match against %1.")
+                    .arg(QString::fromStdString(state->match.opponentName));
+            }
+        }
+    }
+    return ErrorPresenter::message(
+        core::Error{core::ErrorCode::Conflict, {}, "undo_end_another_live"});
 }
 
 bool MatchDayViewModel::eventFilter(QObject* watched, QEvent* event) {

@@ -1696,6 +1696,13 @@
     </message>
 </context>
 <context>
+    <name>MatchPlayerTile</name>
+    <message>
+        <source>Yellow card</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>MatchStartDialog</name>
     <message>
         <source>Start Match Day</source>
@@ -3200,6 +3207,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The history of this match is inconsistent: its events do not fit the saved lineup, so Match Day cannot show it. Restore a backup of the database or ask for help.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Something went wrong and the change was not saved. Try again. If this repeats, start the app again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3397,6 +3408,10 @@
     </message>
     <message>
         <source>No half is running. Start the half first; in the break only substitutions can be recorded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. Finish it or undo its start first.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3827,6 +3842,10 @@
     </message>
     <message>
         <source>Undone: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. First finish it, or undo its start, in the match against %1.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

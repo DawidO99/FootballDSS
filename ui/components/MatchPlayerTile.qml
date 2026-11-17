@@ -14,7 +14,7 @@ import QtQuick.Layouts
 //   stateKey: string        onPitch, bench, substitutedOff, sentOff
 //   stateText: string       the word for the state
 //   minutesText: string     "67'" or empty
-//   goals, yellowCards: int
+//   goals, yellowCards: int  a yellow card shows its icon and the words "Yellow card"
 //   choosing: bool          an action waits for a player
 //   selectable: bool        this tile fits that action
 //   clicked()               Enter/Return/Space click it when focused
@@ -33,6 +33,9 @@ AbstractButton {
     property bool choosing: false
     property bool selectable: false
     readonly property bool hasLeft: root.stateKey === "substitutedOff" || root.stateKey === "sentOff"
+    // A yellow card is an icon and a word, never the colour alone (AGENTS section 6).
+    readonly property bool showsYellow: root.yellowCards > 0 && root.stateKey !== "sentOff"
+    readonly property string yellowCardText: qsTr("Yellow card")
 
     implicitWidth: Theme.matchTileWidth
     implicitHeight: Math.max(Theme.matchTileHeight, Theme.hitTouch)
@@ -41,7 +44,7 @@ AbstractButton {
     focusPolicy: Qt.StrongFocus
     padding: Theme.spacing.s
     opacity: root.choosing && !root.selectable ? Theme.disabledOpacity : 1.0
-    Accessible.name: root.stateText.length > 0 ? root.fullName + ", " + root.stateText : root.fullName
+    Accessible.name: [root.fullName, root.stateText, root.showsYellow ? root.yellowCardText : ""].filter(part => part.length > 0).join(", ")
     Keys.onReturnPressed: root.clicked()
     Keys.onEnterPressed: root.clicked()
 
@@ -114,10 +117,20 @@ AbstractButton {
 
             Icon {
                 objectName: "tileYellow"
-                visible: root.yellowCards > 0 && root.stateKey !== "sentOff"
+                visible: root.showsYellow
                 name: "card"
                 size: Theme.iconSize.xs
                 color: Theme.yellowCard
+            }
+
+            Label {
+                objectName: "tileYellowText"
+                Layout.fillWidth: true
+                visible: root.showsYellow
+                text: root.yellowCardText
+                color: Theme.text
+                font.pixelSize: Theme.fontSize.caption
+                elide: Text.ElideRight
             }
 
             Icon {
@@ -146,14 +159,14 @@ AbstractButton {
 
             Item {
                 Layout.fillWidth: true
-                visible: !root.hasLeft
+                visible: !root.hasLeft && !root.showsYellow
             }
         }
     }
 
     PlainToolTip {
         visible: root.hovered && root.fullName.length > 0
-        text: root.stateText.length > 0 ? root.fullName + " · " + root.stateText : root.fullName
+        text: [root.fullName, root.stateText, root.showsYellow ? root.yellowCardText : ""].filter(part => part.length > 0).join(" · ")
         delay: Theme.tooltipDelay
     }
 }

@@ -41,6 +41,12 @@ QString ErrorPresenter::message(const core::Error& error) {
         }
         return tr("This file format is not supported. Save the file as CSV or XLSX and try again.");
     case core::ErrorCode::Database:
+        if (error.field == "match_history") {
+            return tr("The history of this match is inconsistent: its events do not fit the saved "
+                      "lineup, so Match Day cannot show it. Restore a backup of the database or "
+                      "ask for help.");
+        }
+        break;
     case core::ErrorCode::Internal:
         break;
     }
@@ -212,6 +218,9 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
     if (field == "match_not_running") {
         return tr("No half is running. Start the half first; in the break only substitutions "
                   "can be recorded.");
+    }
+    if (field == "undo_end_another_live") {
+        return tr("Another match of this team is live. Finish it or undo its start first.");
     }
     if (field == "match_started") {
         return tr("The match has kicked off, so it cannot go back to planned. Undo the kick-off "

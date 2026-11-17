@@ -1,6 +1,7 @@
 #include "core/algorithms/MatchMinutes.hpp"
 
 #include <algorithm>
+#include <map>
 #include <numeric>
 #include <ranges>
 
@@ -317,13 +318,34 @@ std::optional<MatchEventProblem> applyEvent(MatchSituation& situation,
     return std::nullopt;
 }
 
-std::expected<MatchSituation, MatchEventError> replayMatch(const MatchSheet& sheet,
-                                                           std::span<const MatchEventDraft> events,
-                                                           std::optional<int> finalMinute) {
+std::vector<std::size_t> replayOrder(std::span<const MatchEventDraft> events) {
     std::vector<std::size_t> order(events.size());
     std::iota(order.begin(), order.end(), std::size_t{0});
     std::ranges::stable_sort(order, {}, [&](std::size_t index) { return events[index].minute; });
+    return order;
+}
 
+std::vector<bool> secondYellowReds(std::span<const MatchEventDraft> events) {
+    std::vector<bool> flags(events.size(), false);
+    std::map<PlayerId, int> yellows;
+    for (const std::size_t index : replayOrder(events)) {
+        const MatchEventDraft& event = events[index];
+        if (!event.playerId) {
+            continue;
+        }
+        if (event.type == MatchEventType::Yellow) {
+            ++yellows[*event.playerId];
+        } else if (event.type == MatchEventType::Red && !event.relatedPlayerId) {
+            flags[index] = yellows[*event.playerId] >= 2;
+        }
+    }
+    return flags;
+}
+
+std::expected<MatchSituation, MatchEventError> replayMatch(const MatchSheet& sheet,
+                                                           std::span<const MatchEventDraft> events,
+                                                           std::optional<int> finalMinute) {
+    const std::vector<std::size_t> order = replayOrder(events);
     MatchSituation situation = startingSituation(sheet);
     for (const std::size_t index : order) {
         const MatchEventDraft& event = events[index];

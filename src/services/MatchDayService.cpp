@@ -34,6 +34,8 @@ constexpr std::string_view kMatchNotRunning = "match_not_running";
 constexpr std::string_view kMatchStarted = "match_started";
 constexpr std::string_view kHalfLength = "half_length";
 constexpr std::string_view kNothingToUndo = "nothing_to_undo";
+constexpr std::string_view kUndoEndAnotherLive = "undo_end_another_live";
+constexpr std::string_view kMatchHistory = "match_history";
 
 core::Error conflict(std::string_view field, std::string detail) {
     return core::Error{core::ErrorCode::Conflict, std::move(detail), std::string(field)};
@@ -69,6 +71,15 @@ core::Error eventError(core::MatchEventProblem problem, std::string_view context
                        std::string(field)};
 }
 
+// Stored events that do not fit the lineup: the history of the match is inconsistent (written
+// outside Match Day, or damaged). Never shown as a lineup with 0:0 (P13 review).
+core::Error historyError(const core::MatchEventError& error, std::string_view context) {
+    return core::Error{core::ErrorCode::Database,
+                       std::format("{}: stored event {} does not fit the match ({})", context,
+                                   error.index, problemField(error.problem)),
+                       std::string(kMatchHistory)};
+}
+
 std::vector<core::MatchEventDraft> draftsOf(const std::vector<core::MatchEvent>& events) {
     return {events.begin(), events.end()};
 }
@@ -87,29 +98,27 @@ std::optional<core::MatchEventId> lastEventId(const std::vector<core::MatchEvent
     return last == events.end() ? std::nullopt : std::optional{last->id};
 }
 
-// The red card of a second yellow: a red row without a related player, recorded right after a
-// yellow card of the same player at the same time, who has two yellow cards.
+// The red card of a second yellow (core::secondYellowReds(), counted in replay order) and the
+// second yellow card of its player, the last one before the red in that order.
 std::optional<core::MatchEvent> secondYellowOf(const std::vector<core::MatchEvent>& events,
                                                const core::MatchEvent& red) {
-    if (red.type != core::MatchEventType::Red || red.relatedPlayerId || !red.playerId) {
+    const auto drafts = draftsOf(events);
+    const std::vector<bool> flags = core::secondYellowReds(drafts);
+    const auto redAt = std::ranges::find(events, red.id, &core::MatchEvent::id);
+    if (redAt == events.end() || !flags[static_cast<std::size_t>(redAt - events.begin())]) {
         return std::nullopt;
     }
-    std::optional<core::MatchEvent> previous;
-    int yellows = 0;
-    for (const core::MatchEvent& event : events) {
+    std::optional<core::MatchEvent> yellow;
+    for (const std::size_t index : core::replayOrder(drafts)) {
+        const core::MatchEvent& event = events[index];
+        if (event.id == red.id) {
+            break;
+        }
         if (event.type == core::MatchEventType::Yellow && event.playerId == red.playerId) {
-            ++yellows;
-        }
-        if (event.id < red.id && (!previous || event.id > previous->id)) {
-            previous = event;
+            yellow = event;
         }
     }
-    if (yellows >= 2 && previous && previous->type == core::MatchEventType::Yellow &&
-        previous->playerId == red.playerId && previous->minute == red.minute &&
-        previous->addedTime == red.addedTime) {
-        return previous;
-    }
-    return std::nullopt;
+    return yellow;
 }
 
 std::optional<MatchDayAction> lastActionOf(const std::vector<core::MatchEvent>& events,
@@ -242,7 +251,10 @@ core::Result<MatchDayState> MatchDayService::state(core::MatchId matchId) const 
     state.events = std::move(*events);
     const auto drafts = draftsOf(state.events);
     auto situation = core::replayMatch(state.sheet, drafts);
-    if (*live && situation) {
+    if (*live) {
+        if (!situation) {
+            return std::unexpected(historyError(situation.error(), "match day state"));
+        }
         state.situation = std::move(*situation);
     } else {
         // Data that Match Day did not write (an import, a match without a lineup): show the
@@ -388,7 +400,7 @@ core::Result<core::MatchMinutes> MatchDayService::recompute(core::MatchId match,
     const auto drafts = draftsOf(*events);
     auto minutes = core::computeMatchMinutes(sheet, drafts, finalMinute);
     if (!minutes) {
-        return std::unexpected(eventError(minutes.error().problem, "recompute minutes"));
+        return std::unexpected(historyError(minutes.error(), "recompute minutes"));
     }
     // Ratings and RPE (packet P14) belong to the player, not to the minutes: they stay.
     const auto existing = m_matches.listAppearances(match);
@@ -492,7 +504,7 @@ core::Status MatchDayService::recordEvents(core::MatchId match,
     const auto drafts = draftsOf(live->events);
     auto situation = core::replayMatch(live->sheet, drafts);
     if (!situation) {
-        return std::unexpected(eventError(situation.error().problem, "replay stored events"));
+        return std::unexpected(historyError(situation.error(), "replay stored events"));
     }
     std::vector<core::MatchEventDraft> written;
     for (core::MatchEventDraft& event : events) {
@@ -584,17 +596,33 @@ core::Result<MatchDayAction> MatchDayService::undoLast(core::MatchId match) {
     }
     switch (action->kind) {
     case MatchDayAction::Kind::SecondYellow:
-        // The red row, then the yellow one below.
+        // The red row (the last one), then the yellow card that sent the player off.
         if (auto deleted = m_matches.deleteLastEvent(match); !deleted) {
             return std::unexpected(deleted.error());
         }
-        [[fallthrough]];
+        if (auto deleted = m_matches.deleteEvent(match, action->event->id); !deleted) {
+            return std::unexpected(deleted.error());
+        }
+        break;
     case MatchDayAction::Kind::Event:
         if (auto deleted = m_matches.deleteLastEvent(match); !deleted) {
             return std::unexpected(deleted.error());
         }
         break;
     case MatchDayAction::Kind::ClockStep:
+        // A finished match made live again next to another live match of the team: two live
+        // matches, and the start of the other one would refuse that (P13 review).
+        if (action->step == core::ClockStep::MatchEnd) {
+            const auto other = m_matches.findLive(live->match.teamId);
+            if (!other) {
+                return std::unexpected(other.error());
+            }
+            if (*other && **other != match) {
+                return std::unexpected(conflict(
+                    kUndoEndAnotherLive,
+                    std::format("match day undo: match {} of the team is live", (*other)->value)));
+            }
+        }
         if (auto deleted = m_live.deleteLastStep(match); !deleted) {
             return std::unexpected(deleted.error());
         }

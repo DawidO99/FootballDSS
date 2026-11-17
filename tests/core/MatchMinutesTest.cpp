@@ -344,3 +344,23 @@ TEST(MatchClockTest, ResumesFromThePersistedStart) {
     const MatchClock clock = firstHalfClock();
     EXPECT_EQ(readClock(clock, kKickoff + 25min).regular, 25min);
 }
+
+TEST(MatchMinutesTest, SecondYellowIsCountedNotGuessedFromNeighbours) {
+    // A yellow and a straight red at the same minute: a red card, not a second yellow.
+    const std::vector straight{card(MatchEventType::Yellow, 30, 4),
+                               card(MatchEventType::Red, 30, 4)};
+    EXPECT_EQ(secondYellowReds(straight), (std::vector<bool>{false, false}));
+    // Two yellows, then the red: a second yellow, whatever lies between and whatever the minutes.
+    const std::vector second{card(MatchEventType::Yellow, 10, 4), goal(20, 9),
+                             card(MatchEventType::Yellow, 50, 4), card(MatchEventType::Red, 50, 4)};
+    EXPECT_EQ(secondYellowReds(second), (std::vector<bool>{false, false, false, true}));
+    // The yellows of another player do not count.
+    const std::vector other{card(MatchEventType::Yellow, 10, 5),
+                            card(MatchEventType::Yellow, 20, 5), card(MatchEventType::Red, 30, 4)};
+    EXPECT_EQ(secondYellowReds(other), (std::vector<bool>{false, false, false}));
+    // Counted in replay order (by minute), not in the order given.
+    const std::vector unordered{card(MatchEventType::Red, 60, 4),
+                                card(MatchEventType::Yellow, 10, 4),
+                                card(MatchEventType::Yellow, 50, 4)};
+    EXPECT_EQ(secondYellowReds(unordered), (std::vector<bool>{true, false, false}));
+}

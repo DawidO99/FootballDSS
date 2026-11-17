@@ -84,14 +84,23 @@ TestCase {
         verify(tile.Accessible.name.includes("Igor Gol"));
     }
 
-    function test_yellow_card_shows_while_on_the_pitch() {
+    function test_yellow_card_is_an_icon_and_a_word() {
         const tile = createTile();
         const yellow = findChild(tile, "tileYellow");
+        const word = findChild(tile, "tileYellowText");
         verify(!yellow.visible);
+        verify(!word.visible);
+        verify(!tile.Accessible.name.includes(tile.yellowCardText));
         tile.yellowCards = 1;
         verify(yellow.visible);
+        verify(word.visible);
+        compare(word.text, tile.yellowCardText);
+        verify(tile.yellowCardText.length > 0);
+        verify(tile.Accessible.name.includes(tile.yellowCardText));
+        // Sent off: the word of the state replaces the yellow card.
         tile.stateKey = "sentOff";
         verify(!yellow.visible);
+        verify(!word.visible);
     }
 
     function test_name_is_plain_text() {

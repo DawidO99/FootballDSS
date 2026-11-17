@@ -22,6 +22,10 @@ Item {
     readonly property bool started: matchDay.statusKey === "live" || matchDay.statusKey === "finished"
     readonly property bool choosing: matchDay.pendingAction.length > 0
     readonly property bool dialogOpen: startDialog.visible || leaveQuestion.visible
+    // The single-letter accelerators and Ctrl+Z stay off while a dialog (of this view or any other
+    // popup, e.g. Change PIN) holds the focus, and while a text field does: there the letters are
+    // typed and Ctrl+Z undoes the typing (P13 review).
+    readonly property bool shortcutsFree: root.visible && !root.dialogOpen && !root.focusInPopup(root.Window.activeFocusItem) && !root.isTextInput(root.Window.activeFocusItem)
     readonly property bool fullScreen: root.windowVisibilityBefore >= 0
     // A live match: leaving asks first (Main.qml), as long as this section is the one shown.
     readonly property bool hasUnsavedChanges: matchDay.guardLeaving && root.visible
@@ -33,6 +37,19 @@ Item {
     // The answer to askBeforeLeaving(): leave the live match, or stay.
     signal leaveAccepted
     signal leaveCancelled
+
+    function isTextInput(item) {
+        return item !== null && item !== undefined && "cursorPosition" in item && "selectAll" in item;
+    }
+
+    function focusInPopup(item) {
+        const overlay = root.Overlay.overlay;
+        for (let current = item; current; current = current.parent) {
+            if (current === overlay)
+                return true;
+        }
+        return false;
+    }
 
     function askBeforeLeaving() {
         leaveQuestion.open();
@@ -110,40 +127,45 @@ Item {
     Shortcut {
         id: goalShortcut
 
+        objectName: "goalShortcut"
         sequence: "G"
-        enabled: root.visible && !root.dialogOpen && matchDay.canRecordEvents
+        enabled: root.shortcutsFree && matchDay.canRecordEvents
         onActivated: matchDay.beginAction("goal")
     }
 
     Shortcut {
         id: opponentGoalShortcut
 
+        objectName: "opponentGoalShortcut"
         sequence: "O"
-        enabled: root.visible && !root.dialogOpen && matchDay.canRecordEvents
+        enabled: root.shortcutsFree && matchDay.canRecordEvents
         onActivated: matchDay.recordOpponentGoal()
     }
 
     Shortcut {
         id: yellowShortcut
 
+        objectName: "yellowShortcut"
         sequence: "Y"
-        enabled: root.visible && !root.dialogOpen && matchDay.canRecordEvents
+        enabled: root.shortcutsFree && matchDay.canRecordEvents
         onActivated: matchDay.beginAction("yellow")
     }
 
     Shortcut {
         id: redShortcut
 
+        objectName: "redShortcut"
         sequence: "R"
-        enabled: root.visible && !root.dialogOpen && matchDay.canRecordEvents
+        enabled: root.shortcutsFree && matchDay.canRecordEvents
         onActivated: matchDay.beginAction("red")
     }
 
     Shortcut {
         id: subShortcut
 
+        objectName: "subShortcut"
         sequence: "S"
-        enabled: root.visible && !root.dialogOpen && matchDay.canSubstitute
+        enabled: root.shortcutsFree && matchDay.canSubstitute
         onActivated: matchDay.beginAction("sub")
     }
 
@@ -152,23 +174,25 @@ Item {
 
         objectName: "undoShortcut"
         sequence: "Ctrl+Z"
-        enabled: root.visible && !root.dialogOpen && matchDay.canUndo
+        enabled: root.shortcutsFree && matchDay.canUndo
         onActivated: root.undo()
     }
 
     Shortcut {
         id: fullScreenShortcut
 
+        objectName: "fullScreenShortcut"
         sequence: "F11"
-        enabled: root.visible && !root.dialogOpen && matchDay.hasMatch
+        enabled: root.shortcutsFree && matchDay.hasMatch
         onActivated: root.toggleFullScreen()
     }
 
     Shortcut {
         id: cancelShortcut
 
+        objectName: "cancelShortcut"
         sequence: "Esc"
-        enabled: root.visible && !root.dialogOpen && (root.choosing || root.fullScreen)
+        enabled: root.shortcutsFree && (root.choosing || root.fullScreen)
         onActivated: root.cancelOrExit()
     }
 
@@ -418,14 +442,21 @@ Item {
 
             // Always visible; disabled when there is nothing to undo.
             SecondaryButton {
+                id: undoButton
+
                 objectName: "undoButton"
                 touch: true
                 enabled: matchDay.canUndo
                 text: qsTr("Undo")
-                ToolTip.visible: hovered
-                ToolTip.delay: Theme.tooltipDelay
-                ToolTip.text: matchDay.canUndo ? qsTr("Undo: %1 (%2)").arg(matchDay.undoText).arg(undoShortcut.nativeText) : qsTr("Nothing to undo (%1)").arg(undoShortcut.nativeText)
                 onClicked: root.undo()
+
+                // The undone action names players and the opponent: user data.
+                PlainToolTip {
+                    objectName: "undoToolTip"
+                    visible: undoButton.hovered
+                    delay: Theme.tooltipDelay
+                    text: matchDay.canUndo ? qsTr("Undo: %1 (%2)").arg(matchDay.undoText).arg(undoShortcut.nativeText) : qsTr("Nothing to undo (%1)").arg(undoShortcut.nativeText)
+                }
             }
         }
 
@@ -623,6 +654,7 @@ Item {
 
         objectName: "leaveQuestion"
         size: AppDialog.Small
+        touch: true
         title: qsTr("Leave the live match?")
         primaryText: qsTr("Leave")
         secondaryText: qsTr("Stay")

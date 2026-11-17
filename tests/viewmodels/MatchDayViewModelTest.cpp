@@ -5,8 +5,10 @@
 #include "core/domain/Match.hpp"
 #include "core/domain/Opponent.hpp"
 #include "core/domain/Player.hpp"
+#include "data/db/DatabaseManager.hpp"
 #include "services/CalendarService.hpp"
 #include "services/LineupService.hpp"
+#include "services/MatchDayService.hpp"
 #include "services/SquadService.hpp"
 
 #include <QStringList>
@@ -327,4 +329,66 @@ TEST_F(MatchDayViewModelTest, TheLiveMatchOpensFirst) {
     }
     const auto vm = open();
     EXPECT_EQ(vm->matchId(), m_match.value);
+}
+
+// --- P13 review ---
+
+TEST_F(MatchDayViewModelTest, AYellowThenAStraightRedIsARedCard) {
+    const auto vm = kickedOff();
+    m_clock->advance(10min);
+    vm->beginAction("yellow");
+    ASSERT_TRUE(vm->choosePlayer(player(4)));
+    vm->beginAction("red");
+    ASSERT_TRUE(vm->choosePlayer(player(4)));
+    EXPECT_EQ(vm->timeline()->value(0, "typeKey"), "red");
+    EXPECT_EQ(vm->timeline()->value(0, "typeText"), "Red card");
+    EXPECT_EQ(vm->undoText(), "Red card · Gracz Numer04 11'");
+}
+
+TEST_F(MatchDayViewModelTest, AnInconsistentHistoryIsShownAsAnError) {
+    const auto vm = kickedOff();
+    // Player 1 starts, so he cannot come on.
+    ASSERT_TRUE(m_db->execSql(QStringLiteral("INSERT INTO match_event (match_id, minute, type, "
+                                             "player_id, related_player_id) VALUES (%1, 5, 'sub', "
+                                             "%2, %3)")
+                                  .arg(m_match.value)
+                                  .arg(player(1))
+                                  .arg(player(2)),
+                              "test")
+                    .has_value());
+    vm->reload();
+    EXPECT_FALSE(vm->hasMatch());
+    EXPECT_EQ(vm->loadError().left(43), "The history of this match is inconsistent: ");
+    EXPECT_EQ(vm->pitch()->rowCount(), 0);
+}
+
+TEST_F(MatchDayViewModelTest, UndoOfTheEndNamesTheOtherLiveMatch) {
+    const auto vm = kickedOff();
+    m_clock->advance(46min);
+    ASSERT_TRUE(vm->advanceClock());
+    ASSERT_TRUE(vm->advanceClock());
+    m_clock->advance(46min);
+    ASSERT_TRUE(vm->advanceClock());
+    ASSERT_EQ(vm->statusKey(), "finished");
+
+    OpponentDraft opponent;
+    opponent.name = "Inny Rywal";
+    MatchDraft other;
+    other.opponentId = registry().calendar().addOpponent(opponent).value();
+    other.date = kMatchDate;
+    const MatchId otherMatch = registry().calendar().addMatch(m_team, other).value();
+    Lineup lineup = emptyLineup(*findFormation("4-4-2"));
+    for (std::size_t slot = 0; slot < lineup.pitchSlots.size(); ++slot) {
+        lineup.pitchSlots[slot].player = m_players[slot];
+    }
+    ASSERT_TRUE(registry().lineup().save(otherMatch, lineup).has_value());
+    ASSERT_TRUE(registry().matchDay().start(otherMatch, 45, 4).has_value());
+
+    Messages errors(vm.get(), &MatchDayViewModel::errorOccurred);
+    EXPECT_EQ(vm->undo(), "");
+    ASSERT_EQ(errors.texts().size(), 1);
+    EXPECT_EQ(errors.texts().front(),
+              "Another match of this team is live. First finish it, or undo "
+              "its start, in the match against Inny Rywal.");
+    EXPECT_EQ(vm->statusKey(), "finished");
 }

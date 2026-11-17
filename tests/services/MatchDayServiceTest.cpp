@@ -9,8 +9,15 @@
 #include "data/repositories/MatchRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
+#include "data/repositories/StaffRepository.hpp"
 #include "data/repositories/TrainingRepository.hpp"
+#include "services/AuthService.hpp"
 #include "services/LineupService.hpp"
+#include "services/Session.hpp"
+
+#include <QSqlQuery>
+#include <QSqlRecord>
+#include <QStringList>
 
 #include <gtest/gtest.h>
 
@@ -31,6 +38,7 @@ namespace {
 // 13, 14.
 constexpr MatchId kFinished{5};
 constexpr MatchId kOtherPlanned{6};
+constexpr MatchId kMatchId{1};
 
 PlayerId pid(std::int64_t id) { return PlayerId{id}; }
 
@@ -442,4 +450,291 @@ TEST_F(MatchDayServiceTest, StateOfAMatchWithoutMatchDayData) {
     EXPECT_EQ(state->situation.goalsFor, 1);
     EXPECT_FALSE(state->lastAction.has_value());
     EXPECT_EQ(state->match.opponentName, "Rywal");
+}
+
+// --- P13 review ---
+
+namespace {
+
+// Every row Match Day writes, as text: equal before and after a failed action means nothing of it
+// stayed.
+QString snapshot(const DatabaseManager& db) {
+    QStringList rows;
+    for (const char* table :
+         {"match", "match_event", "appearance", "match_live", "match_clock_step"}) {
+        QSqlQuery query(db.database());
+        EXPECT_TRUE(query.exec(
+            QStringLiteral("SELECT * FROM %1 ORDER BY id").arg(QLatin1StringView(table))));
+        while (query.next()) {
+            QStringList values{QString::fromLatin1(table)};
+            for (int column = 0; column < query.record().count(); ++column) {
+                values << (query.value(column).isNull() ? QStringLiteral("NULL")
+                                                        : query.value(column).toString());
+            }
+            rows << values.join(u'|');
+        }
+    }
+    return rows.join(u'\n');
+}
+
+} // namespace
+
+TEST_F(MatchDayServiceTest, UndoOfTheEndIsRefusedWhileAnotherMatchIsLive) {
+    // Codex: finish match 1, start match 6, then undo the end of match 1.
+    startMatch();
+    advance();
+    m_clock.advance(46min);
+    advance();
+    m_clock.advance(15min);
+    advance();
+    m_clock.advance(46min);
+    advance();
+    ASSERT_EQ(m_matches->get(kMatch)->status, MatchStatus::Finished);
+    ASSERT_TRUE(m_lineups->saveForMatch(kOtherPlanned, lineup()));
+    ASSERT_TRUE(m_service->start(kOtherPlanned, 45, 4).has_value());
+
+    const QString before = snapshot(*m_db);
+    expectError(m_service->undoLast(kMatch), ErrorCode::Conflict, "undo_end_another_live");
+    EXPECT_EQ(snapshot(*m_db), before);
+    EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Finished);
+
+    // Once the other match is planned again, the end can be undone.
+    ASSERT_TRUE(m_service->cancelStart(kOtherPlanned).has_value());
+    const auto undone = m_service->undoLast(kMatch);
+    ASSERT_TRUE(undone.has_value()) << undone.error().detail;
+    EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Live);
+}
+
+TEST_F(MatchDayServiceTest, AnInconsistentHistoryIsAnErrorNotALineupAtNil) {
+    startMatch();
+    advance();
+    // Player 1 starts, so he cannot come on.
+    ASSERT_TRUE(
+        sql("INSERT INTO match_event (match_id, minute, type, player_id, related_player_id) "
+            "VALUES (1, 5, 'sub', 1, 2)"));
+    expectError(m_service->state(kMatch), ErrorCode::Database, "match_history");
+    m_clock.advance(10min);
+    expectError(m_service->recordGoal(kMatch, pid(9), std::nullopt), ErrorCode::Database,
+                "match_history");
+    // A match Match Day never started still shows its lineup and the stored score.
+    EXPECT_TRUE(m_service->state(kFinished).has_value());
+}
+
+TEST_F(MatchDayServiceTest, AYellowAndAStraightRedAreTwoActions) {
+    startMatch();
+    advance();
+    m_clock.advance(10min);
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value());
+    ASSERT_TRUE(m_service->recordRed(kMatch, pid(4)).has_value()); // the same minute
+    EXPECT_EQ(read().lastAction->kind, MatchDayAction::Kind::Event);
+    const auto undone = m_service->undoLast(kMatch);
+    ASSERT_TRUE(undone.has_value());
+    EXPECT_EQ(undone->kind, MatchDayAction::Kind::Event);
+    EXPECT_EQ(undone->event->type, MatchEventType::Red);
+    EXPECT_EQ(eventCount(), 1);
+}
+
+TEST_F(MatchDayServiceTest, ASecondYellowIsFoundByCountingNotByNeighbours) {
+    startMatch();
+    advance();
+    m_clock.advance(5min);
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value());
+    m_clock.advance(10min);
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt).has_value());
+    m_clock.advance(10min);
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value()); // second: yellow + red
+    const MatchDayState state = read();
+    ASSERT_EQ(state.lastAction->kind, MatchDayAction::Kind::SecondYellow);
+    EXPECT_EQ(state.lastAction->event->minute, 25);
+    const auto undone = m_service->undoLast(kMatch);
+    ASSERT_TRUE(undone.has_value());
+    // The goal and the first yellow stay.
+    EXPECT_EQ(eventCount(), 2);
+    expectMinutes(4, 0, std::nullopt);
+}
+
+// Atomicity: a forced SQL failure at each point of an action leaves the database as before it.
+TEST_F(MatchDayServiceTest, AFailureBeforeTheMinutesAreWrittenKeepsTheEventOut) {
+    startMatch();
+    advance();
+    m_clock.advance(10min);
+    const QString before = snapshot(*m_db);
+    ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_minutes BEFORE INSERT ON appearance "
+                    "BEGIN SELECT RAISE(ABORT, 'forced'); END"));
+    EXPECT_FALSE(m_service->recordGoal(kMatch, pid(9), std::nullopt).has_value());
+    EXPECT_EQ(snapshot(*m_db), before);
+    ASSERT_TRUE(sql("DROP TRIGGER fail_minutes"));
+    EXPECT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt).has_value());
+}
+
+TEST_F(MatchDayServiceTest, AFailureBetweenTheSecondYellowAndItsRedKeepsBothOut) {
+    startMatch();
+    advance();
+    m_clock.advance(5min);
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value());
+    m_clock.advance(10min);
+    const QString before = snapshot(*m_db);
+    ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_red BEFORE INSERT ON match_event "
+                    "WHEN NEW.type = 'red' BEGIN SELECT RAISE(ABORT, 'forced'); END"));
+    EXPECT_FALSE(m_service->recordYellow(kMatch, pid(4)).has_value());
+    EXPECT_EQ(snapshot(*m_db), before);
+    ASSERT_TRUE(sql("DROP TRIGGER fail_red"));
+    EXPECT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value());
+    EXPECT_EQ(eventCount(), 3);
+}
+
+TEST_F(MatchDayServiceTest, AFailureAtTheEndKeepsTheMatchLive) {
+    startMatch();
+    advance();
+    m_clock.advance(46min);
+    advance();
+    m_clock.advance(15min);
+    advance();
+    m_clock.advance(46min);
+    const QString before = snapshot(*m_db);
+    ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_end BEFORE UPDATE ON match "
+                    "WHEN NEW.status = 'finished' BEGIN SELECT RAISE(ABORT, 'forced'); END"));
+    EXPECT_FALSE(m_service->advanceClock(kMatch).has_value());
+    EXPECT_EQ(snapshot(*m_db), before);
+    EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Live);
+    ASSERT_TRUE(sql("DROP TRIGGER fail_end"));
+    advance();
+    EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Finished);
+}
+
+TEST_F(MatchDayServiceTest, AFailureWhileUndoingKeepsWhatWasThere) {
+    startMatch();
+    advance();
+    m_clock.advance(5min);
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value());
+    m_clock.advance(10min);
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4)).has_value());
+    // The red row goes first; the failure comes at the yellow one.
+    QString before = snapshot(*m_db);
+    ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_undo BEFORE DELETE ON match_event "
+                    "WHEN OLD.type = 'yellow' BEGIN SELECT RAISE(ABORT, 'forced'); END"));
+    EXPECT_FALSE(m_service->undoLast(kMatch).has_value());
+    EXPECT_EQ(snapshot(*m_db), before);
+    ASSERT_TRUE(sql("DROP TRIGGER fail_undo"));
+
+    // Undo of the end: the step goes first; the failure comes when the match is made live again.
+    m_clock.advance(31min);
+    advance();
+    m_clock.advance(15min);
+    advance();
+    m_clock.advance(46min);
+    advance();
+    before = snapshot(*m_db);
+    ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_reopen BEFORE UPDATE ON match "
+                    "WHEN NEW.status = 'live' BEGIN SELECT RAISE(ABORT, 'forced'); END"));
+    EXPECT_FALSE(m_service->undoLast(kMatch).has_value());
+    EXPECT_EQ(snapshot(*m_db), before);
+    ASSERT_TRUE(sql("DROP TRIGGER fail_reopen"));
+    EXPECT_TRUE(m_service->undoLast(kMatch).has_value());
+}
+
+namespace {
+
+// The services of Match Day on one database, as the app builds them.
+struct MatchDayStack {
+    explicit MatchDayStack(DatabaseManager& db, FakeClock& clock)
+        : staff(db), clubs(db), lineups(db), matches(db), live(db), opponents(db), players(db),
+          availability(db), training(db), auth(db, staff, session, clock, 4),
+          lineupService(db, lineups, matches, opponents, players, availability, training, session,
+                        clock),
+          matchDay(db, matches, live, lineups, clubs, opponents, players, lineupService, session,
+                   clock) {}
+
+    StaffRepository staff;
+    ClubRepository clubs;
+    LineupRepository lineups;
+    MatchRepository matches;
+    MatchLiveRepository live;
+    OpponentRepository opponents;
+    PlayerRepository players;
+    AvailabilityRepository availability;
+    TrainingRepository training;
+    Session session;
+    AuthService auth;
+    LineupService lineupService;
+    MatchDayService matchDay;
+};
+
+class MatchDayRestartTest : public TempDatabaseTest {
+protected:
+    [[nodiscard]] std::unique_ptr<DatabaseManager> open() const {
+        auto db = DatabaseManager::open(databasePath(), options());
+        EXPECT_TRUE(db.has_value()) << db.error().detail;
+        return db ? std::move(*db) : nullptr;
+    }
+
+    FakeClock m_clock;
+};
+
+} // namespace
+
+// Close the app at 20:00 and open it 5 minutes later: a new DatabaseManager on the same file, new
+// services; the clock shows 25:00 and the match goes on.
+TEST_F(MatchDayRestartTest, AFileDatabaseResumesTheRunningMatch) {
+    StaffUserId coach;
+    {
+        auto db = open();
+        ASSERT_NE(db, nullptr);
+        const QSqlDatabase raw = db->database();
+        ASSERT_TRUE(run(raw, QStringLiteral("INSERT INTO club (id, name) VALUES (1, 'KS Test')")));
+        ASSERT_TRUE(
+            run(raw, QStringLiteral("INSERT INTO team (id, club_id, name, category, season) "
+                                    "VALUES (1, 1, 'Seniorzy', 'senior', '2026/27')")));
+        ASSERT_TRUE(run(raw, QStringLiteral("INSERT INTO opponent (id, name, name_key) "
+                                            "VALUES (1, 'Rywal', 'rywal')")));
+        ASSERT_TRUE(run(raw, QStringLiteral("INSERT INTO match (id, team_id, opponent_id, date, "
+                                            "venue) VALUES (1, 1, 1, '2026-11-01', 'home')")));
+        for (int id = 1; id <= 14; ++id) {
+            ASSERT_TRUE(
+                run(raw,
+                    QStringLiteral("INSERT INTO player (id, team_id, first_name, last_name, "
+                                   "shirt_number, primary_position) VALUES (?, 1, 'P', ?, "
+                                   "?, ?)"),
+                    {id, QStringLiteral("Player%1").arg(id), id,
+                     id == 1 ? QStringLiteral("gk") : QStringLiteral("cm")}));
+        }
+        MatchDayStack stack(*db, m_clock);
+        StaffUserDraft draft;
+        draft.name = "Trener";
+        draft.role = Role::Coach;
+        const auto hash = stack.auth.hashPin("1234");
+        ASSERT_TRUE(hash.has_value());
+        coach = stack.staff.create(draft, *hash).value();
+        ASSERT_TRUE(stack.auth.login(coach, "1234").has_value());
+        Lineup lineup = emptyLineup(*findFormation("4-4-2"));
+        for (std::size_t slot = 0; slot < lineup.pitchSlots.size(); ++slot) {
+            lineup.pitchSlots[slot].player = pid(static_cast<std::int64_t>(slot) + 1);
+        }
+        lineup.bench = {pid(12), pid(13), pid(14)};
+        ASSERT_TRUE(stack.lineups.saveForMatch(kMatchId, lineup));
+        ASSERT_TRUE(stack.matchDay.start(kMatchId, 45, 4).has_value());
+        ASSERT_TRUE(stack.matchDay.advanceClock(kMatchId).has_value());
+        m_clock.advance(12min);
+        ASSERT_TRUE(stack.matchDay.recordGoal(kMatchId, pid(9), std::nullopt).has_value());
+        m_clock.advance(8min); // 20:00, the app closes
+    }
+    m_clock.advance(5min);
+
+    auto db = open();
+    ASSERT_NE(db, nullptr);
+    MatchDayStack stack(*db, m_clock);
+    ASSERT_TRUE(stack.auth.login(coach, "1234").has_value());
+    EXPECT_EQ(stack.matchDay.liveMatch(TeamId{1}).value(), kMatchId);
+    const auto state = stack.matchDay.state(kMatchId);
+    ASSERT_TRUE(state.has_value()) << state.error().detail;
+    ASSERT_TRUE(state->clock.has_value());
+    const ClockReading reading = readClock(*state->clock, m_clock.now());
+    EXPECT_EQ(reading.phase, MatchPhase::FirstHalf);
+    EXPECT_EQ(reading.regular, 25min);
+    EXPECT_EQ(state->situation.goalsFor, 1);
+    ASSERT_EQ(state->events.size(), 1U);
+    EXPECT_EQ(state->events.front().minute, 12);
+    ASSERT_TRUE(stack.matchDay.recordGoal(kMatchId, pid(10), std::nullopt).has_value());
+    EXPECT_EQ(stack.matches.listEvents(kMatchId)->back().minute, 25);
+    EXPECT_EQ(stack.matches.listAppearances(kMatchId)->size(), 11U);
 }

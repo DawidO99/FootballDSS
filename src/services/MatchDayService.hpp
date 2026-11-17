@@ -31,7 +31,7 @@ class Session;
 struct MatchDayAction {
     enum class Kind { Event, SecondYellow, ClockStep };
     Kind kind = Kind::Event;
-    // Event and SecondYellow (the yellow card of the two rows).
+    // Event; for SecondYellow the second yellow card of the player (the red row goes with it).
     std::optional<core::MatchEvent> event;
     // ClockStep.
     std::optional<core::ClockStep> step;
@@ -75,8 +75,13 @@ struct MatchDayStartCheck {
 //   break [match_not_running]; going back to planned after the kick-off [match_started].
 // - InvalidInput: half length outside 10–60 [half_length]; an event that does not fit the match
 //   [player_unknown, player_missing, same_player, player_not_on_pitch, player_not_on_bench,
-//   player_substituted, player_sent_off, minute_out_of_range, after_final_minute].
+//   player_substituted, player_sent_off, minute_out_of_range, after_final_minute]; undoing the end
+//   of the match while another match of the team is live [undo_end_another_live] (Conflict).
 // - NotFound: nothing to undo [nothing_to_undo].
+// - Database: stored events of a started match that do not fit its lineup [match_history]; also
+// from
+//   state(), which never shows such a match as its lineup at 0:0. Matches that Match Day did not
+//   start (no match_live row) show the lineup and the stored score instead.
 class MatchDayService {
 public:
     MatchDayService(data::DatabaseManager& db, data::MatchRepository& matches,

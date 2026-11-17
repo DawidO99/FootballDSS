@@ -72,7 +72,9 @@ Record a short GIF of Match Day. Describe "events as the single source of truth"
    opens Match Day), `src/data/repositories/MatchRepository.*` (`setStatus`, `findLive`, `added_time`),
    `src/data/repositories/MatchLiveRepository.*`, `src/viewmodels/ErrorPresenter.cpp`,
    `ui/components/Icon.qml`, `ui/theme/Theme.qml`, `ui/views/ComponentGalleryView.qml`,
-   `ui/components/MatchEditorDialog.qml` (the Calendar entry), `docs/BACKLOG.md`, `src/data/CMakeLists.txt`,
+   `ui/components/MatchEditorDialog.qml` (the Calendar entry), `ui/components/AppDialog.qml` (`touch`
+   variant, review), `src/viewmodels/MatchDayTexts.hpp/.cpp` (the `tr()` texts of Match Day: minutes,
+   clock, phases, events, player states), `docs/BACKLOG.md`, `src/data/CMakeLists.txt`,
    `src/core/domain/Enums.*` and `MatchEvent.hpp` (`ClockStep`, `addedTime`), the schema-version tests
    (`MigrationsTest`, `SchemaTest`, `DatabaseManagerTest`, `BackupTest`, `EnumsSchemaTest`).
 2. **Migration 0002**: `match_live` (`id`, `match_id` UNIQUE → `match` CASCADE, `half_length_min` 10–60),
@@ -111,3 +113,24 @@ Record a short GIF of Match Day. Describe "events as the single source of truth"
     the squad count as errors.
 15. **Read-only roles** see the live match; the view reads it again when shown. Recomputing keeps the
     rating and RPE of `appearance` (P14); a substitute takes the position of the player going off.
+16. **Review (Codex)**:
+    - *Undo of the end with another live match*: refused (`Conflict`, `undo_end_another_live`); the
+      viewmodel names the other match ("First finish it, or undo its start, in the match against …").
+      Taking the other match back to planned makes the undo possible again.
+    - *Undo tooltip*: a `PlainToolTip` (it names players and the opponent).
+    - *Inconsistent history*: a match with `match_live` whose stored events do not fit its lineup is an
+      explicit error (`Database`, `match_history`, shown as the load error), never its lineup at 0:0;
+      also for every action on it. Only matches without `match_live` (data from outside Match Day) show
+      the lineup and the stored score.
+    - *Second yellow*: recognised by counting the yellow cards of the player before a `red` row without
+      a related player, in replay order (`core::secondYellowReds`), not by neighbouring rows or minutes;
+      a yellow and a straight red at the same minute is a red card. Its undo removes the red row and
+      that second yellow by id (`MatchRepository::deleteEvent`).
+    - *Dialogs*: `AppDialog.touch` gives the header and footer buttons `Theme.hitTouch`; the start dialog
+      and the leave question use it, and qml_smoke measures them.
+    - *Atomicity*: tests force an SQL failure (temporary triggers) after the event is written, between a
+      second yellow and its red, at the end of the match and while undoing; the database stays as before
+      the action. Restart: a file database closed and opened again with new services resumes the clock.
+    - *Yellow card on a tile*: icon and the words "Yellow card", also in the accessible name.
+    - *Shortcuts* G/O/Y/R/S/Ctrl+Z (and F11, Esc) are off while any dialog or popup holds the focus and
+      while a text field does; qml_smoke checks both.
