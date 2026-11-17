@@ -507,7 +507,8 @@ QString MatchDayViewModel::actionText(const services::MatchDayAction& action) co
     case services::MatchDayAction::Kind::ClockStep:
         return action.step ? MatchDayTexts::clockStepName(*action.step, periods) : QString{};
     case services::MatchDayAction::Kind::Finish:
-        return MatchDayTexts::finishName(m_state && m_state->clock && m_state->clock->endedEarly);
+        return MatchDayTexts::finishName(m_state && m_state->clock &&
+                                         m_state->clock->endedEarlyAt.has_value());
     case services::MatchDayAction::Kind::Note: {
         if (!action.note) {
             return {};
@@ -538,6 +539,22 @@ void MatchDayViewModel::rebuildRows() {
     const int currentMinute = now ? now->eventTime.minute : 0;
     m_rowsMinute = currentMinute;
 
+    // The players of a pending action are those on the pitch (or the bench) at its minute, which
+    // may be in the past (P13 re-review): the match replayed up to that time.
+    std::optional<core::MatchSituation> atMinute;
+    std::optional<core::MatchTime> pendingAt;
+    if (m_pending != Pending::None && m_state->clock) {
+        QString ignored;
+        pendingAt = pendingTime(ignored);
+        if (pendingAt) {
+            const std::vector<core::MatchEventDraft> drafts(m_state->events.begin(),
+                                                            m_state->events.end());
+            if (auto replayed = core::situationAt(m_state->sheet, drafts, *pendingAt)) {
+                atMinute = std::move(*replayed);
+            }
+        }
+    }
+
     QList<QVariantList> pitchRows;
     QList<QVariantList> benchRows;
     QList<QVariantList> offRows;
@@ -549,6 +566,8 @@ void MatchDayViewModel::rebuildRows() {
             const int end = player.minuteOff.value_or(currentMinute);
             minutesText = QStringLiteral("%1'").arg(std::max(0, end - *player.minuteOn));
         }
+        const core::PlayerInMatch* then = atMinute ? atMinute->find(player.player) : &player;
+        const core::PlayerMatchState stateThen = then ? then->state : player.state;
         bool selectable = false;
         switch (m_pending) {
         case Pending::None:
@@ -558,15 +577,24 @@ void MatchDayViewModel::rebuildRows() {
         case Pending::Yellow:
         case Pending::Red:
         case Pending::SubOff:
-            selectable = player.state == core::PlayerMatchState::OnPitch;
+            selectable = stateThen == core::PlayerMatchState::OnPitch;
             break;
         case Pending::Assist:
             selectable =
-                player.state == core::PlayerMatchState::OnPitch && player.player != m_pendingFirst;
+                stateThen == core::PlayerMatchState::OnPitch && player.player != m_pendingFirst;
             break;
         case Pending::SubOn:
-            selectable = player.state == core::PlayerMatchState::Bench;
+            selectable = stateThen == core::PlayerMatchState::Bench;
             break;
+        }
+        // Chosen by where the player was at that minute, not where they are now: say so.
+        QString historyText;
+        if (selectable && pendingAt && stateThen != player.state) {
+            const QString minute =
+                MatchDayTexts::minuteText(pendingAt->minute, pendingAt->addedTime);
+            historyText = stateThen == core::PlayerMatchState::OnPitch
+                              ? tr("At %1: on the pitch").arg(minute)
+                              : tr("At %1: on the bench").arg(minute);
         }
         QVariantList row{QVariant::fromValue(player.player.value),
                          info ? shirtNumberValue(info->shirtNumber) : QVariant{},
@@ -580,7 +608,8 @@ void MatchDayViewModel::rebuildRows() {
                          player.yellowCards,
                          player.goals,
                          minutesText,
-                         selectable};
+                         selectable,
+                         historyText};
         switch (player.state) {
         case core::PlayerMatchState::OnPitch:
             pitchRows.append(std::move(row));
@@ -804,6 +833,8 @@ void MatchDayViewModel::setPendingMinute(const QString& text) {
         return;
     }
     m_pendingMinute = text;
+    // The players available at the minute typed.
+    rebuildRows();
     emit pendingMinuteChanged();
 }
 

@@ -75,8 +75,9 @@ struct MatchClock {
     std::vector<PeriodTimes> periods;
     // The match was finished: after the last part, or early (fewer than 7 players).
     bool finished = false;
-    // Finished early: the final minute is the minute of the end, not parts × length.
-    bool endedEarly = false;
+    // Finished with fewer than 7 players: the final minute (earlyEndMinute()); empty for a
+    // normal end, whose final minute is parts × length.
+    std::optional<int> endedEarlyAt;
 
     friend bool operator==(const MatchClock&, const MatchClock&) = default;
 };
@@ -97,9 +98,13 @@ struct ClockStep {
 // Records a step; a step out of order is ignored.
 void applyStep(MatchClock& clock, ClockStep step, Timestamp at);
 // The minute the match ended: parts × length (whatever the stoppage time, or a last part ended a
-// little before its length), or for a match ended early the minute its last part ended, at most the
-// end of that part.
+// little before its length), or endedEarlyAt for a match ended early.
 [[nodiscard]] int finalMinute(const MatchClock& clock) noexcept;
+// The final minute of a match ended now with fewer than 7 players: while a part runs, the minute of
+// the clock (at most the end of the part); in a break, the end of the part played. Never before a
+// stored event, so every appearance ends at or after it started.
+[[nodiscard]] int earlyEndMinute(const MatchClock& clock, Timestamp now,
+                                 std::span<const MatchEventDraft> events) noexcept;
 
 // What an event stores.
 struct MatchTime {
@@ -238,6 +243,11 @@ replayMatch(const MatchSheet& sheet, std::span<const MatchEventDraft> events,
 [[nodiscard]] std::vector<bool> secondYellowReds(std::span<const MatchEventDraft> events);
 
 [[nodiscard]] int onPitchCount(const MatchSituation& situation) noexcept;
+
+// The match at a time: the events up to it in the order of the match (an event entered at that
+// time comes after those already there). For choosing the players of an event entered late.
+[[nodiscard]] std::expected<MatchSituation, MatchEventError>
+situationAt(const MatchSheet& sheet, std::span<const MatchEventDraft> events, MatchTime time);
 
 struct MatchMinutes {
     // The starters and every player who came on, in the order of the situation. Starters from 0,

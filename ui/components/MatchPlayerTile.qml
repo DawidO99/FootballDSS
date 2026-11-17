@@ -17,6 +17,8 @@ import QtQuick.Layouts
 //   goals, yellowCards: int  a yellow card shows its icon and the words "Yellow card"
 //   choosing: bool          an action waits for a player
 //   selectable: bool        this tile fits that action
+//   historyText: string     where the player was at the minute of the action when that differs
+//                           from now ("At 11': on the pitch"); shown instead of the state
 //   clicked()               Enter/Return/Space click it when focused
 AbstractButton {
     id: root
@@ -32,6 +34,7 @@ AbstractButton {
     property int yellowCards: 0
     property bool choosing: false
     property bool selectable: false
+    property string historyText
     readonly property bool hasLeft: root.stateKey === "substitutedOff" || root.stateKey === "sentOff"
     // A yellow card is an icon and a word, never the colour alone (AGENTS section 6).
     readonly property bool showsYellow: root.yellowCards > 0 && root.stateKey !== "sentOff"
@@ -44,7 +47,7 @@ AbstractButton {
     focusPolicy: Qt.StrongFocus
     padding: Theme.spacing.s
     opacity: root.choosing && !root.selectable ? Theme.disabledOpacity : 1.0
-    Accessible.name: [root.fullName, root.stateText, root.showsYellow ? root.yellowCardText : ""].filter(part => part.length > 0).join(", ")
+    Accessible.name: [root.fullName, root.historyText.length > 0 ? root.historyText : root.stateText, root.showsYellow ? root.yellowCardText : ""].filter(part => part.length > 0).join(", ")
     Keys.onReturnPressed: root.clicked()
     Keys.onEnterPressed: root.clicked()
 
@@ -126,7 +129,7 @@ AbstractButton {
             Label {
                 objectName: "tileYellowText"
                 Layout.fillWidth: true
-                visible: root.showsYellow
+                visible: root.showsYellow && root.historyText.length === 0
                 text: root.yellowCardText
                 color: Theme.text
                 font.pixelSize: Theme.fontSize.caption
@@ -148,9 +151,20 @@ AbstractButton {
             }
 
             Label {
+                objectName: "tileHistory"
+                Layout.fillWidth: true
+                visible: root.historyText.length > 0
+                text: root.historyText
+                color: Theme.text
+                font.pixelSize: Theme.fontSize.caption
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+            }
+
+            Label {
                 objectName: "tileState"
                 Layout.fillWidth: true
-                visible: root.hasLeft
+                visible: root.hasLeft && root.historyText.length === 0
                 text: root.stateText
                 color: Theme.textMuted
                 font.pixelSize: Theme.fontSize.caption
@@ -159,7 +173,7 @@ AbstractButton {
 
             Item {
                 Layout.fillWidth: true
-                visible: !root.hasLeft && !root.showsYellow
+                visible: !root.hasLeft && !root.showsYellow && root.historyText.length === 0
             }
         }
     }

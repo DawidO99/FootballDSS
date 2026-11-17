@@ -177,7 +177,7 @@ the import can be undone.
 | `match` | `team_id` INTEGER, `opponent_id` INTEGER, `date` TEXT, `kickoff_time` TEXT *null*, `venue` TEXT, `competition` TEXT *null*, `goals_for` INTEGER *null*, `goals_against` INTEGER *null*, `status` TEXT (default `planned`), `formation` TEXT *null*, `import_id` INTEGER | |
 | `appearance` | `match_id` INTEGER, `player_id` INTEGER, `started` INTEGER 0/1 (default 0), `minute_on` INTEGER *null*, `minute_off` INTEGER *null*, `position` TEXT *null*, `rating` INTEGER *null* (1–10), `rpe` INTEGER *null* (0–10), `import_id` INTEGER | Minutes from Match Day, 0–130. UNIQUE (`match_id`, `player_id`) |
 | `match_event` | `match_id` INTEGER, `minute` INTEGER (0–130), `type` TEXT, `player_id` INTEGER *null*, `related_player_id` INTEGER *null*, `added_time` INTEGER *null* (≥ 1, since 0002), `seq` INTEGER *null* (≥ 1, since 0002) | `player_id` empty only for `opponent_goal`. Semantics below |
-| `match_live` | `match_id` INTEGER UNIQUE, `periods` INTEGER (1–4), `period_length` INTEGER (10–60), `finished_seq` INTEGER *null*, `ended_early` INTEGER 0/1 (default 0) | Since 0002 (P13): a match that Match Day has started, in its format; `periods` × `period_length` ≤ 130 |
+| `match_live` | `match_id` INTEGER UNIQUE, `periods` INTEGER (1–4), `period_length` INTEGER (10–60), `next_seq` INTEGER (default 1), `finished_seq` INTEGER *null*, `ended_early_minute` INTEGER *null* (0–130) | Since 0002 (P13): a match that Match Day has started, in its format; `periods` × `period_length` ≤ 130. `next_seq`: the seq of the next action, a counter that only grows |
 | `match_clock_step` | `match_id` INTEGER (→ `match_live.match_id`), `period` INTEGER (1–4), `kind` TEXT, `at` TEXT (UTC ISO datetime), `seq` INTEGER | Since 0002 (P13). `kind`: `start`, `end`; UNIQUE (`match_id`, `period`, `kind`) |
 | `match_note` | `match_id` INTEGER, `minute` INTEGER (0–130), `added_time` INTEGER *null* (≥ 1), `player_id` INTEGER *null*, `text` TEXT (1–500 after trimming), `seq` INTEGER *null* | Since 0002 (P13): a note of Match Day with its minute; never changes the score or the minutes. Plain text |
 | `training_session` | `team_id` INTEGER, `date` TEXT, `start_time` TEXT *null*, `duration_min` INTEGER (15–240), `type` TEXT, `note` TEXT *null*, `import_id` INTEGER | |
@@ -208,20 +208,26 @@ the import can be undone.
   45+1', 47:10 → 45+3'; in 3 × 30 "30+2'", "60+1'").
 - Order of the match: by `minute`; at the end of a part its added time (by `added_time`) comes before the
   same minute without it (the break or the start of the next part); then as entered.
-- Every action of Match Day (an event with its rows, a note, a clock step, the finish) has the next `seq`
-  of the match; undo takes back the highest `seq`, whatever its minute. Rows not written by Match Day
-  have it empty.
+- Every action of Match Day (an event with its rows, a note, a clock step, the finish) takes the next
+  `seq` of the match from `match_live.next_seq`, which only grows: no seq is used twice, not even after
+  undo or a deleted note. A note restored from its undo toast keeps its seq. Undo takes back the rows
+  with the highest `seq`, whatever their minute. Rows not written by Match Day have it empty.
 - Late entry: every action has a minute, the current one by default. Any minute already played can be
-  entered (not the future); the event then goes through a full replay, and one that a later event no
-  longer fits (e.g. a red card for a player who scored later) is refused, naming that later event.
+  entered (not the future); the players to choose are those on the pitch (or the bench) at that minute
+  (`core::situationAt`), marked when that differs from now. The event then goes through a full
+  replay, and one that a later event no longer fits (e.g. a red card for a player who scored later) is
+  refused, naming that later event.
 - Minutes of `appearance` are recomputed from the saved lineup and the events (`core::computeMatchMinutes`,
   the single source of truth): starters from 0, substitutes from their minute, a player sent off until
   the card, everyone else on the pitch until the final minute, which is `periods` × `period_length`
   whatever the stoppage time. While the match is live, players on the pitch have `minute_off` empty. A
   substituted player cannot come back; a sent-off player cannot be substituted. Rating and RPE are kept.
 - At least 7 players on the pitch (laws of the game, `core::kMinPlayersOnPitch`): with 7 left Match Day
-  warns; with fewer only the end of the match, notes and undo are possible. A match ended that way has
-  `ended_early` = 1 and its final minute is the minute of the end.
+  warns; with fewer only the end of the match, notes and undo are possible. Every end of the match
+  (the clock button, the banner, the dialog) goes one way: with fewer than 7 players it is early,
+  `ended_early_minute` = the minute of the end (while a part runs the clock, at most the end of the
+  part; in a break the end of the part played; never before a stored event); with 7 or more a normal
+  end at `periods` × `period_length` (then only at the end of the last part).
 
 `.tactic.json`: `{ "version": 1, "formation": "4-3-3", "slots": [{ "position": "GK", "x": 0.5, "y": 0.95, "playerId": 12 }] }`
 — coordinates normalised 0–1 relative to the pitch (own goal at y = 1). Optional `"bench": [playerId, …]`

@@ -904,15 +904,90 @@ TEST_F(MatchDayServiceTest, FewerThanSevenPlayersEndTheMatch) {
     EXPECT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt).has_value());
 }
 
-TEST_F(MatchDayServiceTest, EndingEarlyInABreak) {
+TEST_F(MatchDayServiceTest, EndingEarlyInABreakEndsAtTheBreak) {
+    // Codex: the first half ends at 44:30, a substitution in the break (at 45), red cards entered
+    // late down to 6 players, then the end. The final minute is the break (45), so the substitute
+    // has 45–45 and the end goes through.
+    startMatch();
+    advance();
+    m_clock.advance(44min + 30s);
+    advance(); // half time at 44:30
+    m_clock.advance(5min);
+    ASSERT_TRUE(m_service->recordSubstitution(kMatch, pid(12), pid(5)));
+    // With 11 players the match ends only with the clock.
+    expectError(m_service->endMatch(kMatch), ErrorCode::Conflict, "match_not_over");
+    for (const std::int64_t player : {1, 2, 4, 6, 7}) {
+        ASSERT_TRUE(m_service->recordRed(kMatch, pid(player), MatchTime{40, std::nullopt}));
+    }
+    ASSERT_EQ(onPitchCount(read().situation), 6);
+    const auto ended = m_service->endMatch(kMatch);
+    ASSERT_TRUE(ended.has_value()) << ended.error().detail;
+    EXPECT_EQ(read().clock->endedEarlyAt, 45);
+    EXPECT_EQ(finalMinute(*read().clock), 45);
+    expectMinutes(12, 45, 45);
+    expectMinutes(9, 0, 45);
+    expectMinutes(1, 0, 40);
+    expectError(m_service->endMatch(kMatch), ErrorCode::Conflict, "match_not_live");
+}
+
+TEST_F(MatchDayServiceTest, TheClockButtonEndsEarlyWithFewerThanSeven) {
+    // 2×45, five red cards by 60', then the ordinary clock button "End match" at 60:00.
     startMatch();
     advance();
     m_clock.advance(46min);
-    advance(); // half time
+    advance();
+    m_clock.advance(15min);
+    advance();              // second half
+    m_clock.advance(15min); // 60:00
+    for (const std::int64_t player : {1, 2, 4, 6, 7}) {
+        ASSERT_TRUE(m_service->recordRed(kMatch, pid(player)));
+    }
+    advance(); // the end of the last part, with 6 players: an early end
+    EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Finished);
+    EXPECT_EQ(read().clock->endedEarlyAt, 60);
+    expectMinutes(9, 0, 60);
+    expectMinutes(3, 0, 60);
+}
+
+TEST_F(MatchDayServiceTest, WithSevenOrMoreTheEndIsNormal) {
+    startMatch();
+    advance();
+    m_clock.advance(46min);
+    advance();
+    m_clock.advance(15min);
+    advance();
+    m_clock.advance(20min); // 65:00, the last part runs: endMatch is the clock button
     ASSERT_TRUE(m_service->endMatch(kMatch).has_value());
-    EXPECT_EQ(finalMinute(*read().clock), 45);
-    expectMinutes(9, 0, 45);
-    expectError(m_service->endMatch(kMatch), ErrorCode::Conflict, "match_not_live");
+    EXPECT_EQ(read().clock->endedEarlyAt, std::nullopt);
+    expectMinutes(9, 0, 90);
+}
+
+TEST_F(MatchDayServiceTest, ASeqIsNeverUsedTwice) {
+    // Codex: a note, deleted; an opponent goal; the note restored; undo takes back the goal only.
+    startMatch();
+    advance();
+    m_clock.advance(10min);
+    const auto note = m_service->addNote(kMatch, std::nullopt, std::nullopt, "Wiatr");
+    ASSERT_TRUE(note.has_value());
+    const auto deleted = m_service->deleteNote(kMatch, *note);
+    ASSERT_TRUE(deleted.has_value());
+    ASSERT_TRUE(m_service->recordOpponentGoal(kMatch));
+    const MatchEvent goal = m_matches->listEvents(kMatch)->front();
+    ASSERT_TRUE(goal.seq.has_value());
+    EXPECT_GT(*goal.seq, deleted->seq.value());
+    ASSERT_TRUE(m_service->restoreNote(*deleted).has_value());
+    EXPECT_EQ(read().notes.front().seq, deleted->seq);
+    EXPECT_EQ(read().lastAction->kind, MatchDayAction::Kind::Event);
+
+    const auto undone = m_service->undoLast(kMatch);
+    ASSERT_TRUE(undone.has_value());
+    EXPECT_EQ(undone->kind, MatchDayAction::Kind::Event);
+    EXPECT_EQ(undone->event->type, MatchEventType::OpponentGoal);
+    EXPECT_EQ(eventCount(), 0);
+    ASSERT_EQ(read().notes.size(), 1U); // the note stays
+    // Next: the note, then the kick-off.
+    EXPECT_EQ(m_service->undoLast(kMatch)->kind, MatchDayAction::Kind::Note);
+    EXPECT_EQ(m_service->undoLast(kMatch)->kind, MatchDayAction::Kind::ClockStep);
 }
 
 TEST_F(MatchDayServiceTest, NotesWithTheirMinute) {

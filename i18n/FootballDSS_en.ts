@@ -3534,6 +3534,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>With 7 players or more the match ends with the clock, at the end of its last part.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Fewer than 7 players are on the pitch, so the match cannot go on. End the match or undo the last action.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4065,6 +4069,14 @@
     </message>
     <message>
         <source>%1 · %2 %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>At %1: on the pitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>At %1: on the bench</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

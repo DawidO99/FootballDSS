@@ -138,21 +138,28 @@ void applyStep(MatchClock& clock, ClockStep step, Timestamp at) {
 }
 
 int finalMinute(const MatchClock& clock) noexcept {
-    const int length = clock.format.periodLength;
-    const int played = currentPeriod(clock);
-    if (played == 0) {
+    if (currentPeriod(clock) == 0) {
         return 0;
     }
-    const PeriodTimes& last = clock.periods.back();
-    if (!clock.endedEarly) {
-        return clock.format.totalMinutes();
+    return clock.endedEarlyAt.value_or(clock.format.totalMinutes());
+}
+
+int earlyEndMinute(const MatchClock& clock, Timestamp now,
+                   std::span<const MatchEventDraft> events) noexcept {
+    const int length = clock.format.periodLength;
+    const int played = currentPeriod(clock);
+    int minute = 0;
+    if (played > 0) {
+        const PeriodTimes& last = clock.periods.back();
+        // In a break: the end of the part played, the minute of a substitution in it.
+        minute = last.end ? played * length
+                          : (played - 1) * length +
+                                std::min(fullMinutes(elapsedSince(last.start, now)), length);
     }
-    if (!last.end) {
-        return (played - 1) * length;
+    for (const MatchEventDraft& event : events) {
+        minute = std::max(minute, event.minute);
     }
-    // Ended early: the minute the last part ended, at most its end.
-    return (played - 1) * length +
-           std::min(fullMinutes(elapsedSince(last.start, *last.end)), length);
+    return std::min(minute, kMaxMatchMinute);
 }
 
 DisplayMinute displayMinute(const MatchTime& time) noexcept {
@@ -491,6 +498,21 @@ std::expected<MatchSituation, MatchEventError> replayMatch(const MatchSheet& she
         }
     }
     return situation;
+}
+
+std::expected<MatchSituation, MatchEventError>
+situationAt(const MatchSheet& sheet, std::span<const MatchEventDraft> events, MatchTime time) {
+    const auto key = [](int minute, std::optional<int> added) {
+        return std::tuple{minute, added ? 0 : 1, added.value_or(0)};
+    };
+    const auto limit = key(time.minute, time.addedTime);
+    std::vector<MatchEventDraft> before;
+    for (const MatchEventDraft& event : events) {
+        if (key(event.minute, event.addedTime) <= limit) {
+            before.push_back(event);
+        }
+    }
+    return replayMatch(sheet, before);
 }
 
 int onPitchCount(const MatchSituation& situation) noexcept {

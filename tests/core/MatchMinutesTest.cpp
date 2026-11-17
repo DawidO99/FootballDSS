@@ -358,20 +358,47 @@ TEST(MatchClockTest, FourPartsOfTwenty) {
 
 TEST(MatchClockTest, EndedEarly) {
     // Ended 10:30 into the third part of 3×30: the final minute is 70.
-    MatchClock early = clockOf({3, 30}, {31min, 30min, 10min + 30s}, false);
+    const MatchClock third = clockOf({3, 30}, {31min, 30min}, true);
+    const Timestamp at = third.periods.back().start + 10min + 30s;
+    EXPECT_EQ(earlyEndMinute(third, at, {}), 70);
+    MatchClock early = third;
+    applyStep(early, {3, ClockStepKind::End}, at);
     early.finished = true;
-    early.endedEarly = true;
+    early.endedEarlyAt = 70;
     EXPECT_EQ(phaseOf(early), MatchPhase::Finished);
     EXPECT_EQ(finalMinute(early), 70);
-    // Ended in the break after the second part: 60.
-    MatchClock inBreak = clockOf({3, 30}, {31min, 30min}, false);
-    inBreak.finished = true;
-    inBreak.endedEarly = true;
-    EXPECT_EQ(finalMinute(inBreak), 60);
+    // Running in stoppage time: at most the end of the part.
+    EXPECT_EQ(earlyEndMinute(third, third.periods.back().start + 33min, {}), 90);
     // A last part ended a little before its length by the clock button: still a whole match.
     MatchClock regular = clockOf({3, 30}, {31min, 30min, 29min + 50s}, false);
     regular.finished = true;
     EXPECT_EQ(finalMinute(regular), 90);
+}
+
+TEST(MatchClockTest, AnEarlyEndInABreakIsTheEndOfThePartPlayed) {
+    // Codex: the first half ended at 44:30, a substitution in the break (at 45), then the end. The
+    // final minute is the break, 45, not the clock at the end of the half (44).
+    const MatchClock inBreak = clockOf({2, 45}, {44min + 30s}, false);
+    const std::vector events{sub(45, 12, 5)};
+    EXPECT_EQ(earlyEndMinute(inBreak, kKickoff + 50min, events), 45);
+    // Never before a stored event.
+    const MatchClock running = clockOf({2, 45}, {}, true);
+    const std::vector later{card(MatchEventType::Red, 30, 4)};
+    EXPECT_EQ(earlyEndMinute(running, kKickoff + 20min, later), 30);
+}
+
+TEST(MatchMinutesTest, TheSituationAtAMinuteReplaysUpToIt) {
+    // 5 went off at 20 for 12; at 10 he was on the pitch and 12 on the bench.
+    const std::vector events{goal(5, 9), sub(20, 12, 5), card(MatchEventType::Red, 25, 4)};
+    const auto atTen = situationAt(sheet(), events, {10, std::nullopt});
+    ASSERT_TRUE(atTen.has_value());
+    EXPECT_EQ(atTen->find(pid(5))->state, PlayerMatchState::OnPitch);
+    EXPECT_EQ(atTen->find(pid(12))->state, PlayerMatchState::Bench);
+    EXPECT_EQ(atTen->goalsFor, 1);
+    // At the minute of an event it is already applied: an event entered then comes after it.
+    const auto atTwenty = situationAt(sheet(), events, {20, std::nullopt});
+    EXPECT_EQ(atTwenty->find(pid(5))->state, PlayerMatchState::SubstitutedOff);
+    EXPECT_EQ(atTwenty->find(pid(4))->state, PlayerMatchState::OnPitch);
 }
 
 TEST(MatchClockTest, BeforeKickoffAndClockGoingBack) {

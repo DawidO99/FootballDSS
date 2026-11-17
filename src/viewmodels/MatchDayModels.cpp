@@ -4,7 +4,7 @@ namespace fdss::viewmodels {
 
 MatchDayPlayersModel::MatchDayPlayersModel(QObject* parent)
     : RowsModel({"playerId", "shirtNumber", "name", "shortName", "positionCode", "stateKey",
-                 "stateText", "yellowCards", "goals", "minutesText", "selectable"},
+                 "stateText", "yellowCards", "goals", "minutesText", "selectable", "historyText"},
                 parent) {}
 
 MatchTimelineModel::MatchTimelineModel(QObject* parent)

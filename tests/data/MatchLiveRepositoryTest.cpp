@@ -65,24 +65,27 @@ TEST_F(MatchLiveRepositoryTest, StepsOfOneActionGoTogether) {
     EXPECT_EQ(live.find(kMatch).value()->steps.size(), 1U);
 }
 
-TEST_F(MatchLiveRepositoryTest, LastSeqCoversEventsNotesStepsAndTheFinish) {
+TEST_F(MatchLiveRepositoryTest, SeqIsACounterThatOnlyGrows) {
     auto live = repository();
     ASSERT_TRUE(live.create(kMatch, {2, 45}));
-    EXPECT_EQ(live.lastSeq(kMatch).value(), 0);
-    ASSERT_TRUE(live.appendStep(kMatch, kStart1, kKickoff, 1));
-    EXPECT_EQ(live.lastSeq(kMatch).value(), 1);
-    ASSERT_TRUE(sql("INSERT INTO match_event (match_id, minute, type, player_id, seq) "
-                    "VALUES (1, 5, 'goal', 1, 2)"));
-    EXPECT_EQ(live.lastSeq(kMatch).value(), 2);
-    ASSERT_TRUE(sql("INSERT INTO match_note (match_id, minute, text, seq) VALUES (1, 6, 'x', 3)"));
-    EXPECT_EQ(live.lastSeq(kMatch).value(), 3);
-    ASSERT_TRUE(live.setFinished(kMatch, 4, true));
-    EXPECT_EQ(live.lastSeq(kMatch).value(), 4);
+    EXPECT_EQ(live.takeSeq(kMatch).value(), 1);
+    EXPECT_EQ(live.takeSeq(kMatch).value(), 2);
+    // Rows of that seq going away does not give it back.
+    EXPECT_EQ(live.takeSeq(kMatch).value(), 3);
+    EXPECT_EQ(live.takeSeq(MatchId{999}).error().code, ErrorCode::NotFound);
+}
+
+TEST_F(MatchLiveRepositoryTest, FinishedWithTheMinuteOfAnEarlyEnd) {
+    auto live = repository();
+    ASSERT_TRUE(live.create(kMatch, {2, 45}));
+    ASSERT_TRUE(live.setFinished(kMatch, 4, 60));
     EXPECT_EQ(live.find(kMatch).value()->finishedSeq, 4);
-    EXPECT_TRUE(live.find(kMatch).value()->endedEarly);
-    ASSERT_TRUE(live.setFinished(kMatch, std::nullopt, true));
-    EXPECT_EQ(live.lastSeq(kMatch).value(), 3);
-    EXPECT_FALSE(live.find(kMatch).value()->endedEarly);
+    EXPECT_EQ(live.find(kMatch).value()->endedEarlyAt, 60);
+    ASSERT_TRUE(live.setFinished(kMatch, std::nullopt, 60)); // live again: no early end
+    EXPECT_EQ(live.find(kMatch).value()->finishedSeq, std::nullopt);
+    EXPECT_EQ(live.find(kMatch).value()->endedEarlyAt, std::nullopt);
+    ASSERT_TRUE(live.setFinished(kMatch, 5));
+    EXPECT_EQ(live.find(kMatch).value()->endedEarlyAt, std::nullopt);
 }
 
 TEST_F(MatchLiveRepositoryTest, ConstraintsMapToErrors) {

@@ -26,7 +26,8 @@ struct LiveMatchRow {
     std::vector<ClockStepRow> steps; // in the order they were taken
     // The action that finished the match; empty while it is live.
     std::optional<int> finishedSeq;
-    bool endedEarly = false;
+    // The final minute of a match ended with fewer than 7 players; empty for a normal end.
+    std::optional<int> endedEarlyAt;
 
     friend bool operator==(const LiveMatchRow&, const LiveMatchRow&) = default;
 };
@@ -47,11 +48,12 @@ public:
                                           core::Timestamp at, int seq);
     // Removes the steps of one action and returns them (none: empty).
     [[nodiscard]] core::Result<std::vector<ClockStepRow>> deleteSteps(core::MatchId match, int seq);
-    // nullopt: live again (and not ended early).
+    // seq nullopt: live again (and not ended early).
     [[nodiscard]] core::Status setFinished(core::MatchId match, std::optional<int> seq,
-                                           bool endedEarly = false);
-    // The highest seq of the match over events, notes, clock steps and the finish; 0 for none.
-    [[nodiscard]] core::Result<int> lastSeq(core::MatchId match) const;
+                                           std::optional<int> endedEarlyAt = std::nullopt);
+    // The seq of a new action: the counter of the match, which only grows, so a seq is never used
+    // again (P13 re-review). No live row: NotFound.
+    [[nodiscard]] core::Result<int> takeSeq(core::MatchId match);
 
 private:
     DatabaseManager& m_db;

@@ -3610,6 +3610,10 @@
         <translation>Żadna połowa nie trwa. Najpierw rozpocznij połowę; w przerwie można zapisać tylko zmiany.</translation>
     </message>
     <message>
+        <source>With 7 players or more the match ends with the clock, at the end of its last part.</source>
+        <translation>Przy 7 lub więcej zawodnikach mecz kończy się zegarem, na końcu ostatniej części.</translation>
+    </message>
+    <message>
         <source>Fewer than 7 players are on the pitch, so the match cannot go on. End the match or undo the last action.</source>
         <translation>Na boisku jest mniej niż 7 zawodników, więc mecz nie może być kontynuowany. Zakończ mecz albo cofnij ostatnią akcję.</translation>
     </message>
@@ -4146,6 +4150,14 @@
     <message>
         <source>%1 · %2 %3</source>
         <translation>%1 · %2 %3</translation>
+    </message>
+    <message>
+        <source>At %1: on the pitch</source>
+        <translation>W %1: na boisku</translation>
+    </message>
+    <message>
+        <source>At %1: on the bench</source>
+        <translation>W %1: na ławce</translation>
     </message>
     <message>
         <source>Assist: %1</source>

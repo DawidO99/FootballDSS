@@ -36,6 +36,7 @@ constexpr std::string_view kMatchStarted = "match_started";
 constexpr std::string_view kMatchFormat = "match_format";
 constexpr std::string_view kMinuteNotPlayed = "minute_not_played";
 constexpr std::string_view kTooFewPlayers = "too_few_players";
+constexpr std::string_view kMatchNotOver = "match_not_over";
 constexpr std::string_view kEventConflict = "event_conflict";
 constexpr std::string_view kNoteText = "note_text";
 constexpr std::string_view kNothingToUndo = "nothing_to_undo";
@@ -101,7 +102,7 @@ core::MatchClock clockOf(const data::LiveMatchRow& row) {
         core::applyStep(clock, step.step, step.at);
     }
     clock.finished = row.finishedSeq.has_value();
-    clock.endedEarly = row.endedEarly;
+    clock.endedEarlyAt = row.endedEarlyAt;
     return clock;
 }
 
@@ -472,9 +473,21 @@ core::Result<core::MatchMinutes> MatchDayService::recompute(core::MatchId match,
     return std::move(*minutes);
 }
 
-core::Status MatchDayService::finish(const Live& live, core::MatchClock clock, int seq) {
+core::Status MatchDayService::endNow(const Live& live, int seq) {
+    const core::Timestamp now = m_clock.now();
+    core::MatchClock clock = live.clock;
+    if (core::onPitchCount(live.situation) < core::kMinPlayersOnPitch) {
+        clock.endedEarlyAt = core::earlyEndMinute(live.clock, now, draftsOf(live.events));
+    }
+    if (core::phaseOf(clock) == core::MatchPhase::Running) {
+        const core::ClockStep end{core::currentPeriod(clock), core::ClockStepKind::End};
+        if (auto appended = m_live.appendStep(live.match.id, end, now, seq); !appended) {
+            return appended;
+        }
+        core::applyStep(clock, end, now);
+    }
     clock.finished = true;
-    if (auto finished = m_live.setFinished(live.match.id, seq, clock.endedEarly); !finished) {
+    if (auto finished = m_live.setFinished(live.match.id, seq, clock.endedEarlyAt); !finished) {
         return finished;
     }
     const auto minutes = recompute(live.match.id, live.sheet, core::finalMinute(clock));
@@ -534,20 +547,17 @@ core::Status MatchDayService::advanceClock(core::MatchId match) {
     if (!last && core::onPitchCount(live->situation) < core::kMinPlayersOnPitch) {
         return std::unexpected(conflict(kTooFewPlayers, "match day: fewer than 7 players"));
     }
-    const auto seq = m_live.lastSeq(match);
+    const auto seq = m_live.takeSeq(match);
     if (!seq) {
         return std::unexpected(seq.error());
     }
-    const core::Timestamp now = m_clock.now();
-    if (auto appended = m_live.appendStep(match, *step, now, *seq + 1); !appended) {
-        return appended;
-    }
+    // The end of the last part is the end of the match: the one way it ends.
     if (last) {
-        core::MatchClock clock = live->clock;
-        core::applyStep(clock, *step, now);
-        if (auto finished = finish(*live, clock, *seq + 1); !finished) {
-            return finished;
+        if (auto ended = endNow(*live, *seq); !ended) {
+            return ended;
         }
+    } else if (auto appended = m_live.appendStep(match, *step, m_clock.now(), *seq); !appended) {
+        return appended;
     }
     return transaction->commit();
 }
@@ -568,22 +578,19 @@ core::Status MatchDayService::endMatch(core::MatchId match) {
     if (phase == core::MatchPhase::NotStarted) {
         return std::unexpected(conflict(kMatchNotRunning, "match day: before the kick-off"));
     }
-    const auto seq = m_live.lastSeq(match);
+    // With 7 players or more only the end of the last part ends the match, as the clock button.
+    const bool lastPart = phase == core::MatchPhase::Running &&
+                          core::currentPeriod(live->clock) == live->clock.format.periods;
+    if (core::onPitchCount(live->situation) >= core::kMinPlayersOnPitch && !lastPart) {
+        return std::unexpected(
+            conflict(kMatchNotOver, "match day: 7 players or more, not the end"));
+    }
+    const auto seq = m_live.takeSeq(match);
     if (!seq) {
         return std::unexpected(seq.error());
     }
-    core::MatchClock clock = live->clock;
-    clock.endedEarly = true;
-    if (phase == core::MatchPhase::Running) {
-        const core::ClockStep end{core::currentPeriod(clock), core::ClockStepKind::End};
-        const core::Timestamp now = m_clock.now();
-        if (auto appended = m_live.appendStep(match, end, now, *seq + 1); !appended) {
-            return appended;
-        }
-        core::applyStep(clock, end, now);
-    }
-    if (auto finished = finish(*live, clock, *seq + 1); !finished) {
-        return finished;
+    if (auto ended = endNow(*live, *seq); !ended) {
+        return ended;
     }
     return transaction->commit();
 }
@@ -691,12 +698,12 @@ core::Status MatchDayService::recordEvent(core::MatchId match, core::MatchEventD
     if (!rows) {
         return std::unexpected(rows.error());
     }
-    const auto seq = m_live.lastSeq(match);
+    const auto seq = m_live.takeSeq(match);
     if (!seq) {
         return std::unexpected(seq.error());
     }
     for (const core::MatchEventDraft& row : *rows) {
-        if (auto appended = m_matches.appendEvent(match, row, *seq + 1); !appended) {
+        if (auto appended = m_matches.appendEvent(match, row, *seq); !appended) {
             return std::unexpected(appended.error());
         }
     }
@@ -783,13 +790,13 @@ core::Result<core::MatchNoteId> MatchDayService::addNote(core::MatchId match,
     if (auto checked = checkNote(*live, player, text); !checked) {
         return std::unexpected(checked.error());
     }
-    const auto seq = m_live.lastSeq(match);
+    const auto seq = m_live.takeSeq(match);
     if (!seq) {
         return std::unexpected(seq.error());
     }
     const core::MatchNoteDraft draft{chosen->minute, chosen->addedTime, player,
                                      core::trimmed(text)};
-    const auto id = m_notes.add(match, draft, *seq + 1);
+    const auto id = m_notes.add(match, draft, *seq);
     if (!id) {
         return std::unexpected(id.error());
     }

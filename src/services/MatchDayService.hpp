@@ -77,7 +77,8 @@ struct EventConflict {
 };
 
 // Match Day (SPEC section 4 and 6, packet P13). Every action is one transaction that writes the
-// event, the note or the clock step with the next `seq` of the match and recomputes the appearances
+// event, the note or the clock step with the next `seq` of the match (a counter that only grows, so
+// no seq is used twice) and recomputes the appearances
 // (core::computeMatchMinutes) from the lineup and the events, the single source of truth. Undo
 // takes back the action entered last (the highest seq), whatever its minute. Reading needs a
 // logged-in user of any role; the actions need RunMatchDay, otherwise PermissionDenied.
@@ -92,7 +93,8 @@ struct EventConflict {
 //   planned after the kick-off [match_started]; fewer than 7 players on the pitch: only the end of
 //   the match, notes and undo [too_few_players]; an event entered late that a later stored event
 //   no longer fits [event_conflict, see checkEvent()]; undoing the end of the match while another
-//   match of the team is live [undo_end_another_live].
+//   match of the team is live [undo_end_another_live]; ending a match with 7 players or more
+//   before its last part [match_not_over].
 // - InvalidInput: a format outside 1–4 × 10–60, at most 130 minutes [match_format]; a minute not
 //   played yet [minute_not_played]; an event that does not fit the match [player_unknown,
 //   player_missing, same_player, player_not_on_pitch, player_not_on_bench, player_substituted,
@@ -127,9 +129,10 @@ public:
                                      int yellowCardThreshold);
     // Live → planned while the first part has not started; the clock goes.
     [[nodiscard]] core::Status cancelStart(core::MatchId match);
-    // The next step of the clock; the end of the last part finishes the match with its score.
+    // The next step of the clock; the end of the last part finishes the match (endNow()).
     [[nodiscard]] core::Status advanceClock(core::MatchId match);
-    // Finishes the match now (fewer than 7 players): ends the part running, if one is.
+    // Finishes the match now (endNow()): with fewer than 7 players at any time, otherwise only
+    // while the last part runs (Conflict [match_not_over]).
     [[nodiscard]] core::Status endMatch(core::MatchId match);
     [[nodiscard]] core::Status recordGoal(core::MatchId match, core::PlayerId scorer,
                                           std::optional<core::PlayerId> assistant,
@@ -187,8 +190,10 @@ private:
     // Within the transaction of the caller. Keeps the ratings and RPE already stored.
     [[nodiscard]] core::Result<core::MatchMinutes>
     recompute(core::MatchId match, const core::MatchSheet& sheet, std::optional<int> finalMinute);
-    // Writes the end of the match: finished_seq (and ended_early from the clock), status, score.
-    [[nodiscard]] core::Status finish(const Live& live, core::MatchClock clock, int seq);
+    // The one way a match ends (P13 re-review): ends the part running, if one is; with fewer than
+    // 7 players on the pitch it ends early at core::earlyEndMinute(), otherwise normally (parts ×
+    // length). Writes the step, finished_seq, ended_early_minute, the minutes, status and score.
+    [[nodiscard]] core::Status endNow(const Live& live, int seq);
 
     data::DatabaseManager& m_db;
     data::MatchRepository& m_matches;

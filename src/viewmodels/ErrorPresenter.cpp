@@ -229,6 +229,10 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
         return tr("No half is running. Start the half first; in the break only substitutions "
                   "can be recorded.");
     }
+    if (field == "match_not_over") {
+        return tr("With 7 players or more the match ends with the clock, at the end of its last "
+                  "part.");
+    }
     if (field == "too_few_players") {
         return tr("Fewer than 7 players are on the pitch, so the match cannot go on. End the match "
                   "or undo the last action.");

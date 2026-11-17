@@ -534,3 +534,46 @@ TEST_F(MatchDayViewModelTest, SevenPlayersWarnAndFewerEndTheMatch) {
     EXPECT_EQ(vm->undoText(), "early end of the match");
     EXPECT_FALSE(vm->tooFewPlayers());
 }
+
+// --- P13 re-review ---
+
+TEST_F(MatchDayViewModelTest, PlayersAreChosenByWhereTheyWereAtTheMinute) {
+    // 5 went off for 12 at 21' (stored 20); at 30:00 a goal from 11' (stored 10) is entered.
+    const auto vm = kickedOff();
+    m_clock->advance(20min + 30s);
+    vm->beginAction("sub");
+    ASSERT_TRUE(vm->choosePlayer(player(5)));
+    ASSERT_TRUE(vm->choosePlayer(player(12)));
+    m_clock->advance(9min + 30s);
+
+    vm->beginAction("goal");
+    // Now: 5 is off (not selectable), 12 on the pitch.
+    EXPECT_FALSE(vm->bench()->value(rowOf(*vm->bench(), player(5)), "selectable").toBool());
+    EXPECT_TRUE(vm->pitch()->value(rowOf(*vm->pitch(), player(12)), "selectable").toBool());
+    vm->setPendingMinute("11");
+    // At 11': 5 on the pitch, 12 still on the bench.
+    const int off = rowOf(*vm->bench(), player(5));
+    EXPECT_TRUE(vm->bench()->value(off, "selectable").toBool());
+    EXPECT_EQ(vm->bench()->value(off, "historyText"), "At 11': on the pitch");
+    EXPECT_FALSE(vm->pitch()->value(rowOf(*vm->pitch(), player(12)), "selectable").toBool());
+    EXPECT_EQ(vm->pitch()->value(rowOf(*vm->pitch(), player(9)), "historyText"), "");
+    ASSERT_TRUE(vm->choosePlayer(player(5)));
+    // The assistant too: 12 not yet on the pitch at 11'.
+    EXPECT_FALSE(vm->pitch()->value(rowOf(*vm->pitch(), player(12)), "selectable").toBool());
+    ASSERT_TRUE(vm->skipAssist());
+    EXPECT_EQ(vm->goalsFor(), 1);
+    EXPECT_EQ(vm->timeline()->value(1, "minuteText"), "11'");
+    EXPECT_EQ(vm->timeline()->value(1, "playerText"), "Gracz Numer05");
+
+    // A substitution entered late: who goes off and who comes on, at 6'.
+    vm->beginAction("sub");
+    vm->setPendingMinute("6");
+    EXPECT_TRUE(vm->bench()->value(rowOf(*vm->bench(), player(5)), "selectable").toBool());
+    ASSERT_TRUE(vm->choosePlayer(player(4)));
+    // Coming on at 6': 12 was on the bench then (and is on the pitch now).
+    const int now = rowOf(*vm->pitch(), player(12));
+    EXPECT_TRUE(vm->pitch()->value(now, "selectable").toBool());
+    EXPECT_EQ(vm->pitch()->value(now, "historyText"), "At 6': on the bench");
+    vm->cancelAction();
+    EXPECT_EQ(vm->pitch()->value(now, "historyText"), "");
+}

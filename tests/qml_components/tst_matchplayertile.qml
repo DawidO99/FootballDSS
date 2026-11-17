@@ -108,4 +108,18 @@ TestCase {
         tile.shortName = "<b>Gol</b>";
         compare(findChild(tile, "tileName").textFormat, Text.PlainText);
     }
+
+    function test_where_the_player_was_replaces_the_state() {
+        const tile = createTile();
+        tile.stateKey = "substitutedOff";
+        tile.stateText = "Substituted";
+        const history = findChild(tile, "tileHistory");
+        const state = findChild(tile, "tileState");
+        verify(state.visible);
+        verify(!history.visible);
+        tile.historyText = "At 11': on the pitch";
+        verify(history.visible);
+        verify(!state.visible);
+        verify(tile.Accessible.name.includes("At 11': on the pitch"));
+    }
 }

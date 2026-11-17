@@ -661,6 +661,7 @@ Item {
                                 required goals
                                 required yellowCards
                                 required selectable
+                                required historyText
 
                                 objectName: "pitchTile"
                                 fullName: pitchTileItem.name
@@ -700,6 +701,7 @@ Item {
                                 required goals
                                 required yellowCards
                                 required selectable
+                                required historyText
 
                                 objectName: "benchTile"
                                 fullName: benchTileItem.name

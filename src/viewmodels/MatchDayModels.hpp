@@ -11,7 +11,8 @@ namespace fdss::viewmodels {
 
 // Players as tiles: playerId, shirtNumber (or nothing), name, shortName (surname), positionCode,
 // stateKey (onPitch, bench, substitutedOff, sentOff), stateText, yellowCards, goals, minutesText
-// ("67'" played so far, empty for the bench), selectable (a choice of the pending action).
+// ("67'" played so far, empty for the bench), selectable (a choice of the pending action, by where
+// the player was at its minute), historyText ("At 10': on the pitch" when that differs from now).
 class MatchDayPlayersModel : public RowsModel {
     Q_OBJECT
     QML_ELEMENT

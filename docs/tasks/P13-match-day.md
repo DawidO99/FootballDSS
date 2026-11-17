@@ -170,4 +170,19 @@ Record a short GIF of Match Day. Describe "events as the single source of truth"
       score or the minutes.
     - *Scope extensions*: `src/core/domain/MatchNote.hpp`, `Ids.hpp` (`MatchNoteId`),
       `src/data/repositories/MatchNoteRepository.*`, `ui/components/MatchNoteDialog.qml`.
+18. **Re-review (Codex, 06a0c13)**:
+    - *seq never used twice*: `match_live.next_seq`, taken and increased by every action (also one undone
+      later or a deleted note), instead of max(seq) + 1. A note restored from its toast keeps its old seq,
+      so undo after "note → delete → opponent goal → restore" takes back the goal only, and says so.
+    - *One way to end*: `MatchDayService::endNow()` for the clock button "End match", the banner and the
+      dialog. With fewer than 7 players the end is early and `ended_early_minute` holds its minute
+      (replaces the flag `ended_early`); with 7 or more a normal end (parts × length), and `endMatch()`
+      then only while the last part runs (`match_not_over`).
+    - *Players at the minute*: the tiles of a pending action are selectable by the state of the match
+      at its minute (`core::situationAt`, replay up to it) for the scorer, the assistant, the cards and
+      both players of a substitution; editing the minute recomputes them. A tile chosen by where the
+      player was then shows it ("At 11': on the pitch").
+    - *Final minute*: never before a stored event; an early end in a break is the end of the part played
+      (the minute of a substitution in it), not the clock at the end of that part
+      (`core::earlyEndMinute`).
 
