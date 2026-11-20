@@ -77,7 +77,7 @@ target_compile_definitions(fdss_tests PRIVATE
 if(MSVC)
     target_compile_options(fdss_tests PRIVATE /utf-8)
 endif()
-gtest_discover_tests(fdss_tests DISCOVERY_MODE PRE_TEST)
+gtest_discover_tests(fdss_tests DISCOVERY_MODE PRE_TEST DISCOVERY_TIMEOUT 120)
 
 add_executable(fdss_vm_tests
     test_main.cpp
