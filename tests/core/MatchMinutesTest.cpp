@@ -517,3 +517,59 @@ TEST(MatchMinutesTest, PlayersOnThePitchAreCounted) {
     EXPECT_EQ(onPitchCount(replayMatch(sheet(), events).value()), 9);
     EXPECT_EQ(kMinPlayersOnPitch, 7);
 }
+
+// --- Set clock and the mode without the clock (P13 manual test) ---
+
+TEST(MatchClockTest, ClockTextOfTheRunningPart) {
+    const MatchFormat halves{2, 45};
+    EXPECT_EQ(elapsedFromClockText("23:41", halves, 1), 23min + 41s);
+    EXPECT_EQ(elapsedFromClockText("23", halves, 1), 23min);
+    EXPECT_EQ(elapsedFromClockText(" 0:05 ", halves, 1), 5s);
+    EXPECT_EQ(elapsedFromClockText("45+2:10", halves, 1), 47min + 10s);
+    // The second half as its clock shows it: from 45:00.
+    EXPECT_EQ(elapsedFromClockText("67:30", halves, 2), 22min + 30s);
+    EXPECT_EQ(elapsedFromClockText("90+1:00", halves, 2), 46min);
+    for (const char* bad : {"", "x", "23:6", "23:60", "44:00+1", "45+", "45+2:10", "30:00"}) {
+        EXPECT_EQ(elapsedFromClockText(bad, halves, 2), std::nullopt) << bad;
+    }
+    EXPECT_EQ(elapsedFromClockText("46:00", halves, 1), std::nullopt); // over 45: write 45+1:00
+    EXPECT_EQ(elapsedFromClockText("30+1:00", {3, 30}, 1), 31min);
+    EXPECT_EQ(elapsedFromClockText("10:00", halves, 3), std::nullopt);
+}
+
+TEST(MatchClockTest, TheLeastClockKeepsTheEventsOfThePartPlayed) {
+    const MatchFormat halves{2, 45};
+    MatchEventDraft stoppage = goal(45, 9);
+    stoppage.addedTime = 3;
+    const std::vector events{goal(10, 9), goal(30, 9), sub(45, 12, 5), goal(52, 12)};
+    EXPECT_EQ(minElapsedForEvents(halves, 1, events), 30min);
+    EXPECT_EQ(minElapsedForEvents(halves, 2, events), 7min); // 52 - 45
+    const std::vector withStoppage{goal(10, 9), stoppage};
+    EXPECT_EQ(minElapsedForEvents(halves, 1, withStoppage), 47min); // 45+3' needs 47:00
+    EXPECT_EQ(minElapsedForEvents(halves, 2, withStoppage), 0s);
+}
+
+TEST(MatchClockTest, WithoutTheClockAnyMinuteOfTheFormat) {
+    MatchClock clock;
+    clock.format = {2, 45};
+    clock.clockless = true;
+    EXPECT_EQ(phaseOf(clock), MatchPhase::Running);
+    EXPECT_EQ(nextStep(clock), std::nullopt);
+    EXPECT_EQ(readClock(clock, kKickoff).regular, 0s);
+    for (const MatchTime time :
+         {MatchTime{0, std::nullopt}, MatchTime{89, std::nullopt}, MatchTime{45, 2},
+          MatchTime{90, 30}, MatchTime{45, std::nullopt}}) {
+        EXPECT_TRUE(isPlayedTime(clock, kKickoff, time, false)) << time.minute;
+    }
+    for (const MatchTime time : {MatchTime{90, std::nullopt}, MatchTime{44, 1}, MatchTime{90, 31},
+                                 MatchTime{135, 1}, MatchTime{-1, std::nullopt}}) {
+        EXPECT_FALSE(isPlayedTime(clock, kKickoff, time, false)) << time.minute;
+    }
+    const std::vector events{goal(70, 9), card(MatchEventType::Red, 20, 4)};
+    EXPECT_EQ(earlyEndMinute(clock, kKickoff, events), 70);
+    clock.finished = true;
+    EXPECT_EQ(finalMinute(clock), 90);
+    clock.endedEarlyAt = 70;
+    EXPECT_EQ(finalMinute(clock), 70);
+    EXPECT_EQ(readClock(clock, kKickoff).eventTime, (MatchTime{70, std::nullopt}));
+}

@@ -37,6 +37,12 @@ constexpr std::string_view kMatchFormat = "match_format";
 constexpr std::string_view kMinuteNotPlayed = "minute_not_played";
 constexpr std::string_view kTooFewPlayers = "too_few_players";
 constexpr std::string_view kMatchNotOver = "match_not_over";
+constexpr std::string_view kClockless = "clockless";
+constexpr std::string_view kMinuteRequired = "minute_required";
+constexpr std::string_view kMinuteOutOfMatch = "minute_out_of_match";
+constexpr std::string_view kClockNotRunning = "clock_not_running";
+constexpr std::string_view kClockTime = "clock_time";
+constexpr std::string_view kClockBeforeEvent = "clock_before_event";
 constexpr std::string_view kEventConflict = "event_conflict";
 constexpr std::string_view kNoteText = "note_text";
 constexpr std::string_view kNothingToUndo = "nothing_to_undo";
@@ -103,6 +109,7 @@ core::MatchClock clockOf(const data::LiveMatchRow& row) {
     }
     clock.finished = row.finishedSeq.has_value();
     clock.endedEarlyAt = row.endedEarlyAt;
+    clock.clockless = row.clockless;
     return clock;
 }
 
@@ -360,7 +367,7 @@ core::Result<MatchDayStartCheck> MatchDayService::startCheck(core::MatchId match
 }
 
 core::Status MatchDayService::start(core::MatchId match, core::MatchFormat format,
-                                    int yellowCardThreshold) {
+                                    int yellowCardThreshold, bool clockless) {
     if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
         return allowed;
     }
@@ -389,7 +396,7 @@ core::Status MatchDayService::start(core::MatchId match, core::MatchFormat forma
     case MatchDayStartCheck::Block::LineupErrors:
         return std::unexpected(conflict(kLineupErrors, "match day start: lineup has errors"));
     }
-    if (auto created = m_live.create(match, format); !created) {
+    if (auto created = m_live.create(match, format, clockless); !created) {
         return created;
     }
     if (auto status = m_matches.setStatus(match, core::MatchStatus::Live); !status) {
@@ -473,13 +480,15 @@ core::Result<core::MatchMinutes> MatchDayService::recompute(core::MatchId match,
     return std::move(*minutes);
 }
 
-core::Status MatchDayService::endNow(const Live& live, int seq) {
+core::Status MatchDayService::endNow(const Live& live, int seq, std::optional<int> minute) {
     const core::Timestamp now = m_clock.now();
     core::MatchClock clock = live.clock;
     if (core::onPitchCount(live.situation) < core::kMinPlayersOnPitch) {
-        clock.endedEarlyAt = core::earlyEndMinute(live.clock, now, draftsOf(live.events));
+        // Without the clock the minute typed counts too, never before the last event.
+        clock.endedEarlyAt = std::max(core::earlyEndMinute(live.clock, now, draftsOf(live.events)),
+                                      live.clock.clockless ? minute.value_or(0) : 0);
     }
-    if (core::phaseOf(clock) == core::MatchPhase::Running) {
+    if (core::phaseOf(clock) == core::MatchPhase::Running && !clock.clockless) {
         const core::ClockStep end{core::currentPeriod(clock), core::ClockStepKind::End};
         if (auto appended = m_live.appendStep(live.match.id, end, now, seq); !appended) {
             return appended;
@@ -510,8 +519,8 @@ core::Status MatchDayService::cancelStart(core::MatchId match) {
     if (!live) {
         return std::unexpected(live.error());
     }
-    if (core::phaseOf(live->clock) != core::MatchPhase::NotStarted || !live->events.empty() ||
-        !live->notes.empty()) {
+    if ((core::phaseOf(live->clock) != core::MatchPhase::NotStarted && !live->clock.clockless) ||
+        !live->events.empty() || !live->notes.empty()) {
         return std::unexpected(conflict(kMatchStarted, "match day: the match has kicked off"));
     }
     if (auto removed = m_live.remove(match); !removed) {
@@ -538,6 +547,9 @@ core::Status MatchDayService::advanceClock(core::MatchId match) {
     if (!live) {
         return std::unexpected(live.error());
     }
+    if (live->clock.clockless) {
+        return std::unexpected(conflict(kClockless, "match day: no clock"));
+    }
     const auto step = core::nextStep(live->clock);
     if (!step) {
         return std::unexpected(conflict(kMatchNotLive, "match day: the match is finished"));
@@ -553,7 +565,7 @@ core::Status MatchDayService::advanceClock(core::MatchId match) {
     }
     // The end of the last part is the end of the match: the one way it ends.
     if (last) {
-        if (auto ended = endNow(*live, *seq); !ended) {
+        if (auto ended = endNow(*live, *seq, std::nullopt); !ended) {
             return ended;
         }
     } else if (auto appended = m_live.appendStep(match, *step, m_clock.now(), *seq); !appended) {
@@ -562,7 +574,7 @@ core::Status MatchDayService::advanceClock(core::MatchId match) {
     return transaction->commit();
 }
 
-core::Status MatchDayService::endMatch(core::MatchId match) {
+core::Status MatchDayService::endMatch(core::MatchId match, std::optional<int> minute) {
     if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
         return allowed;
     }
@@ -578,10 +590,16 @@ core::Status MatchDayService::endMatch(core::MatchId match) {
     if (phase == core::MatchPhase::NotStarted) {
         return std::unexpected(conflict(kMatchNotRunning, "match day: before the kick-off"));
     }
-    // With 7 players or more only the end of the last part ends the match, as the clock button.
+    if (minute && (*minute < 0 || *minute > live->clock.format.totalMinutes())) {
+        return std::unexpected(
+            invalid(kMinuteOutOfMatch, "match day: end minute out of the match"));
+    }
+    // With 7 players or more only the end of the last part ends the match, as the clock button;
+    // without the clock the end is always there.
     const bool lastPart = phase == core::MatchPhase::Running &&
                           core::currentPeriod(live->clock) == live->clock.format.periods;
-    if (core::onPitchCount(live->situation) >= core::kMinPlayersOnPitch && !lastPart) {
+    if (core::onPitchCount(live->situation) >= core::kMinPlayersOnPitch && !lastPart &&
+        !live->clock.clockless) {
         return std::unexpected(
             conflict(kMatchNotOver, "match day: 7 players or more, not the end"));
     }
@@ -589,10 +607,72 @@ core::Status MatchDayService::endMatch(core::MatchId match) {
     if (!seq) {
         return std::unexpected(seq.error());
     }
-    if (auto ended = endNow(*live, *seq); !ended) {
+    if (auto ended = endNow(*live, *seq, minute); !ended) {
         return ended;
     }
     return transaction->commit();
+}
+
+core::Result<core::Timestamp> MatchDayService::setClock(core::MatchId match,
+                                                        std::chrono::seconds elapsed) {
+    if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    const auto live = readLive(match, false);
+    if (!live) {
+        return std::unexpected(live.error());
+    }
+    if (live->clock.clockless || core::phaseOf(live->clock) != core::MatchPhase::Running) {
+        return std::unexpected(conflict(kClockNotRunning, "match day: no part runs"));
+    }
+    const int length = live->clock.format.periodLength;
+    if (elapsed < std::chrono::seconds{0} ||
+        elapsed > std::chrono::minutes{length + core::kMaxAddedTime}) {
+        return std::unexpected(invalid(kClockTime, "match day: clock out of the part"));
+    }
+    const core::Timestamp previous = live->clock.periods.back().start;
+    if (auto moved = moveStart(*live, m_clock.now() - elapsed); !moved) {
+        return std::unexpected(moved.error());
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(committed.error());
+    }
+    return previous;
+}
+
+core::Status MatchDayService::restoreClock(core::MatchId match, core::Timestamp start) {
+    if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
+        return allowed;
+    }
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    const auto live = readLive(match, false);
+    if (!live) {
+        return std::unexpected(live.error());
+    }
+    if (live->clock.clockless || core::phaseOf(live->clock) != core::MatchPhase::Running) {
+        return std::unexpected(conflict(kClockNotRunning, "match day: no part runs"));
+    }
+    if (auto moved = moveStart(*live, start); !moved) {
+        return moved;
+    }
+    return transaction->commit();
+}
+
+core::Status MatchDayService::moveStart(const Live& live, core::Timestamp start) {
+    const int period = core::currentPeriod(live.clock);
+    const auto least = core::minElapsedForEvents(live.clock.format, period, draftsOf(live.events));
+    if (m_clock.now() - start < least) {
+        return std::unexpected(
+            invalid(kClockBeforeEvent, "match day: the clock before an event of the part"));
+    }
+    return m_live.moveStep(live.match.id, {period, core::ClockStepKind::Start}, start);
 }
 
 core::Result<core::MatchTime> MatchDayService::timeFor(const Live& live,
@@ -600,6 +680,17 @@ core::Result<core::MatchTime> MatchDayService::timeFor(const Live& live,
                                                        bool substitution) const {
     if (core::phaseOf(live.clock) == core::MatchPhase::NotStarted) {
         return std::unexpected(conflict(kMatchNotRunning, "match day: before the kick-off"));
+    }
+    if (live.clock.clockless) {
+        // Without the clock every action takes a minute typed, any minute of the format.
+        if (!time) {
+            return std::unexpected(invalid(kMinuteRequired, "match day: no minute without clock"));
+        }
+        if (!core::isValidMatchTime(live.clock.format, *time)) {
+            return std::unexpected(
+                invalid(kMinuteOutOfMatch, "match day: minute outside the match format"));
+        }
+        return *time;
     }
     const core::Timestamp now = m_clock.now();
     const core::MatchTime chosen = time.value_or(core::defaultTime(live.clock, now, substitution));

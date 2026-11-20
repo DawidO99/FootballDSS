@@ -6,7 +6,10 @@
 -- finished_seq: the action that finished the match; empty while live. ended_early_minute: the final
 -- minute of a match finished with fewer than 7 players (the minute of its end, in a break the end of
 -- the part played, never before a stored event); empty for a normal end (parts x length).
--- match_clock_step: the start or the end of a part (UTC ISO datetime, as lockout timestamps).
+-- clockless: Match Day without the clock (minutes typed, e.g. entered after the match); then there
+-- are no clock steps.
+-- match_clock_step: the start or the end of a part (UTC ISO datetime, as lockout timestamps); "set
+-- clock" moves the start of the running part.
 -- match_note: a note with its minute; it never changes the score or the minutes.
 -- seq (match_event, match_note, match_clock_step): the order of entry of the actions of Match Day in
 -- one match, from match_live.next_seq. The rows of one action share it (a second yellow and its
@@ -20,6 +23,7 @@ CREATE TABLE match_live (
     match_id      INTEGER NOT NULL UNIQUE REFERENCES match (id) ON DELETE CASCADE,
     periods       INTEGER NOT NULL CHECK (periods BETWEEN 1 AND 4),
     period_length INTEGER NOT NULL CHECK (period_length BETWEEN 10 AND 60),
+    clockless     INTEGER NOT NULL DEFAULT 0 CHECK (clockless IN (0, 1)),
     next_seq      INTEGER NOT NULL DEFAULT 1 CHECK (next_seq >= 1),
     finished_seq  INTEGER CHECK (finished_seq >= 1),
     ended_early_minute INTEGER CHECK (ended_early_minute BETWEEN 0 AND 130),

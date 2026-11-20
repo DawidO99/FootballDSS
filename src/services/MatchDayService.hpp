@@ -9,6 +9,7 @@
 #include "core/util/Error.hpp"
 #include "services/CalendarService.hpp"
 
+#include <chrono>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -94,7 +95,9 @@ struct EventConflict {
 //   the match, notes and undo [too_few_players]; an event entered late that a later stored event
 //   no longer fits [event_conflict, see checkEvent()]; undoing the end of the match while another
 //   match of the team is live [undo_end_another_live]; ending a match with 7 players or more
-//   before its last part [match_not_over].
+//   before its last part [match_not_over]; a clock step without the clock [clockless].
+// - Without the clock: an action with no minute [minute_required, InvalidInput]; a minute outside
+//   the format [minute_out_of_match, InvalidInput].
 // - InvalidInput: a format outside 1–4 × 10–60, at most 130 minutes [match_format]; a minute not
 //   played yet [minute_not_played]; an event that does not fit the match [player_unknown,
 //   player_missing, same_player, player_not_on_pitch, player_not_on_bench, player_substituted,
@@ -124,16 +127,26 @@ public:
     [[nodiscard]] core::Result<std::optional<EventConflict>>
     checkEvent(core::MatchId match, const core::MatchEventDraft& event) const;
 
-    // Planned → live with the clock at 00:00, before the kick-off.
+    // Planned → live with the clock at 00:00, before the kick-off; or without the clock (minutes
+    // typed, e.g. entered after the match), then running at once and without clock steps.
     [[nodiscard]] core::Status start(core::MatchId match, core::MatchFormat format,
-                                     int yellowCardThreshold);
+                                     int yellowCardThreshold, bool clockless = false);
     // Live → planned while the first part has not started; the clock goes.
     [[nodiscard]] core::Status cancelStart(core::MatchId match);
     // The next step of the clock; the end of the last part finishes the match (endNow()).
     [[nodiscard]] core::Status advanceClock(core::MatchId match);
     // Finishes the match now (endNow()): with fewer than 7 players at any time, otherwise only
-    // while the last part runs (Conflict [match_not_over]).
-    [[nodiscard]] core::Status endMatch(core::MatchId match);
+    // while the last part runs (Conflict [match_not_over]); without the clock always. `minute`
+    // (without the clock, fewer than 7): the minute of the end if later than the last event.
+    [[nodiscard]] core::Status endMatch(core::MatchId match,
+                                        std::optional<int> minute = std::nullopt);
+    // "Set clock": the running part has lasted `elapsed` (its start moves; not in the undo stack).
+    // At most length + 30 min [clock_time]; not before an event of the part [clock_before_event];
+    // a part must run with the clock [clock_not_running]. Returns the start before, for
+    // restoreClock() from the undo toast.
+    [[nodiscard]] core::Result<core::Timestamp> setClock(core::MatchId match,
+                                                         std::chrono::seconds elapsed);
+    [[nodiscard]] core::Status restoreClock(core::MatchId match, core::Timestamp start);
     [[nodiscard]] core::Status recordGoal(core::MatchId match, core::PlayerId scorer,
                                           std::optional<core::PlayerId> assistant,
                                           std::optional<core::MatchTime> time = std::nullopt);
@@ -193,7 +206,9 @@ private:
     // The one way a match ends (P13 re-review): ends the part running, if one is; with fewer than
     // 7 players on the pitch it ends early at core::earlyEndMinute(), otherwise normally (parts ×
     // length). Writes the step, finished_seq, ended_early_minute, the minutes, status and score.
-    [[nodiscard]] core::Status endNow(const Live& live, int seq);
+    [[nodiscard]] core::Status endNow(const Live& live, int seq, std::optional<int> minute);
+    // The start of the running part moved, if its events stay played.
+    [[nodiscard]] core::Status moveStart(const Live& live, core::Timestamp start);
 
     data::DatabaseManager& m_db;
     data::MatchRepository& m_matches;

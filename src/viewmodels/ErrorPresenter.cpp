@@ -155,6 +155,18 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
         return tr("This yellow card would make another one the second, without its red card. "
                   "Check the cards of the player.");
     }
+    if (field == "minute_required") {
+        return tr("Enter the minute of the action.");
+    }
+    if (field == "minute_out_of_match") {
+        return tr("This minute is outside the match.");
+    }
+    if (field == "clock_time") {
+        return tr("The clock can be set to at most 30 minutes past the end of the part.");
+    }
+    if (field == "clock_before_event") {
+        return tr("The clock cannot go back before an event of this part. Undo the event first.");
+    }
     if (field == "note_text") {
         return tr("Write the note, up to 500 characters.");
     }
@@ -228,6 +240,12 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
     if (field == "match_not_running") {
         return tr("No half is running. Start the half first; in the break only substitutions "
                   "can be recorded.");
+    }
+    if (field == "clockless") {
+        return tr("This match runs without the clock: type the minute of every action.");
+    }
+    if (field == "clock_not_running") {
+        return tr("The clock can be set only while a part is played.");
     }
     if (field == "match_not_over") {
         return tr("With 7 players or more the match ends with the clock, at the end of its last "

@@ -1568,6 +1568,10 @@
         <translation>Wróć do planu</translation>
     </message>
     <message>
+        <source>Set time</source>
+        <translation>Ustaw czas</translation>
+    </message>
+    <message>
         <source>Goal</source>
         <translation>Gol</translation>
     </message>
@@ -1678,6 +1682,26 @@
     <message>
         <source>By the laws of the game the match cannot go on (fewer than %1 players). End the match?</source>
         <translation>Według przepisów mecz nie może być kontynuowany (mniej niż %1 zawodników). Zakończyć mecz?</translation>
+    </message>
+    <message>
+        <source>Minute of the end</source>
+        <translation>Minuta zakończenia</translation>
+    </message>
+    <message>
+        <source>Not before the last event (%1&apos;).</source>
+        <translation>Nie wcześniej niż ostatnie zdarzenie (%1').</translation>
+    </message>
+    <message>
+        <source>Set</source>
+        <translation>Ustaw</translation>
+    </message>
+    <message>
+        <source>Time of the clock</source>
+        <translation>Czas na zegarze</translation>
+    </message>
+    <message>
+        <source>As the clock shows it: 23:41, or 45+2:10 in stoppage time. The clock runs on from there.</source>
+        <translation>Tak, jak pokazuje zegar: 23:41, a w doliczonym czasie 45+2:10. Zegar biegnie dalej od tej chwili.</translation>
     </message>
     <message>
         <source>Leave the live match?</source>
@@ -1852,8 +1876,24 @@
         <translation>Najwyżej %1 minut łącznie.</translation>
     </message>
     <message>
+        <source>Clock</source>
+        <translation>Zegar</translation>
+    </message>
+    <message>
         <source>The clock starts when you start the first part.</source>
         <translation>Zegar ruszy, gdy rozpoczniesz pierwszą część.</translation>
+    </message>
+    <message>
+        <source>No clock: you type the minute of every action, for example to enter a match after it was played.</source>
+        <translation>Bez zegara: minutę każdej akcji wpisujesz ręcznie, np. uzupełniając mecz po jego rozegraniu.</translation>
+    </message>
+    <message>
+        <source>With the clock</source>
+        <translation>Z zegarem</translation>
+    </message>
+    <message>
+        <source>Without the clock</source>
+        <translation>Bez zegara</translation>
     </message>
     <message>
         <source>Half length (minutes)</source>
@@ -3518,6 +3558,22 @@
         <translation>Ta żółta kartka zrobiłaby z innej drugą żółtą bez czerwonej kartki. Sprawdź kartki zawodnika.</translation>
     </message>
     <message>
+        <source>Enter the minute of the action.</source>
+        <translation>Wpisz minutę akcji.</translation>
+    </message>
+    <message>
+        <source>This minute is outside the match.</source>
+        <translation>Ta minuta wypada poza meczem.</translation>
+    </message>
+    <message>
+        <source>The clock can be set to at most 30 minutes past the end of the part.</source>
+        <translation>Zegar można ustawić najwyżej 30 minut po końcu części.</translation>
+    </message>
+    <message>
+        <source>The clock cannot go back before an event of this part. Undo the event first.</source>
+        <translation>Zegar nie może cofnąć się przed zdarzenie tej części. Najpierw cofnij zdarzenie.</translation>
+    </message>
+    <message>
         <source>Write the note, up to 500 characters.</source>
         <translation>Wpisz notatkę, najwyżej 500 znaków.</translation>
     </message>
@@ -3608,6 +3664,14 @@
     <message>
         <source>No half is running. Start the half first; in the break only substitutions can be recorded.</source>
         <translation>Żadna połowa nie trwa. Najpierw rozpocznij połowę; w przerwie można zapisać tylko zmiany.</translation>
+    </message>
+    <message>
+        <source>This match runs without the clock: type the minute of every action.</source>
+        <translation>Ten mecz jest prowadzony bez zegara: wpisz minutę każdej akcji.</translation>
+    </message>
+    <message>
+        <source>The clock can be set only while a part is played.</source>
+        <translation>Zegar można ustawić tylko w trakcie części meczu.</translation>
     </message>
     <message>
         <source>With 7 players or more the match ends with the clock, at the end of its last part.</source>
@@ -4112,6 +4176,10 @@
         <translation>Własny…</translation>
     </message>
     <message>
+        <source>Without the clock</source>
+        <translation>Bez zegara</translation>
+    </message>
+    <message>
         <source>No player</source>
         <translation>Bez zawodnika</translation>
     </message>
@@ -4176,12 +4244,32 @@
         <translation>Na boisku zostało tylko %1 zawodników. Przy mniejszej liczbie mecz nie może być kontynuowany.</translation>
     </message>
     <message>
+        <source>Enter the minute of the end, e.g. 80.</source>
+        <translation>Wpisz minutę zakończenia, np. 80.</translation>
+    </message>
+    <message>
+        <source>Enter the time as the clock shows it, e.g. 23:41, or 45+2:10 in stoppage time.</source>
+        <translation>Wpisz czas tak, jak pokazuje zegar, np. 23:41, a w doliczonym czasie 45+2:10.</translation>
+    </message>
+    <message>
+        <source>Clock set to %1.</source>
+        <translation>Zegar ustawiony na %1.</translation>
+    </message>
+    <message>
         <source>Enter the minute as 23, or 45+2 in stoppage time.</source>
         <translation>Wpisz minutę jako 23, a w doliczonym czasie jako 45+2.</translation>
     </message>
     <message>
+        <source>This minute is outside the match.</source>
+        <translation>Ta minuta wypada poza meczem.</translation>
+    </message>
+    <message>
         <source>This minute has not been played yet. Enter a minute up to the current one.</source>
         <translation>Ta minuta jeszcze nie została rozegrana. Wpisz minutę nie późniejszą niż bieżąca.</translation>
+    </message>
+    <message>
+        <source>Enter the minute of the action.</source>
+        <translation>Wpisz minutę akcji.</translation>
     </message>
     <message>
         <source>This cannot be recorded at %1: it conflicts with a later event, %2. Undo or correct that event first.</source>

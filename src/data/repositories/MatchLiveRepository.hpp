@@ -23,6 +23,7 @@ struct ClockStepRow {
 
 struct LiveMatchRow {
     core::MatchFormat format;
+    bool clockless = false;
     std::vector<ClockStepRow> steps; // in the order they were taken
     // The action that finished the match; empty while it is live.
     std::optional<int> finishedSeq;
@@ -39,13 +40,17 @@ public:
     explicit MatchLiveRepository(DatabaseManager& db) : m_db(db) {}
 
     // A second row for the match: Conflict. A missing match or a format out of range: InvalidInput.
-    [[nodiscard]] core::Status create(core::MatchId match, core::MatchFormat format);
+    [[nodiscard]] core::Status create(core::MatchId match, core::MatchFormat format,
+                                      bool clockless = false);
     // The steps go with it. Nothing to remove: NotFound.
     [[nodiscard]] core::Status remove(core::MatchId match);
     [[nodiscard]] core::Result<std::optional<LiveMatchRow>> find(core::MatchId match) const;
     // A step taken twice: Conflict. No live row: InvalidInput.
     [[nodiscard]] core::Status appendStep(core::MatchId match, core::ClockStep step,
                                           core::Timestamp at, int seq);
+    // Another time of a step taken ("set clock"); its seq stays. Not taken: NotFound.
+    [[nodiscard]] core::Status moveStep(core::MatchId match, core::ClockStep step,
+                                        core::Timestamp at);
     // Removes the steps of one action and returns them (none: empty).
     [[nodiscard]] core::Result<std::vector<ClockStepRow>> deleteSteps(core::MatchId match, int seq);
     // seq nullopt: live again (and not ended early).

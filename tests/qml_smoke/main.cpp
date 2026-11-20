@@ -4172,6 +4172,72 @@ void expectShortcutsOff(const MatchDayScreen& screen, bool off, Unchanged unchan
     }
 }
 
+// The start dialog with a custom format, in one language: the fields of the parts and of their
+// length and their labels lie inside the dialog and the window, no label is cut; the sum error
+// shows only once a value is finished (P13 manual test).
+void expectStartDialogLayout(QQmlApplicationEngine& engine, QQuickWindow* window, QObject* dialog,
+                             const QString& language) {
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    languages->setLanguage(language);
+    dialog->setProperty("chosenFormat", QStringLiteral("custom"));
+    settle();
+    renderFrame(window);
+    const QRectF box(dialog->property("x").toReal(), dialog->property("y").toReal(),
+                     dialog->property("width").toReal(), dialog->property("height").toReal());
+    const QRectF screen(0, 0, window->width(), window->height());
+    for (const char* name :
+         {"periodsFormInput", "periodLengthFormInput", "periodsInput", "periodLengthInput"}) {
+        auto* item = dialog->property(name).value<QQuickItem*>();
+        if (item == nullptr || !item->isVisible()) {
+            fail("match day: a field of the start dialog is not there");
+            continue;
+        }
+        const QRectF rect = item->mapRectToScene(QRectF(0, 0, item->width(), item->height()));
+        if (!box.contains(rect) || !screen.contains(rect)) {
+            qWarning("qml_smoke: match day (%s): %s at %.0f,%.0f %.0fx%.0f outside the dialog "
+                     "%.0f,%.0f %.0fx%.0f",
+                     qUtf8Printable(language), name, rect.x(), rect.y(), rect.width(),
+                     rect.height(), box.x(), box.y(), box.width(), box.height());
+            fail("match day: a field of the start dialog does not fit");
+        }
+        const std::function<void(QQuickItem*)> labels = [&](QQuickItem* child) {
+            if (child->property("truncated").toBool()) {
+                qWarning("qml_smoke: match day (%s): cut text '%s'", qUtf8Printable(language),
+                         qUtf8Printable(child->property("text").toString()));
+                fail("match day: a label of the start dialog is cut");
+            }
+            for (QQuickItem* grandchild : child->childItems()) {
+                labels(grandchild);
+            }
+        };
+        labels(item);
+    }
+    // 4 × 40 typed: no error while typing, the sum error once the field is left.
+    auto* periods = dialog->property("periodsInput").value<QQuickItem*>();
+    auto* length = dialog->property("periodLengthInput").value<QQuickItem*>();
+    auto* lengthForm = dialog->property("periodLengthFormInput").value<QQuickItem*>();
+    periods->forceActiveFocus();
+    periods->setProperty("value", 4);
+    length->forceActiveFocus(); // from one field to the other: still typing
+    QMetaObject::invokeMethod(length, "increase");
+    settle();
+    if (!lengthForm->property("error").toString().isEmpty()) {
+        fail("match day: the sum error shows while the value is typed");
+    }
+    // Both fields left.
+    dialog->property("formatInput").value<QQuickItem*>()->forceActiveFocus();
+    settle();
+    if (lengthForm->property("error").toString().isEmpty()) {
+        fail("match day: the sum error does not show once the value is finished");
+    }
+    dialog->setProperty("chosenFormat", QStringLiteral("2x45"));
+    // The focus back on the dialog, as when it opens: Enter starts.
+    dialog->property("formatInput").value<QQuickItem*>()->setFocus(false);
+    dialog->property("contentItem").value<QQuickItem*>()->forceActiveFocus();
+    settle();
+}
+
 int smokeMinutes(fdss::data::DatabaseManager& database, qint64 matchId, qint64 playerId,
                  const char* column) {
     QSqlQuery query(database.database());
@@ -4249,6 +4315,23 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     }
     renderFrame(screen->window);
     expectPopupHitTargets(startDialog, "start dialog");
+    {
+        auto* languages = engine.singletonInstance<LanguageManager*>(
+            QStringLiteral("FootballDSS"), QStringLiteral("LanguageManager"));
+        const QString before = languages->language();
+        // At the minimum window, in both languages.
+        const QSize size = screen->window->size();
+        screen->window->resize(1280, 720);
+        for (const QString& language : {QStringLiteral("pl"), QStringLiteral("en")}) {
+            expectStartDialogLayout(engine, screen->window, startDialog, language);
+        }
+        languages->setLanguage(before);
+        screen->window->resize(size);
+        settle();
+        if (startDialog->property("clockless").toBool()) {
+            fail("match day: a match of today starts without the clock");
+        }
+    }
     if (startDialog->property("chosenFormat").toString() != QLatin1StringView("2x45")) {
         fail("match day: the format is not 2 x 45 for a senior team");
     }
@@ -4263,6 +4346,26 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     expectMatchDayHitTargets(*screen, "before the kick-off");
 
     screen->click(QStringLiteral("clockButton")); // kick-off
+    // "Set time": the dialog, 2:00 typed, then the undo of its toast.
+    screen->click(QStringLiteral("setClockButton"));
+    if (auto* setClock = screen->view->property("setClockEditor").value<QObject*>();
+        setClock == nullptr || !setClock->property("opened").toBool()) {
+        fail("match day: Set time does not open its dialog");
+    } else {
+        renderFrame(screen->window);
+        expectPopupHitTargets(setClock, "set time dialog");
+        typeText(screen->window, QStringLiteral("2:00"));
+        pressKey(screen->window, Qt::Key_Return);
+        settle();
+        if (setClock->property("visible").toBool() ||
+            matchDay->clockText() != QLatin1StringView("02:00")) {
+            fail("match day: Set time did not set the clock to 02:00");
+        }
+        matchDay->undoSetClock(); // the Undo of the toast
+        if (matchDay->clockText() != QLatin1StringView("00:00")) {
+            fail("match day: the undo of Set time did not bring the clock back");
+        }
+    }
     g_clock->advance(10min + 20s);
     screen->click(QStringLiteral("goalButton"));
     screen->tap(QStringLiteral("pitchTile"), xi(9));
@@ -4358,6 +4461,8 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
         renderFrame(screen->window);
         expectPopupHitTargets(noteDialog, "note dialog");
         typeText(screen->window, QStringLiteral("Wiatr"));
+        // Enter from the minute field saves once.
+        noteDialog->property("minuteInput").value<QQuickItem*>()->forceActiveFocus();
         pressKey(screen->window, Qt::Key_Return);
         settle();
         if (noteDialog->property("visible").toBool() ||

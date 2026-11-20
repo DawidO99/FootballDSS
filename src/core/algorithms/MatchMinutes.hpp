@@ -34,6 +34,9 @@ inline constexpr int kMaxPeriodLength = 60;
 inline constexpr int kMaxMatchMinute = 130;
 // By the laws of the game a team needs at least 7 players on the pitch to go on.
 inline constexpr int kMinPlayersOnPitch = 7;
+// The most stoppage time of one part: the limit of "set clock" (length + 30 min) and of the added
+// time typed without the clock.
+inline constexpr int kMaxAddedTime = 30;
 
 struct MatchFormat {
     int periods = 2;
@@ -78,6 +81,9 @@ struct MatchClock {
     // Finished with fewer than 7 players: the final minute (earlyEndMinute()); empty for a
     // normal end, whose final minute is parts × length.
     std::optional<int> endedEarlyAt;
+    // Without the clock (P13): no stopwatch and no steps; the match is running until finished and
+    // every action takes a minute typed by the user, any minute of the format (isValidMatchTime()).
+    bool clockless = false;
 
     friend bool operator==(const MatchClock&, const MatchClock&) = default;
 };
@@ -101,8 +107,9 @@ void applyStep(MatchClock& clock, ClockStep step, Timestamp at);
 // little before its length), or endedEarlyAt for a match ended early.
 [[nodiscard]] int finalMinute(const MatchClock& clock) noexcept;
 // The final minute of a match ended now with fewer than 7 players: while a part runs, the minute of
-// the clock (at most the end of the part); in a break, the end of the part played. Never before a
-// stored event, so every appearance ends at or after it started.
+// the clock (at most the end of the part); in a break, the end of the part played; without the
+// clock, the last event. Never before a stored event, so every appearance ends at or after it
+// started.
 [[nodiscard]] int earlyEndMinute(const MatchClock& clock, Timestamp now,
                                  std::span<const MatchEventDraft> events) noexcept;
 
@@ -127,6 +134,16 @@ struct DisplayMinute {
 // The stored time of a shown minute; added time only at the end of a part ("30+2" in 3×30).
 [[nodiscard]] std::optional<MatchTime> matchTimeOf(DisplayMinute shown, MatchFormat format);
 
+// "Set clock" (P13): the time typed as the clock shows it ("67:30", "67", or "45+2:10" in stoppage
+// time) as the time elapsed in the running part `period`. nullopt when it is not a time of that
+// part (before its start, or stoppage time of another part); the limits of the service come after.
+[[nodiscard]] std::optional<std::chrono::seconds>
+elapsedFromClockText(std::string_view text, MatchFormat format, int period);
+// The least time of the running part that keeps its stored events played ("set clock" may not put
+// the clock before them).
+[[nodiscard]] std::chrono::seconds minElapsedForEvents(MatchFormat format, int period,
+                                                       std::span<const MatchEventDraft> events);
+
 struct ClockReading {
     MatchPhase phase = MatchPhase::NotStarted;
     int period = 0;
@@ -141,13 +158,18 @@ struct ClockReading {
 // A time before the start of a part (the system clock went back) counts as 0.
 [[nodiscard]] ClockReading readClock(const MatchClock& clock, Timestamp now) noexcept;
 
+// A time inside the format: a minute before parts × length, or 1–kMaxAddedTime added minutes at the
+// end of a part ("45+2", "90+4").
+[[nodiscard]] bool isValidMatchTime(MatchFormat format, MatchTime time) noexcept;
 // Whether a time was already played: a minute of a part started so far, not later than now, or the
 // added time of a part as far as it was played. A substitution in a break may also take the minute
-// that starts the next part ("46'" in the half-time break).
+// that starts the next part ("46'" in the half-time break). Without the clock: isValidMatchTime().
+
 [[nodiscard]] bool isPlayedTime(const MatchClock& clock, Timestamp now, MatchTime time,
                                 bool substitution);
 // What the minute field offers: the time now while a part runs; in a break the minute of a
-// substitution, or for anything else the last minute played.
+// substitution, or for anything else the last minute played. Not used without the clock.
+
 [[nodiscard]] MatchTime defaultTime(const MatchClock& clock, Timestamp now, bool substitution);
 
 // Who starts and who is on the bench, from the saved lineup.

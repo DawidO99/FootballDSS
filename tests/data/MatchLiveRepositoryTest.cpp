@@ -88,6 +88,22 @@ TEST_F(MatchLiveRepositoryTest, FinishedWithTheMinuteOfAnEarlyEnd) {
     EXPECT_EQ(live.find(kMatch).value()->endedEarlyAt, std::nullopt);
 }
 
+TEST_F(MatchLiveRepositoryTest, ClocklessAndAMovedStep) {
+    auto live = repository();
+    ASSERT_TRUE(live.create(kMatch, {2, 45}, true));
+    EXPECT_TRUE(live.find(kMatch).value()->clockless);
+    ASSERT_TRUE(live.remove(kMatch));
+    ASSERT_TRUE(live.create(kMatch, {2, 45}));
+    EXPECT_FALSE(live.find(kMatch).value()->clockless);
+    ASSERT_TRUE(live.appendStep(kMatch, kStart1, kKickoff, 1));
+    ASSERT_TRUE(live.moveStep(kMatch, kStart1, kKickoff - 3min));
+    const auto steps = live.find(kMatch).value()->steps;
+    ASSERT_EQ(steps.size(), 1U);
+    EXPECT_EQ(steps.front().at, kKickoff - 3min);
+    EXPECT_EQ(steps.front().seq, 1);
+    EXPECT_EQ(live.moveStep(kMatch, kEnd1, kKickoff).error().code, ErrorCode::NotFound);
+}
+
 TEST_F(MatchLiveRepositoryTest, ConstraintsMapToErrors) {
     auto live = repository();
     const auto badFormat = live.create(kMatch, {4, 40});

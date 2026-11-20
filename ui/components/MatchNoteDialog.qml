@@ -76,7 +76,6 @@ AppDialog {
                 maximumLength: 7
                 error: root.minuteError
                 Accessible.name: minuteFormField.label
-                onAccepted: root.triggerPrimary()
             }
         }
 

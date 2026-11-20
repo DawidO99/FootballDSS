@@ -177,7 +177,7 @@ the import can be undone.
 | `match` | `team_id` INTEGER, `opponent_id` INTEGER, `date` TEXT, `kickoff_time` TEXT *null*, `venue` TEXT, `competition` TEXT *null*, `goals_for` INTEGER *null*, `goals_against` INTEGER *null*, `status` TEXT (default `planned`), `formation` TEXT *null*, `import_id` INTEGER | |
 | `appearance` | `match_id` INTEGER, `player_id` INTEGER, `started` INTEGER 0/1 (default 0), `minute_on` INTEGER *null*, `minute_off` INTEGER *null*, `position` TEXT *null*, `rating` INTEGER *null* (1–10), `rpe` INTEGER *null* (0–10), `import_id` INTEGER | Minutes from Match Day, 0–130. UNIQUE (`match_id`, `player_id`) |
 | `match_event` | `match_id` INTEGER, `minute` INTEGER (0–130), `type` TEXT, `player_id` INTEGER *null*, `related_player_id` INTEGER *null*, `added_time` INTEGER *null* (≥ 1, since 0002), `seq` INTEGER *null* (≥ 1, since 0002) | `player_id` empty only for `opponent_goal`. Semantics below |
-| `match_live` | `match_id` INTEGER UNIQUE, `periods` INTEGER (1–4), `period_length` INTEGER (10–60), `next_seq` INTEGER (default 1), `finished_seq` INTEGER *null*, `ended_early_minute` INTEGER *null* (0–130) | Since 0002 (P13): a match that Match Day has started, in its format; `periods` × `period_length` ≤ 130. `next_seq`: the seq of the next action, a counter that only grows |
+| `match_live` | `match_id` INTEGER UNIQUE, `periods` INTEGER (1–4), `period_length` INTEGER (10–60), `clockless` INTEGER 0/1 (default 0), `next_seq` INTEGER (default 1), `finished_seq` INTEGER *null*, `ended_early_minute` INTEGER *null* (0–130) | Since 0002 (P13): a match that Match Day has started, in its format; `periods` × `period_length` ≤ 130. `next_seq`: the seq of the next action, a counter that only grows |
 | `match_clock_step` | `match_id` INTEGER (→ `match_live.match_id`), `period` INTEGER (1–4), `kind` TEXT, `at` TEXT (UTC ISO datetime), `seq` INTEGER | Since 0002 (P13). `kind`: `start`, `end`; UNIQUE (`match_id`, `period`, `kind`) |
 | `match_note` | `match_id` INTEGER, `minute` INTEGER (0–130), `added_time` INTEGER *null* (≥ 1), `player_id` INTEGER *null*, `text` TEXT (1–500 after trimming), `seq` INTEGER *null* | Since 0002 (P13): a note of Match Day with its minute; never changes the score or the minutes. Plain text |
 | `training_session` | `team_id` INTEGER, `date` TEXT, `start_time` TEXT *null*, `duration_min` INTEGER (15–240), `type` TEXT, `note` TEXT *null*, `import_id` INTEGER | |
@@ -222,6 +222,18 @@ the import can be undone.
   the card, everyone else on the pitch until the final minute, which is `periods` × `period_length`
   whatever the stoppage time. While the match is live, players on the pitch have `minute_off` empty. A
   substituted player cannot come back; a sent-off player cannot be substituted. Rating and RPE are kept.
+- "Set time": while a part runs with the clock, the time as the clock (the referee's watch) shows it
+  ("67:30", "45+2:10") moves the start of that part (`match_clock_step.at`), and the clock runs on from
+  there; also right after the kick-off was pressed late. At most the length of the part + 30 min, never
+  before an event of the part. Not an action of the undo stack: its toast has Undo, which brings the
+  start back.
+- Without the clock (`clockless` = 1, chosen at the start; the default for a match before today):
+  no stopwatch and no clock steps; every action takes a minute typed, any minute of the format (before
+  `periods` × `period_length`, or 1–30 added minutes at the end of a part), not only minutes played.
+  Parts come from the minutes; a substitution "in the break" is at the minute that starts the next
+  part, as with the clock. "End match" is always there: with 7 players or more a normal end
+  (`periods` × `period_length`), with fewer an early one at the last event or the minute typed, if
+  later. Undo, notes, the checks of the events and the minutes of play work as with the clock.
 - At least 7 players on the pitch (laws of the game, `core::kMinPlayersOnPitch`): with 7 left Match Day
   warns; with fewer only the end of the match, notes and undo are possible. Every end of the match
   (the clock button, the banner, the dialog) goes one way: with fewer than 7 players it is early,

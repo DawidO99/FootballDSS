@@ -183,6 +183,14 @@ QString MatchDayViewModel::defaultFormat() const {
     return formatKey(format);
 }
 
+bool MatchDayViewModel::defaultClockless() const {
+    return m_state && m_state->match.match.date < m_clock.today();
+}
+
+bool MatchDayViewModel::clockless() const {
+    return m_state && m_state->clock && m_state->clock->clockless;
+}
+
 int MatchDayViewModel::minPeriods() { return core::kMinPeriods; }
 
 int MatchDayViewModel::maxPeriods() { return core::kMaxPeriods; }
@@ -208,11 +216,17 @@ QString MatchDayViewModel::phase() const {
 }
 
 QString MatchDayViewModel::phaseText() const {
+    if (clockless() && currentPhase() != core::MatchPhase::Finished) {
+        return tr("Without the clock");
+    }
     const auto now = reading();
     return now ? MatchDayTexts::phaseText(*now, m_state->clock->format.periods) : QString{};
 }
 
 QString MatchDayViewModel::clockText() const {
+    if (clockless() && currentPhase() != core::MatchPhase::Finished) {
+        return QStringLiteral("—");
+    }
     const auto now = reading();
     return now ? MatchDayTexts::clockText(*now, m_state->clock->format.periodLength)
                : QStringLiteral("00:00");
@@ -227,7 +241,7 @@ QString MatchDayViewModel::clockActionText() const {
 }
 
 bool MatchDayViewModel::canAdvanceClock() const {
-    if (!isLive() || readOnly()) {
+    if (!isLive() || readOnly() || clockless()) {
         return false;
     }
     // With fewer than 7 only the end of the match: its own button, or the end of the last part.
@@ -238,7 +252,28 @@ bool MatchDayViewModel::canAdvanceClock() const {
 }
 
 bool MatchDayViewModel::canCancelStart() const {
-    return isLive() && !readOnly() && currentPhase() == core::MatchPhase::NotStarted;
+    return isLive() && !readOnly() &&
+           (currentPhase() == core::MatchPhase::NotStarted ||
+            (clockless() && m_state->events.empty() && m_state->notes.empty()));
+}
+
+bool MatchDayViewModel::canSetClock() const {
+    return isLive() && !readOnly() && !clockless() && currentPhase() == core::MatchPhase::Running;
+}
+
+bool MatchDayViewModel::canEndMatch() const {
+    return isLive() && !readOnly() && (clockless() || tooFewPlayers());
+}
+
+QString MatchDayViewModel::endMinute() const {
+    if (!m_state || !clockless() || m_state->events.empty()) {
+        return {};
+    }
+    int minute = 0;
+    for (const core::MatchEvent& event : m_state->events) {
+        minute = std::max(minute, event.minute);
+    }
+    return QString::number(minute + 1);
 }
 
 bool MatchDayViewModel::canAddNote() const {
@@ -350,7 +385,8 @@ QString MatchDayViewModel::pendingMinute() const {
     if (m_pendingMinute) {
         return *m_pendingMinute;
     }
-    if (!m_state || !m_state->clock || m_pending == Pending::None) {
+    // Without the clock there is no current minute: the field starts empty.
+    if (!m_state || !m_state->clock || m_pending == Pending::None || clockless()) {
         return {};
     }
     const bool substitution = m_pending == Pending::SubOff || m_pending == Pending::SubOn;
@@ -694,7 +730,8 @@ void MatchDayViewModel::rebuildRows() {
 }
 
 void MatchDayViewModel::updateTimer() {
-    const bool running = m_state && m_state->clock && currentPhase() == core::MatchPhase::Running;
+    const bool running = m_state && m_state->clock && !m_state->clock->clockless &&
+                         currentPhase() == core::MatchPhase::Running;
     if (running && !m_timer.isActive()) {
         m_timer.start();
     } else if (!running) {
@@ -753,7 +790,8 @@ bool MatchDayViewModel::finish(const core::Status& status) {
     return true;
 }
 
-bool MatchDayViewModel::start(const QString& format, int periods, int periodLength) {
+bool MatchDayViewModel::start(const QString& format, int periods, int periodLength,
+                              bool clockless) {
     if (!checkRunnable()) {
         return false;
     }
@@ -763,7 +801,8 @@ bool MatchDayViewModel::start(const QString& format, int periods, int periodLeng
             chosen = preset;
         }
     }
-    return finish(m_service.start(m_state->match.match.id, chosen, m_yellowCardThreshold));
+    return finish(
+        m_service.start(m_state->match.match.id, chosen, m_yellowCardThreshold, clockless));
 }
 
 bool MatchDayViewModel::cancelStart() {
@@ -780,11 +819,66 @@ bool MatchDayViewModel::advanceClock() {
     return finish(m_service.advanceClock(m_state->match.match.id));
 }
 
-bool MatchDayViewModel::endMatch() {
+bool MatchDayViewModel::endMatch(const QString& minute) {
     if (!checkRunnable()) {
         return false;
     }
-    return finish(m_service.endMatch(m_state->match.match.id));
+    std::optional<int> at;
+    if (clockless() && !minute.trimmed().isEmpty()) {
+        const auto shown = core::parseDisplayMinute(minute.toStdString());
+        if (!shown || shown->added) {
+            emit errorOccurred(tr("Enter the minute of the end, e.g. 80."));
+            return false;
+        }
+        // The minute shown is the minute played: the match ended after it.
+        at = shown->minute;
+    }
+    return finish(m_service.endMatch(m_state->match.match.id, at));
+}
+
+QString MatchDayViewModel::clockTextError(const QString& text) const {
+    if (!canSetClock()) {
+        return {};
+    }
+    const auto elapsed = core::elapsedFromClockText(text.toStdString(), m_state->clock->format,
+                                                    core::currentPeriod(*m_state->clock));
+    if (!elapsed) {
+        return tr("Enter the time as the clock shows it, e.g. 23:41, or 45+2:10 in stoppage time.");
+    }
+    return {};
+}
+
+QString MatchDayViewModel::setClock(const QString& text) {
+    if (!checkRunnable() || !canSetClock()) {
+        return {};
+    }
+    if (const QString error = clockTextError(text); !error.isEmpty()) {
+        emit errorOccurred(error);
+        return {};
+    }
+    const auto elapsed = core::elapsedFromClockText(text.toStdString(), m_state->clock->format,
+                                                    core::currentPeriod(*m_state->clock));
+    const auto before = m_service.setClock(m_state->match.match.id, *elapsed);
+    if (!before) {
+        report(before.error());
+        reload();
+        return {};
+    }
+    m_clockBefore = *before;
+    reload();
+    return tr("Clock set to %1.").arg(clockText());
+}
+
+void MatchDayViewModel::undoSetClock() {
+    if (!m_clockBefore || !checkRunnable()) {
+        return;
+    }
+    const auto restored = m_service.restoreClock(m_state->match.match.id, *m_clockBefore);
+    m_clockBefore.reset();
+    if (!restored) {
+        report(restored.error());
+    }
+    reload();
 }
 
 void MatchDayViewModel::setPending(Pending pending, std::optional<core::PlayerId> first) {
@@ -844,13 +938,20 @@ std::optional<core::MatchTime> MatchDayViewModel::timeOf(const QString& text, bo
         return std::nullopt;
     }
     const auto shown = core::parseDisplayMinute(text.toStdString());
-    const auto time = shown ? core::matchTimeOf(*shown, m_state->clock->format) : std::nullopt;
-    if (!time) {
+    if (!shown) {
         error = tr("Enter the minute as 23, or 45+2 in stoppage time.");
         return std::nullopt;
     }
+    const auto time = core::matchTimeOf(*shown, m_state->clock->format);
+    if (!time) {
+        error = tr("This minute is outside the match.");
+        return std::nullopt;
+    }
     if (!core::isPlayedTime(*m_state->clock, m_clock.now(), *time, substitution)) {
-        error = tr("This minute has not been played yet. Enter a minute up to the current one.");
+        error = clockless()
+                    ? tr("This minute is outside the match.")
+                    : tr("This minute has not been played yet. Enter a minute up to the current "
+                         "one.");
         return std::nullopt;
     }
     return time;
@@ -862,6 +963,10 @@ std::optional<core::MatchTime> MatchDayViewModel::pendingTime(QString& error) co
     }
     const bool substitution = m_pending == Pending::SubOff || m_pending == Pending::SubOn;
     if (!m_pendingMinute) {
+        if (clockless()) {
+            error = tr("Enter the minute of the action.");
+            return std::nullopt;
+        }
         return core::defaultTime(*m_state->clock, m_clock.now(), substitution);
     }
     return timeOf(*m_pendingMinute, substitution, error);
@@ -995,7 +1100,7 @@ QString MatchDayViewModel::undo() {
 }
 
 QString MatchDayViewModel::defaultNoteMinute() const {
-    if (!m_state || !m_state->clock) {
+    if (!m_state || !m_state->clock || clockless()) {
         return {};
     }
     return MatchDayTexts::minuteFieldText(core::defaultTime(*m_state->clock, m_clock.now(), false));

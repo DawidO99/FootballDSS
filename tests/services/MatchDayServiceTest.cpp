@@ -1042,3 +1042,124 @@ TEST_F(MatchDayServiceTest, NotesWithTheirMinute) {
     expectError(m_service->addNote(kMatch, std::nullopt, std::nullopt, "x"),
                 ErrorCode::PermissionDenied);
 }
+
+// --- Set clock and the mode without the clock (P13 manual test) ---
+
+TEST_F(MatchDayServiceTest, SetClockMovesTheStartOfTheRunningPart) {
+    startMatch();
+    advance(); // the kick-off pressed late: the match had run 3 minutes already
+    auto previous = m_service->setClock(kMatch, 3min);
+    ASSERT_TRUE(previous.has_value()) << previous.error().detail;
+    EXPECT_EQ(readClock(*read().clock, m_clock.now()).regular, 3min);
+    m_clock.advance(7min);
+    EXPECT_EQ(readClock(*read().clock, m_clock.now()).regular, 10min); // it runs on
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt));  // at 11' (stored 10)
+    // Not before the goal of this part, not past 45 + 30 minutes.
+    expectError(m_service->setClock(kMatch, 9min), ErrorCode::InvalidInput, "clock_before_event");
+    expectError(m_service->setClock(kMatch, 75min + 1s), ErrorCode::InvalidInput, "clock_time");
+    previous = m_service->setClock(kMatch, 20min);
+    ASSERT_TRUE(previous.has_value());
+    EXPECT_EQ(readClock(*read().clock, m_clock.now()).regular, 20min);
+    // The undo toast brings the start back; the goal and the seq stay.
+    ASSERT_TRUE(m_service->restoreClock(kMatch, *previous).has_value());
+    EXPECT_EQ(readClock(*read().clock, m_clock.now()).regular, 10min);
+    EXPECT_EQ(read().lastAction->kind, MatchDayAction::Kind::Event);
+    // In the break nothing runs.
+    advance();
+    expectError(m_service->setClock(kMatch, 10min), ErrorCode::Conflict, "clock_not_running");
+    logInAs(Role::Physio);
+    expectError(m_service->setClock(kMatch, 10min), ErrorCode::PermissionDenied);
+}
+
+TEST_F(MatchDayServiceTest, SetClockInTheSecondHalfKeepsItsEvents) {
+    startMatch();
+    advance();
+    m_clock.advance(46min);
+    advance();
+    m_clock.advance(15min);
+    advance(); // second half
+    m_clock.advance(10min);
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt)); // 56' (stored 55)
+    expectError(m_service->setClock(kMatch, 9min), ErrorCode::InvalidInput, "clock_before_event");
+    ASSERT_TRUE(m_service->setClock(kMatch, 12min + 30s).has_value());
+    EXPECT_EQ(readClock(*read().clock, m_clock.now()).regular, 57min + 30s);
+    // After a restart the moved clock is there.
+    restart();
+    m_clock.advance(1min);
+    EXPECT_EQ(readClock(*read().clock, m_clock.now()).regular, 58min + 30s);
+}
+
+TEST_F(MatchDayServiceTest, AWholeMatchWithoutTheClockInAnyOrder) {
+    logInAs(Role::Coach);
+    saveLineup();
+    ASSERT_TRUE(m_service->start(kMatch, kHalves, 4, true).has_value());
+    MatchDayState state = read();
+    ASSERT_TRUE(state.clock->clockless);
+    EXPECT_EQ(phaseOf(*state.clock), MatchPhase::Running);
+    expectError(m_service->advanceClock(kMatch), ErrorCode::Conflict, "clockless");
+    expectError(m_service->setClock(kMatch, 5min), ErrorCode::Conflict, "clock_not_running");
+    expectError(m_service->recordGoal(kMatch, pid(9), std::nullopt), ErrorCode::InvalidInput,
+                "minute_required");
+    expectError(m_service->recordGoal(kMatch, pid(9), std::nullopt, MatchTime{90, std::nullopt}),
+                ErrorCode::InvalidInput, "minute_out_of_match");
+    // Entered after the match, out of order: no "not played yet".
+    ASSERT_TRUE(
+        m_service->recordSubstitution(kMatch, pid(12), pid(5), MatchTime{59, std::nullopt}));
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(12), pid(9), MatchTime{74, std::nullopt}));
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(9), std::nullopt, MatchTime{9, std::nullopt}));
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4), MatchTime{49, std::nullopt}));
+    ASSERT_TRUE(m_service->recordOpponentGoal(kMatch, MatchTime{45, 2})); // 45+2'
+    // A yellow at 30' would make the one at 50' the second without its red: refused.
+    expectError(m_service->recordYellow(kMatch, pid(4), MatchTime{29, std::nullopt}),
+                ErrorCode::Conflict, "event_conflict");
+    state = read();
+    EXPECT_EQ(state.events.size(), 5U);
+    ASSERT_TRUE(m_service->recordYellow(kMatch, pid(4), MatchTime{79, std::nullopt})); // second
+    ASSERT_TRUE(m_service->addNote(kMatch, MatchTime{19, std::nullopt}, std::nullopt, "Deszcz"));
+    // Still possible to cancel? No: there are events.
+    expectError(m_service->cancelStart(kMatch), ErrorCode::Conflict, "match_started");
+    // Ten players: an ordinary end, whole match.
+    ASSERT_TRUE(m_service->endMatch(kMatch).has_value());
+    const auto match = m_matches->get(kMatch);
+    EXPECT_EQ(match->status, MatchStatus::Finished);
+    EXPECT_EQ(match->goalsFor, 2);
+    EXPECT_EQ(match->goalsAgainst, 1);
+    EXPECT_EQ(read().clock->endedEarlyAt, std::nullopt);
+    expectMinutes(5, 0, 59);
+    expectMinutes(12, 59, 90);
+    expectMinutes(4, 0, 79);
+    expectMinutes(9, 0, 90);
+    // Undo, resume after a restart, the same.
+    ASSERT_TRUE(m_service->undoLast(kMatch));
+    restart();
+    EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Live);
+    EXPECT_TRUE(read().clock->clockless);
+}
+
+TEST_F(MatchDayServiceTest, WithoutTheClockFewerThanSevenEndAtTheLastEventOrTheMinuteTyped) {
+    logInAs(Role::Coach);
+    saveLineup();
+    ASSERT_TRUE(m_service->start(kMatch, kHalves, 4, true).has_value());
+    for (const std::int64_t player : {1, 2, 4, 6, 7}) {
+        ASSERT_TRUE(m_service->recordRed(kMatch, pid(player),
+                                         MatchTime{30 + static_cast<int>(player), std::nullopt}));
+    }
+    // The last event is at 37; a minute typed before it does not count, after it does.
+    expectError(m_service->endMatch(kMatch, 91), ErrorCode::InvalidInput, "minute_out_of_match");
+    const auto ended = m_service->endMatch(kMatch, 20);
+    ASSERT_TRUE(ended.has_value()) << ended.error().detail;
+    EXPECT_EQ(read().clock->endedEarlyAt, 37);
+    expectMinutes(9, 0, 37);
+    ASSERT_TRUE(m_service->undoLast(kMatch));
+    ASSERT_TRUE(m_service->endMatch(kMatch, 52).has_value());
+    EXPECT_EQ(read().clock->endedEarlyAt, 52);
+    expectMinutes(9, 0, 52);
+}
+
+TEST_F(MatchDayServiceTest, WithoutTheClockTheStartCanBeTakenBack) {
+    logInAs(Role::Coach);
+    saveLineup();
+    ASSERT_TRUE(m_service->start(kMatch, kHalves, 4, true).has_value());
+    ASSERT_TRUE(m_service->cancelStart(kMatch).has_value());
+    EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Planned);
+}

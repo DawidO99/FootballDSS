@@ -577,3 +577,88 @@ TEST_F(MatchDayViewModelTest, PlayersAreChosenByWhereTheyWereAtTheMinute) {
     vm->cancelAction();
     EXPECT_EQ(vm->pitch()->value(now, "historyText"), "");
 }
+
+// --- Set clock and the mode without the clock (P13 manual test) ---
+
+TEST_F(MatchDayViewModelTest, SetClockByTheTimeTheClockShows) {
+    const auto vm = kickedOff();
+    EXPECT_TRUE(vm->canSetClock());
+    m_clock->advance(1min);
+    EXPECT_FALSE(vm->clockTextError("x").isEmpty());
+    EXPECT_FALSE(vm->clockTextError("46:00").isEmpty()); // in stoppage time: 45+1:00
+    EXPECT_EQ(vm->clockTextError("4:30"), "");
+    EXPECT_EQ(vm->setClock("4:30"), "Clock set to 04:30.");
+    EXPECT_EQ(vm->clockText(), "04:30");
+    m_clock->advance(10s);
+    EXPECT_EQ(vm->clockText(), "04:40");
+    vm->undoSetClock();
+    EXPECT_EQ(vm->clockText(), "01:10");
+    EXPECT_EQ(vm->setClock("45+1:30"), "Clock set to 45+1:30.");
+    EXPECT_EQ(vm->clockActionText(), "End 1st half");
+}
+
+TEST_F(MatchDayViewModelTest, AMatchBeforeTodayStartsWithoutTheClock) {
+    saveLineup();
+    OpponentDraft opponent;
+    opponent.name = "Wczorajszy";
+    MatchDraft past;
+    past.opponentId = registry().calendar().addOpponent(opponent).value();
+    past.date = Date{std::chrono::year{2026}, std::chrono::October, std::chrono::day{25}};
+    const MatchId pastMatch = registry().calendar().addMatch(m_team, past).value();
+    Lineup lineup = emptyLineup(*findFormation("4-4-2"));
+    for (std::size_t slot = 0; slot < lineup.pitchSlots.size(); ++slot) {
+        lineup.pitchSlots[slot].player = m_players[slot];
+    }
+    lineup.bench = {m_players[11]};
+    ASSERT_TRUE(registry().lineup().save(pastMatch, lineup).has_value());
+
+    auto vm = std::make_unique<MatchDayViewModel>();
+    vm->setTeamId(m_team.value);
+    vm->openMatch(m_match.value);
+    EXPECT_FALSE(vm->defaultClockless()); // today
+    vm->openMatch(pastMatch.value);
+    EXPECT_TRUE(vm->defaultClockless());
+
+    ASSERT_TRUE(vm->start("2x45", 0, 0, true));
+    EXPECT_TRUE(vm->clockless());
+    EXPECT_EQ(vm->phaseText(), "Without the clock");
+    EXPECT_EQ(vm->clockText(), "—");
+    EXPECT_FALSE(vm->canAdvanceClock());
+    EXPECT_FALSE(vm->canSetClock());
+    EXPECT_TRUE(vm->canRecordEvents());
+    EXPECT_TRUE(vm->canEndMatch());
+    EXPECT_TRUE(vm->canCancelStart());
+    EXPECT_EQ(vm->defaultNoteMinute(), "");
+
+    // Every action takes a minute typed, in any order.
+    Messages errors(vm.get(), &MatchDayViewModel::errorOccurred);
+    vm->beginAction("goal");
+    EXPECT_EQ(vm->pendingMinute(), "");
+    EXPECT_EQ(vm->pendingMinuteError(), "Enter the minute of the action.");
+    ASSERT_TRUE(vm->choosePlayer(player(9)));
+    EXPECT_FALSE(vm->skipAssist());
+    EXPECT_EQ(errors.texts().size(), 1);
+    vm->setPendingMinute("91");
+    EXPECT_EQ(vm->pendingMinuteError(), "This minute is outside the match.");
+    vm->setPendingMinute("80");
+    ASSERT_TRUE(vm->skipAssist());
+    vm->beginAction("sub");
+    vm->setPendingMinute("46");
+    ASSERT_TRUE(vm->choosePlayer(player(5)));
+    ASSERT_TRUE(vm->choosePlayer(player(12)));
+    vm->beginAction("opponentGoal");
+    vm->setPendingMinute("45+2");
+    ASSERT_TRUE(vm->confirmAction());
+    EXPECT_EQ(vm->timeline()->value(0, "minuteText"), "80'");
+    EXPECT_EQ(vm->timeline()->value(1, "minuteText"), "46'");
+    EXPECT_EQ(vm->timeline()->value(2, "minuteText"), "45+2'");
+    EXPECT_FALSE(vm->canCancelStart());
+    EXPECT_EQ(vm->endMinute(), "80");
+    ASSERT_TRUE(vm->addNote("12", 0, "Boisko mokre"));
+
+    ASSERT_TRUE(vm->endMatch());
+    EXPECT_EQ(vm->statusKey(), "finished");
+    EXPECT_EQ(vm->goalsFor(), 1);
+    EXPECT_EQ(vm->goalsAgainst(), 1);
+    EXPECT_EQ(vm->clockText(), "90:00");
+}

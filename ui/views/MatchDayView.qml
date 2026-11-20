@@ -21,7 +21,7 @@ Item {
     readonly property bool failed: matchDay.loadError.length > 0
     readonly property bool started: matchDay.statusKey === "live" || matchDay.statusKey === "finished"
     readonly property bool choosing: matchDay.pendingAction.length > 0
-    readonly property bool dialogOpen: startDialog.visible || leaveQuestion.visible || noteDialog.visible || tooFewDialog.visible
+    readonly property bool dialogOpen: startDialog.visible || leaveQuestion.visible || noteDialog.visible || tooFewDialog.visible || setClockDialog.visible
     // The single-letter accelerators and Ctrl+Z stay off while a dialog (of this view or any other
     // popup, e.g. Change PIN) holds the focus, and while a text field does: there the letters are
     // typed and Ctrl+Z undoes the typing (P13 review).
@@ -34,6 +34,7 @@ Item {
     readonly property alias leaveDialog: leaveQuestion
     readonly property alias noteEditor: noteDialog
     readonly property alias tooFewPlayersDialog: tooFewDialog
+    readonly property alias setClockEditor: setClockDialog
 
     signal navigateRequested(string key, var args)
     // The answer to askBeforeLeaving(): leave the live match, or stay.
@@ -90,6 +91,22 @@ Item {
         const text = matchDay.deleteNote(noteId);
         if (text.length > 0)
             Toasts.show(text, qsTr("Undo"), () => matchDay.restoreDeletedNote());
+    }
+
+    // Every end of the match goes one way (service); below 7 players it asks first.
+    function endMatch() {
+        if (matchDay.tooFewPlayers)
+            tooFewDialog.open();
+        else
+            matchDay.endMatch();
+    }
+
+    function setClock(text) {
+        const toast = matchDay.setClock(text);
+        if (toast.length === 0)
+            return false;
+        Toasts.show(toast, qsTr("Undo"), () => matchDay.undoSetClock());
+        return true;
     }
 
     function undo() {
@@ -387,6 +404,24 @@ Item {
                 onClicked: matchDay.cancelStart()
             }
 
+            // The clock as the referee's watch shows it: the running part moves to that time.
+            SecondaryButton {
+                objectName: "setClockButton"
+                visible: matchDay.canSetClock
+                touch: true
+                text: qsTr("Set time")
+                onClicked: setClockDialog.open()
+            }
+
+            // Without the clock the end is always there; with it, below 7 players (the banner).
+            PrimaryButton {
+                objectName: "endMatchClocklessButton"
+                visible: matchDay.clockless && matchDay.canEndMatch
+                touch: true
+                text: qsTr("End match")
+                onClicked: root.endMatch()
+            }
+
             PrimaryButton {
                 objectName: "clockButton"
                 visible: matchDay.canAdvanceClock
@@ -524,7 +559,7 @@ Item {
                 visible: !matchDay.readOnly
                 touch: true
                 text: qsTr("End match")
-                onClicked: matchDay.endMatch()
+                onClicked: tooFewDialog.open()
             }
         }
 
@@ -750,8 +785,9 @@ Item {
         maxPeriods: matchDay.maxPeriods
         minPeriodLength: matchDay.minPeriodLength
         maxPeriodLength: matchDay.maxPeriodLength
-        onStartRequested: (format, periods, periodLength) => {
-            if (matchDay.start(format, periods, periodLength))
+        defaultClockless: matchDay.defaultClockless
+        onStartRequested: (format, periods, periodLength, clockless) => {
+            if (matchDay.start(format, periods, periodLength, clockless))
                 startDialog.close();
         }
     }
@@ -779,9 +815,10 @@ Item {
         title: qsTr("Fewer than %1 players").arg(matchDay.minPlayers)
         primaryText: qsTr("End match")
         secondaryText: qsTr("Not now")
+        onOpened: endMinuteField.text = matchDay.endMinute
         onPrimaryClicked: {
-            tooFewDialog.close();
-            matchDay.endMatch();
+            if (matchDay.endMatch(matchDay.clockless ? endMinuteField.text : ""))
+                tooFewDialog.close();
         }
 
         Label {
@@ -790,6 +827,69 @@ Item {
             color: Theme.text
             font.pixelSize: Theme.fontSize.body
             wrapMode: Text.Wrap
+        }
+
+        // Without the clock: the minute the match ended, the last event at the least.
+        FormField {
+            id: endMinuteFormField
+
+            Layout.fillWidth: true
+            visible: matchDay.clockless
+            label: qsTr("Minute of the end")
+            helpText: qsTr("Not before the last event (%1').").arg(matchDay.endMinute)
+
+            TextInputField {
+                id: endMinuteField
+
+                objectName: "endMinuteField"
+                implicitWidth: Theme.matchMinuteFieldWidth
+                implicitHeight: Theme.hitTouch
+                maximumLength: 3
+                // Enter reaches the dialog, which saves (AppDialog).
+                Accessible.name: endMinuteFormField.label
+            }
+        }
+    }
+
+    // "Set time": the time of the running part as the clock (the referee's watch) shows it.
+    AppDialog {
+        id: setClockDialog
+
+        objectName: "setClockDialog"
+        size: AppDialog.Small
+        touch: true
+        title: qsTr("Set time")
+        primaryText: qsTr("Set")
+        primaryEnabled: matchDay.clockTextError(clockTimeField.text).length === 0
+        onOpened: {
+            clockTimeField.text = matchDay.clockText;
+            clockTimeField.forceActiveFocus();
+            clockTimeField.selectAll();
+        }
+        onPrimaryClicked: {
+            if (root.setClock(clockTimeField.text))
+                setClockDialog.close();
+        }
+
+        FormField {
+            id: clockTimeFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Time of the clock")
+            helpText: qsTr("As the clock shows it: 23:41, or 45+2:10 in stoppage time. The clock runs on from there.")
+            error: clockTimeField.text.length > 0 ? matchDay.clockTextError(clockTimeField.text) : ""
+
+            TextInputField {
+                id: clockTimeField
+
+                objectName: "clockTimeField"
+                implicitWidth: Theme.fieldWidth / 2
+                implicitHeight: Theme.hitTouch
+                maximumLength: 9
+                error: clockTimeFormField.error
+                // Enter reaches the dialog, which saves (AppDialog).
+                Accessible.name: clockTimeFormField.label
+            }
         }
     }
 

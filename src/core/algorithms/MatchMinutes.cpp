@@ -102,6 +102,9 @@ MatchPhase phaseOf(const MatchClock& clock) noexcept {
     if (clock.finished) {
         return MatchPhase::Finished;
     }
+    if (clock.clockless) {
+        return MatchPhase::Running;
+    }
     if (clock.periods.empty()) {
         return MatchPhase::NotStarted;
     }
@@ -113,6 +116,9 @@ int currentPeriod(const MatchClock& clock) noexcept {
 }
 
 std::optional<ClockStep> nextStep(const MatchClock& clock) noexcept {
+    if (clock.clockless) {
+        return std::nullopt;
+    }
     switch (phaseOf(clock)) {
     case MatchPhase::NotStarted:
         return ClockStep{1, ClockStepKind::Start};
@@ -138,7 +144,7 @@ void applyStep(MatchClock& clock, ClockStep step, Timestamp at) {
 }
 
 int finalMinute(const MatchClock& clock) noexcept {
-    if (currentPeriod(clock) == 0) {
+    if (currentPeriod(clock) == 0 && !clock.clockless) {
         return 0;
     }
     return clock.endedEarlyAt.value_or(clock.format.totalMinutes());
@@ -149,7 +155,7 @@ int earlyEndMinute(const MatchClock& clock, Timestamp now,
     const int length = clock.format.periodLength;
     const int played = currentPeriod(clock);
     int minute = 0;
-    if (played > 0) {
+    if (played > 0 && !clock.clockless) {
         const PeriodTimes& last = clock.periods.back();
         // In a break: the end of the part played, the minute of a substitution in it.
         minute = last.end ? played * length
@@ -230,6 +236,14 @@ ClockReading readClock(const MatchClock& clock, Timestamp now) noexcept {
     ClockReading reading;
     reading.phase = phaseOf(clock);
     reading.period = currentPeriod(clock);
+    if (clock.clockless) {
+        // No stopwatch: nothing runs; a finished match stands at its final minute.
+        if (reading.phase == MatchPhase::Finished) {
+            reading.regular = finalMinute(clock) * kMinute;
+            reading.eventTime = {finalMinute(clock), std::nullopt};
+        }
+        return reading;
+    }
     const int length = clock.format.periodLength;
     switch (reading.phase) {
     case MatchPhase::NotStarted:
@@ -251,7 +265,20 @@ ClockReading readClock(const MatchClock& clock, Timestamp now) noexcept {
     return reading;
 }
 
+bool isValidMatchTime(MatchFormat format, MatchTime time) noexcept {
+    const int length = format.periodLength;
+    if (time.addedTime) {
+        const int period = time.minute / length;
+        return time.minute % length == 0 && period >= 1 && period <= format.periods &&
+               *time.addedTime >= 1 && *time.addedTime <= kMaxAddedTime;
+    }
+    return time.minute >= 0 && time.minute < format.totalMinutes();
+}
+
 bool isPlayedTime(const MatchClock& clock, Timestamp now, MatchTime time, bool substitution) {
+    if (clock.clockless) {
+        return isValidMatchTime(clock.format, time);
+    }
     const int length = clock.format.periodLength;
     const MatchPhase phase = phaseOf(clock);
     const int played = currentPeriod(clock);
@@ -286,6 +313,88 @@ bool isPlayedTime(const MatchClock& clock, Timestamp now, MatchTime time, bool s
     // An ended part: its minutes as far as they were played.
     return time.minute - (period - 1) * length <=
            std::min(fullMinutes(elapsedSince(times.start, *times.end)), length - 1);
+}
+
+std::optional<std::chrono::seconds> elapsedFromClockText(std::string_view text, MatchFormat format,
+                                                         int period) {
+    const auto trim = [](std::string_view value) {
+        while (!value.empty() && value.front() == ' ') {
+            value.remove_prefix(1);
+        }
+        while (!value.empty() && value.back() == ' ') {
+            value.remove_suffix(1);
+        }
+        return value;
+    };
+    const auto number = [](std::string_view digits) -> std::optional<int> {
+        if (digits.empty() || digits.size() > 3) {
+            return std::nullopt;
+        }
+        int value = 0;
+        for (const char digit : digits) {
+            if (digit < '0' || digit > '9') {
+                return std::nullopt;
+            }
+            value = value * 10 + (digit - '0');
+        }
+        return value;
+    };
+    // "mm:ss" or "mm" as seconds.
+    const auto clockTime = [&](std::string_view value) -> std::optional<seconds> {
+        value = trim(value);
+        const std::size_t colon = value.find(':');
+        const auto minutes =
+            number(colon == std::string_view::npos ? value : value.substr(0, colon));
+        if (!minutes) {
+            return std::nullopt;
+        }
+        int secs = 0;
+        if (colon != std::string_view::npos) {
+            const std::string_view rest = value.substr(colon + 1);
+            const auto parsed = number(rest);
+            if (!parsed || rest.size() != 2 || *parsed > 59) {
+                return std::nullopt;
+            }
+            secs = *parsed;
+        }
+        return *minutes * kMinute + seconds{secs};
+    };
+    if (period < 1 || period > format.periods) {
+        return std::nullopt;
+    }
+    const int length = format.periodLength;
+    text = trim(text);
+    const std::size_t plus = text.find('+');
+    if (plus != std::string_view::npos) {
+        // Stoppage time: the end of this part, then the time over it.
+        const auto base = number(trim(text.substr(0, plus)));
+        const auto over = clockTime(text.substr(plus + 1));
+        if (!base || !over || *base != period * length) {
+            return std::nullopt;
+        }
+        return length * kMinute + *over;
+    }
+    const auto value = clockTime(text);
+    const seconds start = (period - 1) * length * kMinute;
+    if (!value || *value < start || *value > period * length * kMinute) {
+        return std::nullopt;
+    }
+    return *value - start;
+}
+
+std::chrono::seconds minElapsedForEvents(MatchFormat format, int period,
+                                         std::span<const MatchEventDraft> events) {
+    const int length = format.periodLength;
+    int minutes = 0;
+    for (const MatchEventDraft& event : events) {
+        if (event.addedTime && event.minute == period * length) {
+            minutes = std::max(minutes, length + *event.addedTime - 1);
+        } else if (!event.addedTime && event.minute >= (period - 1) * length &&
+                   event.minute < period * length) {
+            minutes = std::max(minutes, event.minute - (period - 1) * length);
+        }
+    }
+    return minutes * kMinute;
 }
 
 MatchTime defaultTime(const MatchClock& clock, Timestamp now, bool substitution) {

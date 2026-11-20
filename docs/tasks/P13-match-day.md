@@ -185,4 +185,28 @@ Record a short GIF of Match Day. Describe "events as the single source of truth"
     - *Final minute*: never before a stored event; an early end in a break is the end of the part played
       (the minute of a substitution in it), not the clock at the end of that part
       (`core::earlyEndMinute`).
+19. **Manual test of the human (basics, before merge; 0002 changed in place)**:
+    - *Start dialog*: the format fields (parts, minutes per part) stand one under the other with their
+      labels, so they fit at the minimum window in Polish and English (qml_smoke measures both); the
+      error of the sum ("at most 130 minutes in all") shows only once the values are finished: when
+      neither field has the focus, or at Start. Single-line fields of a dialog leave Enter to
+      `AppDialog` (an own `onAccepted` saved twice).
+    - *Set time*: a visible button by the clock (`Theme.hitTouch`) opens a dialog for the time as the
+      clock shows it (`23:41`, `67:30` in the second half, `45+2:10` in stoppage time; the field holds the
+      current clock). The start of the running part moves so the clock shows that time and runs on
+      (`MatchDayService::setClock`), also right after "Start 1st half" pressed late. Limits: at most
+      the length of the part + 30 min (`clock_time`), never before the minute of an event of that part
+      (`clock_before_event`). Not in the undo stack: the toast has Undo (`restoreClock`, the start before).
+    - *Without the clock*: `match_live.clockless`; the start dialog chooses "With the clock" (default) or
+      "Without the clock" (default for a match before today). No stopwatch, no clock steps, no "Set
+      time"; every action needs its minute (`minute_required`), any minute of the format
+      (`minute_out_of_match` outside it; added time 1–30, `core::kMaxAddedTime`), in any order as long as
+      each event fits those already entered (a goal of a substitute needs his substitution first: the
+      full replay refuses it otherwise, naming the conflict). "End match" is always there: a normal end
+      with 7 players or more, otherwise an early end at the last event or the minute typed in the dialog
+      (if later). "Back to planned" while nothing is entered. Resume, undo, notes, checks and the minutes
+      of play as with the clock.
+    - *P14*: "entering a match after it was played" is Match Day without the clock, opened from the
+      Calendar (the match dialog has "Open Match Day"; for a match before today the start offers the mode
+      without the clock). P14 adds ratings, RPE and the note of the report on top.
 

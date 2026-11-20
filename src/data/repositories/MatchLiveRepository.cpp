@@ -23,12 +23,14 @@ const auto kSelectStep = QStringLiteral("period, kind, at, seq");
 
 } // namespace
 
-core::Status MatchLiveRepository::create(core::MatchId match, core::MatchFormat format) {
+core::Status MatchLiveRepository::create(core::MatchId match, core::MatchFormat format,
+                                         bool clockless) {
     const auto id =
         insertRow(m_db,
                   QStringLiteral("INSERT INTO match_live (match_id, periods, "
-                                 "period_length) VALUES (?, ?, ?)"),
-                  {idValue(match), format.periods, format.periodLength}, "create live match");
+                                 "period_length, clockless) VALUES (?, ?, ?, ?)"),
+                  {idValue(match), format.periods, format.periodLength, clockless ? 1 : 0},
+                  "create live match");
     if (!id) {
         return std::unexpected(id.error());
     }
@@ -43,12 +45,13 @@ core::Status MatchLiveRepository::remove(core::MatchId match) {
 core::Result<std::optional<LiveMatchRow>> MatchLiveRepository::find(core::MatchId match) const {
     constexpr std::string_view kContext = "find live match";
     auto rows = selectAll(m_db,
-                          QStringLiteral("SELECT periods, period_length, finished_seq, "
+                          QStringLiteral("SELECT periods, period_length, clockless, finished_seq, "
                                          "ended_early_minute FROM match_live WHERE match_id = ?"),
                           {idValue(match)}, kContext, [](RowReader& row) {
                               LiveMatchRow live;
                               live.format.periods = row.integer();
                               live.format.periodLength = row.integer();
+                              live.clockless = row.boolean();
                               live.finishedSeq = row.optionalInteger();
                               live.endedEarlyAt = row.optionalInteger();
                               return live;
@@ -84,6 +87,15 @@ core::Status MatchLiveRepository::appendStep(core::MatchId match, core::ClockSte
         return std::unexpected(id.error());
     }
     return {};
+}
+
+core::Status MatchLiveRepository::moveStep(core::MatchId match, core::ClockStep step,
+                                           core::Timestamp at) {
+    return changeRow(m_db,
+                     QStringLiteral("UPDATE match_clock_step SET at = ? "
+                                    "WHERE match_id = ? AND period = ? AND kind = ?"),
+                     {toIsoTimestamp(at), idValue(match), step.period, enumValue(step.kind)},
+                     "move clock step");
 }
 
 core::Result<std::vector<ClockStepRow>> MatchLiveRepository::deleteSteps(core::MatchId match,

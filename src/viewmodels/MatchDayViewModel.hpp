@@ -64,6 +64,10 @@ class MatchDayViewModel : public QObject {
     Q_PROPERTY(QVariantList formatOptions READ formatOptions NOTIFY textsChanged FINAL)
     // The preset of the team category ("2x45").
     Q_PROPERTY(QString defaultFormat READ defaultFormat NOTIFY matchChanged FINAL)
+    // Without the clock by default for a match before today (entered after it).
+    Q_PROPERTY(bool defaultClockless READ defaultClockless NOTIFY matchChanged FINAL)
+    // The started match runs without the clock: every action takes a minute typed.
+    Q_PROPERTY(bool clockless READ clockless NOTIFY matchChanged FINAL)
     Q_PROPERTY(int minPeriods READ minPeriods CONSTANT FINAL)
     Q_PROPERTY(int maxPeriods READ maxPeriods CONSTANT FINAL)
     Q_PROPERTY(int minPeriodLength READ minPeriodLength CONSTANT FINAL)
@@ -85,6 +89,12 @@ class MatchDayViewModel : public QObject {
     Q_PROPERTY(bool canSubstitute READ canSubstitute NOTIFY clockChanged FINAL)
     // Notes: a part runs or a break, also with fewer than 7 players.
     Q_PROPERTY(bool canAddNote READ canAddNote NOTIFY clockChanged FINAL)
+    // "Set clock": a part runs with the clock.
+    Q_PROPERTY(bool canSetClock READ canSetClock NOTIFY clockChanged FINAL)
+    // The end of the match has its own button: without the clock always, with it below 7 players.
+    Q_PROPERTY(bool canEndMatch READ canEndMatch NOTIFY eventsChanged FINAL)
+    // Without the clock: the minute of an early end offered (the last event, "37").
+    Q_PROPERTY(QString endMinute READ endMinute NOTIFY eventsChanged FINAL)
 
     // Players on the pitch (P13: at least 7 by the laws of the game)
     Q_PROPERTY(int onPitchCount READ onPitchCount NOTIFY eventsChanged FINAL)
@@ -143,6 +153,8 @@ public:
     [[nodiscard]] bool canStart() const;
     [[nodiscard]] QVariantList formatOptions() const;
     [[nodiscard]] QString defaultFormat() const;
+    [[nodiscard]] bool defaultClockless() const;
+    [[nodiscard]] bool clockless() const;
     [[nodiscard]] static int minPeriods();
     [[nodiscard]] static int maxPeriods();
     [[nodiscard]] static int minPeriodLength();
@@ -157,6 +169,9 @@ public:
     [[nodiscard]] bool canRecordEvents() const;
     [[nodiscard]] bool canSubstitute() const;
     [[nodiscard]] bool canAddNote() const;
+    [[nodiscard]] bool canSetClock() const;
+    [[nodiscard]] bool canEndMatch() const;
+    [[nodiscard]] QString endMinute() const;
 
     [[nodiscard]] int onPitchCount() const;
     [[nodiscard]] static int minPlayers();
@@ -186,11 +201,19 @@ public:
 
     // The actions return true when saved; otherwise errorOccurred says why.
     // A preset ("2x45") or "custom" with the parts and their length.
-    Q_INVOKABLE bool start(const QString& format, int periods, int periodLength);
+    Q_INVOKABLE bool start(const QString& format, int periods, int periodLength,
+                           bool clockless = false);
     Q_INVOKABLE bool cancelStart();
     Q_INVOKABLE bool advanceClock();
     // Finishes the match now (offered with fewer than 7 players).
-    Q_INVOKABLE bool endMatch();
+    // `minute` (without the clock, fewer than 7 players): the minute of the end, as shown ("80").
+    Q_INVOKABLE bool endMatch(const QString& minute = {});
+    // "Set clock": the time as the clock shows it ("23:41", "45+2:10"). The undo toast text, or
+    // empty when refused (errorOccurred says why); undoSetClock() moves the clock back.
+    Q_INVOKABLE QString setClock(const QString& text);
+    Q_INVOKABLE void undoSetClock();
+    // Why a time typed for "set clock" cannot be used; empty when it can.
+    Q_INVOKABLE QString clockTextError(const QString& text) const;
     // goal, opponentGoal, yellow, red, sub: the next taps choose the players. Anything else
     // cancels.
     Q_INVOKABLE void beginAction(const QString& action);
@@ -289,6 +312,8 @@ private:
     // The minute typed for the pending action; nullopt: the current one.
     std::optional<QString> m_pendingMinute;
     std::optional<core::MatchNote> m_deletedNote;
+    // The start of the running part before "set clock", for its undo toast.
+    std::optional<core::Timestamp> m_clockBefore;
     // The minute the rows were built for; a new one rebuilds them.
     int m_rowsMinute = -1;
 };

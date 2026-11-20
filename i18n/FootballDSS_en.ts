@@ -1544,6 +1544,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Set time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Goal</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1653,6 +1657,26 @@
     </message>
     <message>
         <source>By the laws of the game the match cannot go on (fewer than %1 players). End the match?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minute of the end</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not before the last event (%1&apos;).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Time of the clock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>As the clock shows it: 23:41, or 45+2:10 in stoppage time. The clock runs on from there.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1820,7 +1844,23 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Clock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The clock starts when you start the first part.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No clock: you type the minute of every action, for example to enter a match after it was played.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>With the clock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Without the clock</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3446,6 +3486,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Enter the minute of the action.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This minute is outside the match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clock can be set to at most 30 minutes past the end of the part.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clock cannot go back before an event of this part. Undo the event first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Write the note, up to 500 characters.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3531,6 +3587,14 @@
     </message>
     <message>
         <source>No half is running. Start the half first; in the break only substitutions can be recorded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match runs without the clock: type the minute of every action.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The clock can be set only while a part is played.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4032,6 +4096,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Without the clock</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No player</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4096,11 +4164,31 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Enter the minute of the end, e.g. 80.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the time as the clock shows it, e.g. 23:41, or 45+2:10 in stoppage time.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clock set to %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Enter the minute as 23, or 45+2 in stoppage time.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>This minute is outside the match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>This minute has not been played yet. Enter a minute up to the current one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the minute of the action.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
