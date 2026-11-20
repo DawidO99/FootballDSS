@@ -23,8 +23,9 @@ ApplicationWindow {
     // P06b: Ctrl+Shift+K toggles the hidden UI kit component gallery.
     property bool componentGalleryOpen: false
     readonly property Item componentGallery: galleryLoader.item as Item
-    // The view holding changes that are not saved (Training or Pre-match); null: none. Only one can:
-    // leaving a view always saves or drops its changes. A view takes part with hasUnsavedChanges,
+    // The view holding changes that are not saved (Training or Pre-match), or Match Day with a live
+    // match while it is shown; null: none. Only one can: leaving a view always saves or drops its
+    // changes, or leaves the live match. A view takes part with hasUnsavedChanges,
     // askBeforeLeaving() and the signals leaveAccepted and leaveCancelled.
     property var guardedPage: null
     // What runGuarded() waits to do; null: the guard of navigationModel has the target.
@@ -360,7 +361,12 @@ ApplicationWindow {
         id: matchDayView
 
         MatchDayView {
+            id: matchDayViewItem
+
             onNavigateRequested: (key, args) => navigationModel.activate(key, args)
+            onHasUnsavedChangesChanged: window.guardChanged(matchDayViewItem, hasUnsavedChanges)
+            onLeaveAccepted: window.finishLeaving()
+            onLeaveCancelled: window.cancelLeaving()
         }
     }
 

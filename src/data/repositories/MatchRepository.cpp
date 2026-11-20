@@ -53,6 +53,8 @@ core::MatchEvent readEvent(RowReader& row) {
     event.type = row.enumeration<core::MatchEventType>();
     event.playerId = row.optionalId<core::PlayerId>();
     event.relatedPlayerId = row.optionalId<core::PlayerId>();
+    event.addedTime = row.optionalInteger();
+    event.seq = row.optionalInteger();
     return event;
 }
 
@@ -138,6 +140,26 @@ core::Status MatchRepository::setResult(core::MatchId id, std::optional<int> goa
         "set match result");
 }
 
+core::Status MatchRepository::setStatus(core::MatchId id, core::MatchStatus status) {
+    return changeRow(m_db, QStringLiteral("UPDATE match SET status = ? WHERE id = ?"),
+                     {enumValue(status), idValue(id)}, "set match status");
+}
+
+core::Result<std::optional<core::MatchId>> MatchRepository::findLive(core::TeamId team) const {
+    auto ids = selectAll(m_db,
+                         QStringLiteral("SELECT id FROM match WHERE team_id = ? AND status = ? "
+                                        "ORDER BY date, id LIMIT 1"),
+                         {idValue(team), enumValue(core::MatchStatus::Live)}, "find live match",
+                         [](RowReader& row) { return row.id<core::MatchId>(); });
+    if (!ids) {
+        return std::unexpected(ids.error());
+    }
+    if (ids->empty()) {
+        return std::optional<core::MatchId>{};
+    }
+    return std::optional<core::MatchId>{ids->front()};
+}
+
 core::Result<std::vector<std::string>> MatchRepository::listCompetitions(core::TeamId team) const {
     return selectAll(m_db,
                      QStringLiteral("SELECT competition FROM match "
@@ -192,14 +214,16 @@ MatchRepository::listAppearances(core::MatchId match) const {
 }
 
 core::Result<core::MatchEventId> MatchRepository::appendEvent(core::MatchId match,
-                                                              const core::MatchEventDraft& draft) {
-    const auto id =
-        insertRow(m_db,
-                  QStringLiteral("INSERT INTO match_event (match_id, minute, type, player_id, "
-                                 "related_player_id) VALUES (?, ?, ?, ?, ?)"),
-                  {idValue(match), draft.minute, enumValue(draft.type),
-                   optionalIdValue(draft.playerId), optionalIdValue(draft.relatedPlayerId)},
-                  "append match event");
+                                                              const core::MatchEventDraft& draft,
+                                                              std::optional<int> seq) {
+    const auto id = insertRow(
+        m_db,
+        QStringLiteral("INSERT INTO match_event (match_id, minute, type, player_id, "
+                       "related_player_id, added_time, seq) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+        {idValue(match), draft.minute, enumValue(draft.type), optionalIdValue(draft.playerId),
+         optionalIdValue(draft.relatedPlayerId), optionalValue(draft.addedTime),
+         optionalValue(seq)},
+        "append match event");
     if (!id) {
         return std::unexpected(id.error());
     }
@@ -209,18 +233,28 @@ core::Result<core::MatchEventId> MatchRepository::appendEvent(core::MatchId matc
 core::Result<std::vector<core::MatchEvent>> MatchRepository::listEvents(core::MatchId match) const {
     return selectAll(m_db,
                      QStringLiteral("SELECT id, match_id, minute, type, player_id, "
-                                    "related_player_id FROM match_event WHERE match_id = ? "
-                                    "ORDER BY minute, id"),
+                                    "related_player_id, added_time, seq FROM match_event "
+                                    "WHERE match_id = ? "
+                                    "ORDER BY minute, added_time IS NULL, added_time, id"),
                      {idValue(match)}, "list match events", readEvent);
 }
 
 core::Result<core::MatchEvent> MatchRepository::deleteLastEvent(core::MatchId match) {
-    return selectOne(
-        m_db,
-        QStringLiteral("DELETE FROM match_event WHERE id = "
-                       "(SELECT MAX(id) FROM match_event WHERE match_id = ?) "
-                       "RETURNING id, match_id, minute, type, player_id, related_player_id"),
-        {idValue(match)}, "delete last match event", readEvent);
+    return selectOne(m_db,
+                     QStringLiteral("DELETE FROM match_event WHERE id = "
+                                    "(SELECT MAX(id) FROM match_event WHERE match_id = ?) "
+                                    "RETURNING id, match_id, minute, type, player_id, "
+                                    "related_player_id, added_time, seq"),
+                     {idValue(match)}, "delete last match event", readEvent);
+}
+
+core::Result<std::vector<core::MatchEvent>>
+MatchRepository::deleteEventsWithSeq(core::MatchId match, int seq) {
+    return selectAll(m_db,
+                     QStringLiteral("DELETE FROM match_event WHERE match_id = ? AND seq = ? "
+                                    "RETURNING id, match_id, minute, type, player_id, "
+                                    "related_player_id, added_time, seq"),
+                     {idValue(match), seq}, "delete match events of an action", readEvent);
 }
 
 } // namespace fdss::data

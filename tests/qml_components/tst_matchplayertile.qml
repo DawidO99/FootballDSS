@@ -1,0 +1,125 @@
+import QtQuick
+import QtTest
+import FootballDSS
+
+// MatchPlayerTile (P13): a touch-sized tile; while an action waits for a player only the tiles that
+// fit it can be chosen; a player who left the pitch says why in a word, not only by colour.
+TestCase {
+    id: testCase
+
+    name: "MatchPlayerTile"
+    width: 400
+    height: 200
+    visible: true
+    when: windowShown
+
+    Component {
+        id: tileComponent
+
+        MatchPlayerTile {
+            property int clicks: 0
+
+            shirtNumber: 9
+            shortName: "Gol"
+            fullName: "Igor Gol"
+            positionCode: "ST"
+            stateText: "On the pitch"
+            minutesText: "47'"
+            onClicked: clicks += 1
+        }
+    }
+
+    function createTile() {
+        const tile = createTemporaryObject(tileComponent, testCase);
+        verify(tile);
+        waitForRendering(tile);
+        return tile;
+    }
+
+    function init() {
+        failOnWarning(/.?/);
+    }
+
+    function test_is_a_touch_target() {
+        const tile = createTile();
+        verify(tile.height >= Theme.hitTouch);
+        verify(tile.width >= Theme.hitTouch);
+    }
+
+    function test_click_and_keys_activate() {
+        const tile = createTile();
+        mouseClick(tile);
+        tile.forceActiveFocus(Qt.TabFocusReason);
+        keyClick(Qt.Key_Return);
+        keyClick(Qt.Key_Space);
+        compare(tile.clicks, 3);
+    }
+
+    function test_only_fitting_tiles_can_be_chosen() {
+        const tile = createTile();
+        tile.choosing = true;
+        tile.selectable = false;
+        verify(!tile.enabled);
+        mouseClick(tile);
+        compare(tile.clicks, 0);
+        tile.selectable = true;
+        verify(tile.enabled);
+        mouseClick(tile);
+        compare(tile.clicks, 1);
+        tile.choosing = false;
+        tile.selectable = false;
+        verify(tile.enabled);
+    }
+
+    function test_leaving_the_pitch_is_a_word() {
+        const tile = createTile();
+        const state = findChild(tile, "tileState");
+        verify(state);
+        verify(!state.visible);
+        tile.stateKey = "sentOff";
+        tile.stateText = "Sent off";
+        verify(state.visible);
+        compare(state.text, "Sent off");
+        verify(tile.Accessible.name.includes("Sent off"));
+        verify(tile.Accessible.name.includes("Igor Gol"));
+    }
+
+    function test_yellow_card_is_an_icon_and_a_word() {
+        const tile = createTile();
+        const yellow = findChild(tile, "tileYellow");
+        const word = findChild(tile, "tileYellowText");
+        verify(!yellow.visible);
+        verify(!word.visible);
+        verify(!tile.Accessible.name.includes(tile.yellowCardText));
+        tile.yellowCards = 1;
+        verify(yellow.visible);
+        verify(word.visible);
+        compare(word.text, tile.yellowCardText);
+        verify(tile.yellowCardText.length > 0);
+        verify(tile.Accessible.name.includes(tile.yellowCardText));
+        // Sent off: the word of the state replaces the yellow card.
+        tile.stateKey = "sentOff";
+        verify(!yellow.visible);
+        verify(!word.visible);
+    }
+
+    function test_name_is_plain_text() {
+        const tile = createTile();
+        tile.shortName = "<b>Gol</b>";
+        compare(findChild(tile, "tileName").textFormat, Text.PlainText);
+    }
+
+    function test_where_the_player_was_replaces_the_state() {
+        const tile = createTile();
+        tile.stateKey = "substitutedOff";
+        tile.stateText = "Substituted";
+        const history = findChild(tile, "tileHistory");
+        const state = findChild(tile, "tileState");
+        verify(state.visible);
+        verify(!history.visible);
+        tile.historyText = "At 11': on the pitch";
+        verify(history.visible);
+        verify(!state.visible);
+        verify(tile.Accessible.name.includes("At 11': on the pitch"));
+    }
+}

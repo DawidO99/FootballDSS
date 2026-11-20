@@ -10,6 +10,8 @@ import FootballDSS
 //   openForAdding(date), openForEditing(matchId)
 //   saved(double matchId, string date)
 //   deleteRequested(double matchId, string opponentName)
+//   matchStatusKey: string  planned, live or finished; the caller sets it before openForEditing()
+//   matchDayRequested(double matchId)   a planned or live match: open it in Match Day (P13)
 AppDialog {
     id: root
 
@@ -18,6 +20,9 @@ AppDialog {
 
     signal saved(double matchId, string date)
     signal deleteRequested(double matchId, string opponentName)
+    signal matchDayRequested(double matchId)
+
+    property string matchStatusKey
 
     function showForm() {
         // The same value as last time changes nothing in a field, so text it refused would stay.
@@ -279,6 +284,21 @@ AppDialog {
             text: editor.statusText
             color: Theme.text
             font.pixelSize: Theme.fontSize.body
+        }
+    }
+
+    // An editable form is saved first, so nothing typed is lost on the way.
+    SecondaryButton {
+        objectName: "openMatchDayButton"
+        visible: !editor.adding && (root.matchStatusKey === "planned" || root.matchStatusKey === "live")
+        enabled: editor.readOnly || root.primaryEnabled
+        text: editor.readOnly ? qsTr("Open Match Day") : qsTr("Save and open Match Day")
+        onClicked: {
+            if (!editor.readOnly && !editor.save()) {
+                root.focusFirstError();
+                return;
+            }
+            root.matchDayRequested(editor.matchId);
         }
     }
 }

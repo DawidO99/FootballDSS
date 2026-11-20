@@ -73,6 +73,9 @@ TEST(EmbeddedMigrationsTest, StartAtOneAndHaveStatements) {
     EXPECT_EQ(migrations->front().version, 1);
     EXPECT_EQ(migrations->front().name, QStringLiteral("initial"));
     EXPECT_FALSE(splitSqlStatements(migrations->front().sql).empty());
+    ASSERT_GE(migrations->size(), 2U);
+    EXPECT_EQ(migrations->at(1).version, 2);
+    EXPECT_EQ(migrations->at(1).name, QStringLiteral("match_live"));
 }
 
 // --- Runner ---

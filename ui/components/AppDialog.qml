@@ -13,6 +13,7 @@ import QtQuick.Layouts
 //   primaryEnabled: bool    default true
 //   secondaryText: string   default qsTr("Cancel")
 //   dangerText: string      empty = hidden
+//   touch: bool             44 px buttons (Match Day, tactics board), default false
 //   body (default):         items placed in the dialog content column
 //   primaryClicked(), dangerClicked(), rejected()
 Dialog {
@@ -29,6 +30,7 @@ Dialog {
     property bool primaryEnabled: true
     property string secondaryText: qsTr("Cancel")
     property string dangerText
+    property bool touch: false
     default property alias body: bodyColumn.data
 
     signal primaryClicked
@@ -85,6 +87,8 @@ Dialog {
             }
 
             IconButton {
+                objectName: "dialogCloseButton"
+                touch: root.touch
                 iconName: "close"
                 iconColor: Theme.textMuted
                 text: qsTr("Close")
@@ -131,6 +135,8 @@ Dialog {
             spacing: Theme.spacing.m
 
             DangerButton {
+                objectName: "dialogDangerButton"
+                touch: root.touch
                 visible: root.dangerText.length > 0
                 text: root.dangerText
                 onClicked: root.dangerClicked()
@@ -141,12 +147,16 @@ Dialog {
             }
 
             SecondaryButton {
+                objectName: "dialogSecondaryButton"
+                touch: root.touch
                 visible: root.secondaryText.length > 0
                 text: root.secondaryText
                 onClicked: root.reject()
             }
 
             PrimaryButton {
+                objectName: "dialogPrimaryButton"
+                touch: root.touch
                 visible: root.primaryText.length > 0
                 enabled: root.primaryEnabled
                 text: root.primaryText

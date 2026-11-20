@@ -1013,6 +1013,50 @@
         <translation>Dodaj trening</translation>
     </message>
     <message>
+        <source>Match Day: MatchClockBar, MatchPlayerTile, MatchTimeline</source>
+        <translation>Tryb meczowy: MatchClockBar, MatchPlayerTile, MatchTimeline</translation>
+    </message>
+    <message>
+        <source>1st half</source>
+        <translation>1. połowa</translation>
+    </message>
+    <message>
+        <source>End 1st half</source>
+        <translation>Zakończ 1. połowę</translation>
+    </message>
+    <message>
+        <source>Clock step</source>
+        <translation>Krok zegara</translation>
+    </message>
+    <message>
+        <source>On the pitch</source>
+        <translation>Na boisku</translation>
+    </message>
+    <message>
+        <source>Tile: %1</source>
+        <translation>Kafelek: %1</translation>
+    </message>
+    <message>
+        <source>On the bench</source>
+        <translation>Na ławce</translation>
+    </message>
+    <message>
+        <source>Substituted</source>
+        <translation>Zmieniony</translation>
+    </message>
+    <message>
+        <source>Sent off</source>
+        <translation>Wykluczony</translation>
+    </message>
+    <message>
+        <source>Edit note: %1</source>
+        <translation>Edycja notatki: %1</translation>
+    </message>
+    <message>
+        <source>Delete note: %1</source>
+        <translation>Usunięcie notatki: %1</translation>
+    </message>
+    <message>
         <source>Add player</source>
         <translation>Dodaj zawodnika</translation>
     </message>
@@ -1039,6 +1083,42 @@
     <message>
         <source>Position</source>
         <translation>Pozycja</translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation>Notatka</translation>
+    </message>
+    <message>
+        <source>Ankle after the tackle, watch him in the break.</source>
+        <translation>Kostka po wślizgu, obejrzeć w przerwie.</translation>
+    </message>
+    <message>
+        <source>Second yellow, red card</source>
+        <translation>Druga żółta, czerwona kartka</translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation>Zmiana</translation>
+    </message>
+    <message>
+        <source>On: Leon Rezerwa</source>
+        <translation>Wchodzi: Leon Rezerwa</translation>
+    </message>
+    <message>
+        <source>Off: Filip Skrzydło</source>
+        <translation>Schodzi: Filip Skrzydło</translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation>Gol rywala</translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation>Gol</translation>
+    </message>
+    <message>
+        <source>Assist: Jan Szczepaniak-Wojciechowski</source>
+        <translation>Asysta: Jan Szczepaniak-Wojciechowski</translation>
     </message>
     <message>
         <source>Cezary Mur is not available on the match day: injured.</source>
@@ -1431,18 +1511,221 @@
     </message>
 </context>
 <context>
+    <name>MatchClockBar</name>
+    <message>
+        <source>Score %1 to %2</source>
+        <translation>Wynik %1 do %2</translation>
+    </message>
+    <message>
+        <source>On the pitch: %1</source>
+        <translation>Na boisku: %1</translation>
+    </message>
+</context>
+<context>
     <name>MatchDayView</name>
     <message>
         <source>Match Day</source>
         <translation>Tryb meczowy</translation>
     </message>
     <message>
+        <source>Leave full screen (%1)</source>
+        <translation>Wyjdź z pełnego ekranu (%1)</translation>
+    </message>
+    <message>
+        <source>Full screen (%1)</source>
+        <translation>Pełny ekran (%1)</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>No match to run</source>
+        <translation>Brak meczu do prowadzenia</translation>
+    </message>
+    <message>
+        <source>Add a match in the Calendar, then set up its lineup in Pre-match.</source>
+        <translation>Dodaj mecz w Kalendarzu, a potem ustaw jego skład w sekcji „Przed meczem”.</translation>
+    </message>
+    <message>
+        <source>There is no planned match. Ask the coach or the assistant to add one in the Calendar.</source>
+        <translation>Nie ma zaplanowanego meczu. Poproś trenera lub asystenta, aby dodał go w Kalendarzu.</translation>
+    </message>
+    <message>
+        <source>Open Calendar</source>
+        <translation>Otwórz Kalendarz</translation>
+    </message>
+    <message>
+        <source>Start Match Day</source>
+        <translation>Rozpocznij tryb meczowy</translation>
+    </message>
+    <message>
+        <source>Open Pre-match</source>
+        <translation>Otwórz „Przed meczem”</translation>
+    </message>
+    <message>
+        <source>Back to planned</source>
+        <translation>Wróć do planu</translation>
+    </message>
+    <message>
+        <source>Set time</source>
+        <translation>Ustaw czas</translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation>Gol</translation>
+    </message>
+    <message>
+        <source>Goal (%1)</source>
+        <translation>Gol (%1)</translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation>Gol rywala</translation>
+    </message>
+    <message>
+        <source>Opponent goal (%1)</source>
+        <translation>Gol rywala (%1)</translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation>Żółta kartka</translation>
+    </message>
+    <message>
+        <source>Yellow card (%1)</source>
+        <translation>Żółta kartka (%1)</translation>
+    </message>
+    <message>
+        <source>Red card</source>
+        <translation>Czerwona kartka</translation>
+    </message>
+    <message>
+        <source>Red card (%1)</source>
+        <translation>Czerwona kartka (%1)</translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation>Zmiana</translation>
+    </message>
+    <message>
+        <source>Substitution (%1)</source>
+        <translation>Zmiana (%1)</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>Cofnij</translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation>Notatka</translation>
+    </message>
+    <message>
+        <source>Note (%1)</source>
+        <translation>Notatka (%1)</translation>
+    </message>
+    <message>
+        <source>Undo: %1 (%2)</source>
+        <translation>Cofnij: %1 (%2)</translation>
+    </message>
+    <message>
+        <source>Nothing to undo (%1)</source>
+        <translation>Nie ma czego cofnąć (%1)</translation>
+    </message>
+    <message>
+        <source>Fewer than %1 players on the pitch: by the laws of the game the match cannot go on. End the match, or undo the last action.</source>
+        <translation>Mniej niż %1 zawodników na boisku: według przepisów mecz nie może być kontynuowany. Zakończ mecz albo cofnij ostatnią akcję.</translation>
+    </message>
+    <message>
+        <source>End match</source>
+        <translation>Zakończ mecz</translation>
+    </message>
+    <message>
+        <source>Minute</source>
+        <translation>Minuta</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>No assist</source>
+        <translation>Bez asysty</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Anuluj</translation>
+    </message>
+    <message>
+        <source>Cancel (%1)</source>
+        <translation>Anuluj (%1)</translation>
+    </message>
+    <message>
+        <source>On the pitch</source>
+        <translation>Na boisku</translation>
+    </message>
+    <message>
+        <source>Bench</source>
+        <translation>Ławka</translation>
+    </message>
+    <message>
+        <source>Events</source>
+        <translation>Zdarzenia</translation>
+    </message>
+    <message>
+        <source>Fewer than %1 players</source>
+        <translation>Mniej niż %1 zawodników</translation>
+    </message>
+    <message>
+        <source>Not now</source>
+        <translation>Nie teraz</translation>
+    </message>
+    <message>
+        <source>By the laws of the game the match cannot go on (fewer than %1 players). End the match?</source>
+        <translation>Według przepisów mecz nie może być kontynuowany (mniej niż %1 zawodników). Zakończyć mecz?</translation>
+    </message>
+    <message>
+        <source>Minute of the end</source>
+        <translation>Minuta zakończenia</translation>
+    </message>
+    <message>
+        <source>Not before the last event (%1&apos;).</source>
+        <translation>Nie wcześniej niż ostatnie zdarzenie (%1').</translation>
+    </message>
+    <message>
+        <source>Set</source>
+        <translation>Ustaw</translation>
+    </message>
+    <message>
+        <source>Time of the clock</source>
+        <translation>Czas na zegarze</translation>
+    </message>
+    <message>
+        <source>As the clock shows it: 23:41, or 45+2:10 in stoppage time. The clock runs on from there.</source>
+        <translation>Tak, jak pokazuje zegar: 23:41, a w doliczonym czasie 45+2:10. Zegar biegnie dalej od tej chwili.</translation>
+    </message>
+    <message>
+        <source>Leave the live match?</source>
+        <translation>Opuścić trwający mecz?</translation>
+    </message>
+    <message>
+        <source>Leave</source>
+        <translation>Wyjdź</translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation>Zostań</translation>
+    </message>
+    <message>
+        <source>The match is live. The clock keeps running, and you can come back to Match Day from the menu.</source>
+        <translation>Mecz trwa. Zegar biegnie dalej, a do trybu meczowego wrócisz z menu.</translation>
+    </message>
+    <message>
         <source>Run the match clock, substitutions and events live during the game.</source>
-        <translation>W trakcie meczu obsłużysz tu na żywo zegar, zmiany i zdarzenia.</translation>
+        <translation type="vanished">W trakcie meczu obsłużysz tu na żywo zegar, zmiany i zdarzenia.</translation>
     </message>
     <message>
         <source>Prepare the lineup</source>
-        <translation>Przygotuj skład</translation>
+        <translation type="vanished">Przygotuj skład</translation>
     </message>
 </context>
 <context>
@@ -1514,6 +1797,130 @@
     <message>
         <source>Status</source>
         <translation>Status</translation>
+    </message>
+    <message>
+        <source>Open Match Day</source>
+        <translation>Otwórz tryb meczowy</translation>
+    </message>
+    <message>
+        <source>Save and open Match Day</source>
+        <translation>Zapisz i otwórz tryb meczowy</translation>
+    </message>
+</context>
+<context>
+    <name>MatchNoteDialog</name>
+    <message>
+        <source>Edit note</source>
+        <translation>Edytuj notatkę</translation>
+    </message>
+    <message>
+        <source>Add note</source>
+        <translation>Dodaj notatkę</translation>
+    </message>
+    <message>
+        <source>Save note</source>
+        <translation>Zapisz notatkę</translation>
+    </message>
+    <message>
+        <source>Minute</source>
+        <translation>Minuta</translation>
+    </message>
+    <message>
+        <source>Player (optional)</source>
+        <translation>Zawodnik (opcjonalnie)</translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation>Notatka</translation>
+    </message>
+    <message>
+        <source>%1 / %2 characters</source>
+        <translation>%1 / %2 znaków</translation>
+    </message>
+    <message>
+        <source>At most %1 characters.</source>
+        <translation>Najwyżej %1 znaków.</translation>
+    </message>
+</context>
+<context>
+    <name>MatchPlayerTile</name>
+    <message>
+        <source>Yellow card</source>
+        <translation>Żółta kartka</translation>
+    </message>
+</context>
+<context>
+    <name>MatchStartDialog</name>
+    <message>
+        <source>Start Match Day</source>
+        <translation>Rozpocznij tryb meczowy</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Rozpocznij</translation>
+    </message>
+    <message>
+        <source>Match format</source>
+        <translation>Format meczu</translation>
+    </message>
+    <message>
+        <source>Parts</source>
+        <translation>Liczba części</translation>
+    </message>
+    <message>
+        <source>Minutes per part</source>
+        <translation>Minuty na część</translation>
+    </message>
+    <message>
+        <source>At most %1 minutes in all.</source>
+        <translation>Najwyżej %1 minut łącznie.</translation>
+    </message>
+    <message>
+        <source>Clock</source>
+        <translation>Zegar</translation>
+    </message>
+    <message>
+        <source>The clock starts when you start the first part.</source>
+        <translation>Zegar ruszy, gdy rozpoczniesz pierwszą część.</translation>
+    </message>
+    <message>
+        <source>No clock: you type the minute of every action, for example to enter a match after it was played.</source>
+        <translation>Bez zegara: minutę każdej akcji wpisujesz ręcznie, np. uzupełniając mecz po jego rozegraniu.</translation>
+    </message>
+    <message>
+        <source>With the clock</source>
+        <translation>Z zegarem</translation>
+    </message>
+    <message>
+        <source>Without the clock</source>
+        <translation>Bez zegara</translation>
+    </message>
+    <message>
+        <source>Half length (minutes)</source>
+        <translation type="vanished">Długość połowy (minuty)</translation>
+    </message>
+    <message>
+        <source>The clock starts when you start the 1st half.</source>
+        <translation type="vanished">Zegar ruszy, gdy rozpoczniesz 1. połowę.</translation>
+    </message>
+</context>
+<context>
+    <name>MatchTimeline</name>
+    <message>
+        <source>No events yet.</source>
+        <translation>Na razie brak zdarzeń.</translation>
+    </message>
+    <message>
+        <source>Events</source>
+        <translation>Zdarzenia</translation>
+    </message>
+    <message>
+        <source>Edit note</source>
+        <translation>Edytuj notatkę</translation>
+    </message>
+    <message>
+        <source>Delete note</source>
+        <translation>Usuń notatkę</translation>
     </message>
 </context>
 <context>
@@ -1915,6 +2322,10 @@
     <message>
         <source>Try again</source>
         <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>Open Match Day</source>
+        <translation>Otwórz tryb meczowy</translation>
     </message>
     <message>
         <source>Move to the bench (B)</source>
@@ -2979,6 +3390,10 @@
 <context>
     <name>fdss::viewmodels::ErrorPresenter</name>
     <message>
+        <source>There is nothing to undo.</source>
+        <translation>Nie ma czego cofnąć.</translation>
+    </message>
+    <message>
         <source>This item no longer exists. Open the screen again and check the current data.</source>
         <translation>Ten element już nie istnieje. Otwórz ekran ponownie i sprawdź aktualne dane.</translation>
     </message>
@@ -3013,6 +3428,10 @@
     <message>
         <source>This file format is not supported. Save the file as CSV or XLSX and try again.</source>
         <translation>Ten format pliku nie jest obsługiwany. Zapisz plik jako CSV lub XLSX i spróbuj ponownie.</translation>
+    </message>
+    <message>
+        <source>The history of this match is inconsistent: its events do not fit the saved lineup, so Match Day cannot show it. Restore a backup of the database or ask for help.</source>
+        <translation>Historia tego meczu jest niespójna: jego zdarzenia nie pasują do zapisanego składu, więc tryb meczowy nie może go pokazać. Przywróć kopię zapasową bazy albo poproś o pomoc.</translation>
     </message>
     <message>
         <source>Something went wrong and the change was not saved. Try again. If this repeats, start the app again.</source>
@@ -3127,6 +3546,70 @@
         <translation>Nie można zapisać tego składu. Otwórz mecz ponownie i ustal skład.</translation>
     </message>
     <message>
+        <source>Choose 1 to 4 parts of 10 to 60 minutes, at most 130 minutes in all.</source>
+        <translation>Wybierz od 1 do 4 części po 10–60 minut, łącznie najwyżej 130 minut.</translation>
+    </message>
+    <message>
+        <source>This minute has not been played yet. Enter a minute up to the current one.</source>
+        <translation>Ta minuta jeszcze nie została rozegrana. Wpisz minutę nie późniejszą niż bieżąca.</translation>
+    </message>
+    <message>
+        <source>This yellow card would make another one the second, without its red card. Check the cards of the player.</source>
+        <translation>Ta żółta kartka zrobiłaby z innej drugą żółtą bez czerwonej kartki. Sprawdź kartki zawodnika.</translation>
+    </message>
+    <message>
+        <source>Enter the minute of the action.</source>
+        <translation>Wpisz minutę akcji.</translation>
+    </message>
+    <message>
+        <source>This minute is outside the match.</source>
+        <translation>Ta minuta wypada poza meczem.</translation>
+    </message>
+    <message>
+        <source>The clock can be set to at most 30 minutes past the end of the part.</source>
+        <translation>Zegar można ustawić najwyżej 30 minut po końcu części.</translation>
+    </message>
+    <message>
+        <source>The clock cannot go back before an event of this part. Undo the event first.</source>
+        <translation>Zegar nie może cofnąć się przed zdarzenie tej części. Najpierw cofnij zdarzenie.</translation>
+    </message>
+    <message>
+        <source>Write the note, up to 500 characters.</source>
+        <translation>Wpisz notatkę, najwyżej 500 znaków.</translation>
+    </message>
+    <message>
+        <source>Enter a half length from 10 to 60 minutes.</source>
+        <translation type="vanished">Wpisz długość połowy od 10 do 60 minut.</translation>
+    </message>
+    <message>
+        <source>This player is not on the pitch. Choose a player on the pitch.</source>
+        <translation>Tego zawodnika nie ma na boisku. Wybierz zawodnika z boiska.</translation>
+    </message>
+    <message>
+        <source>This player is already on the pitch. Choose a player from the bench.</source>
+        <translation>Ten zawodnik jest już na boisku. Wybierz zawodnika z ławki.</translation>
+    </message>
+    <message>
+        <source>This player has been substituted and cannot come back.</source>
+        <translation>Ten zawodnik został zmieniony i nie może wrócić na boisko.</translation>
+    </message>
+    <message>
+        <source>This player has been sent off and cannot be substituted.</source>
+        <translation>Ten zawodnik został wykluczony i nie można go zmienić.</translation>
+    </message>
+    <message>
+        <source>Choose two different players.</source>
+        <translation>Wybierz dwóch różnych zawodników.</translation>
+    </message>
+    <message>
+        <source>This player is not in the lineup of the match. Choose another player.</source>
+        <translation>Tego zawodnika nie ma w składzie meczu. Wybierz innego zawodnika.</translation>
+    </message>
+    <message>
+        <source>The minute of this event is outside the match. Check the clock and try again.</source>
+        <translation>Minuta tego zdarzenia wypada poza meczem. Sprawdź zegar i spróbuj ponownie.</translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation>Jedna z wartości jest niepoprawna. Sprawdź, co zostało wpisane, i spróbuj ponownie.</translation>
     </message>
@@ -3161,6 +3644,54 @@
     <message>
         <source>A template with this name already exists. Choose a different name.</source>
         <translation>Szablon o tej nazwie już istnieje. Wybierz inną nazwę.</translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. Finish it in Match Day first.</source>
+        <translation>Inny mecz tej drużyny trwa. Najpierw zakończ go w trybie meczowym.</translation>
+    </message>
+    <message>
+        <source>This match has no saved lineup. Set up and save the lineup in Pre-match first.</source>
+        <translation>Ten mecz nie ma zapisanego składu. Najpierw ustaw i zapisz skład w sekcji „Przed meczem”.</translation>
+    </message>
+    <message>
+        <source>The lineup of this match has errors. Fix them in Pre-match first.</source>
+        <translation>Skład tego meczu ma błędy. Najpierw popraw je w sekcji „Przed meczem”.</translation>
+    </message>
+    <message>
+        <source>This match is not live. Open Match Day again.</source>
+        <translation>Ten mecz nie trwa. Otwórz tryb meczowy ponownie.</translation>
+    </message>
+    <message>
+        <source>No half is running. Start the half first; in the break only substitutions can be recorded.</source>
+        <translation>Żadna połowa nie trwa. Najpierw rozpocznij połowę; w przerwie można zapisać tylko zmiany.</translation>
+    </message>
+    <message>
+        <source>This match runs without the clock: type the minute of every action.</source>
+        <translation>Ten mecz jest prowadzony bez zegara: wpisz minutę każdej akcji.</translation>
+    </message>
+    <message>
+        <source>The clock can be set only while a part is played.</source>
+        <translation>Zegar można ustawić tylko w trakcie części meczu.</translation>
+    </message>
+    <message>
+        <source>With 7 players or more the match ends with the clock, at the end of its last part.</source>
+        <translation>Przy 7 lub więcej zawodnikach mecz kończy się zegarem, na końcu ostatniej części.</translation>
+    </message>
+    <message>
+        <source>Fewer than 7 players are on the pitch, so the match cannot go on. End the match or undo the last action.</source>
+        <translation>Na boisku jest mniej niż 7 zawodników, więc mecz nie może być kontynuowany. Zakończ mecz albo cofnij ostatnią akcję.</translation>
+    </message>
+    <message>
+        <source>This event conflicts with a later one. Undo or correct the later event first.</source>
+        <translation>To zdarzenie koliduje z późniejszym. Najpierw cofnij albo popraw późniejsze zdarzenie.</translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. Finish it or undo its start first.</source>
+        <translation>Inny mecz tej drużyny trwa. Najpierw go zakończ albo cofnij jego start.</translation>
+    </message>
+    <message>
+        <source>The match has kicked off, so it cannot go back to planned. Undo the kick-off first.</source>
+        <translation>Mecz już się rozpoczął, więc nie może wrócić do planu. Najpierw cofnij rozpoczęcie.</translation>
     </message>
     <message>
         <source>This match has data attached to it, such as a lineup or metrics, so it cannot be deleted.</source>
@@ -3409,6 +3940,352 @@
     <message>
         <source>This player is not in the load table. Archived players are not shown.</source>
         <translation>Tego zawodnika nie ma w tabeli obciążenia. Zawodnicy zarchiwizowani nie są pokazywani.</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MatchDayTexts</name>
+    <message>
+        <source>Before kick-off</source>
+        <translation>Przed rozpoczęciem</translation>
+    </message>
+    <message>
+        <source>1st half</source>
+        <translation>1. połowa</translation>
+    </message>
+    <message>
+        <source>Half time</source>
+        <translation>Przerwa</translation>
+    </message>
+    <message>
+        <source>2nd half</source>
+        <translation>2. połowa</translation>
+    </message>
+    <message>
+        <source>Full time</source>
+        <translation>Koniec meczu</translation>
+    </message>
+    <message>
+        <source>Start 1st half</source>
+        <translation>Rozpocznij 1. połowę</translation>
+    </message>
+    <message>
+        <source>End 1st half</source>
+        <translation>Zakończ 1. połowę</translation>
+    </message>
+    <message>
+        <source>Start 2nd half</source>
+        <translation>Rozpocznij 2. połowę</translation>
+    </message>
+    <message>
+        <source>End match</source>
+        <translation>Zakończ mecz</translation>
+    </message>
+    <message>
+        <source>1st period</source>
+        <translation>1. część</translation>
+    </message>
+    <message>
+        <source>2nd period</source>
+        <translation>2. część</translation>
+    </message>
+    <message>
+        <source>3rd period</source>
+        <translation>3. część</translation>
+    </message>
+    <message>
+        <source>4th period</source>
+        <translation>4. część</translation>
+    </message>
+    <message>
+        <source>Break</source>
+        <translation>Przerwa</translation>
+    </message>
+    <message>
+        <source>Start 1st period</source>
+        <translation>Rozpocznij 1. część</translation>
+    </message>
+    <message>
+        <source>End 1st period</source>
+        <translation>Zakończ 1. część</translation>
+    </message>
+    <message>
+        <source>Start 2nd period</source>
+        <translation>Rozpocznij 2. część</translation>
+    </message>
+    <message>
+        <source>End 2nd period</source>
+        <translation>Zakończ 2. część</translation>
+    </message>
+    <message>
+        <source>Start 3rd period</source>
+        <translation>Rozpocznij 3. część</translation>
+    </message>
+    <message>
+        <source>End 3rd period</source>
+        <translation>Zakończ 3. część</translation>
+    </message>
+    <message>
+        <source>Start 4th period</source>
+        <translation>Rozpocznij 4. część</translation>
+    </message>
+    <message>
+        <source>start of the 1st half</source>
+        <translation>rozpoczęcie 1. połowy</translation>
+    </message>
+    <message>
+        <source>end of the 1st half</source>
+        <translation>koniec 1. połowy</translation>
+    </message>
+    <message>
+        <source>start of the 2nd half</source>
+        <translation>rozpoczęcie 2. połowy</translation>
+    </message>
+    <message>
+        <source>end of the 2nd half</source>
+        <translation>koniec 2. połowy</translation>
+    </message>
+    <message>
+        <source>start of the 1st period</source>
+        <translation>rozpoczęcie 1. części</translation>
+    </message>
+    <message>
+        <source>end of the 1st period</source>
+        <translation>koniec 1. części</translation>
+    </message>
+    <message>
+        <source>start of the 2nd period</source>
+        <translation>rozpoczęcie 2. części</translation>
+    </message>
+    <message>
+        <source>end of the 2nd period</source>
+        <translation>koniec 2. części</translation>
+    </message>
+    <message>
+        <source>start of the 3rd period</source>
+        <translation>rozpoczęcie 3. części</translation>
+    </message>
+    <message>
+        <source>end of the 3rd period</source>
+        <translation>koniec 3. części</translation>
+    </message>
+    <message>
+        <source>start of the 4th period</source>
+        <translation>rozpoczęcie 4. części</translation>
+    </message>
+    <message>
+        <source>end of the 4th period</source>
+        <translation>koniec 4. części</translation>
+    </message>
+    <message>
+        <source>end of the match</source>
+        <translation>koniec meczu</translation>
+    </message>
+    <message>
+        <source>early end of the match</source>
+        <translation>przedwczesne zakończenie meczu</translation>
+    </message>
+    <message>
+        <source>%1 × %2 min</source>
+        <translation>%1 × %2 min</translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation>Gol</translation>
+    </message>
+    <message>
+        <source>Assist</source>
+        <translation>Asysta</translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation>Żółta kartka</translation>
+    </message>
+    <message>
+        <source>Second yellow, red card</source>
+        <translation>Druga żółta, czerwona kartka</translation>
+    </message>
+    <message>
+        <source>Red card</source>
+        <translation>Czerwona kartka</translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation>Zmiana</translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation>Gol rywala</translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation>Notatka</translation>
+    </message>
+    <message>
+        <source>On the pitch</source>
+        <translation>Na boisku</translation>
+    </message>
+    <message>
+        <source>On the bench</source>
+        <translation>Na ławce</translation>
+    </message>
+    <message>
+        <source>Substituted</source>
+        <translation>Zmieniony</translation>
+    </message>
+    <message>
+        <source>Sent off</source>
+        <translation>Wykluczony</translation>
+    </message>
+    <message>
+        <source>Planned</source>
+        <translation>Zaplanowany</translation>
+    </message>
+    <message>
+        <source>Live</source>
+        <translation>W trakcie</translation>
+    </message>
+    <message>
+        <source>Finished</source>
+        <translation>Zakończony</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MatchDayViewModel</name>
+    <message>
+        <source>Only the coach or the assistant can run Match Day. You see the match read-only.</source>
+        <translation>Tryb meczowy prowadzi tylko trener lub asystent. Widzisz mecz tylko do odczytu.</translation>
+    </message>
+    <message>
+        <source>This match is not planned, so Match Day cannot start it.</source>
+        <translation>Ten mecz nie jest zaplanowany, więc tryb meczowy nie może go rozpocząć.</translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. Finish it in Match Day first.</source>
+        <translation>Inny mecz tej drużyny trwa. Najpierw zakończ go w trybie meczowym.</translation>
+    </message>
+    <message>
+        <source>This match has no saved lineup. Set up and save the lineup in Pre-match.</source>
+        <translation>Ten mecz nie ma zapisanego składu. Ustaw i zapisz skład w sekcji „Przed meczem”.</translation>
+    </message>
+    <message>
+        <source>The lineup has errors to fix in Pre-match: %1.</source>
+        <translation>Skład ma błędy do poprawienia w Przedmeczu: %1.</translation>
+    </message>
+    <message>
+        <source>Custom…</source>
+        <translation>Własny…</translation>
+    </message>
+    <message>
+        <source>Without the clock</source>
+        <translation>Bez zegara</translation>
+    </message>
+    <message>
+        <source>No player</source>
+        <translation>Bez zawodnika</translation>
+    </message>
+    <message>
+        <source>Goal: who scored? Tap a player on the pitch.</source>
+        <translation>Gol: kto strzelił? Dotknij zawodnika na boisku.</translation>
+    </message>
+    <message>
+        <source>Goal by %1: who gave the assist? Tap a player, or choose No assist.</source>
+        <translation>Gol: %1. Kto asystował? Dotknij zawodnika albo wybierz Bez asysty.</translation>
+    </message>
+    <message>
+        <source>Yellow card: tap the player on the pitch.</source>
+        <translation>Żółta kartka: dotknij zawodnika na boisku.</translation>
+    </message>
+    <message>
+        <source>Red card: tap the player on the pitch.</source>
+        <translation>Czerwona kartka: dotknij zawodnika na boisku.</translation>
+    </message>
+    <message>
+        <source>Substitution: who goes off? Tap a player on the pitch.</source>
+        <translation>Zmiana: kto schodzi? Dotknij zawodnika na boisku.</translation>
+    </message>
+    <message>
+        <source>%1 goes off: who comes on? Tap a player on the bench.</source>
+        <translation>Schodzi: %1. Kto wchodzi? Dotknij zawodnika na ławce.</translation>
+    </message>
+    <message>
+        <source>Opponent goal: check the minute and save.</source>
+        <translation>Gol rywala: sprawdź minutę i zapisz.</translation>
+    </message>
+    <message>
+        <source>%1 for %2</source>
+        <translation>%1 za %2</translation>
+    </message>
+    <message>
+        <source>%1 · %2 %3</source>
+        <translation>%1 · %2 %3</translation>
+    </message>
+    <message>
+        <source>At %1: on the pitch</source>
+        <translation>W %1: na boisku</translation>
+    </message>
+    <message>
+        <source>At %1: on the bench</source>
+        <translation>W %1: na ławce</translation>
+    </message>
+    <message>
+        <source>Assist: %1</source>
+        <translation>Asysta: %1</translation>
+    </message>
+    <message>
+        <source>On: %1</source>
+        <translation>Wchodzi: %1</translation>
+    </message>
+    <message>
+        <source>Off: %1</source>
+        <translation>Schodzi: %1</translation>
+    </message>
+    <message>
+        <source>Only %1 players are left on the pitch. With fewer the match cannot go on.</source>
+        <translation>Na boisku zostało tylko %1 zawodników. Przy mniejszej liczbie mecz nie może być kontynuowany.</translation>
+    </message>
+    <message>
+        <source>Enter the minute of the end, e.g. 80.</source>
+        <translation>Wpisz minutę zakończenia, np. 80.</translation>
+    </message>
+    <message>
+        <source>Enter the time as the clock shows it, e.g. 23:41, or 45+2:10 in stoppage time.</source>
+        <translation>Wpisz czas tak, jak pokazuje zegar, np. 23:41, a w doliczonym czasie 45+2:10.</translation>
+    </message>
+    <message>
+        <source>Clock set to %1.</source>
+        <translation>Zegar ustawiony na %1.</translation>
+    </message>
+    <message>
+        <source>Enter the minute as 23, or 45+2 in stoppage time.</source>
+        <translation>Wpisz minutę jako 23, a w doliczonym czasie jako 45+2.</translation>
+    </message>
+    <message>
+        <source>This minute is outside the match.</source>
+        <translation>Ta minuta wypada poza meczem.</translation>
+    </message>
+    <message>
+        <source>This minute has not been played yet. Enter a minute up to the current one.</source>
+        <translation>Ta minuta jeszcze nie została rozegrana. Wpisz minutę nie późniejszą niż bieżąca.</translation>
+    </message>
+    <message>
+        <source>Enter the minute of the action.</source>
+        <translation>Wpisz minutę akcji.</translation>
+    </message>
+    <message>
+        <source>This cannot be recorded at %1: it conflicts with a later event, %2. Undo or correct that event first.</source>
+        <translation>Nie można tego zapisać w %1: koliduje z późniejszym zdarzeniem: %2. Najpierw cofnij albo popraw tamto zdarzenie.</translation>
+    </message>
+    <message>
+        <source>Undone: %1</source>
+        <translation>Cofnięto: %1</translation>
+    </message>
+    <message>
+        <source>Note deleted: %1</source>
+        <translation>Usunięto notatkę: %1</translation>
+    </message>
+    <message>
+        <source>Another match of this team is live. First finish it, or undo its start, in the match against %1.</source>
+        <translation>Inny mecz tej drużyny trwa. Najpierw zakończ albo cofnij start meczu z %1.</translation>
     </message>
 </context>
 <context>

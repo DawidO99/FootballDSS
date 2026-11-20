@@ -228,6 +228,16 @@ Item {
                 onValueActivated: value => root.chooseMatch(value)
             }
 
+            // Match Day starts from the saved lineup (P13); Match Day itself says what blocks it.
+            SecondaryButton {
+                objectName: "matchDayButton"
+                visible: preMatch.hasMatch && preMatch.hasSavedLineup && !preMatch.dirty
+                text: qsTr("Open Match Day")
+                onClicked: root.navigateRequested("matchday", {
+                    "matchId": preMatch.matchId
+                })
+            }
+
             PrimaryButton {
                 objectName: "saveButton"
                 visible: preMatch.hasMatch && root.canEdit

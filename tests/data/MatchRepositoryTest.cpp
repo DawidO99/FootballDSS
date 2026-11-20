@@ -419,6 +419,62 @@ TEST_F(MatchRepositoryTest, EventsKeepEveryField) {
     EXPECT_EQ(events->at(0).type, MatchEventType::Sub);
     EXPECT_EQ(events->at(0).playerId, kPlayer);
     EXPECT_EQ(events->at(0).relatedPlayerId, kOtherPlayer);
+    EXPECT_EQ(events->at(0).addedTime, std::nullopt);
+}
+
+TEST_F(MatchRepositoryTest, AddedTimeIsKeptAndReturnedByDeleteLast) {
+    MatchEventDraft late = event(45, MatchEventType::Goal);
+    late.addedTime = 3;
+    ASSERT_TRUE(repository().appendEvent(kMatch, late));
+    EXPECT_EQ(repository().listEvents(kMatch)->at(0).addedTime, 3);
+    const auto deleted = repository().deleteLastEvent(kMatch);
+    ASSERT_TRUE(deleted.has_value()) << deleted.error().detail;
+    EXPECT_EQ(deleted->addedTime, 3);
+}
+
+TEST_F(MatchRepositoryTest, SeqIsKeptAndTheEventsOfOneActionGoTogether) {
+    ASSERT_TRUE(repository().appendEvent(kMatch, event(10), 1));
+    ASSERT_TRUE(repository().appendEvent(kMatch, event(20, MatchEventType::Yellow), 2));
+    ASSERT_TRUE(repository().appendEvent(kMatch, event(20, MatchEventType::Red), 2));
+    ASSERT_TRUE(repository().appendEvent(kMatch, event(30))); // not from Match Day
+    const auto events = repository().listEvents(kMatch);
+    ASSERT_TRUE(events.has_value());
+    EXPECT_EQ(events->at(0).seq, 1);
+    EXPECT_EQ(events->at(3).seq, std::nullopt);
+    const auto deleted = repository().deleteEventsWithSeq(kMatch, 2);
+    ASSERT_TRUE(deleted.has_value()) << deleted.error().detail;
+    EXPECT_EQ(deleted->size(), 2U);
+    EXPECT_EQ(repository().listEvents(kMatch)->size(), 2U);
+}
+
+TEST_F(MatchRepositoryTest, AddedTimeOfAPartComesBeforeTheNextPart) {
+    // Entered in this order: the start of the second half, then 45+3, then 45+1.
+    const MatchEventId start = repository().appendEvent(kMatch, event(45)).value();
+    MatchEventDraft three = event(45);
+    three.addedTime = 3;
+    const MatchEventId plusThree = repository().appendEvent(kMatch, three).value();
+    MatchEventDraft one = event(45);
+    one.addedTime = 1;
+    const MatchEventId plusOne = repository().appendEvent(kMatch, one).value();
+    const auto events = repository().listEvents(kMatch);
+    ASSERT_TRUE(events.has_value());
+    EXPECT_EQ(events->at(0).id, plusOne);
+    EXPECT_EQ(events->at(1).id, plusThree);
+    EXPECT_EQ(events->at(2).id, start);
+}
+
+TEST_F(MatchRepositoryTest, StatusAloneAndTheLiveMatchOfATeam) {
+    ASSERT_TRUE(repository().setResult(kMatch, 2, 1, MatchStatus::Finished));
+    ASSERT_TRUE(repository().setStatus(kMatch, MatchStatus::Live));
+    const auto match = repository().get(kMatch);
+    ASSERT_TRUE(match.has_value());
+    EXPECT_EQ(match->status, MatchStatus::Live);
+    EXPECT_EQ(match->goalsFor, 2);
+    EXPECT_EQ(repository().findLive(kTeam).value(), kMatch);
+    EXPECT_EQ(repository().findLive(kOtherTeam).value(), std::nullopt);
+    const auto missing = repository().setStatus(MatchId{999}, MatchStatus::Live);
+    ASSERT_FALSE(missing.has_value());
+    EXPECT_EQ(missing.error().code, ErrorCode::NotFound);
 }
 
 TEST_F(MatchRepositoryTest, OpponentGoalNeedsNoPlayer) {

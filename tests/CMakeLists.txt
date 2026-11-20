@@ -26,6 +26,7 @@ add_executable(fdss_tests
     core/LineupValidatorTest.cpp
     core/LoadDemoTest.cpp
     core/LoadTest.cpp
+    core/MatchMinutesTest.cpp
     core/PermissionsTest.cpp
     core/ValidationTest.cpp
     core/VersionTest.cpp
@@ -36,6 +37,8 @@ add_executable(fdss_tests
     data/DatabaseManagerTest.cpp
     data/EnumsSchemaTest.cpp
     data/LineupRepositoryTest.cpp
+    data/MatchLiveRepositoryTest.cpp
+    data/MatchNoteRepositoryTest.cpp
     data/MatchRepositoryTest.cpp
     data/MigrationsTest.cpp
     data/OpponentRepositoryTest.cpp
@@ -56,6 +59,7 @@ add_executable(fdss_tests
     services/FakeClock.hpp
     services/LineupServiceTest.cpp
     services/LoadServiceTest.cpp
+    services/MatchDayServiceTest.cpp
     services/ServiceFixture.hpp
     services/SessionTest.cpp
     services/SetupServiceTest.cpp
@@ -73,7 +77,7 @@ target_compile_definitions(fdss_tests PRIVATE
 if(MSVC)
     target_compile_options(fdss_tests PRIVATE /utf-8)
 endif()
-gtest_discover_tests(fdss_tests DISCOVERY_MODE PRE_TEST)
+gtest_discover_tests(fdss_tests DISCOVERY_MODE PRE_TEST DISCOVERY_TIMEOUT 120)
 
 add_executable(fdss_vm_tests
     test_main.cpp
@@ -84,6 +88,7 @@ add_executable(fdss_vm_tests
     viewmodels/ChangePinViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
     viewmodels/LoadViewModelTest.cpp
+    viewmodels/MatchDayViewModelTest.cpp
     viewmodels/MatchEditorViewModelTest.cpp
     viewmodels/NavigationModelTest.cpp
     viewmodels/PlayerCardViewModelTest.cpp

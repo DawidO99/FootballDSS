@@ -52,6 +52,11 @@ struct MatchEventId {
     auto operator<=>(const MatchEventId&) const = default;
 };
 
+struct MatchNoteId {
+    std::int64_t value = 0;
+    auto operator<=>(const MatchNoteId&) const = default;
+};
+
 struct TrainingSessionId {
     std::int64_t value = 0;
     auto operator<=>(const TrainingSessionId&) const = default;

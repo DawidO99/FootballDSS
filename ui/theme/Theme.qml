@@ -198,6 +198,17 @@ QtObject {
     readonly property int emptyStateWidth: 480
     // Pre-match (P12): the bench column and the panel of the lineup issues.
     readonly property int benchColumnWidth: 228
+    // Match Day (P13): the cards are the colours of the real ones in both themes, always with a word.
+    readonly property color yellowCard: dark ? "#FACC15" : "#CA8A04"
+    readonly property color redCard: dark ? "#F87171" : "#DC2626"
+    // A player tile (at least hitTouch high) and the column of the event timeline.
+    readonly property int matchTileWidth: 168
+    readonly property int matchTileHeight: 64
+    readonly property int matchTimelineWidth: 320
+    readonly property int matchActionWidth: 148
+    readonly property int matchMinuteFieldWidth: 96
+    // The clock and the score.
+    readonly property int matchClockFontSize: 40
     // The shirt number column of a player list.
     readonly property int shirtNumberWidth: 24
     readonly property int issuesPanelHeight: 196

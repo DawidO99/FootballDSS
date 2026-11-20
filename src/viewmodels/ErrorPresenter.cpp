@@ -12,6 +12,9 @@ QString ErrorPresenter::message(const core::Error& error) {
     case core::ErrorCode::Conflict:
         return conflictMessage(error.field);
     case core::ErrorCode::NotFound:
+        if (error.field == "nothing_to_undo") {
+            return tr("There is nothing to undo.");
+        }
         return tr("This item no longer exists. Open the screen again and check the current data.");
     case core::ErrorCode::PermissionDenied:
         return tr("Your role does not allow this. Ask the coach to do it or to change your role.");
@@ -38,6 +41,12 @@ QString ErrorPresenter::message(const core::Error& error) {
         }
         return tr("This file format is not supported. Save the file as CSV or XLSX and try again.");
     case core::ErrorCode::Database:
+        if (error.field == "match_history") {
+            return tr("The history of this match is inconsistent: its events do not fit the saved "
+                      "lineup, so Match Day cannot show it. Restore a backup of the database or "
+                      "ask for help.");
+        }
+        break;
     case core::ErrorCode::Internal:
         break;
     }
@@ -136,6 +145,52 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     if (field == "lineup_shape") {
         return tr("This lineup cannot be saved. Open the match again and set up the lineup.");
     }
+    if (field == "match_format") {
+        return tr("Choose 1 to 4 parts of 10 to 60 minutes, at most 130 minutes in all.");
+    }
+    if (field == "minute_not_played") {
+        return tr("This minute has not been played yet. Enter a minute up to the current one.");
+    }
+    if (field == "second_yellow_without_red") {
+        return tr("This yellow card would make another one the second, without its red card. "
+                  "Check the cards of the player.");
+    }
+    if (field == "minute_required") {
+        return tr("Enter the minute of the action.");
+    }
+    if (field == "minute_out_of_match") {
+        return tr("This minute is outside the match.");
+    }
+    if (field == "clock_time") {
+        return tr("The clock can be set to at most 30 minutes past the end of the part.");
+    }
+    if (field == "clock_before_event") {
+        return tr("The clock cannot go back before an event of this part. Undo the event first.");
+    }
+    if (field == "note_text") {
+        return tr("Write the note, up to 500 characters.");
+    }
+    if (field == "player_not_on_pitch") {
+        return tr("This player is not on the pitch. Choose a player on the pitch.");
+    }
+    if (field == "player_not_on_bench") {
+        return tr("This player is already on the pitch. Choose a player from the bench.");
+    }
+    if (field == "player_substituted") {
+        return tr("This player has been substituted and cannot come back.");
+    }
+    if (field == "player_sent_off") {
+        return tr("This player has been sent off and cannot be substituted.");
+    }
+    if (field == "same_player") {
+        return tr("Choose two different players.");
+    }
+    if (field == "player_unknown" || field == "player_missing") {
+        return tr("This player is not in the lineup of the match. Choose another player.");
+    }
+    if (field == "minute_out_of_range" || field == "after_final_minute") {
+        return tr("The minute of this event is outside the match. Check the clock and try again.");
+    }
     return tr("One of the values is not valid. Check what you entered and try again.");
 }
 
@@ -169,6 +224,46 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
     }
     if (field == "template_name") {
         return tr("A template with this name already exists. Choose a different name.");
+    }
+    if (field == "another_live_match") {
+        return tr("Another match of this team is live. Finish it in Match Day first.");
+    }
+    if (field == "no_lineup") {
+        return tr("This match has no saved lineup. Set up and save the lineup in Pre-match first.");
+    }
+    if (field == "lineup_errors") {
+        return tr("The lineup of this match has errors. Fix them in Pre-match first.");
+    }
+    if (field == "match_not_live") {
+        return tr("This match is not live. Open Match Day again.");
+    }
+    if (field == "match_not_running") {
+        return tr("No half is running. Start the half first; in the break only substitutions "
+                  "can be recorded.");
+    }
+    if (field == "clockless") {
+        return tr("This match runs without the clock: type the minute of every action.");
+    }
+    if (field == "clock_not_running") {
+        return tr("The clock can be set only while a part is played.");
+    }
+    if (field == "match_not_over") {
+        return tr("With 7 players or more the match ends with the clock, at the end of its last "
+                  "part.");
+    }
+    if (field == "too_few_players") {
+        return tr("Fewer than 7 players are on the pitch, so the match cannot go on. End the match "
+                  "or undo the last action.");
+    }
+    if (field == "event_conflict") {
+        return tr("This event conflicts with a later one. Undo or correct the later event first.");
+    }
+    if (field == "undo_end_another_live") {
+        return tr("Another match of this team is live. Finish it or undo its start first.");
+    }
+    if (field == "match_started") {
+        return tr("The match has kicked off, so it cannot go back to planned. Undo the kick-off "
+                  "first.");
     }
     if (field == "session_in_use") {
         return tr("This session has metric values attached to it, so it cannot be deleted.");

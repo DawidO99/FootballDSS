@@ -7,6 +7,8 @@ add_library(fdss_core STATIC
     algorithms/LineupValidator.cpp
     algorithms/Load.hpp
     algorithms/Load.cpp
+    algorithms/MatchMinutes.hpp
+    algorithms/MatchMinutes.cpp
     domain/Appearance.hpp
     domain/Attendance.hpp
     domain/Availability.hpp
@@ -20,6 +22,7 @@ add_library(fdss_core STATIC
     domain/Lineup.cpp
     domain/Match.hpp
     domain/MatchEvent.hpp
+    domain/MatchNote.hpp
     domain/Opponent.hpp
     domain/Permissions.hpp
     domain/Permissions.cpp
