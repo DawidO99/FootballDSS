@@ -11,14 +11,14 @@ Close the open items of `docs/BACKLOG.md` that matter for coaches and for a stab
 Read first: `docs/BACKLOG.md`, Decisions of the packets that created each item.
 
 ## Scope — files you may create or change
-Whatever each item needs, plus `src/data/migrations/0004_housekeeping.sql` (the only migration of this
+Whatever each item needs, plus `src/data/migrations/0005_housekeeping.sql` (the only migration of this
 packet), tests, `i18n/*.ts`, `.github/workflows/ci.yml` (items 9–10), `docs/BACKLOG.md` (remove done
 items).
 
 ## Requirements (in this order; if time runs out, stop after a finished item and report)
 1. Season validation: years 1900–2100, second part = first + 1 (core + wizard + team edit).
 2. Forced PIN change: after a Coach resets someone's PIN, that user must set their own PIN at the next
-   login (`staff_user.must_change_pin`, migration 0004).
+   login (`staff_user.must_change_pin`, migration 0005).
 3. Startup read error shows the error screen, not the wizard.
 4. Log file in AppData/logs (rotating, last 5 files) and a single-instance lock (`QLockFile`): a second
    start shows "FootballDSS is already running".

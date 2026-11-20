@@ -1,8 +1,8 @@
 # P14 — Match report: ratings, match RPE, note, corrections
 
 **Branch:** `feature/P14-match-report`
-**Depends on:** P13 merged
-**Owner agent:** Claude (effort Medium); review: Codex
+**Depends on:** P13b merged
+**Owner agent:** Claude (effort Medium/High); review: Codex
 
 ## Goal
 After the whistle the coach rates every player 1–10, enters match RPE, writes a short note and can fix
@@ -11,7 +11,7 @@ mistakes made during the match; the player card shows each player's matches.
 Read first: SPEC §4 (Match report), §6 (`appearance` rating and RPE), P13 Decisions.
 
 ## Scope — files you may create or change
-- `src/data/migrations/0003_match_report.sql` (`match.report_note TEXT NULL`) and repository code
+- `src/data/migrations/0004_match_report.sql` (`match.report_note TEXT NULL`) and repository code
 - `src/services/MatchReportService.hpp/.cpp` (+ `ServiceRegistry` lines)
 - `src/viewmodels/MatchReportViewModel` and list models; `PlayerCardViewModel` / a new
   `PlayerMatchesModel` for the "Matches" tab
@@ -21,6 +21,16 @@ Read first: SPEC §4 (Match report), §6 (`appearance` rating and RPE), P13 Deci
 - `ui/views/CalendarView.qml` (only: a finished match opens the report instead of the read-only editor),
   `ui/views/MatchDayView.qml` (only: "End match" goes to the report)
 - tests, CMake lists, `i18n/*.ts`, `qml_smoke`
+
+## Added after the P13 manual test (accepted by the human)
+- **Finished match details**: opening a finished match from the Calendar shows the report with all
+  statistics (score, timeline incl. notes and shape changes, per-player minutes, goals, assists, cards,
+  shapes used with minute ranges).
+- **Post-match entry**: P13 added a clockless Match Day mode (minutes typed by hand, default for a
+  match dated before today). P14 only adds the entry point: a planned match in the past opens Match Day
+  in clockless mode from the Calendar ("Uzupełnij po meczu"); no second implementation of events or
+  minutes. Coaches often have no time on the bench.
+- **Corrections** (requirement 4) cover every event type, notes and shape changes.
 
 ## Out of scope
 PDF export (W3), opponent profile (W3), statistics charts.
