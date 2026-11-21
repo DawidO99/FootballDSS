@@ -269,3 +269,41 @@ migrations, silently swallowing errors, deleting or rewriting tests to make them
 | Metryka własna | CustomMetric | User-defined metric (`metric_definition`) |
 | Moduł Pro | ProAnalysis | Features unlocked by event data (StatsBomb) |
 | Sztab | Staff | Users: Coach, Assistant, Physio, Analyst |
+
+## 14. Token economy (all agents)
+
+The project is large; every token spent on reading or re-running is a token not spent on the
+packet. These rules apply to planning, implementation, fix rounds and reviews.
+
+Reading
+- Read only the AGENTS/SPEC sections the packet names, the packet itself, the Decisions of the
+  packets it depends on, and the files you change. Earlier packets' Decisions only when the packet
+  points to them.
+- Find code with grep / symbol search; never read a large file (> 500 lines) in full when a search
+  gives the place. `tests/qml_smoke/`: read only the scenario file of your area and the helpers.
+
+Testing
+- During development run only what you touch: `ctest --test-dir build/dev -R <name>`,
+  `qml_smoke --only-<area>`.
+- Run the full §3 (ctest + `ctest --preset dev-local-ci`, qmllint, clang-format) once, at the end,
+  before the commit; again only if you changed code after it.
+- Do not reproduce CI variants (xvfb, no focus window, C locale, GC stress) unless CI failed or the
+  packet changes focus, window, locale or memory behaviour.
+
+Screenshots
+- Look at screenshots only for a new screen or a major layout change: at most 2–3 (dark theme at the
+  minimum window, light theme in Polish). Never in fix rounds.
+- Every visual bug found by hand becomes a measuring check in qml_smoke (fits, no overlap, ≥ 44 px),
+  so it cannot come back.
+
+Writing
+- Plan: at most about one page. Interfaces only for new public types and changed signatures.
+  Questions as a short numbered list, each with a recommendation.
+- Report: at most about 25 lines: what changed, deviations from the accepted plan, how to test by
+  hand, known limitations. No tables listing every file.
+- Review: findings only, most severe first, each with file:line and one sentence of reason. No
+  restating of the code.
+
+Fix rounds
+- Change only what the findings name. No unrelated refactors, no new features, no renaming.
+- Reply with what was fixed and the test that covers it; nothing else.
