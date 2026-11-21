@@ -14,9 +14,9 @@ namespace {
 constexpr int kCurrentYear = 2026;
 
 SourceTable table(std::string_view csv) {
-    auto parsed = parseCsv(csv, ';');
-    EXPECT_TRUE(parsed.has_value());
-    auto result = toSourceTable(parsed.value_or(std::vector<SourceRow>{}));
+    CsvRecords parsed = parseCsv(csv, ';');
+    EXPECT_FALSE(parsed.unterminatedQuoteLine.has_value());
+    auto result = toSourceTable(std::move(parsed.rows));
     EXPECT_TRUE(result.has_value());
     return result.value_or(SourceTable{});
 }
@@ -369,10 +369,14 @@ TEST(SquadMatchTest, NumberOfAnotherPlayerIsAmbiguous) {
     EXPECT_EQ(actionFor(rows[0], ExistingPolicy::Update), RowAction::SkipAmbiguous);
 }
 
-TEST(SquadMatchTest, ChangingANumberToAnotherPlayersNumberIsAnError) {
+// P16 review follow-up 2: an error only when the update would change the number.
+TEST(SquadMatchTest, ChangingANumberToAnotherPlayersNumberIsAnErrorOnlyForAnUpdate) {
     const std::vector existing = {player(1, "Jan", "Kowalski", 7), player(2, "Adam", "Nowak", 9)};
     const auto rows = validate("Imię;Nazwisko;Nr;Pozycja\nJan;Kowalski;9;N\n", existing);
-    EXPECT_EQ(rows[0].status(), RowStatus::Error);
+    EXPECT_EQ(statusFor(rows[0], ExistingPolicy::Update), RowStatus::Error);
+    EXPECT_EQ(actionFor(rows[0], ExistingPolicy::Update), RowAction::Invalid);
+    EXPECT_EQ(statusFor(rows[0], ExistingPolicy::Skip), RowStatus::Warning);
+    EXPECT_EQ(actionFor(rows[0], ExistingPolicy::Skip), RowAction::SkipExisting);
     EXPECT_EQ(rows[0].existing, PlayerId{1});
     const auto* issue = findIssue(rows[0], RowIssueKind::NumberConflict);
     ASSERT_NE(issue, nullptr);

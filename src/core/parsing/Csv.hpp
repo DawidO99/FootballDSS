@@ -2,13 +2,14 @@
 
 #include "core/parsing/SourceTable.hpp"
 
+#include <optional>
 #include <string_view>
 #include <vector>
 
 // CSV of an import (SPEC section 8 step 2, RFC 4180 plus what spreadsheets write): fields in double
 // quotes may hold the delimiter, line breaks and "" for a quote; a quote inside an unquoted field
-// is an ordinary character; CRLF, LF and a lone CR end a record. An unterminated quoted field is
-// a file-level InvalidInput error, with its opening line in field "import_csv_quote:<line>".
+// is an ordinary character; CRLF, LF and a lone CR end a record. A quoted field left open at the
+// end of the file is reported with the line it opens on; the reader refuses such a file.
 
 namespace fdss::core {
 
@@ -18,8 +19,14 @@ inline constexpr char kDefaultDelimiter = ';';
 // most of the first lines. None in the header: kDefaultDelimiter (a file with one column).
 [[nodiscard]] char detectDelimiter(std::string_view utf8);
 
-// Every record with the line it starts on (1-based). Empty lines are kept as records without
-// cells, so the line numbers stay right; toSourceTable() drops blank rows.
-[[nodiscard]] Result<std::vector<SourceRow>> parseCsv(std::string_view utf8, char delimiter);
+struct CsvRecords {
+    // Every record with the line it starts on (1-based). Empty lines are kept as records without
+    // cells, so the line numbers stay right; toSourceTable() drops blank rows.
+    std::vector<SourceRow> rows;
+    // The line of a quoted field still open at the end of the file; the rows are then incomplete.
+    std::optional<int> unterminatedQuoteLine;
+};
+
+[[nodiscard]] CsvRecords parseCsv(std::string_view utf8, char delimiter);
 
 } // namespace fdss::core

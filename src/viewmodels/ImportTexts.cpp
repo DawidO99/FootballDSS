@@ -173,8 +173,7 @@ QString ImportTexts::issue(const core::RowIssue& issue, int currentYear) {
         return tr("shirt number '%1' belongs to %2; choose a free number")
             .arg(value, playerList(issue.candidates));
     case core::RowIssueKind::MatchChanged:
-        return tr(
-            "the squad changed after checking; the current match and selected policy are used");
+        return tr("the squad changed since the check — check again");
     case core::RowIssueKind::AmbiguousMatch:
         if (number && issue.candidates.size() == 1) {
             return tr("the shirt number belongs to %1, skipped").arg(playerList(issue.candidates));

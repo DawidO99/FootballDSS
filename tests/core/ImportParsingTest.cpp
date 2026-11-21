@@ -17,9 +17,9 @@ namespace {
 using Cells = std::vector<std::string>;
 
 std::vector<SourceRow> parsedRows(std::string_view text, char delimiter) {
-    auto result = parseCsv(text, delimiter);
-    EXPECT_TRUE(result.has_value());
-    return result.value_or(std::vector<SourceRow>{});
+    CsvRecords result = parseCsv(text, delimiter);
+    EXPECT_FALSE(result.unterminatedQuoteLine.has_value());
+    return std::move(result.rows);
 }
 
 std::vector<Cells> cellsOf(const std::vector<SourceRow>& rows) {
@@ -132,11 +132,10 @@ TEST(CsvTest, QuoteInsideUnquotedFieldIsText) {
 }
 
 TEST(CsvTest, OpenQuoteFailsTheFileWithTheOpeningLine) {
-    const auto rows = parseCsv("a;b\r\n1;\"open\nb;c\n", ';');
-    ASSERT_FALSE(rows.has_value());
-    EXPECT_EQ(rows.error().code, ErrorCode::InvalidInput);
-    EXPECT_EQ(rows.error().field, "import_csv_quote:2");
-    EXPECT_FALSE(parseCsv("\"open;b\n1;2\n", ';').has_value());
+    // The line travels on its own, not in an Error field (P16 review follow-up 5).
+    EXPECT_EQ(parseCsv("a;b\r\n1;\"open\nb;c\n", ';').unterminatedQuoteLine, 2);
+    EXPECT_EQ(parseCsv("\"open;b\n1;2\n", ';').unterminatedQuoteLine, 1);
+    EXPECT_EQ(parseCsv("a;\"closed\"\n", ';').unterminatedQuoteLine, std::nullopt);
 }
 
 TEST(CsvTest, LoneCarriageReturnEndsARecord) {

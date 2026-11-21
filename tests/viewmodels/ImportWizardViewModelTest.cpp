@@ -17,6 +17,7 @@
 
 #include <array>
 #include <functional>
+#include <tuple>
 
 #ifdef Q_OS_UNIX
 #include <csignal>
@@ -302,12 +303,19 @@ TEST_F(ImportWizardViewModelTest, MappingAndOptionChangesInvalidateRunningValida
     }
 }
 
+// P16 review follow-up 5: the message names the line, which does not travel in Error::field.
 TEST_F(ImportWizardViewModelTest, IgnoredColumnWithAnOpenQuoteStopsTheWholeWizard) {
     ImportWizardViewModel wizard;
     ASSERT_NO_FATAL_FAILURE(open(wizard, "unterminated-quote.csv"));
     EXPECT_EQ(wizard.step(), QStringLiteral("file"));
-    EXPECT_EQ(wizard.errorText(), viewmodels::ErrorPresenter::message(core::Error{
-                                      core::ErrorCode::InvalidInput, {}, "import_csv_quote:2"}));
+    EXPECT_EQ(wizard.errorText(),
+              QCoreApplication::translate("fdss::viewmodels::ImportWizardViewModel",
+                                          "The CSV has a quoted field that is never closed, "
+                                          "starting on line %1. Close the quote in the file and "
+                                          "import it again.")
+                  .arg(2));
+    EXPECT_NE(wizard.errorText(), viewmodels::ErrorPresenter::message(core::Error{
+                                      core::ErrorCode::InvalidInput, {}, "import_csv_quote"}));
     wizard.goToMapping();
     wizard.validate();
     wizard.commit();
@@ -317,8 +325,13 @@ TEST_F(ImportWizardViewModelTest, IgnoredColumnWithAnOpenQuoteStopsTheWholeWizar
     EXPECT_EQ(playerCount(), 0);
 }
 
-TEST_F(ImportWizardViewModelTest, CommitRefreshesTheReportWhenTheSquadChanged) {
+// P16 review follow-up 1: a player added after the check refuses the commit; the wizard stays on
+// the report with the row marked, and the next commit writes the plan now shown.
+TEST_F(ImportWizardViewModelTest, SquadChangedAfterTheCheckStaysOnTheReport) {
     ImportWizardViewModel wizard;
+    QStringList errors;
+    QObject::connect(&wizard, &ImportWizardViewModel::errorOccurred,
+                     [&errors](const QString& message) { errors.append(message); });
     ASSERT_NO_FATAL_FAILURE(open(wizard, "utf8-bom.csv"));
     wizard.goToMapping();
     ASSERT_NO_FATAL_FAILURE(validate(wizard));
@@ -328,15 +341,50 @@ TEST_F(ImportWizardViewModelTest, CommitRefreshesTheReportWhenTheSquadChanged) {
     draft.primaryPosition = core::Position::St;
     data::PlayerRepository players(*m_db);
     ASSERT_TRUE(players.create(core::TeamId{m_team}, draft).has_value());
+
+    wizard.commit();
+    EXPECT_EQ(wizard.step(), QStringLiteral("report"));
+    EXPECT_EQ(playerCount(), 1);
+    ASSERT_EQ(errors.size(), 1);
+    EXPECT_EQ(errors.front(), viewmodels::ErrorPresenter::message(core::Error{
+                                  core::ErrorCode::Conflict, {}, "import_matches_changed"}));
+    const QString changed = QCoreApplication::translate(
+        "fdss::viewmodels::ImportTexts", "the squad changed since the check — check again");
+    EXPECT_TRUE(wizard.reportRow(0).value(QStringLiteral("details")).toString().contains(changed));
+    EXPECT_EQ(wizard.reportRow(0).value(QStringLiteral("statusKey")).toString(),
+              QStringLiteral("warning"));
+    EXPECT_FALSE(wizard.reportRow(1).value(QStringLiteral("details")).toString().contains(changed));
+
     wizard.commit();
     EXPECT_EQ(wizard.step(), QStringLiteral("summary"));
     EXPECT_EQ(wizard.summary().value(QStringLiteral("created")).toInt(), 1);
     EXPECT_EQ(wizard.summary().value(QStringLiteral("skipped")).toInt(), 1);
-    EXPECT_EQ(wizard.reportRow(0).value(QStringLiteral("statusKey")).toString(),
-              QStringLiteral("warning"));
-    EXPECT_FALSE(wizard.reportRow(0).value(QStringLiteral("message")).toString().isEmpty());
-    EXPECT_FALSE(wizard.summary().value(QStringLiteral("changedMatches")).toString().isEmpty());
     EXPECT_EQ(playerCount(), 2);
+}
+
+// P16 review follow-up 2: the report counts a number conflict as an error only for an update.
+TEST_F(ImportWizardViewModelTest, NumberConflictCountsAsAnErrorOnlyForAnUpdate) {
+    data::PlayerRepository players(*m_db);
+    for (const auto& [first, last, number] :
+         {std::tuple{"Jan", "Kowalski", 7}, std::tuple{"Adam", "Nowak", 9}}) {
+        core::PlayerDraft draft;
+        draft.firstName = first;
+        draft.lastName = last;
+        draft.shirtNumber = number;
+        ASSERT_TRUE(players.create(core::TeamId{m_team}, draft).has_value());
+    }
+    ImportWizardViewModel wizard;
+    ASSERT_NO_FATAL_FAILURE(open(wizard, "number-conflict.csv"));
+    wizard.goToMapping();
+    ASSERT_NO_FATAL_FAILURE(validate(wizard));
+    wizard.setSkipInvalid(false);
+    EXPECT_EQ(wizard.errorCount(), 0);
+    EXPECT_TRUE(wizard.canCommit());
+    wizard.setUpdateExisting(true);
+    EXPECT_EQ(wizard.errorCount(), 1);
+    EXPECT_EQ(wizard.reportRow(0).value(QStringLiteral("statusKey")).toString(),
+              QStringLiteral("error"));
+    EXPECT_FALSE(wizard.canCommit());
 }
 
 #ifdef Q_OS_UNIX

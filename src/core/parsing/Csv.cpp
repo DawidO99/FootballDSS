@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstddef>
-#include <format>
 
 namespace fdss::core {
 
@@ -85,7 +84,7 @@ char detectDelimiter(std::string_view utf8) {
     return best == kDelimiters.size() ? kDefaultDelimiter : kDelimiters[best];
 }
 
-Result<std::vector<SourceRow>> parseCsv(std::string_view utf8, char delimiter) {
+CsvRecords parseCsv(std::string_view utf8, char delimiter) {
     std::vector<SourceRow> rows;
     SourceRow row{1, {}};
     std::string field;
@@ -155,15 +154,13 @@ Result<std::vector<SourceRow>> parseCsv(std::string_view utf8, char delimiter) {
         ++index;
     }
     if (inQuotes) {
-        return std::unexpected(Error{ErrorCode::InvalidInput,
-                                     std::format("unterminated CSV quote at line {}", quoteLine),
-                                     std::format("import_csv_quote:{}", quoteLine)});
+        return CsvRecords{std::move(rows), quoteLine};
     }
     // The last record has no line break after it.
     if (fieldStarted || !field.empty()) {
         endRecord();
     }
-    return rows;
+    return CsvRecords{std::move(rows), std::nullopt};
 }
 
 } // namespace fdss::core

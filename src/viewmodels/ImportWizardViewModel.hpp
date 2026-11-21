@@ -201,7 +201,9 @@ private:
     void setStep(const QString& step);
     void setBusy(bool busy, double progress = 0);
     void setErrorText(const QString& text);
-    void failWith(const core::Error& error);
+    // `line`: the line of the file the error is about (an open CSV quote), for the message.
+    void failWith(const core::Error& error, std::optional<int> line = std::nullopt);
+    [[nodiscard]] QString errorMessage() const;
     void rebuildMappingRows();
     void rebuildReport();
     void clearReport();
@@ -222,6 +224,7 @@ private:
     double m_progress = 0;
     QString m_errorText;
     std::optional<core::Error> m_error; // what errorText says, again on a change of the language
+    std::optional<int> m_errorLine;
     int m_request = 0;
 
     std::optional<services::ImportSource> m_source;

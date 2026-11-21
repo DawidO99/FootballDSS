@@ -488,61 +488,71 @@ TEST_F(ImportServiceTest, ValidationReportsProgress) {
     EXPECT_EQ(future->progressValue(), 20);
 }
 
-TEST_F(ImportServiceTest, CommitRechecksNewPlayersWithTheSkipPolicy) {
-    const auto source = read(fixture("utf8-bom.csv"));
-    const auto mapping = suggested(source);
-    auto rows = validate(source, mapping);
-    const auto id = addPlayer("Łukasz", "Żółkiewski", std::nullopt);
-    const auto summary = m_service->commitSquad(kTeam, source, mapping, rows, {});
-    ASSERT_TRUE(summary.has_value()) << summary.error().detail;
-    EXPECT_EQ(summary->created, 1);
-    EXPECT_EQ(summary->skippedExisting, 1);
-    EXPECT_EQ(rows.front().existing, id);
-    EXPECT_TRUE(std::ranges::any_of(rows.front().issues, [](const RowIssue& issue) {
-        return issue.kind == RowIssueKind::MatchChanged;
-    }));
-    EXPECT_EQ(players().size(), 2U);
-    EXPECT_FALSE(m_players->get(id)->shirtNumber.has_value());
+bool hasIssue(const SquadRow& row, RowIssueKind kind) {
+    return std::ranges::any_of(row.issues,
+                               [kind](const RowIssue& issue) { return issue.kind == kind; });
 }
 
-TEST_F(ImportServiceTest, CommitRechecksNewPlayersWithTheUpdatePolicy) {
+// P16 review follow-up 1: a player added between the check and the commit changes the plan; the
+// commit writes nothing (no backup either) and marks the row, and goes through once the user has
+// seen the new report.
+TEST_F(ImportServiceTest, SquadChangedAfterTheCheckRefusesTheCommit) {
     const auto source = read(fixture("utf8-bom.csv"));
     const auto mapping = suggested(source);
     auto rows = validate(source, mapping);
     const auto id = addPlayer("Łukasz", "Żółkiewski", std::nullopt);
+    for (const ExistingPolicy policy : {ExistingPolicy::Skip, ExistingPolicy::Update}) {
+        auto attempt = rows;
+        expectError(
+            m_service->commitSquad(kTeam, source, mapping, attempt, {policy, InvalidRows::Skip}),
+            ErrorCode::Conflict, "import_matches_changed");
+        EXPECT_EQ(players().size(), 1U);
+        EXPECT_EQ(count("SELECT count(*) FROM import_log"), 0);
+        EXPECT_TRUE(filesIn(backupDirectory()).isEmpty());
+        EXPECT_TRUE(hasIssue(attempt.front(), RowIssueKind::MatchChanged));
+        EXPECT_EQ(attempt.front().existing, id);
+        EXPECT_FALSE(hasIssue(attempt.back(), RowIssueKind::MatchChanged));
+    }
+    // The wizard's own rows: refused once and marked; the report the user then sees is the plan,
+    // and the next commit writes it.
+    expectError(m_service->commitSquad(kTeam, source, mapping, rows,
+                                       {ExistingPolicy::Update, InvalidRows::Skip}),
+                ErrorCode::Conflict, "import_matches_changed");
+    EXPECT_TRUE(hasIssue(rows.front(), RowIssueKind::MatchChanged));
     const auto summary = m_service->commitSquad(kTeam, source, mapping, rows,
                                                 {ExistingPolicy::Update, InvalidRows::Skip});
     ASSERT_TRUE(summary.has_value()) << summary.error().detail;
     EXPECT_EQ(summary->created, 1);
     EXPECT_EQ(summary->updated, 1);
-    EXPECT_EQ(players().size(), 2U);
-    EXPECT_EQ(m_players->get(id)->shirtNumber, 9);
+    EXPECT_FALSE(hasIssue(rows.front(), RowIssueKind::MatchChanged));
     EXPECT_EQ(m_players->get(id)->birthYear, 2001);
-    EXPECT_EQ(rows.front().existing, id);
-    EXPECT_TRUE(std::ranges::any_of(rows.front().issues, [](const RowIssue& issue) {
-        return issue.kind == RowIssueKind::MatchChanged;
-    }));
 }
 
-TEST_F(ImportServiceTest, NumberConflictIsARowErrorAndAbortWritesNothing) {
+// P16 review follow-up 2: with "Skip existing" the number is not changed, so the row is skipped
+// and "Abort on errors" does not block the import; with "Update existing" it is an error.
+TEST_F(ImportServiceTest, NumberConflictBlocksOnlyAnUpdate) {
     addPlayer("Jan", "Kowalski", 7);
     addPlayer("Adam", "Nowak", 9);
     const auto source = read(fixture("number-conflict.csv"));
     const auto mapping = suggested(source);
     auto rows = validate(source, mapping);
-    ASSERT_EQ(rows.front().status(), RowStatus::Error);
+    ASSERT_TRUE(hasIssue(rows.front(), RowIssueKind::NumberConflict));
     expectError(m_service->commitSquad(kTeam, source, mapping, rows,
                                        {ExistingPolicy::Update, InvalidRows::Abort}),
                 ErrorCode::InvalidInput, "import_has_errors");
     EXPECT_EQ(players().size(), 2U);
     EXPECT_EQ(count("SELECT count(*) FROM import_log"), 0);
     const auto skipped = m_service->commitSquad(kTeam, source, mapping, rows,
-                                                {ExistingPolicy::Update, InvalidRows::Skip});
+                                                {ExistingPolicy::Skip, InvalidRows::Abort});
     ASSERT_TRUE(skipped.has_value()) << skipped.error().detail;
     EXPECT_EQ(skipped->created, 1);
-    EXPECT_EQ(skipped->invalid, 1);
+    EXPECT_EQ(skipped->skippedExisting, 1);
+    EXPECT_EQ(skipped->invalid, 0);
+    EXPECT_EQ(m_players->list(kTeam, data::ArchivedPlayers::Exclude)->front().shirtNumber, 7);
 }
 
+// The number of another player taken after the check: the commit is refused before any abort
+// decision, and the row shows the conflict.
 TEST_F(ImportServiceTest, NumberTakenAfterValidationIsReportedBeforeAbort) {
     addPlayer("Łukasz", "Żółkiewski", 7);
     const auto source = read(fixture("utf8-bom.csv"));
@@ -552,13 +562,52 @@ TEST_F(ImportServiceTest, NumberTakenAfterValidationIsReportedBeforeAbort) {
     addPlayer("Adam", "Nowak", 9);
     expectError(m_service->commitSquad(kTeam, source, mapping, rows,
                                        {ExistingPolicy::Update, InvalidRows::Abort}),
-                ErrorCode::InvalidInput, "import_has_errors");
-    EXPECT_EQ(rows.front().status(), RowStatus::Error);
-    EXPECT_TRUE(std::ranges::any_of(rows.front().issues, [](const RowIssue& issue) {
-        return issue.kind == RowIssueKind::NumberConflict;
-    }));
+                ErrorCode::Conflict, "import_matches_changed");
+    EXPECT_EQ(statusFor(rows.front(), ExistingPolicy::Update), RowStatus::Error);
+    EXPECT_TRUE(hasIssue(rows.front(), RowIssueKind::NumberConflict));
+    EXPECT_TRUE(hasIssue(rows.front(), RowIssueKind::MatchChanged));
     EXPECT_EQ(players().size(), 2U);
     EXPECT_EQ(count("SELECT count(*) FROM import_log"), 0);
+}
+
+// P16 review follow-up 3: a refused import makes no backup; an accepted one makes exactly one.
+TEST_F(ImportServiceTest, RefusedImportsMakeNoBackup) {
+    const auto errors = read(fixture("unknown-positions.csv"));
+    const auto errorMapping = suggested(errors);
+    auto errorRows = validate(errors, errorMapping);
+    expectError(m_service->commitSquad(kTeam, errors, errorMapping, errorRows,
+                                       {ExistingPolicy::Skip, InvalidRows::Abort}),
+                ErrorCode::InvalidInput, "import_has_errors");
+    EXPECT_TRUE(filesIn(backupDirectory()).isEmpty());
+
+    addPlayer("Łukasz", "Żółkiewski", 9);
+    addPlayer("Józef", "Ćwiękała", 1);
+    const auto known = read(fixture("utf8-bom.csv"));
+    const auto knownMapping = suggested(known);
+    auto knownRows = validate(known, knownMapping);
+    expectError(m_service->commitSquad(kTeam, known, knownMapping, knownRows, {}),
+                ErrorCode::InvalidInput, "import_nothing");
+    EXPECT_TRUE(filesIn(backupDirectory()).isEmpty());
+
+    m_session.clear();
+    expectError(m_service->commitSquad(kTeam, errors, errorMapping, errorRows, {}),
+                ErrorCode::PermissionDenied, "");
+    EXPECT_TRUE(filesIn(backupDirectory()).isEmpty());
+
+    logInAs(Role::Coach);
+    auto fresh = validate(errors, errorMapping); // checked against the squad as it is now
+    ASSERT_TRUE(m_service->commitSquad(kTeam, errors, errorMapping, fresh, {}).has_value());
+    EXPECT_EQ(filesIn(backupDirectory()).size(), 1);
+}
+
+// P16 review follow-up 5: the line of an open quote travels beside the error, whose field stays a
+// field name.
+TEST(ImportFileTest, OpenQuoteKeepsItsLineOutsideTheField) {
+    const auto source = readImportFile(fixture("unterminated-quote.csv"));
+    ASSERT_TRUE(source.has_value()) << source.error().detail;
+    expectError(source->tableStatus, ErrorCode::InvalidInput, "import_csv_quote");
+    EXPECT_EQ(source->errorLine, 2);
+    EXPECT_TRUE(source->table.rows.empty());
 }
 
 } // namespace

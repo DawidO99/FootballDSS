@@ -396,8 +396,9 @@ void matchExisting(SquadRow& row, std::span<const Player> existing, SquadField n
     if (byName.size() == 1) {
         if (byNumber != nullptr && byNumber != byName.front()) {
             existingPlayer(*byName.front());
+            // An error only when the update would change the number (statusFor()).
             RowIssue issue{RowIssueKind::NumberConflict,
-                           IssueSeverity::Error,
+                           IssueSeverity::Warning,
                            SquadField::ShirtNumber,
                            std::to_string(*row.draft.shirtNumber),
                            {},
@@ -581,15 +582,21 @@ std::vector<SquadRow> validateSquad(const SourceTable& table, const SquadMapping
     return rows;
 }
 
-void recheckSquadMatches(std::span<SquadRow> rows, const SquadMapping& mapping,
-                         std::span<const Player> existing) {
+std::size_t recheckSquadMatches(std::span<SquadRow> rows, const SquadMapping& mapping,
+                                std::span<const Player> existing) {
     const SquadField nameField = columnsOf(mapping)[indexOf(SquadField::FullName)]
                                      ? SquadField::FullName
                                      : SquadField::LastName;
+    const auto hasConflict = [](const SquadRow& row) {
+        return std::ranges::any_of(row.issues, [](const RowIssue& issue) {
+            return issue.kind == RowIssueKind::NumberConflict;
+        });
+    };
+    std::size_t changed = 0;
     for (SquadRow& row : rows) {
         const PlayerMatch oldMatch = row.match;
         const auto oldId = row.existing;
-        const bool oldConflict = hasIssueOn(row, SquadField::ShirtNumber);
+        const bool oldConflict = hasConflict(row);
         std::erase_if(row.issues, [](const RowIssue& issue) {
             return issue.kind == RowIssueKind::AmbiguousMatch ||
                    issue.kind == RowIssueKind::NumberConflict ||
@@ -601,15 +608,27 @@ void recheckSquadMatches(std::span<SquadRow> rows, const SquadMapping& mapping,
             continue;
         }
         matchExisting(row, existing, nameField);
-        if (row.match != oldMatch || row.existing != oldId ||
-            hasIssueOn(row, SquadField::ShirtNumber) != oldConflict) {
+        if (row.match != oldMatch || row.existing != oldId || hasConflict(row) != oldConflict) {
             addIssue(row, RowIssueKind::MatchChanged, IssueSeverity::Warning, nameField);
+            ++changed;
         }
     }
+    return changed;
+}
+
+RowStatus statusFor(const SquadRow& row, ExistingPolicy policy) noexcept {
+    const RowStatus status = row.status();
+    if (policy == ExistingPolicy::Update && row.match == PlayerMatch::Existing &&
+        std::ranges::any_of(row.issues, [](const RowIssue& issue) {
+            return issue.kind == RowIssueKind::NumberConflict;
+        })) {
+        return RowStatus::Error;
+    }
+    return status;
 }
 
 RowAction actionFor(const SquadRow& row, ExistingPolicy policy) noexcept {
-    if (row.status() == RowStatus::Error) {
+    if (statusFor(row, policy) == RowStatus::Error) {
         return RowAction::Invalid;
     }
     switch (row.match) {

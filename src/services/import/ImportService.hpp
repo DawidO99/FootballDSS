@@ -88,12 +88,14 @@ public:
     validateSquad(core::TeamId team, const ImportSource& source,
                   const core::SquadMapping& mapping) const;
 
-    // `rows` are the result of validateSquad() for the same source and mapping. Backup (file
-    // databases), then one transaction: re-check matching against the current squad, the players,
-    // import_log with the hash and the mapping. `rows` receives the refreshed report, also on
-    // abort. Errors: invalid rows with InvalidRows::Abort: InvalidInput ("import_has_errors"); no
-    // row to write: InvalidInput ("import_nothing"); a backup or a write that fails (a locked
-    // database: DatabaseLocked) writes nothing.
+    // `rows` are the result of validateSquad() for the same source and mapping. First every check
+    // that may refuse, writing nothing and making no backup: matching again against the current
+    // squad (a changed row: Conflict "import_matches_changed", the rows marked MatchChanged, so the
+    // report shows the new plan); invalid rows with InvalidRows::Abort: InvalidInput
+    // ("import_has_errors"); no row to write: InvalidInput ("import_nothing"). Then the backup
+    // (file databases) and one transaction, in which the matching is checked once more (a change
+    // rolls back), then the players and import_log with the hash and the mapping. A backup or a
+    // write that fails (a locked database: DatabaseLocked) writes nothing.
     [[nodiscard]] core::Result<SquadImportSummary>
     commitSquad(core::TeamId team, const ImportSource& source, const core::SquadMapping& mapping,
                 std::span<core::SquadRow> rows, SquadImportOptions options);
@@ -106,6 +108,10 @@ public:
 
 private:
     [[nodiscard]] core::Status backup(std::string_view reason);
+    // recheckSquadMatches() against the current squad; a changed row: Conflict
+    // ("import_matches_changed").
+    [[nodiscard]] core::Status recheck(core::TeamId team, const core::SquadMapping& mapping,
+                                       std::span<core::SquadRow> rows) const;
 
     data::DatabaseManager& m_database;
     data::ImportLogRepository& m_imports;

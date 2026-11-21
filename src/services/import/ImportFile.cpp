@@ -58,11 +58,16 @@ core::Status readCsv(const QByteArray& bytes, ImportSource& source) {
     source.kind = ImportFileKind::Csv;
     source.encoding = decoded.encoding;
     source.delimiter = core::detectDelimiter(decoded.utf8);
-    auto rows = core::parseCsv(decoded.utf8, source.delimiter);
-    if (!rows) {
-        return std::unexpected(rows.error());
+    core::CsvRecords records = core::parseCsv(decoded.utf8, source.delimiter);
+    if (records.unterminatedQuoteLine) {
+        source.errorLine = records.unterminatedQuoteLine;
+        source.tableStatus = std::unexpected(fileError(
+            core::ErrorCode::InvalidInput,
+            std::format("unterminated CSV quote at line {}", *records.unterminatedQuoteLine),
+            "import_csv_quote"));
+        return {};
     }
-    auto table = core::toSourceTable(std::move(*rows));
+    auto table = core::toSourceTable(std::move(records.rows));
     if (!table) {
         return std::unexpected(table.error());
     }

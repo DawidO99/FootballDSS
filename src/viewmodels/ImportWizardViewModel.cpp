@@ -257,9 +257,10 @@ RowsModel* ImportWizardViewModel::report() const { return m_report; }
 
 namespace {
 
-int countRows(const std::vector<core::SquadRow>& rows, core::RowStatus status) {
+int countRows(const std::vector<core::SquadRow>& rows, core::ExistingPolicy policy,
+              core::RowStatus status) {
     return static_cast<int>(std::ranges::count_if(
-        rows, [status](const core::SquadRow& row) { return row.status() == status; }));
+        rows, [&](const core::SquadRow& row) { return core::statusFor(row, policy) == status; }));
 }
 
 int countActions(const std::vector<core::SquadRow>& rows, core::ExistingPolicy policy,
@@ -271,13 +272,17 @@ int countActions(const std::vector<core::SquadRow>& rows, core::ExistingPolicy p
 
 } // namespace
 
-int ImportWizardViewModel::okCount() const { return countRows(m_rows, core::RowStatus::Ok); }
-
-int ImportWizardViewModel::warningCount() const {
-    return countRows(m_rows, core::RowStatus::Warning);
+int ImportWizardViewModel::okCount() const {
+    return countRows(m_rows, existingPolicy(), core::RowStatus::Ok);
 }
 
-int ImportWizardViewModel::errorCount() const { return countRows(m_rows, core::RowStatus::Error); }
+int ImportWizardViewModel::warningCount() const {
+    return countRows(m_rows, existingPolicy(), core::RowStatus::Warning);
+}
+
+int ImportWizardViewModel::errorCount() const {
+    return countRows(m_rows, existingPolicy(), core::RowStatus::Error);
+}
 
 int ImportWizardViewModel::createCount() const {
     return countActions(m_rows, existingPolicy(), {core::RowAction::Create});
@@ -333,16 +338,6 @@ QVariantMap ImportWizardViewModel::summary() const {
     values.insert(QStringLiteral("skipped"),
                   m_summary->skippedExisting + m_summary->skippedAmbiguous);
     values.insert(QStringLiteral("invalid"), m_summary->invalid);
-    QStringList changedMatches;
-    for (const core::SquadRow& row : m_rows) {
-        if (std::ranges::any_of(row.issues, [](const core::RowIssue& issue) {
-                return issue.kind == core::RowIssueKind::MatchChanged;
-            })) {
-            changedMatches.append(ImportTexts::rowMessage(row, currentYear()) + QLatin1Char(' ') +
-                                  ImportTexts::actionName(core::actionFor(row, existingPolicy())));
-        }
-    }
-    values.insert(QStringLiteral("changedMatches"), changedMatches.join(QLatin1Char('\n')));
     if (m_undo) {
         values.insert(QStringLiteral("deleted"), m_undo->deleted);
         values.insert(QStringLiteral("archived"), m_undo->archived);
@@ -537,10 +532,12 @@ void ImportWizardViewModel::back() {
     } else if (m_step == kPreviewStep) {
         setErrorText({});
         m_error.reset();
+        m_errorLine.reset();
         setStep(kFileStep);
     } else if (m_step == kFileStep) {
         setErrorText({});
         m_error.reset();
+        m_errorLine.reset();
         setStep(kTypeStep);
     }
 }
@@ -549,6 +546,7 @@ void ImportWizardViewModel::reset() {
     invalidateValidation();
     setErrorText({});
     m_error.reset();
+    m_errorLine.reset();
     m_source.reset();
     m_previous.clear();
     m_squadMapping = {};
@@ -591,7 +589,7 @@ QVariantMap ImportWizardViewModel::reportRow(int row) const { return m_report->g
 bool ImportWizardViewModel::eventFilter(QObject* watched, QEvent* event) {
     if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         if (m_error) {
-            setErrorText(ErrorPresenter::message(*m_error));
+            setErrorText(errorMessage());
         }
         rebuildMappingRows();
         rebuildReport();
@@ -611,6 +609,7 @@ void ImportWizardViewModel::read(const QString& path, std::optional<int> sheet) 
     const int request = ++m_request;
     setErrorText({});
     m_error.reset();
+    m_errorLine.reset();
     auto future = m_imports.read(path, sheet);
     if (!future) {
         failWith(future.error());
@@ -631,6 +630,11 @@ void ImportWizardViewModel::read(const QString& path, std::optional<int> sheet) 
 }
 
 void ImportWizardViewModel::applySource(services::ImportSource source) {
+    // A CSV without a table (an open quote) has nothing to preview: it stays on the file step.
+    if (!source.tableStatus && source.kind == services::ImportFileKind::Csv) {
+        failWith(source.tableStatus.error(), source.errorLine);
+        return;
+    }
     m_source = std::move(source);
     m_previous.clear();
     if (auto previous = m_imports.previousImports(*m_source)) {
@@ -687,10 +691,23 @@ void ImportWizardViewModel::setErrorText(const QString& text) {
     emit errorTextChanged();
 }
 
-void ImportWizardViewModel::failWith(const core::Error& error) {
+void ImportWizardViewModel::failWith(const core::Error& error, std::optional<int> line) {
     qInfo("ImportWizardViewModel: %s", error.detail.c_str());
     m_error = error;
-    setErrorText(ErrorPresenter::message(error));
+    m_errorLine = line;
+    setErrorText(errorMessage());
+}
+
+QString ImportWizardViewModel::errorMessage() const {
+    if (!m_error) {
+        return {};
+    }
+    if (m_error->field == "import_csv_quote" && m_errorLine) {
+        return tr("The CSV has a quoted field that is never closed, starting on line %1. Close the "
+                  "quote in the file and import it again.")
+            .arg(*m_errorLine);
+    }
+    return ErrorPresenter::message(*m_error);
 }
 
 void ImportWizardViewModel::rebuildMappingRows() {
@@ -727,7 +744,7 @@ void ImportWizardViewModel::rebuildReport() {
     const int year = currentYear();
     const core::ExistingPolicy policy = existingPolicy();
     for (const core::SquadRow& row : m_rows) {
-        const core::RowStatus status = row.status();
+        const core::RowStatus status = core::statusFor(row, policy);
         QString name = fromStd(row.draft.firstName);
         if (!row.draft.lastName.empty()) {
             name +=

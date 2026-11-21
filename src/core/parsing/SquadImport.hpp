@@ -92,8 +92,9 @@ enum class RowIssueKind {
     UnknownFoot,     // warning: stored as unknown
     DuplicateInFile, // error: same shirt number or same name as `otherRows`
     AmbiguousMatch,  // warning: several players of the team fit, the row is skipped
-    NumberConflict,  // error: the matched player's new number belongs to another player
-    MatchChanged,    // warning: matching changed between validation and commit
+    NumberConflict,  // warning; an error under ExistingPolicy::Update (statusFor()): the new
+                     // number of the matched player belongs to another player
+    MatchChanged,    // warning: the squad changed since the check; the commit was refused
 };
 
 // A player of the team that a row could mean.
@@ -153,12 +154,16 @@ validateSquad(const SourceTable& table, const SquadMapping& mapping,
               std::span<const Player> existing, int currentYear,
               const std::function<void(std::size_t)>& progress = {});
 
-// Re-check against a current squad snapshot inside the commit transaction. Updates matching
-// issues in the report, marking changed matches, without repeating parsing or row validation.
-void recheckSquadMatches(std::span<SquadRow> rows, const SquadMapping& mapping,
-                         std::span<const Player> existing);
+// Matches the rows again against the current squad, without repeating parsing or row checks.
+// A row whose match changed gets a MatchChanged warning (the previous one is cleared). Returns how
+// many rows changed: the commit writes only a plan the user has seen (AGENTS section 8).
+[[nodiscard]] std::size_t recheckSquadMatches(std::span<SquadRow> rows, const SquadMapping& mapping,
+                                              std::span<const Player> existing);
 
 enum class ExistingPolicy { Update, Skip };
+// The status of a row under a policy: a NumberConflict is an error only when the row updates the
+// player (the number would change); otherwise status().
+[[nodiscard]] RowStatus statusFor(const SquadRow& row, ExistingPolicy policy) noexcept;
 enum class RowAction { Create, Update, SkipExisting, SkipAmbiguous, Invalid };
 [[nodiscard]] RowAction actionFor(const SquadRow& row, ExistingPolicy policy) noexcept;
 

@@ -82,10 +82,10 @@ QString ErrorPresenter::message(const core::Error& error) {
 
 QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     // Import (P16).
-    if (field.starts_with("import_csv_quote:")) {
-        return tr("The CSV has an unterminated quoted field starting on line %1. Close the quote "
-                  "in the file and import it again.")
-            .arg(QString::fromStdString(field).section(QLatin1Char(':'), 1));
+    if (field == "import_csv_quote") {
+        return tr(
+            "The CSV has a quoted field that is never closed. Close the quote in the file and "
+            "import it again.");
     }
     if (field == "import_file_size") {
         return tr("The file is larger than 20 MB. Remove what is not needed and try again.");
@@ -272,6 +272,10 @@ QString ErrorPresenter::pinCheckMessage(const services::PinCheck& check) {
 }
 
 QString ErrorPresenter::conflictMessage(const std::string& field) {
+    if (field == "import_matches_changed") {
+        return tr("The squad changed since the rows were checked, so nothing was imported. The "
+                  "marked rows show what the import would do now; check them and import again.");
+    }
     if (field == "import_undone") {
         return tr("This import has already been undone.");
     }

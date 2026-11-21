@@ -2,16 +2,19 @@
 
 #include "xlsxabstractsheet.h"
 #include "xlsxcell.h"
-#include "xlsxcellrange.h"
+#include "xlsxcelllocation.h"
 #include "xlsxdocument.h"
 #include "xlsxworkbook.h"
+#include "xlsxworksheet.h"
 
 #include <QBuffer>
 #include <QDate>
 #include <QTime>
 #include <QVariant>
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace fdss::data {
 
@@ -62,26 +65,46 @@ QString cellText(const QXlsx::Cell& cell, bool date1904) {
     }
 }
 
+// Only the cells the sheet stores, in row and column order: the reported dimension may cover whole
+// columns (formatting), which a rows x columns walk would take minutes to cross. Rows after a gap
+// of any length are kept; blank and formatted-only cells add nothing.
 std::vector<core::SourceRow> readRows(const QXlsx::Document& document) {
     std::vector<core::SourceRow> rows;
-    const bool date1904 = document.workbook() != nullptr && document.workbook()->isDate1904();
-    const QXlsx::CellRange range = document.dimension();
-    if (!range.isValid()) {
+    const QXlsx::Worksheet* sheet = document.currentWorksheet();
+    if (sheet == nullptr) {
         return rows;
     }
-    for (int row = range.firstRow(); row <= range.lastRow(); ++row) {
-        core::SourceRow sourceRow{row, {}};
-        bool blank = true;
-        for (int column = range.firstColumn(); column <= range.lastColumn(); ++column) {
-            const auto cell = document.cellAt(row, column);
-            QString text = cell ? cellText(*cell, date1904) : QString{};
-            blank = blank && text.trimmed().isEmpty();
-            sourceRow.cells.push_back(text.toStdString());
-        }
-        if (blank) {
+    const bool date1904 = document.workbook() != nullptr && document.workbook()->isDate1904();
+    int maxRow = 0;
+    int maxColumn = 0;
+    const QVector<QXlsx::CellLocation> cells = sheet->getFullCells(&maxRow, &maxColumn);
+
+    struct TextCell {
+        int row;
+        int column;
+        QString text;
+    };
+    std::vector<TextCell> texts;
+    int firstColumn = std::numeric_limits<int>::max();
+    for (const QXlsx::CellLocation& location : cells) {
+        if (!location.cell) {
             continue;
         }
-        rows.push_back(std::move(sourceRow));
+        QString text = cellText(*location.cell, date1904);
+        if (text.trimmed().isEmpty()) {
+            continue;
+        }
+        firstColumn = std::min(firstColumn, location.col);
+        texts.push_back(TextCell{location.row, location.col, std::move(text)});
+    }
+    // getFullCells() returns the rows in order and the columns of a row in order.
+    for (TextCell& cell : texts) {
+        if (rows.empty() || rows.back().number != cell.row) {
+            rows.push_back(core::SourceRow{cell.row, {}});
+        }
+        std::vector<std::string>& rowCells = rows.back().cells;
+        rowCells.resize(static_cast<std::size_t>(cell.column - firstColumn), std::string{});
+        rowCells.push_back(cell.text.toStdString());
     }
     return rows;
 }

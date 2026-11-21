@@ -33,6 +33,10 @@ struct ImportSource {
     // header): the file itself is fine and another sheet may be chosen.
     core::Status tableStatus;
     core::SourceTable table;
+    // The line of the file tableStatus refers to: the opening line of an unterminated CSV quote
+    // ("import_csv_quote"). Error::field stays a field name; the wizard puts the line into its
+    // message.
+    std::optional<int> errorLine;
 };
 
 // File errors (field):
@@ -42,6 +46,8 @@ struct ImportSource {
 // - XLS: UnsupportedFormat ("import_xls"); JSON: UnsupportedFormat ("import_json");
 // - anything else that is not text or XLSX: UnsupportedFormat ("import_file_type");
 // - a broken XLSX: UnsupportedFormat ("import_xlsx_corrupt").
+// A CSV with a quoted field left open is read, but has no table: tableStatus is InvalidInput
+// ("import_csv_quote") and errorLine the line the field opens on.
 // `sheet` (XLSX): nullopt takes the first sheet with data rows; a chosen sheet without them keeps
 // the error in tableStatus. Outside the sheets: InvalidInput ("import_sheet").
 [[nodiscard]] core::Result<ImportSource> readImportFile(const QString& path,

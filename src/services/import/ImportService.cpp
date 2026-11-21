@@ -151,6 +151,20 @@ core::Status ImportService::backup(std::string_view reason) {
     return {};
 }
 
+core::Status ImportService::recheck(core::TeamId team, const core::SquadMapping& mapping,
+                                    std::span<core::SquadRow> rows) const {
+    const auto players = m_players.list(team, data::ArchivedPlayers::Exclude);
+    if (!players) {
+        return std::unexpected(players.error());
+    }
+    if (core::recheckSquadMatches(rows, mapping, *players) > 0) {
+        return std::unexpected(core::Error{core::ErrorCode::Conflict,
+                                           "the squad changed since the check",
+                                           "import_matches_changed"});
+    }
+    return {};
+}
+
 core::Result<SquadImportSummary> ImportService::commitSquad(core::TeamId team,
                                                             const ImportSource& source,
                                                             const core::SquadMapping& mapping,
@@ -162,18 +176,10 @@ core::Result<SquadImportSummary> ImportService::commitSquad(core::TeamId team,
     if (!source.tableStatus) {
         return std::unexpected(source.tableStatus.error());
     }
-    if (auto saved = backup("import"); !saved) {
-        return std::unexpected(saved.error());
+    // The squad may have changed since the check: the user then sees the new plan first.
+    if (auto changed = recheck(team, mapping, rows); !changed) {
+        return std::unexpected(changed.error());
     }
-    auto transaction = data::Transaction::begin(m_database);
-    if (!transaction) {
-        return std::unexpected(transaction.error());
-    }
-    const auto currentPlayers = m_players.list(team, data::ArchivedPlayers::Exclude);
-    if (!currentPlayers) {
-        return std::unexpected(currentPlayers.error());
-    }
-    core::recheckSquadMatches(rows, mapping, *currentPlayers);
     SquadImportSummary summary;
     for (const core::SquadRow& row : rows) {
         switch (core::actionFor(row, options.existing)) {
@@ -199,6 +205,18 @@ core::Result<SquadImportSummary> ImportService::commitSquad(core::TeamId team,
     }
     if (summary.created + summary.updated == 0) {
         return std::unexpected(inputError("no row to write", "import_nothing"));
+    }
+    // Every refusal is behind us: back up directly before the write transaction.
+    if (auto saved = backup("import"); !saved) {
+        return std::unexpected(saved.error());
+    }
+    auto transaction = data::Transaction::begin(m_database);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    // Again inside the transaction, so nothing can change before the write; a change rolls back.
+    if (auto changed = recheck(team, mapping, rows); !changed) {
+        return std::unexpected(changed.error());
     }
     const int currentYear = static_cast<int>(m_clock.today().year());
 
