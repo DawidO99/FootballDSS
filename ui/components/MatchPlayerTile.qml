@@ -19,6 +19,11 @@ import QtQuick.Layouts
 //   selectable: bool        this tile fits that action
 //   historyText: string     where the player was at the minute of the action when that differs
 //                           from now ("At 11': on the pitch"); shown instead of the state
+//   playerId: var           for a drag
+//   dragEnabled: bool       Match Day tactics (P13b): the tile can be dragged on a token of the
+//                           board (Drag.keys "fdss-player", source.payload { kind: "bench",
+//                           playerId }); a copy follows the pointer in the overlay
+//   dragging: bool          read-only: the tile is being dragged
 //   clicked()               Enter/Return/Space click it when focused
 AbstractButton {
     id: root
@@ -35,6 +40,9 @@ AbstractButton {
     property bool choosing: false
     property bool selectable: false
     property string historyText
+    property var playerId: 0
+    property bool dragEnabled: false
+    readonly property bool dragging: tileDrag.active
     readonly property bool hasLeft: root.stateKey === "substitutedOff" || root.stateKey === "sentOff"
     // A yellow card is an icon and a word, never the colour alone (AGENTS section 6).
     readonly property bool showsYellow: root.yellowCards > 0 && root.stateKey !== "sentOff"
@@ -178,8 +186,59 @@ AbstractButton {
         }
     }
 
+    function moveGhost(scenePosition) {
+        if (!ghost.visible || !ghost.parent)
+            return;
+        const point = ghost.parent.mapFromItem(null, scenePosition.x, scenePosition.y);
+        ghost.x = point.x - ghost.Drag.hotSpot.x;
+        ghost.y = point.y - ghost.Drag.hotSpot.y;
+    }
+
+    DragHandler {
+        id: tileDrag
+
+        target: null
+        enabled: root.dragEnabled && root.enabled
+        dragThreshold: Theme.pitch.dragThreshold
+        onActiveChanged: {
+            if (active) {
+                ghost.payload = {
+                    "kind": "bench",
+                    "playerId": root.playerId
+                };
+                ghost.visible = true;
+                root.moveGhost(centroid.scenePosition);
+            } else if (ghost.visible) {
+                ghost.Drag.drop();
+                ghost.visible = false;
+            }
+        }
+        onCentroidChanged: root.moveGhost(centroid.scenePosition)
+    }
+
+    // The copy that follows the pointer; in the overlay, so no view clips it.
+    PlayerToken {
+        id: ghost
+
+        objectName: "tileDragGhost"
+        parent: Overlay.overlay
+        ghost: true
+        visible: false
+        z: 1
+        width: implicitWidth
+        height: implicitHeight
+        positionText: root.positionCode
+        shirtNumber: root.shirtNumber
+        shortName: root.shortName
+        fullName: root.fullName
+        Drag.active: visible
+        Drag.keys: ["fdss-player"]
+        Drag.hotSpot.x: width / 2
+        Drag.hotSpot.y: Theme.pitch.tokenSize / 2
+    }
+
     PlainToolTip {
-        visible: root.hovered && root.fullName.length > 0
+        visible: root.hovered && !root.dragging && root.fullName.length > 0
         text: [root.fullName, root.stateText, root.showsYellow ? root.yellowCardText : ""].filter(part => part.length > 0).join(" · ")
         delay: Theme.tooltipDelay
     }

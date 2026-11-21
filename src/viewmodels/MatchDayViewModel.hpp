@@ -5,6 +5,7 @@
 #include "core/domain/MatchNote.hpp"
 #include "core/util/Error.hpp"
 #include "services/MatchDayService.hpp"
+#include "viewmodels/LineupModels.hpp"
 #include "viewmodels/MatchDayModels.hpp"
 
 #include <QObject>
@@ -117,7 +118,34 @@ class MatchDayViewModel : public QObject {
     Q_PROPERTY(QVariantList notePlayerOptions READ notePlayerOptions NOTIFY eventsChanged FINAL)
 
     // The action being recorded
-    // "", scorer, assist, yellow, red, subOff, subOn, opponentGoal.
+    // Live tactics (packet P13b): the board shows the shape on the pitch now, or the draft being
+    // edited. The first edit starts the pending action "tactic" (minute field, Confirm); the draft
+    // is dropped by Cancel, by leaving the view and by any other action (the latter with a notice).
+    // Rows of TacticsBoardModel; empty slots (players sent off) are hidden.
+    Q_PROPERTY(fdss::viewmodels::TacticsBoardModel* board READ board CONSTANT FINAL)
+    // [{ position, text, x, y, width, height }] as in Pre-match.
+    Q_PROPERTY(QVariantList zones READ zones NOTIFY textsChanged FINAL)
+    // [{ value, text }]: "custom" with the shape name first when the shape is custom, then the
+    // catalogue.
+    Q_PROPERTY(QVariantList formationOptions READ formationOptions NOTIFY shapeChanged FINAL)
+    Q_PROPERTY(QVariantList positionOptions READ positionOptions NOTIFY textsChanged FINAL)
+    // "4-2-3-1", "4-2-3-1 (custom)", "4-4-1" (ten players: counted from the rows).
+    Q_PROPERTY(QString shapeText READ shapeText NOTIFY shapeChanged FINAL)
+    // The catalogue name of the board shape, or "custom": the value of the formation field.
+    Q_PROPERTY(QString shapeFormation READ shapeFormation NOTIFY shapeChanged FINAL)
+    // A part runs or a break, 7 players or more, RunMatchDay.
+    Q_PROPERTY(bool canChangeTactics READ canChangeTactics NOTIFY clockChanged FINAL)
+    // A draft differs from the shape on the pitch.
+    Q_PROPERTY(bool tacticsDirty READ tacticsDirty NOTIFY shapeChanged FINAL)
+    // -1: none.
+    Q_PROPERTY(int selectedSlot READ selectedSlot NOTIFY shapeChanged FINAL)
+    // The position key of the selected slot ("cb"); empty without one.
+    Q_PROPERTY(QString selectedPosition READ selectedPosition NOTIFY shapeChanged FINAL)
+    // Nobody is in the GK zone of the board (P13b decision 8): a warning, never a block.
+    Q_PROPERTY(bool noGoalkeeper READ noGoalkeeper NOTIFY shapeChanged FINAL)
+
+    // "", scorer, assist, yellow, red, subOff, subOn, subConfirm (both players chosen on the
+    // board, waiting for the minute and Save), opponentGoal, tactic (a change of shape to confirm).
     Q_PROPERTY(QString pendingAction READ pendingAction NOTIFY pendingChanged FINAL)
     // "Who scored?"; empty without a pending action.
     Q_PROPERTY(QString pendingPrompt READ pendingPrompt NOTIFY pendingChanged FINAL)
@@ -186,6 +214,18 @@ public:
     [[nodiscard]] MatchTimelineModel* timeline() const;
     [[nodiscard]] QVariantList notePlayerOptions() const;
 
+    [[nodiscard]] TacticsBoardModel* board() const;
+    [[nodiscard]] QVariantList zones() const;
+    [[nodiscard]] QVariantList formationOptions() const;
+    [[nodiscard]] QVariantList positionOptions() const;
+    [[nodiscard]] QString shapeText() const;
+    [[nodiscard]] QString shapeFormation() const;
+    [[nodiscard]] bool canChangeTactics() const;
+    [[nodiscard]] bool tacticsDirty() const;
+    [[nodiscard]] int selectedSlot() const;
+    [[nodiscard]] QString selectedPosition() const;
+    [[nodiscard]] bool noGoalkeeper() const;
+
     [[nodiscard]] QString pendingAction() const;
     [[nodiscard]] QString pendingPrompt() const;
     [[nodiscard]] QString pendingMinute() const;
@@ -223,11 +263,27 @@ public:
     Q_INVOKABLE bool choosePlayer(qint64 playerId);
     // Saves the pending goal without an assist.
     Q_INVOKABLE bool skipAssist();
-    // Saves the pending opponent goal.
+    // Saves the pending opponent goal, the substitution chosen on the board or the change of
+    // shape, at the minute of the field.
     Q_INVOKABLE bool confirmAction();
     Q_INVOKABLE void cancelAction();
     // The toast text naming what was undone; empty when nothing was.
     Q_INVOKABLE QString undo();
+
+    // Live tactics: edits of the draft. Each returns true when the board changed.
+    // A catalogue formation (core::changeShape(): nobody leaves the pitch).
+    Q_INVOKABLE bool changeFormation(const QString& name);
+    // A token dropped on the pitch, x and y 0–1: the slot takes the position of that zone.
+    Q_INVOKABLE bool moveSlotTo(int slot, double x, double y);
+    // The keyboard path (P12): the position field of the selected slot.
+    Q_INVOKABLE bool setSlotPosition(int slot, const QString& position);
+    // The two players swap places.
+    Q_INVOKABLE bool swapSlots(int first, int second);
+    // -1: none. Not an edit.
+    Q_INVOKABLE void selectSlot(int slot);
+    // A bench player dropped on a token: the pending substitution with both players chosen
+    // (subConfirm). Refused while a change of shape waits for Confirm.
+    Q_INVOKABLE bool substituteOnBoard(int slot, qint64 playerId);
 
     // Notes. The minute field text of a new note: the last minute played.
     Q_INVOKABLE QString defaultNoteMinute() const;
@@ -249,6 +305,8 @@ signals:
     void eventsChanged();
     void pendingChanged();
     void pendingMinuteChanged();
+    // The board: the shape, the draft or the selection.
+    void shapeChanged();
     void loadErrorChanged();
     // Texts that follow the language.
     void textsChanged();
@@ -262,7 +320,18 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    enum class Pending { None, Scorer, Assist, Yellow, Red, SubOff, SubOn, OpponentGoal };
+    enum class Pending {
+        None,
+        Scorer,
+        Assist,
+        Yellow,
+        Red,
+        SubOff,
+        SubOn,
+        SubConfirm,
+        OpponentGoal,
+        Tactic
+    };
 
     // Reads the match; on failure keeps nothing and sets the load error.
     void read(core::MatchId match);
@@ -291,6 +360,18 @@ private:
     // Records an event of the pending action at its minute: first checks a late entry against the
     // later events, so a refusal names the event it conflicts with.
     bool record(core::MatchEventDraft event);
+    // The pending action takes the time of a substitution (in a break: the start of the next part).
+    [[nodiscard]] bool pendingLikeSubstitution() const;
+    // The shape on the board: the draft, otherwise the shape on the pitch.
+    [[nodiscard]] const core::Lineup& boardShape() const;
+    void rebuildBoard();
+    // A draft edit made on a copy of the board shape.
+    bool applyDraft(core::Lineup edited, core::LineupEdit edit);
+    // Another action drops a draft waiting for Confirm, and says so.
+    void discardDraft();
+    bool confirmTactics();
+    // "4-4-2 → 4-2-3-1" for a stored change.
+    [[nodiscard]] QString tacticChangeText(core::MatchTacticChangeId change) const;
 
     services::MatchDayService& m_service;
     services::LineupService& m_lineupService;
@@ -309,6 +390,12 @@ private:
     Pending m_pending = Pending::None;
     // The scorer of a pending goal, or the player going off of a pending substitution.
     std::optional<core::PlayerId> m_pendingFirst;
+    // The player coming on of a substitution chosen on the board.
+    std::optional<core::PlayerId> m_pendingSecond;
+    // The change of shape being edited; nullopt: the board shows the shape on the pitch.
+    std::optional<core::Lineup> m_draft;
+    int m_selectedSlot = -1;
+    TacticsBoardModel* m_board;
     // The minute typed for the pending action; nullopt: the current one.
     std::optional<QString> m_pendingMinute;
     std::optional<core::MatchNote> m_deletedNote;

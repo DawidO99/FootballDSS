@@ -5,6 +5,7 @@
 #include "core/domain/Ids.hpp"
 #include "core/domain/MatchEvent.hpp"
 #include "core/domain/MatchNote.hpp"
+#include "core/domain/MatchTacticChange.hpp"
 #include "core/domain/Player.hpp"
 #include "core/util/Error.hpp"
 #include "services/CalendarService.hpp"
@@ -21,6 +22,7 @@ class LineupRepository;
 class MatchLiveRepository;
 class MatchNoteRepository;
 class MatchRepository;
+class MatchTacticRepository;
 class OpponentRepository;
 class PlayerRepository;
 } // namespace fdss::data
@@ -33,13 +35,15 @@ class Session;
 
 // One action of Match Day: what undo takes back, or would take back.
 struct MatchDayAction {
-    enum class Kind { Event, SecondYellow, Note, ClockStep, Finish };
+    enum class Kind { Event, SecondYellow, Note, ClockStep, Finish, TacticChange };
     Kind kind = Kind::Event;
     // Event; for SecondYellow the yellow card (its red row goes with it).
     std::optional<core::MatchEvent> event;
     std::optional<core::MatchNote> note;
     // ClockStep; for Finish the end of the part written with it, if one was.
     std::optional<core::ClockStep> step;
+    // TacticChange (packet P13b).
+    std::optional<core::MatchTacticChange> tacticChange;
 };
 
 // What Match Day shows for one match.
@@ -51,6 +55,13 @@ struct MatchDayState {
     // From the saved lineup; empty without one.
     core::MatchSheet sheet;
     bool hasLineup = false;
+    // The saved lineup with its slots and coordinates (packet P13b); empty without one.
+    core::Lineup lineup;
+    // In the order of entry (seq), which is also the order of the match (a change is never entered
+    // before a stored one).
+    std::vector<core::MatchTacticChange> tacticChanges;
+    // The shape on the pitch now (core::shapeAt()); the lineup before Match Day starts.
+    core::Lineup shape;
     // The players of the sheet, also archived ones.
     std::vector<core::Player> players;
     // In the order of the match (core::replayOrder()).
@@ -95,14 +106,18 @@ struct EventConflict {
 //   the match, notes and undo [too_few_players]; an event entered late that a later stored event
 //   no longer fits [event_conflict, see checkEvent()]; undoing the end of the match while another
 //   match of the team is live [undo_end_another_live]; ending a match with 7 players or more
-//   before its last part [match_not_over]; a clock step without the clock [clockless].
+//   before its last part [match_not_over]; a clock step without the clock [clockless]; a tactic
+//   change at a time before a stored one [tactic_change_later].
 // - Without the clock: an action with no minute [minute_required, InvalidInput]; a minute outside
 //   the format [minute_out_of_match, InvalidInput].
+// - The end of the match and "set clock" (also its undo) never go before a stored action: an event,
+//   a note or a tactic change (core::latestRecordedTime()).
 // - InvalidInput: a format outside 1–4 × 10–60, at most 130 minutes [match_format]; a minute not
 //   played yet [minute_not_played]; an event that does not fit the match [player_unknown,
 //   player_missing, same_player, player_not_on_pitch, player_not_on_bench, player_substituted,
 //   player_sent_off, minute_out_of_range, after_final_minute, second_yellow_without_red]; a note of
-//   1–500 characters [note_text].
+//   1–500 characters [note_text]; a tactic shape that is not 11 slots with coordinates 0–1 and at
+//   most one goalkeeper [tactic_shape]; a tactic change that changes nothing [tactic_unchanged].
 // - NotFound: nothing to undo [nothing_to_undo].
 // - Database: stored events of a started match that do not fit its lineup [match_history]; also
 // from
@@ -112,9 +127,10 @@ class MatchDayService {
 public:
     MatchDayService(data::DatabaseManager& db, data::MatchRepository& matches,
                     data::MatchLiveRepository& live, data::MatchNoteRepository& notes,
-                    data::LineupRepository& lineups, data::ClubRepository& clubs,
-                    data::OpponentRepository& opponents, data::PlayerRepository& players,
-                    LineupService& lineupService, Session& session, const Clock& clock);
+                    data::MatchTacticRepository& tactics, data::LineupRepository& lineups,
+                    data::ClubRepository& clubs, data::OpponentRepository& opponents,
+                    data::PlayerRepository& players, LineupService& lineupService, Session& session,
+                    const Clock& clock);
 
     // The live match of the team; nullopt: none.
     [[nodiscard]] core::Result<std::optional<core::MatchId>> liveMatch(core::TeamId team) const;
@@ -174,6 +190,14 @@ public:
     [[nodiscard]] core::Result<core::MatchNote> deleteNote(core::MatchId match,
                                                            core::MatchNoteId note);
     [[nodiscard]] core::Result<core::MatchNoteId> restoreNote(const core::MatchNote& note);
+    // Live tactics (packet P13b): the new places (position and coordinates) of the 11 slots of the
+    // saved lineup, by slot index; the players of `shape` are ignored, since who stands where comes
+    // from the lineup and the events. One action of the undo stack. The time as for a substitution
+    // (in a break the minute that starts the next part); not before a stored tactic change. The
+    // appearances are recomputed: a substitute takes the position of his slot when he came on.
+    [[nodiscard]] core::Result<core::MatchTacticChangeId>
+    recordTacticChange(core::MatchId match, const core::Lineup& shape,
+                       std::optional<core::MatchTime> time = std::nullopt);
     // Takes back the action entered last. Undoing the finish makes the match live again and clears
     // the score.
     [[nodiscard]] core::Result<MatchDayAction> undoLast(core::MatchId match);
@@ -187,7 +211,8 @@ private:
     // The match with its clock; Conflict [match_not_live] unless it is live (or, with
     // `allowFinished`, finished).
     [[nodiscard]] core::Result<Live> readLive(core::MatchId match, bool allowFinished) const;
-    [[nodiscard]] core::Result<core::MatchSheet> sheetOf(core::MatchId match) const;
+    // The saved lineup; Conflict [no_lineup] without one.
+    [[nodiscard]] core::Result<core::Lineup> lineupOf(core::MatchId match) const;
     // The rows of one event action (a second yellow adds its red) after a full replay with the
     // stored events. `conflict` tells why the replay failed.
     [[nodiscard]] core::Result<std::vector<core::MatchEventDraft>>
@@ -200,9 +225,10 @@ private:
     timeFor(const Live& live, std::optional<core::MatchTime> time, bool substitution) const;
     [[nodiscard]] core::Status checkNote(const Live& live, std::optional<core::PlayerId> player,
                                          std::string_view text) const;
-    // Within the transaction of the caller. Keeps the ratings and RPE already stored.
+    // Within the transaction of the caller, from the stored events and tactic changes. Keeps the
+    // ratings and RPE already stored.
     [[nodiscard]] core::Result<core::MatchMinutes>
-    recompute(core::MatchId match, const core::MatchSheet& sheet, std::optional<int> finalMinute);
+    recompute(core::MatchId match, const core::Lineup& lineup, std::optional<int> finalMinute);
     // The one way a match ends (P13 re-review): ends the part running, if one is; with fewer than
     // 7 players on the pitch it ends early at core::earlyEndMinute(), otherwise normally (parts ×
     // length). Writes the step, finished_seq, ended_early_minute, the minutes, status and score.
@@ -214,6 +240,7 @@ private:
     data::MatchRepository& m_matches;
     data::MatchLiveRepository& m_live;
     data::MatchNoteRepository& m_notes;
+    data::MatchTacticRepository& m_tactics;
     data::LineupRepository& m_lineups;
     data::ClubRepository& m_clubs;
     data::OpponentRepository& m_opponents;

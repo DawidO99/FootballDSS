@@ -22,8 +22,9 @@ public:
     explicit MatchDayPlayersModel(QObject* parent = nullptr);
 };
 
-// Events and notes, the latest in the match first: kind (event, note), eventId, noteId,
-// minuteText ("45+3'"), typeKey (goal, opponentGoal, yellow, red, secondYellow, sub, assist, note),
+// Events, notes and changes of shape, the latest in the match first: kind (event, note, tactic),
+// eventId, noteId, minuteText ("45+3'"), typeKey (goal, opponentGoal, yellow, red, secondYellow,
+// sub, assist, note, tactic; for a tactic change playerText is "4-4-2 → 4-2-3-1"),
 // iconName, typeText, playerText, relatedText ("Assist: …", "Off: …", the text of a note or empty),
 // and for a note its field values: noteMinute ("45+3"), notePlayerId (0: none), noteText.
 class MatchTimelineModel : public RowsModel {

@@ -66,7 +66,9 @@ Item {
             "card": "M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z",
             "fullscreen": "M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5",
             "exitFullscreen": "M9 4v5H4 M15 4v5h5 M20 15h-5v5 M4 15h5v5",
-            "note": "M6 3h9l4 4v14H6z M15 3v4h4 M9 12h7 M9 16h5"
+            "note": "M6 3h9l4 4v14H6z M15 3v4h4 M9 12h7 M9 16h5",
+            // Live tactics (P13b): a pitch with an arrow, a change of shape.
+            "tactic": "M4 3h16v18H4z M4 12h16 M8 17h.01 M12 17h.01 M16 17h.01 M9 8l3-2.5 3 2.5 M12 5.5V10"
         })
 
     implicitWidth: size

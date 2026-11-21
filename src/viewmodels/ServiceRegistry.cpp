@@ -7,6 +7,7 @@
 #include "data/repositories/MatchLiveRepository.hpp"
 #include "data/repositories/MatchNoteRepository.hpp"
 #include "data/repositories/MatchRepository.hpp"
+#include "data/repositories/MatchTacticRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
 #include "data/repositories/StaffRepository.hpp"
@@ -76,6 +77,7 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
       m_lineups(std::make_unique<data::LineupRepository>(*m_database)),
       m_matchLive(std::make_unique<data::MatchLiveRepository>(*m_database)),
       m_matchNotes(std::make_unique<data::MatchNoteRepository>(*m_database)),
+      m_matchTactics(std::make_unique<data::MatchTacticRepository>(*m_database)),
       m_session(std::make_unique<services::Session>()),
       m_auth(std::make_unique<services::AuthService>(*m_database, *m_staff, *m_session, *m_clock,
                                                      options.pinIterations)),
@@ -96,8 +98,8 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
                                                          *m_opponents, *m_players, *m_availability,
                                                          *m_training, *m_session, *m_clock)),
       m_matchDay(std::make_unique<services::MatchDayService>(
-          *m_database, *m_matches, *m_matchLive, *m_matchNotes, *m_lineups, *m_clubs, *m_opponents,
-          *m_players, *m_lineup, *m_session, *m_clock)) {}
+          *m_database, *m_matches, *m_matchLive, *m_matchNotes, *m_matchTactics, *m_lineups,
+          *m_clubs, *m_opponents, *m_players, *m_lineup, *m_session, *m_clock)) {}
 
 ServiceRegistry::~ServiceRegistry() = default;
 

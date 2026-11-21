@@ -63,6 +63,8 @@ add_library(fdss_data STATIC
     repositories/MatchLiveRepository.cpp
     repositories/MatchNoteRepository.hpp
     repositories/MatchNoteRepository.cpp
+    repositories/MatchTacticRepository.hpp
+    repositories/MatchTacticRepository.cpp
     repositories/OpponentRepository.hpp
     repositories/OpponentRepository.cpp
     repositories/PlayerRepository.hpp
@@ -81,6 +83,7 @@ qt_add_resources(fdss_data "fdss_migrations"
     FILES
         migrations/0001_initial.sql
         migrations/0002_match_live.sql
+        migrations/0003_match_tactics.sql
 )
 
 target_link_libraries(fdss_data

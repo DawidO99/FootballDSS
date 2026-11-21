@@ -120,7 +120,8 @@ newest kept).
 Schema = numbered migrations; the first migration (`src/data/migrations/0001_initial.sql`) creates
 every table below at once so later packets do not reshape it. The tables below list the exact column
 names and types of that migration, plus what later migrations added: `0002_match_live.sql` (P13) adds
-`match_live`, `match_clock_step`, `match_note`, `match_event.added_time` and `match_event.seq`.
+`match_live`, `match_clock_step`, `match_note`, `match_event.added_time` and `match_event.seq`;
+`0003_match_tactics.sql` (P13b) adds `match_tactic_change`.
 
 Enumerations (stored as lowercase text with a `CHECK` constraint; C++ enums in `core/domain`):
 - Team category: `senior`, `u19`, `u17`, `u15`, `u13`, `u11`, `other`. Season text `2026/27`.
@@ -149,8 +150,8 @@ first and last names and staff names 1–50 characters after trimming, club, tea
 dates (including `archived_at`) stored as ISO text (`YYYY-MM-DD`,
 local, no time zone), times of day as `HH:MM`, lockout and `import_log` timestamps as UTC ISO datetime;
 wellness scores 1–5; every foreign key indexed; `ON DELETE RESTRICT` except for pure child rows
-(attendance → session, appearance/match_event/match_live/match_note → match, match_clock_step → match_live:
-`CASCADE`).
+(attendance → session, appearance/match_event/match_live/match_note/match_tactic_change → match,
+match_clock_step → match_live: `CASCADE`).
 
 Availability status: `actual_to` is the first available day; with `actual_to` empty, `suspension` and
 `absence` stay active through `expected_to` inclusive, while for `injury` and `illness` `expected_to`
@@ -180,6 +181,7 @@ the import can be undone.
 | `match_live` | `match_id` INTEGER UNIQUE, `periods` INTEGER (1–4), `period_length` INTEGER (10–60), `clockless` INTEGER 0/1 (default 0), `next_seq` INTEGER (default 1), `finished_seq` INTEGER *null*, `ended_early_minute` INTEGER *null* (0–130) | Since 0002 (P13): a match that Match Day has started, in its format; `periods` × `period_length` ≤ 130. `next_seq`: the seq of the next action, a counter that only grows |
 | `match_clock_step` | `match_id` INTEGER (→ `match_live.match_id`), `period` INTEGER (1–4), `kind` TEXT, `at` TEXT (UTC ISO datetime), `seq` INTEGER | Since 0002 (P13). `kind`: `start`, `end`; UNIQUE (`match_id`, `period`, `kind`) |
 | `match_note` | `match_id` INTEGER, `minute` INTEGER (0–130), `added_time` INTEGER *null* (≥ 1), `player_id` INTEGER *null*, `text` TEXT (1–500 after trimming), `seq` INTEGER *null* | Since 0002 (P13): a note of Match Day with its minute; never changes the score or the minutes. Plain text |
+| `match_tactic_change` | `match_id` INTEGER, `minute` INTEGER (0–130), `added_time` INTEGER *null* (≥ 1), `formation` TEXT (1–20), `tactic_json` TEXT, `seq` INTEGER (≥ 1) | Since 0003 (P13b): a change of the shape during the match, one row per Match Day action. UNIQUE (`match_id`, `seq`). Semantics below |
 | `training_session` | `team_id` INTEGER, `date` TEXT, `start_time` TEXT *null*, `duration_min` INTEGER (15–240), `type` TEXT, `note` TEXT *null*, `import_id` INTEGER | |
 | `attendance` | `session_id` INTEGER, `player_id` INTEGER, `status` TEXT, `rpe` INTEGER *null* (0–10), `minutes_override` INTEGER *null* (0–240), `import_id` INTEGER | session load = rpe × minutes; rpe and minutes empty unless `present`. UNIQUE (`session_id`, `player_id`) |
 | `wellness` | `player_id` INTEGER, `date` TEXT, `sleep`, `fatigue`, `soreness`, `stress`, `mood` INTEGER (1–5) | SHOULD. UNIQUE (`player_id`, `date`) |
@@ -238,8 +240,38 @@ the import can be undone.
   warns; with fewer only the end of the match, notes and undo are possible. Every end of the match
   (the clock button, the banner, the dialog) goes one way: with fewer than 7 players it is early,
   `ended_early_minute` = the minute of the end (while a part runs the clock, at most the end of the
-  part; in a break the end of the part played; never before a stored event); with 7 or more a normal
-  end at `periods` × `period_length` (then only at the end of the last part).
+  part; in a break the end of the part played; never before a stored action: an event, a note or a
+  tactic change, `core::latestRecordedTime`); with 7 or more a normal end at `periods` ×
+  `period_length` (then only at the end of the last part). "Set time" and its undo never put the
+  clock before a stored action of the running part either (P13b review).
+
+Live tactics (`match_tactic_change`, P13b):
+- The 11 slots of the saved lineup keep their index for the whole match. A substitute takes the slot of
+  the player going off, with its current position and place; a player sent off leaves his slot empty
+  (not drawn on the board). A tactic change gives the slots new places (position and coordinates) and
+  never changes who is in them: `tactic_json` is `.tactic.json` v1 with the 11 slots in slot order,
+  every `playerId` null and no bench. Swapping two players exchanges the places of their slots.
+- The shape at a minute (`core::shapeAt`): the slots of the lineup with the players after the events
+  up to that time and the places of the last tactic change up to it (in the order of the match).
+  Events entered late never conflict with tactic changes; a substitution and a tactic change at the
+  same time commute. The name of the shape is counted from the occupied slots: the catalogue name with
+  eleven, otherwise the rows ("4-4-1" with ten).
+- `formation` holds that name when the change was recorded (no translated text); what Match Day and
+  the match report show is always counted again by `core::shapeAt`, since a red card entered later may
+  change it. `match.formation` keeps the starting formation of the lineup.
+- A formation chosen during the match (`core::changeShape`) keeps everyone on the pitch: with fewer
+  than eleven the empty slots take the goalkeeper position when nobody is in goal, then the positions
+  furthest forward; the others take the positions of the same name first, then the free ones from the
+  own goal up.
+- Every change is one action of the undo stack (`seq` from `match_live.next_seq`), at a time played
+  (in a break: the minute that starts the next part, as a substitution), never before a stored change,
+  only with 7 players or more and needs `RunMatchDay`. Recording or undoing it recomputes the
+  appearances: a substitute's `appearance.position` is the position of his slot at the minute he came
+  on (right after the substitution, before later events of the same minute), tactic changes
+  included; starters keep the position of the lineup.
+- The board of Match Day spreads the rows of the shape evenly over its height and never draws a name
+  wider than the gap to the next token of its row, so no two tokens overlap at the minimum window;
+  drops still use the position zones.
 
 `.tactic.json`: `{ "version": 1, "formation": "4-3-3", "slots": [{ "position": "GK", "x": 0.5, "y": 0.95, "playerId": 12 }] }`
 — coordinates normalised 0–1 relative to the pitch (own goal at y = 1). Optional `"bench": [playerId, …]`

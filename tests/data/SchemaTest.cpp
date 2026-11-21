@@ -152,6 +152,7 @@ TEST_F(SchemaTest, HasExactlyTheTablesOfTheSpec) {
                                QStringLiteral("match_event"),
                                QStringLiteral("match_live"),
                                QStringLiteral("match_note"),
+                               QStringLiteral("match_tactic_change"),
                                QStringLiteral("metric_definition"),
                                QStringLiteral("metric_value"),
                                QStringLiteral("opponent"),
@@ -223,7 +224,8 @@ TEST_F(SchemaTest, CascadeOnlyWhereTheSpecSaysSo) {
                                    key == QStringLiteral("match_event.match_id") ||
                                    key == QStringLiteral("match_live.match_id") ||
                                    key == QStringLiteral("match_clock_step.match_id") ||
-                                   key == QStringLiteral("match_note.match_id");
+                                   key == QStringLiteral("match_note.match_id") ||
+                                   key == QStringLiteral("match_tactic_change.match_id");
         EXPECT_EQ(onDelete.toStdString(), shouldCascade ? "CASCADE" : "RESTRICT")
             << key.toStdString();
     }
@@ -485,7 +487,7 @@ TEST_F(SchemaTest, EveryTableIsStrict) {
         EXPECT_EQ(query.value(1).toInt(), 1) << query.value(0).toString().toStdString();
         ++tables;
     }
-    EXPECT_EQ(tables, 22);
+    EXPECT_EQ(tables, 23);
 }
 
 TEST_F(SchemaTest, NumericColumnsRejectValuesOfTheWrongType) {

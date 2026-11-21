@@ -50,6 +50,9 @@ clang-format-18 --dry-run --Werror $(git ls-files 'src/*.cpp' 'src/*.hpp' 'tests
 
 On the human's machine use the gitignored preset `dev-local` instead of `dev` (it sets the Qt
 path and GCC 14; build directory is still `build/dev`).
+From P13b on, also run `ctest --preset dev-local-ci` (QML tests offscreen, GC stress, C locale as on CI).
+Tests never compare user-visible text with an English literal: use keys/roles from the viewmodel or
+`QCoreApplication::translate()`; the `dev-local-ci` preset runs with the C locale like CI.
 
 **No display (agent sandboxes, CI).** Qt Graphs needs OpenGL even offscreen (ADR-006), so on Linux
 without `$DISPLAY` run the unit tests with `ctest --preset dev -E qml_smoke` and the smoke test with:

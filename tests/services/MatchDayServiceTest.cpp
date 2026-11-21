@@ -8,6 +8,7 @@
 #include "data/repositories/MatchLiveRepository.hpp"
 #include "data/repositories/MatchNoteRepository.hpp"
 #include "data/repositories/MatchRepository.hpp"
+#include "data/repositories/MatchTacticRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
 #include "data/repositories/StaffRepository.hpp"
@@ -69,6 +70,7 @@ protected:
         m_matches = std::make_unique<MatchRepository>(*m_db);
         m_live = std::make_unique<MatchLiveRepository>(*m_db);
         m_notes = std::make_unique<MatchNoteRepository>(*m_db);
+        m_tactics = std::make_unique<MatchTacticRepository>(*m_db);
         m_opponents = std::make_unique<OpponentRepository>(*m_db);
         m_players = std::make_unique<PlayerRepository>(*m_db);
         m_availability = std::make_unique<AvailabilityRepository>(*m_db);
@@ -82,8 +84,8 @@ protected:
     // A new service on the same database and clock, as after closing and opening the app.
     void restart() {
         m_service = std::make_unique<MatchDayService>(
-            *m_db, *m_matches, *m_live, *m_notes, *m_lineups, *m_clubs, *m_opponents, *m_players,
-            *m_lineupService, m_session, m_clock);
+            *m_db, *m_matches, *m_live, *m_notes, *m_tactics, *m_lineups, *m_clubs, *m_opponents,
+            *m_players, *m_lineupService, m_session, m_clock);
     }
 
     void logInAs(Role role) { logIn(addUser(std::string(toDbText(role)).c_str(), role)); }
@@ -150,6 +152,7 @@ protected:
     std::unique_ptr<MatchRepository> m_matches;
     std::unique_ptr<MatchLiveRepository> m_live;
     std::unique_ptr<MatchNoteRepository> m_notes;
+    std::unique_ptr<MatchTacticRepository> m_tactics;
     std::unique_ptr<OpponentRepository> m_opponents;
     std::unique_ptr<PlayerRepository> m_players;
     std::unique_ptr<AvailabilityRepository> m_availability;
@@ -469,8 +472,8 @@ namespace {
 // stayed.
 QString snapshot(const DatabaseManager& db) {
     QStringList rows;
-    for (const char* table :
-         {"match", "match_event", "appearance", "match_live", "match_clock_step"}) {
+    for (const char* table : {"match", "match_event", "appearance", "match_live",
+                              "match_clock_step", "match_tactic_change"}) {
         QSqlQuery query(db.database());
         EXPECT_TRUE(query.exec(
             QStringLiteral("SELECT * FROM %1 ORDER BY id").arg(QLatin1StringView(table))));
@@ -647,12 +650,13 @@ namespace {
 // The services of Match Day on one database, as the app builds them.
 struct MatchDayStack {
     explicit MatchDayStack(DatabaseManager& db, FakeClock& clock)
-        : staff(db), clubs(db), lineups(db), matches(db), live(db), notes(db), opponents(db),
-          players(db), availability(db), training(db), auth(db, staff, session, clock, 4),
+        : staff(db), clubs(db), lineups(db), matches(db), live(db), notes(db), tactics(db),
+          opponents(db), players(db), availability(db), training(db),
+          auth(db, staff, session, clock, 4),
           lineupService(db, lineups, matches, opponents, players, availability, training, session,
                         clock),
-          matchDay(db, matches, live, notes, lineups, clubs, opponents, players, lineupService,
-                   session, clock) {}
+          matchDay(db, matches, live, notes, tactics, lineups, clubs, opponents, players,
+                   lineupService, session, clock) {}
 
     StaffRepository staff;
     ClubRepository clubs;
@@ -660,6 +664,7 @@ struct MatchDayStack {
     MatchRepository matches;
     MatchLiveRepository live;
     MatchNoteRepository notes;
+    MatchTacticRepository tactics;
     OpponentRepository opponents;
     PlayerRepository players;
     AvailabilityRepository availability;
@@ -1162,4 +1167,352 @@ TEST_F(MatchDayServiceTest, WithoutTheClockTheStartCanBeTakenBack) {
     ASSERT_TRUE(m_service->start(kMatch, kHalves, 4, true).has_value());
     ASSERT_TRUE(m_service->cancelStart(kMatch).has_value());
     EXPECT_EQ(m_matches->get(kMatch)->status, MatchStatus::Planned);
+}
+
+// --- Live tactics (packet P13b). The lineup of the fixture by slot: 0 GK 3, 1 RB 1, 2 CB 2, 3 CB
+// 4, 4 LB 5, 5 RM 6, 6 CM 7, 7 CM 8, 8 LM 9, 9 ST 10, 10 ST 11. ---
+
+namespace {
+
+const LineupSlot& slotOfPlayer(const Lineup& shape, std::int64_t player) {
+    for (const LineupSlot& slot : shape.pitchSlots) {
+        if (slot.player == pid(player)) {
+            return slot;
+        }
+    }
+    ADD_FAILURE() << "player " << player << " is not on the pitch";
+    return shape.pitchSlots.front();
+}
+
+} // namespace
+
+TEST_F(MatchDayServiceTest, ATacticChangeIsStoredAndShapesTheBoard) {
+    startMatch();
+    advance();
+    m_clock.advance(30min);
+    const MatchDayState before = read();
+    EXPECT_EQ(before.shape.formation, "4-4-2");
+    const Lineup shape = changeShape(before.shape, *findFormation("4-2-3-1"));
+    const auto id = m_service->recordTacticChange(kMatch, shape);
+    ASSERT_TRUE(id.has_value()) << id.error().detail;
+
+    const MatchDayState state = read();
+    ASSERT_EQ(state.tacticChanges.size(), 1U);
+    EXPECT_EQ(state.tacticChanges.front().minute, 30);
+    EXPECT_EQ(state.tacticChanges.front().shape.formation, "4-2-3-1");
+    EXPECT_EQ(state.shape.formation, "4-2-3-1");
+    EXPECT_EQ(slotOfPlayer(state.shape, 7).position, Position::Dm);
+    ASSERT_TRUE(state.lastAction.has_value());
+    EXPECT_EQ(state.lastAction->kind, MatchDayAction::Kind::TacticChange);
+    EXPECT_EQ(state.lastAction->tacticChange->id, *id);
+    // The lineup and match.formation stay the starting ones; no players are stored.
+    EXPECT_EQ(state.lineup.formation, "4-4-2");
+    EXPECT_EQ(m_matches->get(kMatch)->formation, "4-4-2");
+    EXPECT_EQ(count("SELECT count(*) FROM match_tactic_change WHERE tactic_json LIKE "
+                    "'%\"playerId\":3%'"),
+              0);
+}
+
+TEST_F(MatchDayServiceTest, UndoTakesBackATacticChangeInTheSameStackAsEvents) {
+    startMatch();
+    advance();
+    m_clock.advance(10min);
+    ASSERT_TRUE(m_service->recordGoal(kMatch, pid(10), std::nullopt).has_value());
+    m_clock.advance(10min);
+    ASSERT_TRUE(
+        m_service->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-3-3")))
+            .has_value());
+    auto undone = m_service->undoLast(kMatch);
+    ASSERT_TRUE(undone.has_value()) << undone.error().detail;
+    EXPECT_EQ(undone->kind, MatchDayAction::Kind::TacticChange);
+    ASSERT_TRUE(undone->tacticChange.has_value());
+    EXPECT_EQ(undone->tacticChange->minute, 20);
+    EXPECT_EQ(count("SELECT count(*) FROM match_tactic_change"), 0);
+    EXPECT_EQ(read().shape.formation, "4-4-2");
+    // Then the goal.
+    undone = m_service->undoLast(kMatch);
+    ASSERT_TRUE(undone.has_value());
+    EXPECT_EQ(undone->kind, MatchDayAction::Kind::Event);
+    EXPECT_EQ(eventCount(), 0);
+}
+
+TEST_F(MatchDayServiceTest, ASubstituteTakesThePositionOfHisSlotAfterAChange) {
+    startMatch();
+    advance();
+    m_clock.advance(30min);
+    ASSERT_TRUE(
+        m_service->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-2-3-1")))
+            .has_value());
+    m_clock.advance(5min);
+    // Player 11 (the right striker of 4-4-2) is the AM of 4-2-3-1.
+    ASSERT_TRUE(m_service->recordSubstitution(kMatch, pid(12), pid(11)).has_value());
+    EXPECT_EQ(appearance(12).position, Position::Am);
+    EXPECT_EQ(slotOfPlayer(read().shape, 12).position, Position::Am);
+    // A substitution entered late before the change: the position of the lineup, and the change
+    // still applies to him afterwards.
+    ASSERT_TRUE(
+        m_service->recordSubstitution(kMatch, pid(13), pid(7), MatchTime{19, std::nullopt}));
+    EXPECT_EQ(appearance(13).position, Position::Cm);
+    EXPECT_EQ(slotOfPlayer(read().shape, 13).position, Position::Dm);
+}
+
+TEST_F(MatchDayServiceTest, UndoOfAChangeRecomputesThePositionsOfLaterSubstitutes) {
+    startMatch();
+    advance();
+    m_clock.advance(40min);
+    // A substitution at 36', then a change entered late at 31': no stored change is later, so it is
+    // accepted, and the substitute plays the position his slot has after it.
+    ASSERT_TRUE(
+        m_service->recordSubstitution(kMatch, pid(12), pid(11), MatchTime{35, std::nullopt}));
+    EXPECT_EQ(appearance(12).position, Position::St);
+    ASSERT_TRUE(m_service->recordTacticChange(
+        kMatch, changeShape(read().shape, *findFormation("4-2-3-1")), MatchTime{30, std::nullopt}));
+    EXPECT_EQ(appearance(12).position, Position::Am);
+    ASSERT_TRUE(m_service->undoLast(kMatch).has_value());
+    EXPECT_EQ(appearance(12).position, Position::St);
+}
+
+TEST_F(MatchDayServiceTest, TacticChangesAreRefusedWhenTheyCannotApply) {
+    startMatch();
+    const Lineup lineup433 = changeShape(read().shape, *findFormation("4-3-3"));
+    // Before the kick-off.
+    expectError(m_service->recordTacticChange(kMatch, lineup433), ErrorCode::Conflict,
+                "match_not_running");
+    advance();
+    m_clock.advance(30min);
+    // Nothing changes.
+    expectError(m_service->recordTacticChange(kMatch, read().shape), ErrorCode::InvalidInput,
+                "tactic_unchanged");
+    // Not a shape: 10 slots, a coordinate outside the pitch, two goalkeepers.
+    Lineup broken = lineup433;
+    broken.pitchSlots.pop_back();
+    expectError(m_service->recordTacticChange(kMatch, broken), ErrorCode::InvalidInput,
+                "tactic_shape");
+    broken = lineup433;
+    broken.pitchSlots[3].x = 1.5;
+    expectError(m_service->recordTacticChange(kMatch, broken), ErrorCode::InvalidInput,
+                "tactic_shape");
+    broken = lineup433;
+    broken.pitchSlots[3].position = Position::Gk;
+    expectError(m_service->recordTacticChange(kMatch, broken), ErrorCode::InvalidInput,
+                "tactic_shape");
+    // Not played yet.
+    expectError(m_service->recordTacticChange(kMatch, lineup433, MatchTime{40, std::nullopt}),
+                ErrorCode::InvalidInput, "minute_not_played");
+    // A change is never entered before a stored one.
+    ASSERT_TRUE(m_service->recordTacticChange(kMatch, lineup433).has_value());
+    expectError(m_service->recordTacticChange(kMatch,
+                                              changeShape(read().shape, *findFormation("4-4-2")),
+                                              MatchTime{20, std::nullopt}),
+                ErrorCode::Conflict, "tactic_change_later");
+    // The same minute is fine.
+    ASSERT_TRUE(m_service
+                    ->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-4-2")),
+                                         MatchTime{30, std::nullopt})
+                    .has_value());
+    EXPECT_EQ(read().shape.formation, "4-4-2");
+}
+
+TEST_F(MatchDayServiceTest, TacticChangesNeedSevenPlayersAndALiveMatch) {
+    startMatch();
+    advance();
+    m_clock.advance(10min);
+    // Seven players may still change the shape; six may not.
+    for (const std::int64_t player : {1, 2, 4, 5}) {
+        ASSERT_TRUE(m_service->recordRed(kMatch, pid(player)).has_value());
+    }
+    ASSERT_EQ(read().shape.formation, "4-2");
+    ASSERT_TRUE(m_service->recordRed(kMatch, pid(6)).has_value());
+    ASSERT_EQ(read().shape.formation, "3-2");
+    expectError(
+        m_service->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-3-3"))),
+        ErrorCode::Conflict, "too_few_players");
+    expectError(m_service->recordTacticChange(kFinished, lineup()), ErrorCode::Conflict,
+                "match_not_live");
+}
+
+TEST_F(MatchDayServiceTest, TacticChangesNeedRunMatchDay) {
+    startMatch();
+    advance();
+    m_clock.advance(10min);
+    const Lineup shape = changeShape(read().shape, *findFormation("4-3-3"));
+    for (const Role role : {Role::Physio, Role::Analyst}) {
+        SCOPED_TRACE(toDbText(role));
+        logInAs(role);
+        EXPECT_TRUE(m_service->state(kMatch).has_value());
+        expectError(m_service->recordTacticChange(kMatch, shape), ErrorCode::PermissionDenied);
+    }
+    logInAs(Role::Assistant);
+    EXPECT_TRUE(m_service->recordTacticChange(kMatch, shape).has_value());
+}
+
+TEST_F(MatchDayServiceTest, AFailedTacticChangeLeavesNothingBehind) {
+    startMatch();
+    advance();
+    m_clock.advance(10min);
+    ASSERT_TRUE(m_service->recordSubstitution(kMatch, pid(12), pid(11)).has_value());
+    const Lineup shape = changeShape(read().shape, *findFormation("4-2-3-1"));
+    QString before = snapshot(*m_db);
+    // After the change is written, while the minutes are.
+    ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_minutes BEFORE INSERT ON appearance "
+                    "BEGIN SELECT RAISE(ABORT, 'forced'); END"));
+    EXPECT_FALSE(m_service->recordTacticChange(kMatch, shape).has_value());
+    EXPECT_EQ(snapshot(*m_db), before);
+    ASSERT_TRUE(sql("DROP TRIGGER fail_minutes"));
+    ASSERT_TRUE(m_service->recordTacticChange(kMatch, shape).has_value());
+    // The undo: the change goes, then the minutes fail.
+    before = snapshot(*m_db);
+    ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_undo BEFORE INSERT ON appearance "
+                    "BEGIN SELECT RAISE(ABORT, 'forced'); END"));
+    EXPECT_FALSE(m_service->undoLast(kMatch).has_value());
+    EXPECT_EQ(snapshot(*m_db), before);
+    ASSERT_TRUE(sql("DROP TRIGGER fail_undo"));
+    EXPECT_TRUE(m_service->undoLast(kMatch).has_value());
+}
+
+TEST_F(MatchDayServiceTest, BackToPlannedIsRefusedOnceAShapeWasChanged) {
+    logInAs(Role::Coach);
+    saveLineup();
+    ASSERT_TRUE(m_service->start(kMatch, kHalves, 4, true).has_value());
+    ASSERT_TRUE(m_service
+                    ->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-3-3")),
+                                         MatchTime{10, std::nullopt})
+                    .has_value());
+    expectError(m_service->cancelStart(kMatch), ErrorCode::Conflict, "match_started");
+    // Without the clock a minute is required.
+    expectError(
+        m_service->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-4-2"))),
+        ErrorCode::InvalidInput, "minute_required");
+}
+
+// Done when of P13b: 4-4-2 → 4-2-3-1 at 60', a substitute replaces a striker, the board shows the
+// new shape; reopening the app shows the same.
+TEST_F(MatchDayRestartTest, TheShapeSurvivesARestart) {
+    StaffUserId coach;
+    {
+        auto db = open();
+        ASSERT_NE(db, nullptr);
+        const QSqlDatabase raw = db->database();
+        ASSERT_TRUE(run(raw, QStringLiteral("INSERT INTO club (id, name) VALUES (1, 'KS Test')")));
+        ASSERT_TRUE(
+            run(raw, QStringLiteral("INSERT INTO team (id, club_id, name, category, season) "
+                                    "VALUES (1, 1, 'Seniorzy', 'senior', '2026/27')")));
+        ASSERT_TRUE(run(raw, QStringLiteral("INSERT INTO opponent (id, name, name_key) "
+                                            "VALUES (1, 'Rywal', 'rywal')")));
+        ASSERT_TRUE(run(raw, QStringLiteral("INSERT INTO match (id, team_id, opponent_id, date, "
+                                            "venue) VALUES (1, 1, 1, '2026-11-01', 'home')")));
+        for (int id = 1; id <= 14; ++id) {
+            ASSERT_TRUE(
+                run(raw,
+                    QStringLiteral("INSERT INTO player (id, team_id, first_name, last_name, "
+                                   "shirt_number, primary_position) VALUES (?, 1, 'P', ?, "
+                                   "?, ?)"),
+                    {id, QStringLiteral("Player%1").arg(id), id,
+                     id == 1 ? QStringLiteral("gk") : QStringLiteral("cm")}));
+        }
+        MatchDayStack stack(*db, m_clock);
+        StaffUserDraft draft;
+        draft.name = "Trener";
+        draft.role = Role::Coach;
+        const auto hash = stack.auth.hashPin("1234");
+        ASSERT_TRUE(hash.has_value());
+        coach = stack.staff.create(draft, *hash).value();
+        ASSERT_TRUE(stack.auth.login(coach, "1234").has_value());
+        Lineup lineup = emptyLineup(*findFormation("4-4-2"));
+        for (std::size_t slot = 0; slot < lineup.pitchSlots.size(); ++slot) {
+            lineup.pitchSlots[slot].player = pid(static_cast<std::int64_t>(slot) + 1);
+        }
+        lineup.bench = {pid(12), pid(13), pid(14)};
+        ASSERT_TRUE(stack.lineups.saveForMatch(kMatchId, lineup));
+        ASSERT_TRUE(stack.matchDay.start(kMatchId, kHalves, 4, true).has_value());
+        const auto shape = stack.matchDay.state(kMatchId)->shape;
+        ASSERT_TRUE(stack.matchDay
+                        .recordTacticChange(kMatchId, changeShape(shape, *findFormation("4-2-3-1")),
+                                            MatchTime{59, std::nullopt})
+                        .has_value());
+        // Player 10 is the striker of 4-2-3-1 (slot 9).
+        ASSERT_TRUE(stack.matchDay
+                        .recordSubstitution(kMatchId, pid(12), pid(10), MatchTime{65, std::nullopt})
+                        .has_value());
+    }
+    auto db = open();
+    ASSERT_NE(db, nullptr);
+    MatchDayStack stack(*db, m_clock);
+    ASSERT_TRUE(stack.auth.login(coach, "1234").has_value());
+    const auto state = stack.matchDay.state(kMatchId);
+    ASSERT_TRUE(state.has_value()) << state.error().detail;
+    EXPECT_EQ(state->shape.formation, "4-2-3-1");
+    EXPECT_EQ(state->shape.pitchSlots[9].player, pid(12));
+    EXPECT_EQ(state->shape.pitchSlots[9].position, Position::St);
+    ASSERT_EQ(state->tacticChanges.size(), 1U);
+    EXPECT_EQ(state->tacticChanges.front().minute, 59);
+    const auto appearances = stack.matches.listAppearances(kMatchId);
+    ASSERT_TRUE(appearances.has_value());
+    const auto substitute = std::ranges::find(*appearances, pid(12), &Appearance::playerId);
+    ASSERT_NE(substitute, appearances->end());
+    EXPECT_EQ(substitute->position, Position::St);
+}
+
+// --- Review of P13b: the end of the match and "set clock" never go before a stored action ---
+
+// Codex: without the clock, a tactic change at 60', then red cards entered late at 20' leave six
+// players. The end is never before a stored action (as P13 for events): the match ends at 60', not
+// at 20', so the change stays inside the match.
+TEST_F(MatchDayServiceTest, AnEarlyEndIsNeverBeforeAStoredTacticChange) {
+    logInAs(Role::Coach);
+    saveLineup();
+    ASSERT_TRUE(m_service->start(kMatch, kHalves, 4, true).has_value());
+    ASSERT_TRUE(m_service
+                    ->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-3-3")),
+                                         MatchTime{59, std::nullopt})
+                    .has_value());
+    for (const std::int64_t player : {1, 2, 4, 5, 6}) {
+        ASSERT_TRUE(m_service->recordRed(kMatch, pid(player), MatchTime{19, std::nullopt}));
+    }
+    ASSERT_LT(onPitchCount(read().situation), kMinPlayersOnPitch);
+    // The minute typed (20') is earlier than the change: the end is at the change.
+    const auto ended = m_service->endMatch(kMatch, 19);
+    ASSERT_TRUE(ended.has_value()) << ended.error().detail;
+    const MatchDayState state = read();
+    ASSERT_TRUE(state.clock.has_value());
+    EXPECT_EQ(state.clock->endedEarlyAt, 59);
+    EXPECT_EQ(finalMinute(*state.clock), 59);
+    expectMinutes(3, 0, 59);
+    ASSERT_EQ(state.tacticChanges.size(), 1U);
+    EXPECT_LE(state.tacticChanges.front().minute, finalMinute(*state.clock));
+}
+
+TEST_F(MatchDayServiceTest, SetClockNeverGoesBeforeATacticChangeOrANote) {
+    startMatch();
+    advance();
+    m_clock.advance(35min);
+    ASSERT_TRUE(m_service
+                    ->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-3-3")),
+                                         MatchTime{30, std::nullopt})
+                    .has_value());
+    // 10:00 would put the change at 31' in the future.
+    expectError(m_service->setClock(kMatch, 10min), ErrorCode::InvalidInput, "clock_before_event");
+    ASSERT_TRUE(m_service->setClock(kMatch, 31min).has_value());
+    // A note counts too: at 32' (stored 31) it needs 31:00.
+    ASSERT_TRUE(
+        m_service->addNote(kMatch, MatchTime{31, std::nullopt}, std::nullopt, "Wiatr").has_value());
+    expectError(m_service->setClock(kMatch, 30min), ErrorCode::InvalidInput, "clock_before_event");
+    EXPECT_TRUE(m_service->setClock(kMatch, 31min).has_value());
+}
+
+TEST_F(MatchDayServiceTest, TheUndoOfSetClockNeverGoesBeforeATacticChange) {
+    startMatch();
+    advance();
+    m_clock.advance(20min);
+    // The clock shows 40:00; its undo would bring back 20:00.
+    const auto before = m_service->setClock(kMatch, 40min);
+    ASSERT_TRUE(before.has_value());
+    ASSERT_TRUE(m_service
+                    ->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-3-3")),
+                                         MatchTime{35, std::nullopt})
+                    .has_value());
+    expectError(m_service->restoreClock(kMatch, *before), ErrorCode::InvalidInput,
+                "clock_before_event");
+    const auto reading = readClock(*read().clock, m_clock.now());
+    EXPECT_EQ(reading.regular, 40min);
 }

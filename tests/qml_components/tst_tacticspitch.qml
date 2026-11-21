@@ -4,14 +4,15 @@ import FootballDSS
 
 // TacticsPitch and PlayerToken (P12): taps, double taps and keys on tokens, a token dragged to
 // another zone (decision 12), also a free slot, a token dropped on another one, and a read-only
-// board.
+// board. Match Day (P13b): hidden empty slots, the badges of cards and goals, a bench player dropped
+// on a token.
 TestCase {
     id: testCase
 
     name: "TacticsPitch"
     // Tab and the mouse skip what is not visible, and a TestCase is not by default.
     visible: true
-    width: 480
+    width: 640
     height: 640
     when: windowShown
 
@@ -25,7 +26,9 @@ TestCase {
             property var moves: []
             property var swaps: []
             property var removals: []
+            property var drops: []
             property alias pitch: pitch
+            property alias model: slotsModel
 
             width: 360
             height: 480
@@ -34,9 +37,9 @@ TestCase {
                 id: slotsModel
 
                 // A left midfielder and a centre midfielder of a 4-4-2, and a free left winger slot.
-                ListElement { slotIndex: 0; positionText: "LM"; pitchX: 0.125; pitchY: 0.48; playerId: 9; shirtNumber: 11; shortName: "Lewy"; fullName: "Adam Lewy"; severity: ""; issueText: ""; selected: false }
-                ListElement { slotIndex: 1; positionText: "CM"; pitchX: 0.625; pitchY: 0.48; playerId: 7; shirtNumber: 8; shortName: "Środek"; fullName: "Bartosz Środek"; severity: "warning"; issueText: "x"; selected: false }
-                ListElement { slotIndex: 2; positionText: "ST"; pitchX: 0.5; pitchY: 0.12; playerId: 0; shirtNumber: 0; shortName: ""; fullName: ""; severity: ""; issueText: ""; selected: false }
+                ListElement { slotIndex: 0; positionText: "LM"; pitchX: 0.125; pitchY: 0.48; playerId: 9; shirtNumber: 11; shortName: "Lewy"; fullName: "Adam Lewy"; severity: ""; issueText: ""; selected: false; yellowCards: 0; goals: 0; hidden: false; labelRoom: 1 }
+                ListElement { slotIndex: 1; positionText: "CM"; pitchX: 0.625; pitchY: 0.48; playerId: 7; shirtNumber: 8; shortName: "Środek"; fullName: "Bartosz Środek"; severity: "warning"; issueText: "x"; selected: false; yellowCards: 0; goals: 0; hidden: false; labelRoom: 1 }
+                ListElement { slotIndex: 2; positionText: "ST"; pitchX: 0.5; pitchY: 0.12; playerId: 0; shirtNumber: 0; shortName: ""; fullName: ""; severity: ""; issueText: ""; selected: false; yellowCards: 0; goals: 0; hidden: false; labelRoom: 1 }
             }
 
             TacticsPitch {
@@ -58,7 +61,22 @@ TestCase {
                 onSlotMoved: (slot, x, y) => parent.moves = parent.moves.concat([{ "slot": slot, "x": x, "y": y }])
                 onSlotsSwapped: (from, to) => parent.swaps = parent.swaps.concat([[from, to]])
                 onRemoveRequested: slot => parent.removals = parent.removals.concat([slot])
+                onPlayerDropped: (slot, playerId) => parent.drops = parent.drops.concat([[slot, playerId]])
             }
+        }
+    }
+
+    Component {
+        id: benchTileComponent
+
+        MatchPlayerTile {
+            playerId: 12
+            shirtNumber: 12
+            shortName: "Zmiennik"
+            fullName: "Jan Zmiennik"
+            positionCode: "CM"
+            stateKey: "bench"
+            dragEnabled: true
         }
     }
 
@@ -188,5 +206,67 @@ TestCase {
         compare(host.activations, [0]);
         keyClick(Qt.Key_Delete);
         compare(host.removals, []);
+    }
+
+    // Match Day (P13b): a player sent off leaves his slot empty, and the live board does not draw it.
+    function test_hidden_slots_are_not_drawn_on_the_live_board() {
+        const host = createHost();
+        host.model.setProperty(2, "hidden", true);
+        verify(host.pitch.tokenAt(2).visible);
+        host.pitch.showEmptySlots = false;
+        verify(!host.pitch.tokenAt(2).visible);
+        verify(host.pitch.tokenAt(0).visible);
+        // Tab skips it.
+        host.pitch.focusSlot(1);
+        keyClick(Qt.Key_Tab);
+        verify(!host.pitch.tokenAt(2).activeFocus);
+    }
+
+    function test_cards_and_goals_are_icons_with_words() {
+        const host = createHost();
+        const token = host.pitch.tokenAt(0);
+        verify(!findChild(token, "matchBadges").visible);
+        host.model.setProperty(0, "yellowCards", 1);
+        host.model.setProperty(0, "goals", 2);
+        verify(findChild(token, "matchBadges").visible);
+        verify(findChild(token, "yellowBadge").visible);
+        verify(findChild(token, "goalBadge").visible);
+        verify(token.description.indexOf("Yellow card") >= 0);
+        verify(token.description.indexOf("Goals: 2") >= 0);
+        verify(token.Accessible.name.indexOf("Yellow card") >= 0);
+    }
+
+    function test_a_bench_tile_dropped_on_a_token() {
+        const host = createHost();
+        const tile = createTemporaryObject(benchTileComponent, testCase, { "x": 380, "y": 10 });
+        verify(tile);
+        waitForRendering(tile);
+        const target = tokenCentre(host, 1, testCase);
+        const from = Qt.point(tile.x + tile.width / 2, tile.y + tile.height / 2);
+        mousePress(testCase, from.x, from.y, Qt.LeftButton);
+        for (let i = 1; i <= 12; ++i)
+            mouseMove(testCase, from.x + (target.x - from.x) * i / 12, from.y + (target.y - from.y) * i / 12, 10, Qt.LeftButton);
+        verify(tile.dragging);
+        mouseRelease(testCase, target.x, target.y, Qt.LeftButton);
+        verify(!tile.dragging);
+        compare(host.drops.length, 1);
+        compare(host.drops[0][0], 1);
+        compare(host.drops[0][1], 12);
+        compare(host.swaps, []);
+    }
+
+    function test_a_bench_tile_without_drag_does_not_drag() {
+        const host = createHost();
+        const tile = createTemporaryObject(benchTileComponent, testCase, { "x": 380, "y": 10, "dragEnabled": false });
+        verify(tile);
+        waitForRendering(tile);
+        const target = tokenCentre(host, 1, testCase);
+        const from = Qt.point(tile.x + tile.width / 2, tile.y + tile.height / 2);
+        mousePress(testCase, from.x, from.y, Qt.LeftButton);
+        for (let i = 1; i <= 12; ++i)
+            mouseMove(testCase, from.x + (target.x - from.x) * i / 12, from.y + (target.y - from.y) * i / 12, 10, Qt.LeftButton);
+        verify(!tile.dragging);
+        mouseRelease(testCase, target.x, target.y, Qt.LeftButton);
+        compare(host.drops, []);
     }
 }

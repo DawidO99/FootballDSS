@@ -249,7 +249,7 @@ TEST_F(BackupTest, WritesAReadableCopyWithTheAgreedName) {
     EXPECT_EQ(scalar(backup.database(), QStringLiteral("SELECT name FROM club")).toString(),
               QStringLiteral("KS Test"));
     EXPECT_EQ(
-        scalar(backup.database(), QStringLiteral("SELECT version FROM schema_version")).toInt(), 2);
+        scalar(backup.database(), QStringLiteral("SELECT version FROM schema_version")).toInt(), 3);
     EXPECT_EQ(scalar(backup.database(), QStringLiteral("PRAGMA integrity_check")).toString(),
               QStringLiteral("ok"));
 }

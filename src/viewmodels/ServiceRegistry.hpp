@@ -12,6 +12,7 @@ class DatabaseManager;
 class LineupRepository;
 class MatchLiveRepository;
 class MatchNoteRepository;
+class MatchTacticRepository;
 class MatchRepository;
 class OpponentRepository;
 class PlayerRepository;
@@ -98,6 +99,7 @@ private:
     std::unique_ptr<data::LineupRepository> m_lineups;
     std::unique_ptr<data::MatchLiveRepository> m_matchLive;
     std::unique_ptr<data::MatchNoteRepository> m_matchNotes;
+    std::unique_ptr<data::MatchTacticRepository> m_matchTactics;
     std::unique_ptr<services::Session> m_session;
     std::unique_ptr<services::AuthService> m_auth;
     std::unique_ptr<services::SetupService> m_setup;

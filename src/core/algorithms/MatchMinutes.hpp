@@ -6,6 +6,8 @@
 #include "core/domain/Ids.hpp"
 #include "core/domain/Lineup.hpp"
 #include "core/domain/MatchEvent.hpp"
+#include "core/domain/MatchNote.hpp"
+#include "core/domain/MatchTacticChange.hpp"
 
 #include <array>
 #include <chrono>
@@ -13,6 +15,7 @@
 #include <expected>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -106,13 +109,6 @@ void applyStep(MatchClock& clock, ClockStep step, Timestamp at);
 // The minute the match ended: parts × length (whatever the stoppage time, or a last part ended a
 // little before its length), or endedEarlyAt for a match ended early.
 [[nodiscard]] int finalMinute(const MatchClock& clock) noexcept;
-// The final minute of a match ended now with fewer than 7 players: while a part runs, the minute of
-// the clock (at most the end of the part); in a break, the end of the part played; without the
-// clock, the last event. Never before a stored event, so every appearance ends at or after it
-// started.
-[[nodiscard]] int earlyEndMinute(const MatchClock& clock, Timestamp now,
-                                 std::span<const MatchEventDraft> events) noexcept;
-
 // What an event stores.
 struct MatchTime {
     int minute = 0;
@@ -120,6 +116,20 @@ struct MatchTime {
 
     friend bool operator==(const MatchTime&, const MatchTime&) = default;
 };
+
+// The latest time of the actions stored for a match, in the order of the match (added time
+// counted): its events, notes and tactic changes (P13b review). nullopt: none. The end of the
+// match, "set clock" and its undo never go before it.
+[[nodiscard]] std::optional<MatchTime>
+latestRecordedTime(std::span<const MatchEventDraft> events, std::span<const MatchNoteDraft> notes,
+                   std::span<const MatchTacticChangeDraft> changes);
+
+// The final minute of a match ended now with fewer than 7 players: while a part runs, the minute of
+// the clock (at most the end of the part); in a break, the end of the part played; without the
+// clock, the last action. Never before `latest` (latestRecordedTime()), so every appearance ends at
+// or after it started and no stored action lies after the end.
+[[nodiscard]] int earlyEndMinute(const MatchClock& clock, Timestamp now,
+                                 std::optional<MatchTime> latest) noexcept;
 
 // The football way of showing a minute: 0 → 1', 44 → 45', {45, +3} → 45+3', {30, +2} → 30+2'.
 struct DisplayMinute {
@@ -139,10 +149,11 @@ struct DisplayMinute {
 // part (before its start, or stoppage time of another part); the limits of the service come after.
 [[nodiscard]] std::optional<std::chrono::seconds>
 elapsedFromClockText(std::string_view text, MatchFormat format, int period);
-// The least time of the running part that keeps its stored events played ("set clock" may not put
-// the clock before them).
-[[nodiscard]] std::chrono::seconds minElapsedForEvents(MatchFormat format, int period,
-                                                       std::span<const MatchEventDraft> events);
+// The least time of the running part `period` that keeps the latest stored action played ("set
+// clock" and its undo may not put the clock before it); `latest` from latestRecordedTime(). 0 when
+// it is in an earlier part, or none.
+[[nodiscard]] std::chrono::seconds minElapsedFor(MatchFormat format, int period,
+                                                 std::optional<MatchTime> latest);
 
 struct ClockReading {
     MatchPhase phase = MatchPhase::NotStarted;
@@ -287,6 +298,43 @@ struct MatchMinutes {
 
 [[nodiscard]] std::expected<MatchMinutes, MatchEventError>
 computeMatchMinutes(const MatchSheet& sheet, std::span<const MatchEventDraft> events,
+                    std::optional<int> finalMinute);
+
+// --- Live tactics (packet P13b). The 11 slots of the saved lineup keep their index for the whole
+// match: a substitute takes the slot of the player going off, a player sent off leaves his slot
+// empty, and a tactic change gives the slots new places (position and coordinates) without changing
+// who is in them. So events entered late never conflict with tactic changes, and a substitution and
+// a tactic change at the same time commute.
+
+// The shape on the pitch at `time` (nullopt: after everything given): the slots of `lineup` with
+// the players after the events up to that time (as situationAt()) and the places of the last tactic
+// change up to it (in the order of the match, then as given), or of the lineup before any. A zone
+// with an empty slot is laid out again with its occupied slots. `formation` is liveFormationName();
+// the bench is empty. The events must fit the lineup, as in replayMatch().
+[[nodiscard]] std::expected<Lineup, MatchEventError>
+shapeAt(const Lineup& lineup, std::span<const MatchEventDraft> events,
+        std::span<const MatchTacticChangeDraft> changes,
+        std::optional<MatchTime> time = std::nullopt);
+
+struct ShapeChangeNames {
+    std::string from;
+    std::string to;
+
+    friend bool operator==(const ShapeChangeNames&, const ShapeChangeNames&) = default;
+};
+
+// For every change, in the order given: the name of the shape before it (the change before it in
+// the order of the match, or the lineup) and after it, both with the players on the pitch at its
+// time.
+[[nodiscard]] std::expected<std::vector<ShapeChangeNames>, MatchEventError>
+shapeChangeNames(const Lineup& lineup, std::span<const MatchEventDraft> events,
+                 std::span<const MatchTacticChangeDraft> changes);
+
+// computeMatchMinutes() with the shape (P13b): a substitute gets the position of his slot at the
+// time he came on, tactic changes included; starters keep the position of the lineup.
+[[nodiscard]] std::expected<MatchMinutes, MatchEventError>
+computeMatchMinutes(const Lineup& lineup, std::span<const MatchEventDraft> events,
+                    std::span<const MatchTacticChangeDraft> changes,
                     std::optional<int> finalMinute);
 
 } // namespace fdss::core

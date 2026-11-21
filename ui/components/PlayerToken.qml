@@ -14,6 +14,8 @@ import QtQuick.Controls.Basic
 //   severity: string            error, warning or empty
 //   issueText: string           the issues, one per line
 //   selected: bool
+//   yellowCards: int            Match Day (P13b): a card icon on the token, the words in the tooltip
+//   goals: int                  Match Day: a ball icon (with the number from two goals)
 //   interactive: bool           can be dragged, also when free (the board is not read-only)
 //   ghost: bool                 the copy that follows the pointer during a drag: no input
 //   payload: var                what a drop target reads from a ghost: { kind, slot, playerId }
@@ -35,6 +37,8 @@ Item {
     property string severity
     property string issueText
     property bool selected: false
+    property int yellowCards: 0
+    property int goals: 0
     property bool interactive: true
     property bool ghost: false
     property var payload: ({})
@@ -48,6 +52,10 @@ Item {
             parts.push(root.hasNumber ? qsTr("%1, number %2").arg(root.fullName).arg(root.shirtNumber) : root.fullName);
         else
             parts.push(qsTr("free slot"));
+        if (root.yellowCards > 0)
+            parts.push(qsTr("Yellow card"));
+        if (root.goals > 0)
+            parts.push(qsTr("Goals: %1").arg(root.goals));
         if (root.issueText.length > 0)
             parts.push(root.issueText);
         return parts.join("\n");
@@ -81,6 +89,7 @@ Item {
     Rectangle {
         id: circle
 
+        objectName: "tokenCircle"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         width: Theme.pitch.tokenSize
@@ -121,7 +130,66 @@ Item {
         }
     }
 
+    // Cards and goals of the match (P13b): icons on discs of the token color, left of the circle;
+    // the words are in the tooltip and the accessible name.
+    Row {
+        objectName: "matchBadges"
+        visible: root.yellowCards > 0 || root.goals > 0
+        anchors.right: circle.left
+        anchors.top: circle.top
+        anchors.rightMargin: -Theme.pitch.issueIconSize
+        anchors.topMargin: -Theme.spacing.xs
+        spacing: 0
+        layoutDirection: Qt.RightToLeft
+
+        Rectangle {
+            objectName: "yellowBadge"
+            visible: root.yellowCards > 0
+            width: Theme.pitch.issueIconSize + Theme.spacing.xs
+            height: width
+            radius: width / 2
+            color: Theme.pitch.token
+
+            Icon {
+                anchors.centerIn: parent
+                name: "card"
+                color: Theme.yellowCard
+                size: Theme.pitch.issueIconSize
+            }
+        }
+
+        Rectangle {
+            objectName: "goalBadge"
+            visible: root.goals > 0
+            width: Math.max(height, goalRow.implicitWidth + Theme.spacing.xs)
+            height: Theme.pitch.issueIconSize + Theme.spacing.xs
+            radius: height / 2
+            color: Theme.pitch.token
+
+            Row {
+                id: goalRow
+
+                anchors.centerIn: parent
+
+                Icon {
+                    name: "goal"
+                    color: Theme.pitch.tokenText
+                    size: Theme.pitch.issueIconSize
+                }
+
+                Label {
+                    visible: root.goals > 1
+                    text: root.goals
+                    color: Theme.pitch.tokenText
+                    font.pixelSize: Theme.fontSize.caption
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+        }
+    }
+
     Rectangle {
+        objectName: "tokenLabel"
         visible: !root.empty
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: circle.bottom
