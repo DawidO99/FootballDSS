@@ -32,9 +32,10 @@ class DashboardViewModel : public QObject {
                    yellowCardThresholdChanged FINAL)
     // The load signals are read on the thread pool.
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged FINAL)
-    // False until the first read succeeded, and after a failed one.
+    // False until the overview read succeeded, and after a failed overview read.
     Q_PROPERTY(bool ready READ ready NOTIFY contentChanged FINAL)
     Q_PROPERTY(QString readError READ readError NOTIFY contentChanged FINAL)
+    Q_PROPERTY(QString loadError READ loadError NOTIFY contentChanged FINAL)
 
     Q_PROPERTY(bool hasNextMatch READ hasNextMatch NOTIFY contentChanged FINAL)
     Q_PROPERTY(qint64 nextMatchId READ nextMatchId NOTIFY contentChanged FINAL)
@@ -89,6 +90,7 @@ public:
     [[nodiscard]] bool busy() const;
     [[nodiscard]] bool ready() const;
     [[nodiscard]] QString readError() const;
+    [[nodiscard]] QString loadError() const;
 
     [[nodiscard]] bool hasNextMatch() const;
     [[nodiscard]] qint64 nextMatchId() const;
@@ -116,7 +118,7 @@ public:
     [[nodiscard]] QVariantMap todayEmpty() const;
 
     // Reads everything anew; the load signals follow from the thread pool. A failed read is
-    // reported and leaves the cards empty.
+    // reported; a failed load read clears only the load-signals card.
     Q_INVOKABLE void reload();
 
 signals:
@@ -147,6 +149,7 @@ private:
     bool m_busy = false;
     int m_request = 0;
     std::optional<core::Error> m_readFailure;
+    std::optional<core::Error> m_loadFailure;
     std::optional<services::DashboardOverview> m_overview;
     std::optional<services::TeamLoad> m_teamLoad;
 };

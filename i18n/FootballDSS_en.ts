@@ -1240,6 +1240,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Could not load the dashboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Next match</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1261,6 +1265,10 @@
     </message>
     <message>
         <source>Load signals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not read load data</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

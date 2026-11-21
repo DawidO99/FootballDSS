@@ -63,6 +63,7 @@ Item {
             Layout.fillHeight: true
             visible: root.dashboard !== null && root.dashboard.readError.length > 0
             iconName: "danger"
+            title: qsTr("Could not load the dashboard")
             description: root.dashboard ? root.dashboard.readError : ""
             actionText: qsTr("Retry")
             onActionTriggered: root.dashboard.reload()
@@ -225,6 +226,8 @@ Item {
                     title: qsTr("Load signals")
                     iconName: "load"
                     cardState: {
+                        if (root.dashboard && root.dashboard.loadError.length > 0)
+                            return "content";
                         if (root.loadCapability.stateKey === "locked")
                             return "locked";
                         if (root.dashboard && (root.dashboard.loadSignals.length > 0 || root.dashboard.busy))
@@ -239,8 +242,20 @@ Item {
                     onEmptyActionTriggered: root.navigateRequested(root.dashboard.loadSignalsEmpty.actionSection, {})
                     onLockActionTriggered: root.navigateRequested(root.loadCapability.actionSection, {})
 
+                    EmptyState {
+                        objectName: "loadSignalsReadError"
+                        Layout.fillWidth: true
+                        visible: root.dashboard !== null && root.dashboard.loadError.length > 0
+                        iconName: "danger"
+                        title: qsTr("Could not read load data")
+                        description: root.dashboard ? root.dashboard.loadError : ""
+                        actionText: qsTr("Retry")
+                        onActionTriggered: root.dashboard.reload()
+                    }
+
                     Label {
                         Layout.fillWidth: true
+                        visible: root.dashboard === null || root.dashboard.loadError.length === 0
                         text: qsTr("Signals to talk to the player, not a diagnosis.")
                         color: Theme.textMuted
                         font.pixelSize: Theme.fontSize.caption

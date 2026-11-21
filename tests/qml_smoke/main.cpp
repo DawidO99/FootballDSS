@@ -77,6 +77,7 @@
 #include <QRectF>
 #include <QSet>
 #include <QSettings>
+#include <QSqlError>
 #include <QSqlQuery>
 #include <QStyleHints>
 #include <QThread>
@@ -6195,7 +6196,103 @@ void exerciseDashboardEmptyClub(QQmlApplicationEngine& engine, const QString& sc
 
 // Demo club: the next match, 2 injured + 1 suspended, the overloaded player and the form, in both
 // themes at the minimum window (packet P15, "Done when").
-void exerciseDashboardDemo(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+void exerciseDashboardReadErrors(const DashboardScreen& screen,
+                                 fdss::data::DatabaseManager& database) {
+    // A live match keeps the overview independent of lineup attendance queries.
+    QSqlQuery live(database.database());
+    live.prepare(QStringLiteral("UPDATE match SET status = ? WHERE id = ?"));
+    live.bindValue(0, QStringLiteral("live"));
+    live.bindValue(1, screen.dashboard->nextMatchId());
+    if (!live.exec()) {
+        qWarning("%s",
+                 database.sqlError(live.lastError(), "seed dashboard error test").detail.c_str());
+        fail("cannot prepare the live match for the dashboard error test");
+        return;
+    }
+    screen.navigation->activate(QStringLiteral("dashboard"));
+    if (!waitUntil([&screen] { return !screen.dashboard->busy(); },
+                   "the dashboard did not finish")) {
+        return;
+    }
+    const auto reloadExpecting = [&screen](const char* message) {
+        g_expectedCritical = message;
+        g_expectedCriticalCount = 0;
+        screen.dashboard->reload();
+        g_expectedCritical = nullptr;
+        if (g_expectedCriticalCount != 1) {
+            fail("the dashboard did not report its failed read");
+        }
+        settle();
+    };
+    const auto expectErrorState = [](QQuickItem* item, const char* title) {
+        if (item == nullptr || !item->isVisible() ||
+            item->property("title").toString() !=
+                QCoreApplication::translate("DashboardView", title) ||
+            item->property("iconName").toString() != QLatin1StringView("danger") ||
+            item->property("description").toString().isEmpty() ||
+            item->property("actionText").toString() !=
+                QCoreApplication::translate("DashboardView", "Retry")) {
+            fail("a dashboard error lacks its icon, error title, description or Retry");
+        }
+    };
+    auto* page = screen.find(QStringLiteral("dashboardPage"));
+    auto* readError = screen.find(QStringLiteral("dashboardReadError"));
+    auto* loadError = screen.find(QStringLiteral("loadSignalsReadError"));
+    if (page == nullptr || readError == nullptr || loadError == nullptr) {
+        fail("the dashboard error states are missing");
+        return;
+    }
+    if (!database.execSql(QStringLiteral("ALTER TABLE attendance RENAME TO attendance_unavailable"),
+                          "hide attendance for dashboard test")) {
+        fail("cannot fail the dashboard load read");
+        return;
+    }
+    reloadExpecting("no such table: attendance");
+    expectErrorState(loadError, "Could not read load data");
+    if (!page->isVisible() || readError->isVisible()) {
+        fail("a failed load read hides the dashboard");
+    }
+    for (const char* name : {"nextMatchCard", "unavailableCard", "formCard", "todayCard"}) {
+        auto* card = screen.find(QString::fromLatin1(name));
+        if (card == nullptr || !card->isVisible() ||
+            card->property("cardState").toString() != QLatin1StringView("content")) {
+            fail("a failed load read hides or empties another dashboard card");
+        }
+    }
+    const auto restoreAndRetry = [&database, &screen](const QString& sql, QQuickItem* error) {
+        auto* retry = findQmlItem(error, "PrimaryButton");
+        if (!database.execSql(sql, "restore dashboard test data") || retry == nullptr ||
+            !retry->isVisible() || !QMetaObject::invokeMethod(retry, "clicked")) {
+            fail("cannot retry the failed dashboard read");
+            return;
+        }
+        waitUntil([&screen] { return !screen.dashboard->busy(); },
+                  "the dashboard retry did not finish");
+        settle();
+        if (error->isVisible() || !screen.dashboard->ready() ||
+            screen.dashboard->loadSignals().isEmpty()) {
+            fail("Retry does not restore the dashboard data");
+        }
+    };
+    restoreAndRetry(QStringLiteral("ALTER TABLE attendance_unavailable RENAME TO attendance"),
+                    loadError);
+    if (!database.execSql(
+            QStringLiteral("ALTER TABLE availability RENAME TO availability_unavailable"),
+            "hide availability for dashboard test")) {
+        fail("cannot fail the dashboard overview read");
+        return;
+    }
+    reloadExpecting("no such table: availability");
+    expectErrorState(readError, "Could not load the dashboard");
+    if (page->isVisible()) {
+        fail("a failed overview read still shows the dashboard content");
+    }
+    restoreAndRetry(QStringLiteral("ALTER TABLE availability_unavailable RENAME TO availability"),
+                    readError);
+}
+
+void exerciseDashboardDemo(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database,
+                           const QString& screenshotDirectory) {
     if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
         fail("cannot load the demo club for the dashboard");
         return;
@@ -6247,6 +6344,7 @@ void exerciseDashboardDemo(QQmlApplicationEngine& engine, const QString& screens
             fail("the chip of the top bar does not open Pre-match for the next match");
         }
     }
+    exerciseDashboardReadErrors(*screen, database);
 }
 
 int main(int argc, char* argv[]) {
@@ -6418,14 +6516,15 @@ int main(int argc, char* argv[]) {
             if (onlyLoad || onlyPreMatch) {
                 break;
             }
-            if (installRegistry(AppState::State::Ready) == nullptr) {
+            auto* database = installRegistry(AppState::State::Ready);
+            if (database == nullptr) {
                 fail("cannot install the service registry");
                 continue;
             }
             {
                 QQmlApplicationEngine engine;
                 if (demo) {
-                    exerciseDashboardDemo(engine, screenshotDirectory);
+                    exerciseDashboardDemo(engine, *database, screenshotDirectory);
                 } else {
                     exerciseDashboardEmptyClub(engine, screenshotDirectory);
                 }

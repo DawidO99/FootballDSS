@@ -102,15 +102,26 @@ protected:
         return true;
     }
 
-    void expectReadFailureClearsBindings(const QString& failingTable) {
+    void expectReadFailureClearsBindings(const QString& failingTable, bool loadOnly = false) {
         loadDemo();
-        // Skip lineup queries, so dropping attendance fails the load read after overview succeeds.
-        ASSERT_TRUE(
-            sql(QStringLiteral("DELETE FROM match WHERE status = ?"), {QStringLiteral("planned")}));
+        // A live match skips lineup attendance queries, leaving overview readable without
+        // attendance.
+        ASSERT_TRUE(sql(QStringLiteral("UPDATE match SET status = ? WHERE id = "
+                                       "(SELECT id FROM match WHERE status = ? "
+                                       "ORDER BY date, kickoff_time, id LIMIT 1)"),
+                        {QStringLiteral("live"), QStringLiteral("planned")}));
         DashboardViewModel dashboard;
         dashboard.setTeamId(m_team.value);
         ASSERT_TRUE(waitForLoad(dashboard));
         ASSERT_FALSE(dashboard.loadSignals().isEmpty());
+        const QVariantList absences = dashboard.unavailable();
+        const QVariantList matches = dashboard.form();
+        const QVariantList sessions = dashboard.todaySessions();
+        const qint64 nextMatch = dashboard.nextMatchId();
+        ASSERT_FALSE(absences.isEmpty());
+        ASSERT_FALSE(matches.isEmpty());
+        ASSERT_FALSE(sessions.isEmpty());
+        ASSERT_NE(nextMatch, 0);
 
         QQmlEngine engine;
         engine.rootContext()->setContextProperty(QStringLiteral("dashboard"), &dashboard);
@@ -120,8 +131,11 @@ protected:
                 readonly property int rows: dashboard.loadSignals.length
                 readonly property int absences: dashboard.unavailable.length
                 readonly property int matches: dashboard.form.length
+                readonly property int sessions: dashboard.todaySessions.length
+                readonly property var nextMatch: dashboard.nextMatchId
                 readonly property bool ready: dashboard.ready
                 readonly property string error: dashboard.readError
+                readonly property string loadError: dashboard.loadError
             })",
                           QUrl());
         const std::unique_ptr<QObject> binding(component.create());
@@ -135,11 +149,32 @@ protected:
         dashboard.reload();
         EXPECT_FALSE(dashboard.busy());
         EXPECT_EQ(binding->property("rows").toInt(), 0);
-        EXPECT_EQ(binding->property("absences").toInt(), 0);
-        EXPECT_EQ(binding->property("matches").toInt(), 0);
-        EXPECT_FALSE(binding->property("ready").toBool());
         EXPECT_FALSE(reported.isEmpty());
-        EXPECT_EQ(binding->property("error").toString(), reported);
+        if (loadOnly) {
+            EXPECT_EQ(dashboard.unavailable(), absences);
+            EXPECT_EQ(dashboard.form(), matches);
+            EXPECT_EQ(dashboard.todaySessions(), sessions);
+            EXPECT_EQ(binding->property("absences").toInt(), absences.size());
+            EXPECT_EQ(binding->property("matches").toInt(), matches.size());
+            EXPECT_EQ(binding->property("sessions").toInt(), sessions.size());
+            EXPECT_EQ(binding->property("nextMatch").toLongLong(), nextMatch);
+            EXPECT_TRUE(binding->property("ready").toBool());
+            EXPECT_TRUE(binding->property("error").toString().isEmpty());
+            EXPECT_EQ(binding->property("loadError").toString(), reported);
+            ASSERT_TRUE(
+                sql(QStringLiteral("ALTER TABLE attendance_unavailable RENAME TO attendance")));
+            dashboard.reload();
+            ASSERT_TRUE(waitForLoad(dashboard));
+            EXPECT_GT(binding->property("rows").toInt(), 0);
+            EXPECT_TRUE(binding->property("loadError").toString().isEmpty());
+        } else {
+            EXPECT_EQ(binding->property("absences").toInt(), 0);
+            EXPECT_EQ(binding->property("matches").toInt(), 0);
+            EXPECT_EQ(binding->property("sessions").toInt(), 0);
+            EXPECT_FALSE(binding->property("ready").toBool());
+            EXPECT_EQ(binding->property("error").toString(), reported);
+            EXPECT_TRUE(binding->property("loadError").toString().isEmpty());
+        }
     }
 
     TeamId m_team;
@@ -355,7 +390,8 @@ TEST_F(DashboardViewModelTest, FourteenRpeDaysShowTheBaselineHintInsteadOfNoSign
 }
 
 TEST_F(DashboardViewModelTest, FailedLoadReadClearsRowsAndPublishesTheErrorToBindings) {
-    expectReadFailureClearsBindings(QStringLiteral("DROP TABLE attendance"));
+    expectReadFailureClearsBindings(
+        QStringLiteral("ALTER TABLE attendance RENAME TO attendance_unavailable"), true);
 }
 
 TEST_F(DashboardViewModelTest, FailedOverviewReadClearsRowsAndPublishesTheErrorToBindings) {

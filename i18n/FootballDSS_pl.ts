@@ -1252,6 +1252,10 @@
         <translation>Ponów</translation>
     </message>
     <message>
+        <source>Could not load the dashboard</source>
+        <translation>Nie udało się wczytać pulpitu</translation>
+    </message>
+    <message>
         <source>Next match</source>
         <translation>Najbliższy mecz</translation>
     </message>
@@ -1274,6 +1278,10 @@
     <message>
         <source>Load signals</source>
         <translation>Sygnały obciążenia</translation>
+    </message>
+    <message>
+        <source>Could not read load data</source>
+        <translation>Nie udało się wczytać danych obciążenia</translation>
     </message>
     <message>
         <source>Signals to talk to the player, not a diagnosis.</source>

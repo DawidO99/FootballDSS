@@ -71,9 +71,14 @@ QString DashboardViewModel::readError() const {
     return m_readFailure ? ErrorPresenter::message(*m_readFailure) : QString{};
 }
 
+QString DashboardViewModel::loadError() const {
+    return m_loadFailure ? ErrorPresenter::message(*m_loadFailure) : QString{};
+}
+
 void DashboardViewModel::reload() {
     const int request = ++m_request;
     m_readFailure.reset();
+    m_loadFailure.reset();
     // ViewAnalysis: every role, and nobody logged out. The services check it again.
     if (m_teamId == 0 || !m_session.isAllowed(core::Permission::ViewAnalysis)) {
         clear();
@@ -93,8 +98,10 @@ void DashboardViewModel::reload() {
     auto future = m_load.teamLoad(core::TeamId{m_teamId});
     if (!future) {
         qCritical("DashboardViewModel: %s", future.error().detail.c_str());
-        m_readFailure = future.error();
-        clear();
+        m_loadFailure = future.error();
+        m_teamLoad.reset();
+        setBusy(false);
+        emit contentChanged();
         emit errorOccurred(ErrorPresenter::message(future.error()));
         return;
     }
@@ -112,6 +119,7 @@ void DashboardViewModel::reload() {
 void DashboardViewModel::clear() {
     m_overview.reset();
     m_teamLoad.reset();
+    m_loadFailure.reset();
     setBusy(false);
     emit contentChanged();
 }
