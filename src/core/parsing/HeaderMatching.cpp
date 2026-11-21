@@ -1,5 +1,7 @@
 #include "core/parsing/HeaderMatching.hpp"
 
+#include "core/parsing/TextEncoding.hpp"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -91,6 +93,30 @@ std::string foldText(std::string_view utf8) {
             pendingSpace = false;
         }
         out.push_back(folded);
+    }
+    return out;
+}
+
+std::string foldName(std::string_view utf8) {
+    std::string out;
+    bool pendingSpace = false;
+    std::size_t index = 0;
+    while (index < utf8.size()) {
+        const char32_t point = nextCodePoint(utf8, index);
+        const char latin = fold(point);
+        if (point <= 0x17F && latin == ' ') {
+            pendingSpace = !out.empty();
+            continue;
+        }
+        if (pendingSpace) {
+            out.push_back(' ');
+            pendingSpace = false;
+        }
+        if (point <= 0x17F) {
+            out.push_back(latin);
+        } else {
+            appendUtf8(out, point);
+        }
     }
     return out;
 }

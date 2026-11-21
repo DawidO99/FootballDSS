@@ -89,13 +89,14 @@ public:
                   const core::SquadMapping& mapping) const;
 
     // `rows` are the result of validateSquad() for the same source and mapping. Backup (file
-    // databases), then one transaction: the players, import_log with the hash and the mapping.
-    // Errors: invalid rows with InvalidRows::Abort: InvalidInput ("import_has_errors"); no row to
-    // write: InvalidInput ("import_nothing"); a backup or a write that fails (a locked database:
-    // DatabaseLocked) writes nothing.
+    // databases), then one transaction: re-check matching against the current squad, the players,
+    // import_log with the hash and the mapping. `rows` receives the refreshed report, also on
+    // abort. Errors: invalid rows with InvalidRows::Abort: InvalidInput ("import_has_errors"); no
+    // row to write: InvalidInput ("import_nothing"); a backup or a write that fails (a locked
+    // database: DatabaseLocked) writes nothing.
     [[nodiscard]] core::Result<SquadImportSummary>
     commitSquad(core::TeamId team, const ImportSource& source, const core::SquadMapping& mapping,
-                std::span<const core::SquadRow> rows, SquadImportOptions options);
+                std::span<core::SquadRow> rows, SquadImportOptions options);
 
     // Deletes the players the import created, or archives the ones something references (also a
     // saved lineup); updated players stay as they are (packet P16 decision 3). Backup first.

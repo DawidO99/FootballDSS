@@ -205,6 +205,7 @@ private:
     void rebuildMappingRows();
     void rebuildReport();
     void clearReport();
+    void invalidateValidation();
     [[nodiscard]] int currentYear() const;
     [[nodiscard]] core::ExistingPolicy existingPolicy() const;
     [[nodiscard]] QString previousImportText() const;

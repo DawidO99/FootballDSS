@@ -7,9 +7,8 @@
 
 // CSV of an import (SPEC section 8 step 2, RFC 4180 plus what spreadsheets write): fields in double
 // quotes may hold the delimiter, line breaks and "" for a quote; a quote inside an unquoted field
-// is an ordinary character; CRLF, LF and a lone CR end a record. A quote left open at the end of
-// the file takes the rest of the file into its field: the row then fails validation with its line
-// number instead of the whole file failing.
+// is an ordinary character; CRLF, LF and a lone CR end a record. An unterminated quoted field is
+// a file-level InvalidInput error, with its opening line in field "import_csv_quote:<line>".
 
 namespace fdss::core {
 
@@ -21,6 +20,6 @@ inline constexpr char kDefaultDelimiter = ';';
 
 // Every record with the line it starts on (1-based). Empty lines are kept as records without
 // cells, so the line numbers stay right; toSourceTable() drops blank rows.
-[[nodiscard]] std::vector<SourceRow> parseCsv(std::string_view utf8, char delimiter);
+[[nodiscard]] Result<std::vector<SourceRow>> parseCsv(std::string_view utf8, char delimiter);
 
 } // namespace fdss::core

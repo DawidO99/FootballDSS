@@ -118,7 +118,7 @@ protected:
         if (defaultPosition) {
             mapping.defaultPosition = defaultPosition;
         }
-        const auto rows = validate(source, mapping);
+        auto rows = validate(source, mapping);
         return m_service->commitSquad(kTeam, source, mapping, rows, options);
     }
 
@@ -279,7 +279,7 @@ TEST_F(ImportServiceTest, DuplicatePlayersInTheFileAndInTheTeam) {
     addPlayer("Piotr", "Lis", 11);
     const ImportSource source = read(fixture("duplicates.csv"));
     const SquadMapping mapping = suggested(source);
-    const auto rows = validate(source, mapping);
+    auto rows = validate(source, mapping);
     ASSERT_EQ(rows.size(), 5U);
     EXPECT_EQ(rows[0].status(), RowStatus::Error); // Jan Kowalski twice
     EXPECT_EQ(rows[1].status(), RowStatus::Error); // number 9 twice
@@ -299,7 +299,7 @@ TEST_F(ImportServiceTest, DuplicatePlayersInTheFileAndInTheTeam) {
 TEST_F(ImportServiceTest, UnknownPositionsSkipOrAbort) {
     const ImportSource source = read(fixture("unknown-positions.csv"));
     const SquadMapping mapping = suggested(source);
-    const auto rows = validate(source, mapping);
+    auto rows = validate(source, mapping);
     ASSERT_EQ(rows.size(), 4U);
     EXPECT_EQ(rows[0].status(), RowStatus::Error);
     EXPECT_EQ(rows[1].status(), RowStatus::Warning);
@@ -321,7 +321,7 @@ TEST_F(ImportServiceTest, FileWithoutPositionUsesTheDefault) {
     SquadMapping mapping = suggested(source);
     EXPECT_TRUE(needsDefaultPosition(mapping, source.table));
     mapping.defaultPosition = Position::Cm;
-    const auto rows = validate(source, mapping);
+    auto rows = validate(source, mapping);
     ASSERT_EQ(rows.size(), 3U);
     for (const SquadRow& row : rows) {
         EXPECT_EQ(row.status(), RowStatus::Warning);
@@ -356,7 +356,7 @@ TEST_F(ImportServiceTest, ConfirmedMappingIsOfferedAgain) {
     EXPECT_FALSE(m_service->suggestSquadMapping(source)->remembered);
     SquadMapping mapping = suggested(source);
     mapping.columns[2].reset(); // ignore "Nr"
-    const auto rows = validate(source, mapping);
+    auto rows = validate(source, mapping);
     ASSERT_TRUE(m_service->commitSquad(kTeam, source, mapping, rows, {}).has_value());
     const auto again = m_service->suggestSquadMapping(source);
     ASSERT_TRUE(again.has_value());
@@ -413,7 +413,7 @@ TEST_F(ImportServiceTest, UndoCountsUpdatedPlayersAsNotReverted) {
 TEST_F(ImportServiceTest, LockedDatabaseWritesNothing) {
     const ImportSource source = read(fixture("utf8-bom.csv"));
     const SquadMapping mapping = suggested(source);
-    const auto rows = validate(source, mapping);
+    auto rows = validate(source, mapping);
     {
         RawConnection other(databasePath());
         ASSERT_TRUE(run(other.database(), QStringLiteral("BEGIN EXCLUSIVE")));
@@ -441,7 +441,7 @@ TEST_F(ImportServiceTest, CsvTemplateRoundTrips) {
     EXPECT_TRUE(checkMapping(mapping, source.table).empty());
     EXPECT_TRUE(
         std::ranges::all_of(mapping.columns, [](const auto& field) { return field.has_value(); }));
-    const auto rows = validate(source, mapping);
+    auto rows = validate(source, mapping);
     ASSERT_TRUE(m_service->commitSquad(kTeam, source, mapping, rows, {}).has_value());
     const auto stored = players();
     ASSERT_EQ(stored.size(), 2U);
@@ -470,7 +470,7 @@ TEST_F(ImportServiceTest, XlsxTemplateRoundTrips) {
     EXPECT_EQ(source.kind, ImportFileKind::Xlsx);
     const SquadMapping mapping = suggested(source);
     EXPECT_TRUE(checkMapping(mapping, source.table).empty());
-    const auto rows = validate(source, mapping);
+    auto rows = validate(source, mapping);
     ASSERT_TRUE(m_service->commitSquad(kTeam, source, mapping, rows, {}).has_value());
     const auto stored = players();
     ASSERT_EQ(stored.size(), 1U);
@@ -486,6 +486,79 @@ TEST_F(ImportServiceTest, ValidationReportsProgress) {
     future->waitForFinished();
     EXPECT_EQ(future->progressMaximum(), 20);
     EXPECT_EQ(future->progressValue(), 20);
+}
+
+TEST_F(ImportServiceTest, CommitRechecksNewPlayersWithTheSkipPolicy) {
+    const auto source = read(fixture("utf8-bom.csv"));
+    const auto mapping = suggested(source);
+    auto rows = validate(source, mapping);
+    const auto id = addPlayer("Łukasz", "Żółkiewski", std::nullopt);
+    const auto summary = m_service->commitSquad(kTeam, source, mapping, rows, {});
+    ASSERT_TRUE(summary.has_value()) << summary.error().detail;
+    EXPECT_EQ(summary->created, 1);
+    EXPECT_EQ(summary->skippedExisting, 1);
+    EXPECT_EQ(rows.front().existing, id);
+    EXPECT_TRUE(std::ranges::any_of(rows.front().issues, [](const RowIssue& issue) {
+        return issue.kind == RowIssueKind::MatchChanged;
+    }));
+    EXPECT_EQ(players().size(), 2U);
+    EXPECT_FALSE(m_players->get(id)->shirtNumber.has_value());
+}
+
+TEST_F(ImportServiceTest, CommitRechecksNewPlayersWithTheUpdatePolicy) {
+    const auto source = read(fixture("utf8-bom.csv"));
+    const auto mapping = suggested(source);
+    auto rows = validate(source, mapping);
+    const auto id = addPlayer("Łukasz", "Żółkiewski", std::nullopt);
+    const auto summary = m_service->commitSquad(kTeam, source, mapping, rows,
+                                                {ExistingPolicy::Update, InvalidRows::Skip});
+    ASSERT_TRUE(summary.has_value()) << summary.error().detail;
+    EXPECT_EQ(summary->created, 1);
+    EXPECT_EQ(summary->updated, 1);
+    EXPECT_EQ(players().size(), 2U);
+    EXPECT_EQ(m_players->get(id)->shirtNumber, 9);
+    EXPECT_EQ(m_players->get(id)->birthYear, 2001);
+    EXPECT_EQ(rows.front().existing, id);
+    EXPECT_TRUE(std::ranges::any_of(rows.front().issues, [](const RowIssue& issue) {
+        return issue.kind == RowIssueKind::MatchChanged;
+    }));
+}
+
+TEST_F(ImportServiceTest, NumberConflictIsARowErrorAndAbortWritesNothing) {
+    addPlayer("Jan", "Kowalski", 7);
+    addPlayer("Adam", "Nowak", 9);
+    const auto source = read(fixture("number-conflict.csv"));
+    const auto mapping = suggested(source);
+    auto rows = validate(source, mapping);
+    ASSERT_EQ(rows.front().status(), RowStatus::Error);
+    expectError(m_service->commitSquad(kTeam, source, mapping, rows,
+                                       {ExistingPolicy::Update, InvalidRows::Abort}),
+                ErrorCode::InvalidInput, "import_has_errors");
+    EXPECT_EQ(players().size(), 2U);
+    EXPECT_EQ(count("SELECT count(*) FROM import_log"), 0);
+    const auto skipped = m_service->commitSquad(kTeam, source, mapping, rows,
+                                                {ExistingPolicy::Update, InvalidRows::Skip});
+    ASSERT_TRUE(skipped.has_value()) << skipped.error().detail;
+    EXPECT_EQ(skipped->created, 1);
+    EXPECT_EQ(skipped->invalid, 1);
+}
+
+TEST_F(ImportServiceTest, NumberTakenAfterValidationIsReportedBeforeAbort) {
+    addPlayer("Łukasz", "Żółkiewski", 7);
+    const auto source = read(fixture("utf8-bom.csv"));
+    const auto mapping = suggested(source);
+    auto rows = validate(source, mapping);
+    ASSERT_EQ(rows.front().status(), RowStatus::Ok);
+    addPlayer("Adam", "Nowak", 9);
+    expectError(m_service->commitSquad(kTeam, source, mapping, rows,
+                                       {ExistingPolicy::Update, InvalidRows::Abort}),
+                ErrorCode::InvalidInput, "import_has_errors");
+    EXPECT_EQ(rows.front().status(), RowStatus::Error);
+    EXPECT_TRUE(std::ranges::any_of(rows.front().issues, [](const RowIssue& issue) {
+        return issue.kind == RowIssueKind::NumberConflict;
+    }));
+    EXPECT_EQ(players().size(), 2U);
+    EXPECT_EQ(count("SELECT count(*) FROM import_log"), 0);
 }
 
 } // namespace

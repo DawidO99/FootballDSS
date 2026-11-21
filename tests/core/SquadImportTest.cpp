@@ -14,7 +14,9 @@ namespace {
 constexpr int kCurrentYear = 2026;
 
 SourceTable table(std::string_view csv) {
-    auto result = toSourceTable(parseCsv(csv, ';'));
+    auto parsed = parseCsv(csv, ';');
+    EXPECT_TRUE(parsed.has_value());
+    auto result = toSourceTable(parsed.value_or(std::vector<SourceRow>{}));
     EXPECT_TRUE(result.has_value());
     return result.value_or(SourceTable{});
 }
@@ -169,6 +171,15 @@ TEST(SquadValuesTest, BirthYearFromAYearOrADate) {
     EXPECT_EQ(parseBirthYear("May 2001"), std::nullopt);
 }
 
+TEST(SquadValuesTest, BirthDatesMustExistInTheCalendar) {
+    for (const auto value :
+         {"2001-20-01", "31.02.2001", "2001-02-29", "31/04/2001", "2001-00-01", "2001-01-00"}) {
+        EXPECT_EQ(parseBirthYear(value), std::nullopt) << value;
+    }
+    EXPECT_EQ(parseBirthYear("2000-02-29"), 2000);
+    EXPECT_EQ(parseBirthYear("29.02.2000"), 2000);
+}
+
 // --- Rows ---
 
 TEST(SquadRowsTest, ValidRowIsOk) {
@@ -300,6 +311,31 @@ TEST(SquadRowsTest, DuplicatesInTheFileNameEachOther) {
     EXPECT_EQ(nameIssue->otherRows, (std::vector<int>{2}));
 }
 
+TEST(SquadRowsTest, LargeDuplicateGroupUsesLinearReportStorage) {
+    constexpr int kRows = 100000;
+    SourceTable source;
+    source.headers = {"Imię", "Nazwisko", "Nr", "Pozycja"};
+    source.rows.reserve(kRows);
+    for (int index = 0; index < kRows; ++index) {
+        source.rows.push_back(SourceRow{index + 2, {"Jan", "Kowalski", "7", "N"}});
+    }
+    const auto rows = validateSquad(source, autoMapSquad(source.headers), {}, kCurrentYear);
+    ASSERT_EQ(rows.size(), kRows);
+    std::size_t references = 0;
+    for (const SquadRow& row : rows) {
+        ASSERT_EQ(row.status(), RowStatus::Error);
+        ASSERT_EQ(row.issues.size(), 2U);
+        for (const RowIssue& issue : row.issues) {
+            ASSERT_EQ(issue.kind, RowIssueKind::DuplicateInFile);
+            EXPECT_EQ(issue.duplicateCount, kRows - 1);
+            ASSERT_EQ(issue.otherRows.size(), 1U);
+            EXPECT_NE(issue.otherRows.front(), row.sourceRow);
+            references += issue.otherRows.size();
+        }
+    }
+    EXPECT_EQ(references, 2U * kRows);
+}
+
 // --- Existing players ---
 
 TEST(SquadMatchTest, SameNameIsTheExistingPlayer) {
@@ -333,11 +369,36 @@ TEST(SquadMatchTest, NumberOfAnotherPlayerIsAmbiguous) {
     EXPECT_EQ(actionFor(rows[0], ExistingPolicy::Update), RowAction::SkipAmbiguous);
 }
 
-TEST(SquadMatchTest, NameAndNumberOfTwoPlayersIsAmbiguous) {
+TEST(SquadMatchTest, ChangingANumberToAnotherPlayersNumberIsAnError) {
     const std::vector existing = {player(1, "Jan", "Kowalski", 7), player(2, "Adam", "Nowak", 9)};
     const auto rows = validate("Imię;Nazwisko;Nr;Pozycja\nJan;Kowalski;9;N\n", existing);
-    EXPECT_EQ(rows[0].match, PlayerMatch::Ambiguous);
-    EXPECT_EQ(findIssue(rows[0], RowIssueKind::AmbiguousMatch)->candidates.size(), 2U);
+    EXPECT_EQ(rows[0].status(), RowStatus::Error);
+    EXPECT_EQ(rows[0].existing, PlayerId{1});
+    const auto* issue = findIssue(rows[0], RowIssueKind::NumberConflict);
+    ASSERT_NE(issue, nullptr);
+    ASSERT_EQ(issue->candidates.size(), 1U);
+    EXPECT_EQ(issue->candidates.front().id, PlayerId{2});
+}
+
+TEST(SquadMatchTest, DifferentCyrillicNamesNeverMatchOrBecomeDuplicates) {
+    const std::vector existing = {player(1, "Андрій", "Шевченко", std::nullopt)};
+    const auto rows =
+        validate("Imię;Nazwisko;Pozycja\nІван;Петренко;N\nАндрій;Шевченко;N\n", existing);
+    ASSERT_EQ(rows.size(), 2U);
+    EXPECT_EQ(rows[0].match, PlayerMatch::New);
+    EXPECT_EQ(rows[0].status(), RowStatus::Ok);
+    EXPECT_EQ(rows[1].existing, PlayerId{1});
+    EXPECT_EQ(rows[1].status(), RowStatus::Ok);
+}
+
+TEST(SquadMatchTest, EmptyNormalisedNamesNeverMatchAnything) {
+    const std::vector existing = {player(1, "--", "--", 7)};
+    const auto rows = validate("Imię;Nazwisko;Nr;Pozycja\n--;--;7;N\n--;--;;N\n", existing);
+    for (const auto& row : rows) {
+        EXPECT_EQ(row.match, PlayerMatch::New);
+        EXPECT_FALSE(row.existing.has_value());
+        EXPECT_FALSE(hasIssue(row, RowIssueKind::DuplicateInFile, SquadField::LastName));
+    }
 }
 
 TEST(SquadMatchTest, TwoPlayersOfTheSameNameNeedTheNumber) {
@@ -378,6 +439,21 @@ TEST(SquadMatchTest, UpdateChangesOnlyFilledValues) {
     EXPECT_EQ(merged.foot, PreferredFoot::Right);
     EXPECT_EQ(merged.notes, "kapitan");
     EXPECT_EQ(merged.secondaryPositions, (std::vector<Position>{Position::St}));
+}
+
+TEST(SquadMatchTest, SecondaryPositionsUseTheResultingPrimaryPosition) {
+    Player stored = player(1, "Jan", "Kowalski", 7);
+    stored.primaryPosition = Position::St;
+    stored.secondaryPositions = {Position::Rw};
+    const std::vector existing = {stored};
+    const auto rows =
+        validate("Imię;Nazwisko;Pozycje dodatkowe\nJan;Kowalski;ŚO\n", existing, Position::Cb);
+    const auto merged = mergeUpdate(stored, rows.front());
+    EXPECT_EQ(merged.primaryPosition, Position::St);
+    EXPECT_EQ(merged.secondaryPositions, (std::vector<Position>{Position::Cb}));
+    const auto redundant =
+        validate("Imię;Nazwisko;Pozycje dodatkowe\nJan;Kowalski;N\n", existing, Position::Cb);
+    EXPECT_TRUE(mergeUpdate(stored, redundant.front()).secondaryPositions.empty());
 }
 
 TEST(SquadMatchTest, ProgressCountsRows) {

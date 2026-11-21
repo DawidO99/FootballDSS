@@ -159,8 +159,22 @@ QString ImportTexts::issue(const core::RowIssue& issue, int currentYear) {
     case core::RowIssueKind::UnknownFoot:
         return tr("foot '%1' is unknown, saved as unknown").arg(value);
     case core::RowIssueKind::DuplicateInFile:
+        if (issue.duplicateCount > 1) {
+            return number ? tr("the same shirt number occurs in %n other row(s), including row %1",
+                               nullptr, issue.duplicateCount)
+                                .arg(rowList(issue.otherRows))
+                          : tr("the same player occurs in %n other row(s), including row %1",
+                               nullptr, issue.duplicateCount)
+                                .arg(rowList(issue.otherRows));
+        }
         return number ? tr("the same shirt number is in row %1").arg(rowList(issue.otherRows))
                       : tr("the same player is in row %1").arg(rowList(issue.otherRows));
+    case core::RowIssueKind::NumberConflict:
+        return tr("shirt number '%1' belongs to %2; choose a free number")
+            .arg(value, playerList(issue.candidates));
+    case core::RowIssueKind::MatchChanged:
+        return tr(
+            "the squad changed after checking; the current match and selected policy are used");
     case core::RowIssueKind::AmbiguousMatch:
         if (number && issue.candidates.size() == 1) {
             return tr("the shirt number belongs to %1, skipped").arg(playerList(issue.candidates));

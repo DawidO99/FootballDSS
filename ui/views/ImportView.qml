@@ -630,6 +630,13 @@ Item {
                         tone: Theme.info
                     }
 
+                    ProblemLine {
+                        Layout.fillWidth: true
+                        text: wizard.summary.changedMatches ?? ""
+                        iconName: "warn"
+                        tone: Theme.warn
+                    }
+
                     RowLayout {
                         spacing: Theme.spacing.m
 

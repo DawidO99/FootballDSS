@@ -58,7 +58,11 @@ core::Status readCsv(const QByteArray& bytes, ImportSource& source) {
     source.kind = ImportFileKind::Csv;
     source.encoding = decoded.encoding;
     source.delimiter = core::detectDelimiter(decoded.utf8);
-    auto table = core::toSourceTable(core::parseCsv(decoded.utf8, source.delimiter));
+    auto rows = core::parseCsv(decoded.utf8, source.delimiter);
+    if (!rows) {
+        return std::unexpected(rows.error());
+    }
+    auto table = core::toSourceTable(std::move(*rows));
     if (!table) {
         return std::unexpected(table.error());
     }

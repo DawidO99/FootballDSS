@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <format>
 
 namespace fdss::core {
 
@@ -84,13 +85,14 @@ char detectDelimiter(std::string_view utf8) {
     return best == kDelimiters.size() ? kDefaultDelimiter : kDelimiters[best];
 }
 
-std::vector<SourceRow> parseCsv(std::string_view utf8, char delimiter) {
+Result<std::vector<SourceRow>> parseCsv(std::string_view utf8, char delimiter) {
     std::vector<SourceRow> rows;
     SourceRow row{1, {}};
     std::string field;
     bool fieldStarted = false; // the record has at least one field, even an empty one
     bool inQuotes = false;
     int line = 1;
+    int quoteLine = 0;
 
     const auto endField = [&] {
         row.cells.push_back(std::move(field));
@@ -130,6 +132,7 @@ std::vector<SourceRow> parseCsv(std::string_view utf8, char delimiter) {
         }
         if (character == '"' && field.empty()) {
             inQuotes = true;
+            quoteLine = line;
             fieldStarted = true;
             ++index;
             continue;
@@ -151,7 +154,12 @@ std::vector<SourceRow> parseCsv(std::string_view utf8, char delimiter) {
         field.push_back(character);
         ++index;
     }
-    // The last record has no line break after it, or the file ends inside quotes.
+    if (inQuotes) {
+        return std::unexpected(Error{ErrorCode::InvalidInput,
+                                     std::format("unterminated CSV quote at line {}", quoteLine),
+                                     std::format("import_csv_quote:{}", quoteLine)});
+    }
+    // The last record has no line break after it.
     if (fieldStarted || !field.empty()) {
         endRecord();
     }

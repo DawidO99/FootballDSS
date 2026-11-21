@@ -16,6 +16,7 @@
 #include <QEvent>
 #include <QFile>
 #include <QFutureWatcher>
+#include <QSaveFile>
 #include <QTimeZone>
 
 #include <algorithm>
@@ -92,9 +93,8 @@ void ImportWizardViewModel::setTeamId(qint64 teamId) {
     m_teamId = teamId;
     emit teamIdChanged();
     // The report compared the rows with the players of the other team.
-    if (m_step == kReportStep) {
-        clearReport();
-        setStep(kMappingStep);
+    if (m_step == kReportStep || (m_busy && m_validation)) {
+        invalidateValidation();
     }
 }
 
@@ -299,6 +299,9 @@ void ImportWizardViewModel::setUpdateExisting(bool update) {
         return;
     }
     m_updateExisting = update;
+    if (m_busy && m_validation) {
+        invalidateValidation();
+    }
     rebuildReport();
 }
 
@@ -309,12 +312,15 @@ void ImportWizardViewModel::setSkipInvalid(bool skip) {
         return;
     }
     m_skipInvalid = skip;
+    if (m_busy && m_validation) {
+        invalidateValidation();
+    }
     emit reportChanged();
 }
 
 bool ImportWizardViewModel::canCommit() const {
-    return !m_busy && m_step == kReportStep && canImport() && createCount() + updateCount() > 0 &&
-           (errorCount() == 0 || m_skipInvalid);
+    return !m_busy && m_step == kReportStep && m_source && m_source->tableStatus && canImport() &&
+           createCount() + updateCount() > 0 && (errorCount() == 0 || m_skipInvalid);
 }
 
 QVariantMap ImportWizardViewModel::summary() const {
@@ -327,6 +333,16 @@ QVariantMap ImportWizardViewModel::summary() const {
     values.insert(QStringLiteral("skipped"),
                   m_summary->skippedExisting + m_summary->skippedAmbiguous);
     values.insert(QStringLiteral("invalid"), m_summary->invalid);
+    QStringList changedMatches;
+    for (const core::SquadRow& row : m_rows) {
+        if (std::ranges::any_of(row.issues, [](const core::RowIssue& issue) {
+                return issue.kind == core::RowIssueKind::MatchChanged;
+            })) {
+            changedMatches.append(ImportTexts::rowMessage(row, currentYear()) + QLatin1Char(' ') +
+                                  ImportTexts::actionName(core::actionFor(row, existingPolicy())));
+        }
+    }
+    values.insert(QStringLiteral("changedMatches"), changedMatches.join(QLatin1Char('\n')));
     if (m_undo) {
         values.insert(QStringLiteral("deleted"), m_undo->deleted);
         values.insert(QStringLiteral("archived"), m_undo->archived);
@@ -399,7 +415,7 @@ void ImportWizardViewModel::setColumnField(int column, const QString& field) {
         }
     }
     columns[static_cast<std::size_t>(column)] = value;
-    clearReport();
+    invalidateValidation();
     rebuildMappingRows();
     emit mappingChanged();
 }
@@ -410,7 +426,7 @@ void ImportWizardViewModel::setNameOrder(const QString& order) {
         return;
     }
     m_squadMapping.nameOrder = *value;
-    clearReport();
+    invalidateValidation();
     emit mappingChanged();
 }
 
@@ -427,7 +443,7 @@ void ImportWizardViewModel::setDefaultPosition(const QString& position) {
         return;
     }
     m_squadMapping.defaultPosition = value;
-    clearReport();
+    invalidateValidation();
     emit mappingChanged();
 }
 
@@ -450,16 +466,22 @@ void ImportWizardViewModel::validate() {
     delete m_validation;
     m_validation = new QFutureWatcher<std::vector<core::SquadRow>>(this);
     auto* watcher = m_validation;
-    connect(watcher, &QFutureWatcherBase::progressValueChanged, this, [this, watcher](int value) {
-        const int maximum = watcher->progressMaximum();
-        m_progress = maximum > 0 ? static_cast<double>(value) / maximum : 0;
-        emit progressChanged();
-    });
+    connect(watcher, &QFutureWatcherBase::progressValueChanged, this,
+            [this, watcher, request](int value) {
+                if (request != m_request) {
+                    return;
+                }
+                const int maximum = watcher->progressMaximum();
+                m_progress = maximum > 0 ? static_cast<double>(value) / maximum : 0;
+                emit progressChanged();
+            });
     connect(watcher, &QFutureWatcherBase::finished, this, [this, watcher, request] {
         if (request != m_request || watcher->future().resultCount() == 0) {
             return;
         }
         m_rows = watcher->result();
+        m_validation = nullptr;
+        watcher->deleteLater();
         setBusy(false);
         rebuildReport();
         setStep(kReportStep);
@@ -476,6 +498,7 @@ void ImportWizardViewModel::commit() {
                                                              : services::InvalidRows::Abort};
     auto result =
         m_imports.commitSquad(core::TeamId{m_teamId}, *m_source, m_squadMapping, m_rows, options);
+    rebuildReport();
     if (!result) {
         emit errorOccurred(ErrorPresenter::message(result.error()));
         return;
@@ -523,8 +546,7 @@ void ImportWizardViewModel::back() {
 }
 
 void ImportWizardViewModel::reset() {
-    ++m_request; // drops a read or a validation still running
-    setBusy(false);
+    invalidateValidation();
     setErrorText({});
     m_error.reset();
     m_source.reset();
@@ -548,14 +570,13 @@ bool ImportWizardViewModel::saveTemplate(const QUrl& target, const QString& form
                                ? QStringLiteral(":/fdss/import-templates/squad.xlsx")
                                : QStringLiteral(":/fdss/import-templates/squad.csv");
     const QString path = target.isLocalFile() ? target.toLocalFile() : target.toString();
-    // The file dialog asked before replacing a file.
-    if (QFile::exists(path)) {
-        QFile::remove(path);
-    }
-    // A copy of a resource is read-only.
-    if (!QFile::copy(source, path) ||
-        !QFile::setPermissions(path, QFile::ReadOwner | QFile::WriteOwner | QFile::ReadGroup |
-                                         QFile::ReadOther)) {
+    QFile resource(source);
+    QSaveFile output(path);
+    output.setDirectWriteFallback(false);
+    const bool readable = resource.open(QIODevice::ReadOnly);
+    const QByteArray bytes = readable ? resource.readAll() : QByteArray{};
+    if (!readable || resource.error() != QFile::NoError || !output.open(QIODevice::WriteOnly) ||
+        output.write(bytes) != bytes.size() || !output.commit()) {
         qWarning("ImportWizardViewModel: cannot write the template to %s", qUtf8Printable(path));
         emit errorOccurred(ErrorPresenter::message(
             core::Error{core::ErrorCode::Io, "cannot write the template", "import_template"}));
@@ -577,6 +598,7 @@ bool ImportWizardViewModel::eventFilter(QObject* watched, QEvent* event) {
         emit textsChanged();
         emit sourceChanged();
         emit mappingChanged();
+        emit summaryChanged();
     }
     return QObject::eventFilter(watched, event);
 }
@@ -585,6 +607,7 @@ void ImportWizardViewModel::read(const QString& path, std::optional<int> sheet) 
     if (!canImport()) {
         return;
     }
+    invalidateValidation();
     const int request = ++m_request;
     setErrorText({});
     m_error.reset();
@@ -726,6 +749,21 @@ void ImportWizardViewModel::clearReport() {
     m_rows.clear();
     m_report->setRows({});
     emit reportChanged();
+}
+
+void ImportWizardViewModel::invalidateValidation() {
+    ++m_request;
+    if (m_validation) {
+        m_validation->cancel();
+        disconnect(m_validation, nullptr, this, nullptr);
+        m_validation->deleteLater();
+        m_validation = nullptr;
+    }
+    setBusy(false);
+    clearReport();
+    if (m_step == kReportStep) {
+        setStep(kMappingStep);
+    }
 }
 
 int ImportWizardViewModel::currentYear() const {

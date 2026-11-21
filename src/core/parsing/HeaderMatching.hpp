@@ -15,6 +15,10 @@ namespace fdss::core {
 // other characters one space; trimmed.
 [[nodiscard]] std::string foldText(std::string_view utf8);
 
+// Name matching: fold Latin case/diacritics and ASCII separators as above, preserving all
+// other Unicode code points instead of discarding letters from other scripts.
+[[nodiscard]] std::string foldName(std::string_view utf8);
+
 // The synonyms of one field of an import type, already folded. `field` is the value of that
 // type's own field enum, so every import type reuses the matching.
 struct FieldSynonyms {

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <charconv>
+#include <chrono>
 #include <map>
 #include <utility>
 
@@ -143,7 +144,9 @@ std::string collapseSpaces(std::string_view text) {
 }
 
 std::string nameKey(std::string_view firstName, std::string_view lastName) {
-    return foldText(firstName) + '\x1F' + foldText(lastName);
+    const std::string first = foldName(firstName);
+    const std::string last = foldName(lastName);
+    return first.empty() || last.empty() ? std::string{} : first + '\x1F' + last;
 }
 
 bool allDigits(std::string_view text) {
@@ -275,12 +278,13 @@ void readPositions(const RowContext& context, SquadRow& row) {
     }
     std::vector<Position> unique;
     for (const Position position : secondary) {
-        if (position != row.draft.primaryPosition &&
-            std::ranges::find(unique, position) == unique.end()) {
+        if (std::ranges::find(unique, position) == unique.end()) {
             unique.push_back(position);
         }
     }
     row.filled.secondaryPositions = !unique.empty();
+    row.secondaryCandidates = unique;
+    std::erase(unique, row.draft.primaryPosition);
     row.draft.secondaryPositions = std::move(unique);
 }
 
@@ -329,11 +333,9 @@ void markDuplicates(std::vector<SquadRow>& rows,
         }
         for (const std::size_t member : members) {
             RowIssue issue{RowIssueKind::DuplicateInFile, IssueSeverity::Error, field, {}, {}, {}};
-            for (const std::size_t other : members) {
-                if (other != member) {
-                    issue.otherRows.push_back(rows[other].sourceRow);
-                }
-            }
+            const std::size_t other = members.front() == member ? members[1] : members.front();
+            issue.otherRows.push_back(rows[other].sourceRow);
+            issue.duplicateCount = static_cast<int>(members.size() - 1);
             rows[member].issues.push_back(std::move(issue));
         }
     }
@@ -348,7 +350,10 @@ void findDuplicates(std::vector<SquadRow>& rows, const ColumnOf& columns) {
             byNumber[std::to_string(*row.draft.shirtNumber)].push_back(index);
         }
         if (row.filled.name) {
-            byName[nameKey(row.draft.firstName, row.draft.lastName)].push_back(index);
+            const std::string key = nameKey(row.draft.firstName, row.draft.lastName);
+            if (!key.empty()) {
+                byName[key].push_back(index);
+            }
         }
     }
     markDuplicates(rows, byNumber, SquadField::ShirtNumber);
@@ -362,6 +367,9 @@ void findDuplicates(std::vector<SquadRow>& rows, const ColumnOf& columns) {
 // player with another name is ambiguous and skipped.
 void matchExisting(SquadRow& row, std::span<const Player> existing, SquadField nameField) {
     const std::string key = nameKey(row.draft.firstName, row.draft.lastName);
+    if (key.empty()) {
+        return;
+    }
     std::vector<const Player*> byName;
     const Player* byNumber = nullptr;
     for (const Player& player : existing) {
@@ -387,7 +395,14 @@ void matchExisting(SquadRow& row, std::span<const Player> existing, SquadField n
 
     if (byName.size() == 1) {
         if (byNumber != nullptr && byNumber != byName.front()) {
-            ambiguous(SquadField::ShirtNumber, {byName.front(), byNumber});
+            existingPlayer(*byName.front());
+            RowIssue issue{RowIssueKind::NumberConflict,
+                           IssueSeverity::Error,
+                           SquadField::ShirtNumber,
+                           std::to_string(*row.draft.shirtNumber),
+                           {},
+                           {refOf(*byNumber)}};
+            row.issues.push_back(std::move(issue));
         } else {
             existingPlayer(*byName.front());
         }
@@ -405,7 +420,8 @@ void matchExisting(SquadRow& row, std::span<const Player> existing, SquadField n
         return;
     }
     if (byNumber != nullptr) {
-        if (foldText(byNumber->lastName) == foldText(row.draft.lastName)) {
+        const std::string last = foldName(row.draft.lastName);
+        if (!last.empty() && foldName(byNumber->lastName) == last) {
             existingPlayer(*byNumber);
         } else {
             ambiguous(SquadField::ShirtNumber, {byNumber});
@@ -565,6 +581,33 @@ std::vector<SquadRow> validateSquad(const SourceTable& table, const SquadMapping
     return rows;
 }
 
+void recheckSquadMatches(std::span<SquadRow> rows, const SquadMapping& mapping,
+                         std::span<const Player> existing) {
+    const SquadField nameField = columnsOf(mapping)[indexOf(SquadField::FullName)]
+                                     ? SquadField::FullName
+                                     : SquadField::LastName;
+    for (SquadRow& row : rows) {
+        const PlayerMatch oldMatch = row.match;
+        const auto oldId = row.existing;
+        const bool oldConflict = hasIssueOn(row, SquadField::ShirtNumber);
+        std::erase_if(row.issues, [](const RowIssue& issue) {
+            return issue.kind == RowIssueKind::AmbiguousMatch ||
+                   issue.kind == RowIssueKind::NumberConflict ||
+                   issue.kind == RowIssueKind::MatchChanged;
+        });
+        row.match = PlayerMatch::New;
+        row.existing.reset();
+        if (row.status() == RowStatus::Error) {
+            continue;
+        }
+        matchExisting(row, existing, nameField);
+        if (row.match != oldMatch || row.existing != oldId ||
+            hasIssueOn(row, SquadField::ShirtNumber) != oldConflict) {
+            addIssue(row, RowIssueKind::MatchChanged, IssueSeverity::Warning, nameField);
+        }
+    }
+}
+
 RowAction actionFor(const SquadRow& row, ExistingPolicy policy) noexcept {
     if (row.status() == RowStatus::Error) {
         return RowAction::Invalid;
@@ -596,7 +639,7 @@ PlayerDraft mergeUpdate(const Player& existing, const SquadRow& row) {
         draft.primaryPosition = row.draft.primaryPosition;
     }
     if (row.filled.secondaryPositions) {
-        draft.secondaryPositions = row.draft.secondaryPositions;
+        draft.secondaryPositions = row.secondaryCandidates;
     }
     if (row.filled.foot) {
         draft.foot = row.draft.foot;
@@ -661,10 +704,22 @@ std::optional<int> parseBirthYear(std::string_view text) {
     }
     const auto a = toInt(first);
     const auto b = toInt(second);
-    if (!a || !b || *a < 1 || *a > 31 || *b < 1 || *b > 31 || (*a > 12 && *b > 12)) {
+    const auto y = toInt(year);
+    if (!a || !b || !y) {
         return std::nullopt;
     }
-    return toInt(year);
+    const auto valid = [&](int month, int day) {
+        return std::chrono::year_month_day{std::chrono::year{*y},
+                                           std::chrono::month{static_cast<unsigned>(month)},
+                                           std::chrono::day{static_cast<unsigned>(day)}}
+            .ok();
+    };
+    // ISO is unambiguously year-month-day; local dates may be day-month or month-day.
+    const bool isIso = parts[0].size() == 4;
+    if (isIso ? !valid(*a, *b) : (!valid(*b, *a) && !valid(*a, *b))) {
+        return std::nullopt;
+    }
+    return y;
 }
 
 } // namespace fdss::core

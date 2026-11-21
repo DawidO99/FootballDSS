@@ -17,9 +17,6 @@ namespace fdss::data {
 
 namespace {
 
-// Formatting applied to a whole column makes the sheet look a million rows long; this many blank
-// rows in a row end the data.
-constexpr int kBlankRowsToStop = 1000;
 // Doubles hold whole numbers exactly up to 2^53.
 constexpr double kLargestExactInteger = 9007199254740992.0;
 
@@ -72,7 +69,6 @@ std::vector<core::SourceRow> readRows(const QXlsx::Document& document) {
     if (!range.isValid()) {
         return rows;
     }
-    int blankRun = 0;
     for (int row = range.firstRow(); row <= range.lastRow(); ++row) {
         core::SourceRow sourceRow{row, {}};
         bool blank = true;
@@ -83,12 +79,8 @@ std::vector<core::SourceRow> readRows(const QXlsx::Document& document) {
             sourceRow.cells.push_back(text.toStdString());
         }
         if (blank) {
-            if (++blankRun >= kBlankRowsToStop) {
-                break;
-            }
             continue;
         }
-        blankRun = 0;
         rows.push_back(std::move(sourceRow));
     }
     return rows;

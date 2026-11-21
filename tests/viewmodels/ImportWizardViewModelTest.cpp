@@ -1,6 +1,7 @@
 #include "viewmodels/ImportWizardViewModel.hpp"
 
 #include "ViewModelFixture.hpp"
+#include "data/repositories/PlayerRepository.hpp"
 #include "services/Session.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
 #include "viewmodels/RowsModel.hpp"
@@ -10,8 +11,17 @@
 #include <QFile>
 #include <QSqlQuery>
 #include <QTemporaryDir>
+#include <QThreadPool>
 
 #include <gtest/gtest.h>
+
+#include <array>
+#include <functional>
+
+#ifdef Q_OS_UNIX
+#include <csignal>
+#include <sys/resource.h>
+#endif
 
 using namespace fdss;
 using namespace fdss::tests;
@@ -264,5 +274,101 @@ TEST_F(ImportWizardViewModelTest, SavesTheTemplates) {
         EXPECT_EQ(saved.readAll(), resource.readAll());
     }
 }
+
+TEST_F(ImportWizardViewModelTest, MappingAndOptionChangesInvalidateRunningValidation) {
+    const std::array<std::function<void(ImportWizardViewModel&)>, 5> changes = {
+        [](auto& wizard) { wizard.setColumnField(2, QString()); },
+        [](auto& wizard) { wizard.setNameOrder(QStringLiteral("last_first")); },
+        [](auto& wizard) { wizard.setDefaultPosition(QStringLiteral("cb")); },
+        [](auto& wizard) { wizard.setUpdateExisting(true); },
+        [](auto& wizard) { wizard.setSkipInvalid(false); }};
+    for (const auto& change : changes) {
+        ImportWizardViewModel wizard;
+        ASSERT_NO_FATAL_FAILURE(open(wizard, "utf8-bom.csv"));
+        wizard.goToMapping();
+        wizard.validate();
+        ASSERT_TRUE(wizard.busy());
+        change(wizard);
+        ASSERT_TRUE(QThreadPool::globalInstance()->waitForDone(5000));
+        QCoreApplication::processEvents();
+        EXPECT_FALSE(wizard.busy());
+        EXPECT_EQ(wizard.step(), QStringLiteral("mapping"));
+        EXPECT_EQ(wizard.report()->rowCount(), 0);
+        EXPECT_FALSE(wizard.canCommit());
+        wizard.commit();
+        EXPECT_EQ(playerCount(), 0);
+        ASSERT_NO_FATAL_FAILURE(validate(wizard));
+        EXPECT_TRUE(wizard.canCommit());
+    }
+}
+
+TEST_F(ImportWizardViewModelTest, IgnoredColumnWithAnOpenQuoteStopsTheWholeWizard) {
+    ImportWizardViewModel wizard;
+    ASSERT_NO_FATAL_FAILURE(open(wizard, "unterminated-quote.csv"));
+    EXPECT_EQ(wizard.step(), QStringLiteral("file"));
+    EXPECT_EQ(wizard.errorText(), viewmodels::ErrorPresenter::message(core::Error{
+                                      core::ErrorCode::InvalidInput, {}, "import_csv_quote:2"}));
+    wizard.goToMapping();
+    wizard.validate();
+    wizard.commit();
+    EXPECT_EQ(wizard.step(), QStringLiteral("file"));
+    EXPECT_FALSE(wizard.canCommit());
+    EXPECT_EQ(wizard.report()->rowCount(), 0);
+    EXPECT_EQ(playerCount(), 0);
+}
+
+TEST_F(ImportWizardViewModelTest, CommitRefreshesTheReportWhenTheSquadChanged) {
+    ImportWizardViewModel wizard;
+    ASSERT_NO_FATAL_FAILURE(open(wizard, "utf8-bom.csv"));
+    wizard.goToMapping();
+    ASSERT_NO_FATAL_FAILURE(validate(wizard));
+    core::PlayerDraft draft;
+    draft.firstName = "Łukasz";
+    draft.lastName = "Żółkiewski";
+    draft.primaryPosition = core::Position::St;
+    data::PlayerRepository players(*m_db);
+    ASSERT_TRUE(players.create(core::TeamId{m_team}, draft).has_value());
+    wizard.commit();
+    EXPECT_EQ(wizard.step(), QStringLiteral("summary"));
+    EXPECT_EQ(wizard.summary().value(QStringLiteral("created")).toInt(), 1);
+    EXPECT_EQ(wizard.summary().value(QStringLiteral("skipped")).toInt(), 1);
+    EXPECT_EQ(wizard.reportRow(0).value(QStringLiteral("statusKey")).toString(),
+              QStringLiteral("warning"));
+    EXPECT_FALSE(wizard.reportRow(0).value(QStringLiteral("message")).toString().isEmpty());
+    EXPECT_FALSE(wizard.summary().value(QStringLiteral("changedMatches")).toString().isEmpty());
+    EXPECT_EQ(playerCount(), 2);
+}
+
+#ifdef Q_OS_UNIX
+TEST_F(ImportWizardViewModelTest, TemplateWriteFailureKeepsTheOriginalFile) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("kadra.xlsx"));
+    const QByteArray original("original user data");
+    {
+        QFile file(path);
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+        ASSERT_EQ(file.write(original), original.size());
+    }
+    struct rlimit originalLimit {};
+    ASSERT_EQ(getrlimit(RLIMIT_FSIZE, &originalLimit), 0);
+    auto limited = originalLimit;
+    limited.rlim_cur = 0;
+    const auto previousHandler = std::signal(SIGXFSZ, SIG_IGN);
+    const int applied = setrlimit(RLIMIT_FSIZE, &limited);
+    ImportWizardViewModel wizard;
+    // Creating the temporary file succeeds, but writing/committing its bytes fails with EFBIG.
+    const bool saved =
+        applied == 0 && wizard.saveTemplate(QUrl::fromLocalFile(path), QStringLiteral("xlsx"));
+    const int restored = setrlimit(RLIMIT_FSIZE, &originalLimit);
+    std::signal(SIGXFSZ, previousHandler);
+    ASSERT_EQ(applied, 0);
+    ASSERT_EQ(restored, 0);
+    EXPECT_FALSE(saved);
+    QFile file(path);
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    EXPECT_EQ(file.readAll(), original);
+}
+#endif
 
 } // namespace

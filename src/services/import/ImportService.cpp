@@ -154,11 +154,26 @@ core::Status ImportService::backup(std::string_view reason) {
 core::Result<SquadImportSummary> ImportService::commitSquad(core::TeamId team,
                                                             const ImportSource& source,
                                                             const core::SquadMapping& mapping,
-                                                            std::span<const core::SquadRow> rows,
+                                                            std::span<core::SquadRow> rows,
                                                             SquadImportOptions options) {
     if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
         return std::unexpected(allowed.error());
     }
+    if (!source.tableStatus) {
+        return std::unexpected(source.tableStatus.error());
+    }
+    if (auto saved = backup("import"); !saved) {
+        return std::unexpected(saved.error());
+    }
+    auto transaction = data::Transaction::begin(m_database);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    const auto currentPlayers = m_players.list(team, data::ArchivedPlayers::Exclude);
+    if (!currentPlayers) {
+        return std::unexpected(currentPlayers.error());
+    }
+    core::recheckSquadMatches(rows, mapping, *currentPlayers);
     SquadImportSummary summary;
     for (const core::SquadRow& row : rows) {
         switch (core::actionFor(row, options.existing)) {
@@ -187,13 +202,6 @@ core::Result<SquadImportSummary> ImportService::commitSquad(core::TeamId team,
     }
     const int currentYear = static_cast<int>(m_clock.today().year());
 
-    if (auto saved = backup("import"); !saved) {
-        return std::unexpected(saved.error());
-    }
-    auto transaction = data::Transaction::begin(m_database);
-    if (!transaction) {
-        return std::unexpected(transaction.error());
-    }
     data::ImportLogDraft log;
     log.timestamp = m_clock.now();
     log.file = source.fileName.toStdString();

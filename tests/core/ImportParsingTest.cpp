@@ -16,6 +16,12 @@ namespace {
 
 using Cells = std::vector<std::string>;
 
+std::vector<SourceRow> parsedRows(std::string_view text, char delimiter) {
+    auto result = parseCsv(text, delimiter);
+    EXPECT_TRUE(result.has_value());
+    return result.value_or(std::vector<SourceRow>{});
+}
+
 std::vector<Cells> cellsOf(const std::vector<SourceRow>& rows) {
     std::vector<Cells> result;
     for (const SourceRow& row : rows) {
@@ -92,14 +98,14 @@ TEST(CsvTest, OneColumnGetsTheDefault) {
 }
 
 TEST(CsvTest, SplitsRecordsAndFields) {
-    const auto rows = parseCsv("a;b;c\r\n1;2;3\n", ';');
+    const auto rows = parsedRows("a;b;c\r\n1;2;3\n", ';');
     EXPECT_EQ(cellsOf(rows), (std::vector<Cells>{{"a", "b", "c"}, {"1", "2", "3"}}));
     EXPECT_EQ(rows[1].number, 2);
 }
 
 TEST(CsvTest, QuotesKeepDelimitersLineBreaksAndQuotes) {
     const auto rows =
-        parseCsv("\"Kowalski; Jan\",\"say \"\"hi\"\"\",\"two\nlines\"\nnext,x,y", ',');
+        parsedRows("\"Kowalski; Jan\",\"say \"\"hi\"\"\",\"two\nlines\"\nnext,x,y", ',');
     ASSERT_EQ(rows.size(), 2U);
     EXPECT_EQ(rows[0].cells, (Cells{"Kowalski; Jan", "say \"hi\"", "two\nlines"}));
     // The record after a quoted line break starts on line 3.
@@ -108,12 +114,12 @@ TEST(CsvTest, QuotesKeepDelimitersLineBreaksAndQuotes) {
 }
 
 TEST(CsvTest, CommaInsideQuotedFieldWithCommaDelimiter) {
-    const auto rows = parseCsv("name,nr\n\"Nowak, Adam\",9\n", ',');
+    const auto rows = parsedRows("name,nr\n\"Nowak, Adam\",9\n", ',');
     EXPECT_EQ(rows[1].cells, (Cells{"Nowak, Adam", "9"}));
 }
 
 TEST(CsvTest, EmptyFieldsAndEmptyLines) {
-    const auto rows = parseCsv("a;;c\n\n;;\n", ';');
+    const auto rows = parsedRows("a;;c\n\n;;\n", ';');
     ASSERT_EQ(rows.size(), 3U);
     EXPECT_EQ(rows[0].cells, (Cells{"a", "", "c"}));
     EXPECT_TRUE(rows[1].cells.empty());
@@ -122,23 +128,25 @@ TEST(CsvTest, EmptyFieldsAndEmptyLines) {
 }
 
 TEST(CsvTest, QuoteInsideUnquotedFieldIsText) {
-    EXPECT_EQ(parseCsv("12\" tall;x", ';')[0].cells, (Cells{"12\" tall", "x"}));
+    EXPECT_EQ(parsedRows("12\" tall;x", ';')[0].cells, (Cells{"12\" tall", "x"}));
 }
 
-TEST(CsvTest, OpenQuoteTakesTheRestOfTheFile) {
-    const auto rows = parseCsv("a;\"open\nb;c\n", ';');
-    ASSERT_EQ(rows.size(), 1U);
-    EXPECT_EQ(rows[0].cells, (Cells{"a", "open\nb;c\n"}));
+TEST(CsvTest, OpenQuoteFailsTheFileWithTheOpeningLine) {
+    const auto rows = parseCsv("a;b\r\n1;\"open\nb;c\n", ';');
+    ASSERT_FALSE(rows.has_value());
+    EXPECT_EQ(rows.error().code, ErrorCode::InvalidInput);
+    EXPECT_EQ(rows.error().field, "import_csv_quote:2");
+    EXPECT_FALSE(parseCsv("\"open;b\n1;2\n", ';').has_value());
 }
 
 TEST(CsvTest, LoneCarriageReturnEndsARecord) {
-    EXPECT_EQ(cellsOf(parseCsv("a\rb", ';')), (std::vector<Cells>{{"a"}, {"b"}}));
+    EXPECT_EQ(cellsOf(parsedRows("a\rb", ';')), (std::vector<Cells>{{"a"}, {"b"}}));
 }
 
 // --- Source table ---
 
 TEST(SourceTableTest, FirstNonBlankRowIsTheHeader) {
-    const auto table = toSourceTable(parseCsv(";;\n Nazwisko ;Imię;\n\nKowalski;Jan;\n", ';'));
+    const auto table = toSourceTable(parsedRows(";;\n Nazwisko ;Imię;\n\nKowalski;Jan;\n", ';'));
     ASSERT_TRUE(table.has_value());
     EXPECT_EQ(table->headerRow, 2);
     EXPECT_EQ(table->headers, (Cells{"Nazwisko", "Imię"}));
@@ -148,16 +156,16 @@ TEST(SourceTableTest, FirstNonBlankRowIsTheHeader) {
 }
 
 TEST(SourceTableTest, EmptyFileAndHeaderOnly) {
-    const auto empty = toSourceTable(parseCsv(" \n;;\n", ';'));
+    const auto empty = toSourceTable(parsedRows(" \n;;\n", ';'));
     ASSERT_FALSE(empty.has_value());
     EXPECT_EQ(empty.error().field, "import_empty");
-    const auto headerOnly = toSourceTable(parseCsv("Nazwisko;Imię\n", ';'));
+    const auto headerOnly = toSourceTable(parsedRows("Nazwisko;Imię\n", ';'));
     ASSERT_FALSE(headerOnly.has_value());
     EXPECT_EQ(headerOnly.error().field, "import_no_rows");
 }
 
 TEST(SourceTableTest, DataBeyondTheHeaderKeepsAnEmptyHeader) {
-    const auto table = toSourceTable(parseCsv("a;b\n1;2;3\n", ';'));
+    const auto table = toSourceTable(parsedRows("a;b\n1;2;3\n", ';'));
     ASSERT_TRUE(table.has_value());
     EXPECT_EQ(table->headers, (Cells{"a", "b", ""}));
     EXPECT_EQ(cellAt(table->rows[0], 2), "3");
@@ -173,6 +181,15 @@ TEST(HeaderMatchingTest, FoldsCaseDiacriticsAndPunctuation) {
     EXPECT_EQ(foldText("Nr."), "nr");
     EXPECT_EQ(foldText("#"), "#");
     EXPECT_EQ(foldText("ŻÓŁTA Łódź ß"), "zolta lodz s");
+}
+
+TEST(HeaderMatchingTest, NamesPreserveLettersFromEveryScript) {
+    EXPECT_EQ(foldName(" ŻÓŁKIEWSKI "), "zolkiewski");
+    for (const std::string name :
+         {"Андрій", "Шевченко", "Іван", "Петренко", "王", "محمد", "Νίκος"}) {
+        EXPECT_EQ(foldName(name), name);
+    }
+    EXPECT_TRUE(foldName(" -- ").empty());
 }
 
 TEST(HeaderMatchingTest, FirstHeaderWinsAField) {

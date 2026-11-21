@@ -92,6 +92,8 @@ enum class RowIssueKind {
     UnknownFoot,     // warning: stored as unknown
     DuplicateInFile, // error: same shirt number or same name as `otherRows`
     AmbiguousMatch,  // warning: several players of the team fit, the row is skipped
+    NumberConflict,  // error: the matched player's new number belongs to another player
+    MatchChanged,    // warning: matching changed between validation and commit
 };
 
 // A player of the team that a row could mean.
@@ -109,8 +111,9 @@ struct RowIssue {
     IssueSeverity severity = IssueSeverity::Error;
     SquadField field = SquadField::LastName;
     std::string value;                 // the cell as written, trimmed
-    std::vector<int> otherRows;        // DuplicateInFile
+    std::vector<int> otherRows;        // DuplicateInFile: one representative other row
     std::vector<PlayerRef> candidates; // AmbiguousMatch
+    int duplicateCount = 0;            // number of other occurrences, without copying the group
 
     friend bool operator==(const RowIssue&, const RowIssue&) = default;
 };
@@ -134,6 +137,8 @@ struct SquadRow {
     int sourceRow = 0;
     PlayerDraft draft;
     FilledFields filled;
+    // Recognised secondary positions before excluding the resulting primary position.
+    std::vector<Position> secondaryCandidates;
     std::vector<RowIssue> issues;
     PlayerMatch match = PlayerMatch::New;
     std::optional<PlayerId> existing; // PlayerMatch::Existing
@@ -147,6 +152,11 @@ struct SquadRow {
 validateSquad(const SourceTable& table, const SquadMapping& mapping,
               std::span<const Player> existing, int currentYear,
               const std::function<void(std::size_t)>& progress = {});
+
+// Re-check against a current squad snapshot inside the commit transaction. Updates matching
+// issues in the report, marking changed matches, without repeating parsing or row validation.
+void recheckSquadMatches(std::span<SquadRow> rows, const SquadMapping& mapping,
+                         std::span<const Player> existing);
 
 enum class ExistingPolicy { Update, Skip };
 enum class RowAction { Create, Update, SkipExisting, SkipAmbiguous, Invalid };

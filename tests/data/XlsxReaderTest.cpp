@@ -66,4 +66,12 @@ TEST(XlsxReaderTest, ReadsOnAWorkerThread) {
     EXPECT_EQ(book->rows.size(), 4U);
 }
 
+TEST(XlsxReaderTest, ReadsDataAfterMoreThanAThousandBlankRows) {
+    const auto book = readXlsx(fixture("blank-gap.xlsx"), 0);
+    ASSERT_TRUE(book.has_value()) << book.error().detail;
+    ASSERT_EQ(book->rows.size(), 3U);
+    EXPECT_EQ(book->rows.back().number, 1003);
+    EXPECT_EQ(book->rows.back().cells, (Cells{"Adam", "Nowak", "N"}));
+}
+
 } // namespace
