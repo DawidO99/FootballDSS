@@ -1,4 +1,6 @@
 add_library(fdss_core STATIC
+    algorithms/Capabilities.hpp
+    algorithms/Capabilities.cpp
     algorithms/Formations.hpp
     algorithms/Formations.cpp
     algorithms/LineupRules.hpp

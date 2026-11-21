@@ -1013,6 +1013,58 @@
         <translation>Dodaj trening</translation>
     </message>
     <message>
+        <source>Dashboard: DashboardCard, DashboardRow, LockedState</source>
+        <translation>Pulpit: DashboardCard, DashboardRow, LockedState</translation>
+    </message>
+    <message>
+        <source>Unavailable: %1</source>
+        <translation>Niedostępni: %1</translation>
+    </message>
+    <message>
+        <source>Sample player</source>
+        <translation>Przykładowy zawodnik</translation>
+    </message>
+    <message>
+        <source>Injury</source>
+        <translation>Kontuzja</translation>
+    </message>
+    <message>
+        <source>Today&apos;s training</source>
+        <translation>Dzisiejsze zajęcia</translation>
+    </message>
+    <message>
+        <source>No session today. Plan sessions in the calendar.</source>
+        <translation>Dziś nie ma zajęć. Zaplanuj zajęcia w kalendarzu.</translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation>Otwórz kalendarz</translation>
+    </message>
+    <message>
+        <source>Load signals</source>
+        <translation>Sygnały obciążenia</translation>
+    </message>
+    <message>
+        <source>Enter RPE after sessions to see load signals and trends. Days with RPE still needed: %1.</source>
+        <translation>Wpisuj RPE po zajęciach, aby widzieć sygnały i trendy obciążenia. Brakujące dni z RPE: %1.</translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the physio to enter RPE after sessions.</source>
+        <translation>Poproś trenera, asystenta lub fizjoterapeutę o wpisywanie RPE po zajęciach.</translation>
+    </message>
+    <message>
+        <source>Pre-match</source>
+        <translation>Przed meczem</translation>
+    </message>
+    <message>
+        <source>Add players to use the tactics board and the lineup validator. Players still needed: %1.</source>
+        <translation>Dodaj zawodników, aby korzystać z tablicy taktycznej i walidatora składu. Brakujący zawodnicy: %1.</translation>
+    </message>
+    <message>
+        <source>Add players</source>
+        <translation>Dodaj zawodników</translation>
+    </message>
+    <message>
         <source>Match Day: MatchClockBar, MatchPlayerTile, MatchTimeline</source>
         <translation>Tryb meczowy: MatchClockBar, MatchPlayerTile, MatchTimeline</translation>
     </message>
@@ -1196,12 +1248,68 @@
         <translation>Pulpit</translation>
     </message>
     <message>
+        <source>Next match</source>
+        <translation>Najbliższy mecz</translation>
+    </message>
+    <message>
+        <source>Open Match Day</source>
+        <translation>Otwórz tryb meczowy</translation>
+    </message>
+    <message>
+        <source>Open Pre-match</source>
+        <translation>Otwórz „Przed meczem”</translation>
+    </message>
+    <message>
+        <source>Unavailable: %1</source>
+        <translation>Niedostępni: %1</translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation>Niedostępni</translation>
+    </message>
+    <message>
+        <source>Load signals</source>
+        <translation>Sygnały obciążenia</translation>
+    </message>
+    <message>
+        <source>Signals to talk to the player, not a diagnosis.</source>
+        <translation>Sygnały do rozmowy z zawodnikiem, nie diagnoza.</translation>
+    </message>
+    <message>
+        <source>Reading the load data…</source>
+        <translation>Wczytywanie danych obciążenia…</translation>
+    </message>
+    <message>
+        <source>Form: last 5 matches</source>
+        <translation>Forma: ostatnie 5 meczów</translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation>%1 %2</translation>
+    </message>
+    <message>
+        <source>%1, %2 %3</source>
+        <translation>%1, %2 %3</translation>
+    </message>
+    <message>
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <source>Today&apos;s training</source>
+        <translation>Dzisiejsze zajęcia</translation>
+    </message>
+    <message>
+        <source>Features</source>
+        <translation>Funkcje</translation>
+    </message>
+    <message>
         <source>The next match, unavailable players, load signals and recent form will appear here once your squad is set up.</source>
-        <translation>Gdy skonfigurujesz kadrę, zobaczysz tu najbliższy mecz, niedostępnych zawodników, sygnały obciążenia i ostatnią formę.</translation>
+        <translation type="vanished">Gdy skonfigurujesz kadrę, zobaczysz tu najbliższy mecz, niedostępnych zawodników, sygnały obciążenia i ostatnią formę.</translation>
     </message>
     <message>
         <source>Set up the squad</source>
-        <translation>Skonfiguruj kadrę</translation>
+        <translation type="vanished">Skonfiguruj kadrę</translation>
     </message>
 </context>
 <context>
@@ -1525,6 +1633,17 @@
     <message>
         <source>Record a training session</source>
         <translation>Zapisz trening</translation>
+    </message>
+</context>
+<context>
+    <name>LockedState</name>
+    <message>
+        <source>Locked: %1</source>
+        <translation>Zablokowane: %1</translation>
+    </message>
+    <message>
+        <source>Locked</source>
+        <translation>Zablokowane</translation>
     </message>
 </context>
 <context>
@@ -3003,6 +3122,22 @@
         <translation>Ekran „Przed meczem” ostrzega, gdy zawodnikowi brakuje jednej żółtej kartki do pauzy w rozgrywkach danego meczu.</translation>
     </message>
     <message>
+        <source>Modules</source>
+        <translation>Moduły</translation>
+    </message>
+    <message>
+        <source>Advanced modules</source>
+        <translation>Moduły zaawansowane</translation>
+    </message>
+    <message>
+        <source>Pro analysis appears once event data is imported. On: it is listed on the dashboard before that, with what to import.</source>
+        <translation>Analiza Pro pojawia się po imporcie danych zdarzeń. Włączone: jest widoczna na pulpicie już wcześniej, z informacją, co zaimportować.</translation>
+    </message>
+    <message>
+        <source>Show advanced modules</source>
+        <translation>Pokaż moduły zaawansowane</translation>
+    </message>
+    <message>
         <source>Club details, custom metrics and backups will be configured here.</source>
         <translation>Tutaj skonfigurujesz dane klubu, metryki własne i kopie zapasowe.</translation>
     </message>
@@ -3286,6 +3421,17 @@
     </message>
 </context>
 <context>
+    <name>SidebarButton</name>
+    <message>
+        <source>%1, locked</source>
+        <translation>%1, zablokowane</translation>
+    </message>
+    <message>
+        <source>%1 (locked): %2</source>
+        <translation>%1 (zablokowane): %2</translation>
+    </message>
+</context>
+<context>
     <name>SlotPickerDialog</name>
     <message>
         <source>Close</source>
@@ -3538,6 +3684,10 @@
     <message>
         <source>Search</source>
         <translation>Szukaj</translation>
+    </message>
+    <message>
+        <source>Next match: %1, %2</source>
+        <translation>Najbliższy mecz: %1, %2</translation>
     </message>
     <message>
         <source>%1, %2</source>
@@ -3793,6 +3943,290 @@
     <message>
         <source>This session has saved attendance for %1 players. Delete it together with the attendance?</source>
         <translation>Ta sesja ma zapisaną frekwencję %1 zawodników. Usunąć ją razem z frekwencją?</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::CapabilityModel</name>
+    <message>
+        <source>Squad</source>
+        <translation>Kadra</translation>
+    </message>
+    <message>
+        <source>Matches</source>
+        <translation>Mecze</translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation>Obciążenie</translation>
+    </message>
+    <message>
+        <source>Ratings</source>
+        <translation>Oceny</translation>
+    </message>
+    <message>
+        <source>Opponents</source>
+        <translation>Rywale</translation>
+    </message>
+    <message>
+        <source>Event data</source>
+        <translation>Dane zdarzeń</translation>
+    </message>
+    <message>
+        <source>Locked</source>
+        <translation>Zablokowane</translation>
+    </message>
+    <message>
+        <source>Available</source>
+        <translation>Dostępne</translation>
+    </message>
+    <message>
+        <source>Tactics board and lineup validator</source>
+        <translation>Tablica taktyczna i walidator składu</translation>
+    </message>
+    <message>
+        <source>Match report, form and minutes</source>
+        <translation>Raport meczowy, forma i minuty</translation>
+    </message>
+    <message>
+        <source>Load signals and trends</source>
+        <translation>Sygnały i trendy obciążenia</translation>
+    </message>
+    <message>
+        <source>Lineup assistant</source>
+        <translation>Asystent składu</translation>
+    </message>
+    <message>
+        <source>Opponent profile</source>
+        <translation>Profil rywala</translation>
+    </message>
+    <message>
+        <source>Pro analysis: shot map and heatmaps</source>
+        <translation>Analiza Pro: mapa strzałów i mapy cieplne</translation>
+    </message>
+    <message>
+        <source>Days until the full acute:chronic comparison: %1.</source>
+        <translation>Dni do pełnego porównania ostre:przewlekłe: %1.</translation>
+    </message>
+    <message>
+        <source>Add players to use the tactics board and the lineup validator. Players still needed: %1.</source>
+        <translation>Dodaj zawodników, aby korzystać z tablicy taktycznej i walidatora składu. Brakujący zawodnicy: %1.</translation>
+    </message>
+    <message>
+        <source>Finish a match to see the match report, form and minutes. Matches still needed: %1.</source>
+        <translation>Zakończ mecz, aby zobaczyć raport meczowy, formę i minuty. Brakujące mecze: %1.</translation>
+    </message>
+    <message>
+        <source>Enter RPE after sessions to see load signals and trends. Days with RPE still needed: %1.</source>
+        <translation>Wpisuj RPE po zajęciach, aby widzieć sygnały i trendy obciążenia. Brakujące dni z RPE: %1.</translation>
+    </message>
+    <message>
+        <source>Rate the players after a match, or enter attributes or custom metrics, to use the lineup assistant.</source>
+        <translation>Oceń zawodników po meczu albo wpisz atrybuty lub metryki własne, aby korzystać z asystenta składu.</translation>
+    </message>
+    <message>
+        <source>Enter the results of finished matches to see opponent profiles. Matches with a result still needed: %1.</source>
+        <translation>Wpisz wyniki zakończonych meczów, aby zobaczyć profile rywali. Brakujące mecze z wynikiem: %1.</translation>
+    </message>
+    <message>
+        <source>Import an event data file (StatsBomb JSON) to unlock Pro analysis.</source>
+        <translation>Zaimportuj plik danych zdarzeń (StatsBomb JSON), aby odblokować analizę Pro.</translation>
+    </message>
+    <message>
+        <source>Add players</source>
+        <translation>Dodaj zawodników</translation>
+    </message>
+    <message>
+        <source>Open training</source>
+        <translation>Otwórz trening</translation>
+    </message>
+    <message>
+        <source>Open import</source>
+        <translation>Otwórz import</translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation>Otwórz kalendarz</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add the players.</source>
+        <translation>Poproś trenera lub asystenta o dodanie zawodników.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to enter a finished match.</source>
+        <translation>Poproś trenera lub asystenta o wpisanie zakończonego meczu.</translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the physio to enter RPE after sessions.</source>
+        <translation>Poproś trenera, asystenta lub fizjoterapeutę o wpisywanie RPE po zajęciach.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to rate the players after a match.</source>
+        <translation>Poproś trenera lub asystenta o ocenienie zawodników po meczu.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to enter the results of finished matches.</source>
+        <translation>Poproś trenera lub asystenta o wpisanie wyników zakończonych meczów.</translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the analyst to import an event data file.</source>
+        <translation>Poproś trenera, asystenta lub analityka o import pliku danych zdarzeń.</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::DashboardViewModel</name>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message>
+        <source> · </source>
+        <extracomment>Separates the venue, the kick-off and the competition of the next match.</extracomment>
+        <translation> · </translation>
+    </message>
+    <message>
+        <source>Match in progress</source>
+        <translation>Mecz trwa</translation>
+    </message>
+    <message>
+        <source>Today</source>
+        <translation>Dziś</translation>
+    </message>
+    <message>
+        <source>Tomorrow</source>
+        <translation>Jutro</translation>
+    </message>
+    <message>
+        <source>In %1 days</source>
+        <extracomment>Days to the next match, 2 or more: &quot;Za %1 dni&quot; fits every such number in Polish.</extracomment>
+        <translation>Za %1 dni</translation>
+    </message>
+    <message>
+        <source>No lineup saved yet</source>
+        <translation>Skład jeszcze niezapisany</translation>
+    </message>
+    <message>
+        <source>Lineup issues: %1</source>
+        <translation>Problemy ze składem: %1</translation>
+    </message>
+    <message>
+        <source>Lineup ready</source>
+        <translation>Skład gotowy</translation>
+    </message>
+    <message>
+        <source>Lineup ready, warnings: %1</source>
+        <translation>Skład gotowy, ostrzeżenia: %1</translation>
+    </message>
+    <message>
+        <source>No match is planned. Add the next match in the calendar.</source>
+        <translation>Nie zaplanowano meczu. Dodaj najbliższy mecz w kalendarzu.</translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation>Otwórz kalendarz</translation>
+    </message>
+    <message>
+        <source>No match is planned. Ask the coach or the assistant to add the next match.</source>
+        <translation>Nie zaplanowano meczu. Poproś trenera lub asystenta o dodanie najbliższego meczu.</translation>
+    </message>
+    <message>
+        <source>Expected back: %1</source>
+        <translation>Planowany powrót: %1</translation>
+    </message>
+    <message>
+        <source>Return date not known</source>
+        <translation>Termin powrotu nieznany</translation>
+    </message>
+    <message>
+        <source>Everyone is available today. Injuries, illnesses and absences are entered on the player card.</source>
+        <translation>Dziś wszyscy są dostępni. Kontuzje, choroby i nieobecności wpisuje się w karcie zawodnika.</translation>
+    </message>
+    <message>
+        <source>Open the squad</source>
+        <translation>Otwórz kadrę</translation>
+    </message>
+    <message>
+        <source>Everyone is available today. The coach, the assistant or the physio enters injuries, illnesses and absences.</source>
+        <translation>Dziś wszyscy są dostępni. Kontuzje, choroby i nieobecności wpisuje trener, asystent lub fizjoterapeuta.</translation>
+    </message>
+    <message>
+        <source>No load signals today. The Load screen shows the whole team.</source>
+        <translation>Dziś brak sygnałów obciążenia. Ekran Obciążenie pokazuje całą drużynę.</translation>
+    </message>
+    <message>
+        <source>Open load</source>
+        <translation>Otwórz obciążenie</translation>
+    </message>
+    <message>
+        <source>–</source>
+        <extracomment>No result stored: shown instead of W, D or L.</extracomment>
+        <translation>–</translation>
+    </message>
+    <message>
+        <source>No result</source>
+        <translation>Brak wyniku</translation>
+    </message>
+    <message>
+        <source>%1:%2</source>
+        <translation>%1:%2</translation>
+    </message>
+    <message>
+        <source>W</source>
+        <extracomment>Win, one letter (Polish: Z).</extracomment>
+        <translation>Z</translation>
+    </message>
+    <message>
+        <source>Win</source>
+        <translation>Zwycięstwo</translation>
+    </message>
+    <message>
+        <source>D</source>
+        <extracomment>Draw, one letter (Polish: R).</extracomment>
+        <translation>R</translation>
+    </message>
+    <message>
+        <source>Draw</source>
+        <translation>Remis</translation>
+    </message>
+    <message>
+        <source>L</source>
+        <extracomment>Loss, one letter (Polish: P).</extracomment>
+        <translation>P</translation>
+    </message>
+    <message>
+        <source>Loss</source>
+        <translation>Porażka</translation>
+    </message>
+    <message>
+        <source>Rating: %1</source>
+        <translation>Ocena: %1</translation>
+    </message>
+    <message>
+        <source>No ratings</source>
+        <translation>Brak ocen</translation>
+    </message>
+    <message>
+        <source>Goals: %1:%2</source>
+        <translation>Bramki: %1:%2</translation>
+    </message>
+    <message>
+        <source>%1 · Average rating: %2</source>
+        <translation>%1 · Średnia ocena: %2</translation>
+    </message>
+    <message>
+        <source>No start time</source>
+        <translation>Bez godziny</translation>
+    </message>
+    <message>
+        <source>%1 min</source>
+        <translation>%1 min</translation>
+    </message>
+    <message>
+        <source>No session today. Plan sessions in the calendar.</source>
+        <translation>Dziś nie ma zajęć. Zaplanuj zajęcia w kalendarzu.</translation>
+    </message>
+    <message>
+        <source>No session today. Ask the coach or the assistant to plan a session.</source>
+        <translation>Dziś nie ma zajęć. Poproś trenera lub asystenta o zaplanowanie zajęć.</translation>
     </message>
 </context>
 <context>

@@ -15,14 +15,15 @@ NavigationModel::NavigationModel(QObject* parent)
           {QStringLiteral("squad"), QT_TR_NOOP("Squad"), QStringLiteral("squad")},
           {QStringLiteral("calendar"), QT_TR_NOOP("Calendar"), QStringLiteral("calendar")},
           {QStringLiteral("training"), QT_TR_NOOP("Training"), QStringLiteral("training")},
-          {QStringLiteral("prematch"), QT_TR_NOOP("Pre-match"), QStringLiteral("prematch")},
+          {QStringLiteral("prematch"), QT_TR_NOOP("Pre-match"), QStringLiteral("prematch"), true,
+           QStringLiteral("squad")},
           {QStringLiteral("matchday"), QT_TR_NOOP("Match Day"), QStringLiteral("matchday")},
           {QStringLiteral("load"), QT_TR_NOOP("Load"), QStringLiteral("load")},
           {QStringLiteral("import"), QT_TR_NOOP("Import"), QStringLiteral("import")},
           {QStringLiteral("settings"), QT_TR_NOOP("Settings"), QStringLiteral("settings")},
           // Opened from the Calendar, Match Day and the player card (packet P14).
           {QStringLiteral("matchreport"), QT_TR_NOOP("Match report"), QStringLiteral("matchday"),
-           false},
+           false, QStringLiteral("matches")},
       } {
     // Installing a translator sends QEvent::LanguageChange to the application object, which only
     // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
@@ -49,6 +50,12 @@ QVariant NavigationModel::data(const QModelIndex& index, int role) const {
         return item.iconName;
     case InSidebarRole:
         return item.inSidebar;
+    case CapabilityRole:
+        return item.capability;
+    case LockedRole:
+        return isLocked(item);
+    case LockHintRole:
+        return isLocked(item) ? m_locks.value(item.capability).toString() : QString{};
     default:
         return {};
     }
@@ -58,7 +65,10 @@ QHash<int, QByteArray> NavigationModel::roleNames() const {
     return {{KeyRole, "key"},
             {TitleRole, "title"},
             {IconNameRole, "iconName"},
-            {InSidebarRole, "inSidebar"}};
+            {InSidebarRole, "inSidebar"},
+            {CapabilityRole, "capabilityKey"},
+            {LockedRole, "locked"},
+            {LockHintRole, "lockHint"}};
 }
 
 int NavigationModel::sidebarCount() const {
@@ -128,9 +138,42 @@ void NavigationModel::moveTo(int index, const QVariantMap& args) {
         emit leaveRequested();
         return;
     }
+    const bool wasLocked = currentLocked();
     m_currentIndex = index;
     m_currentArgs = args;
     emit currentIndexChanged();
+    if (currentLocked() != wasLocked) {
+        emit currentLockChanged();
+    }
+}
+
+QVariantMap NavigationModel::locks() const { return m_locks; }
+
+void NavigationModel::setLocks(const QVariantMap& locks) {
+    if (locks == m_locks) {
+        return;
+    }
+    const bool wasLocked = currentLocked();
+    m_locks = locks;
+    emit locksChanged();
+    if (!m_items.empty()) {
+        emit dataChanged(index(0), index(rowCount() - 1), {LockedRole, LockHintRole});
+    }
+    if (currentLocked() != wasLocked) {
+        emit currentLockChanged();
+    }
+}
+
+bool NavigationModel::currentLocked() const {
+    return isLocked(m_items[static_cast<std::size_t>(m_currentIndex)]);
+}
+
+QString NavigationModel::currentCapability() const {
+    return m_items[static_cast<std::size_t>(m_currentIndex)].capability;
+}
+
+bool NavigationModel::isLocked(const Item& item) const {
+    return !item.capability.isEmpty() && m_locks.contains(item.capability);
 }
 
 bool NavigationModel::eventFilter(QObject* watched, QEvent* event) {

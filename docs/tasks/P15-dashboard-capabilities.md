@@ -56,3 +56,36 @@ Screenshots: empty club vs demo club side by side — the best picture of "one s
 pro".
 
 ## Decisions (accepted plan)
+1. **Scope extensions** (accepted): `ui/Main.qml` (a locked section shows `LockedState` instead of its
+   view; capabilities reload on every section change, login and toggle; one `DashboardViewModel` shared
+   by `TopBar` and `DashboardView`); `src/data/repositories/CapabilityRepository.hpp/.cpp` (one
+   `SELECT COUNT` per counter); `ui/components/Icon.qml` (icon `lock`); `ui/components/DashboardRow.qml`
+   (the clickable line of a card); `ui/theme/Theme.qml` (`dashboardCardMinWidth`). `CapabilityModel` is a
+   plain `QML_ELEMENT` held by `Main.qml` next to `NavigationModel`, not a singleton: no global state, and
+   the component tests, which have no registry, never create it.
+2. **Locked sections**: `prematch` ← Squad, `matchreport` ← Matches. The Load section is not locked
+   (human decision during implementation): its P11 "not enough data" view with per-player hints stays the
+   place for a new club; the Load capability locks the load-signals card of the dashboard and shows in its
+   "Features" card. Match Day keeps its own empty state (it needs a saved lineup). Ratings, Opponents and
+   Event data have no section yet; they show only in the "Features" card (hidden ones left out).
+3. **Counters**: Squad = active (not archived) players ≥ 11. Matches = finished matches ≥ 1. Load = days
+   with ≥ 1 RPE (present training attendance or finished-match appearance) ≥ 14; between 14 and 28 the
+   capability is available with an informative "full acute:chronic in N days", no fourth state.
+   Ratings = ≥ 1 match rating, player attribute or metric value. Opponents = ≥ 3 finished matches with a
+   result (any opponent; league results import does not exist yet). Event data = ≥ 1 event data file.
+   Thresholds are constants in `core::CapabilityThresholds` (SPEC §2 defaults), not editable in the UI.
+4. **"Show advanced modules"**: an `AppSettings` preference of this computer (QSettings), like the theme;
+   every role sees it in Settings, no permission check. Off: Event data without any file is hidden; on: locked
+   with hint. With a file it is available either way (SPEC §2: hidden until data exists).
+5. **Refresh**: services have no change signals; `CapabilityModel.reload()` runs on every section change,
+   on login and on the toggle, the dashboard also reloads when it becomes visible. A lock in the sidebar
+   may be stale until the next section change, like the data of other views.
+6. **Top bar chip**: next planned match on or after today → "Today" / "In N days" (opens Pre-match); a
+   live match → "Match in progress" (opens Match Day); no match → no chip.
+7. **Actions by role** (AGENTS §6): `LockedState` and the empty states of the cards show the action button
+   only to a role that can enter the missing data (Squad → `EditSquad`, Load → `EditTraining`, Matches /
+   next match → `EditCalendar`, today's session → `EditCalendar`); other roles get the text
+   "Ask the coach or the assistant to …". Covered by a viewmodel test with a role without permission.
+8. **Card lists as `QVariantList`**: unavailable players, load signals, last-5 form, today's sessions and
+   the features list are small, read-only lists rebuilt on reload — the AGENTS §5 case "small fixed or
+   nested read-only lists may be a `QVariantList`", so no list models.

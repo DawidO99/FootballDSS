@@ -5,8 +5,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FootballDSS
 
-// The match rules and the Staff section, for those who may manage settings and staff. Other
-// settings arrive with later packets.
+// The match rules and the Staff section, for those who may manage settings and staff; the modules
+// preference of this computer for every role (P15 decision 4). Other settings arrive with later
+// packets.
 Item {
     id: root
 
@@ -64,6 +65,26 @@ Item {
                         if (value !== null && !AppSettings.setYellowCardThreshold(value))
                             yellowCardThresholdField.showValue();
                     }
+                }
+            }
+        }
+
+        // P15 decision 4: a preference of this computer, like the theme; every role may change it.
+        Card {
+            objectName: "modulesCard"
+            Layout.fillWidth: true
+            title: qsTr("Modules")
+
+            FormField {
+                Layout.fillWidth: true
+                label: qsTr("Advanced modules")
+                helpText: qsTr("Pro analysis appears once event data is imported. On: it is listed on the dashboard before that, with what to import.")
+
+                CheckBoxField {
+                    objectName: "showAdvancedModules"
+                    text: qsTr("Show advanced modules")
+                    checked: AppSettings.showAdvancedModules
+                    onToggled: AppSettings.showAdvancedModules = checked
                 }
             }
         }

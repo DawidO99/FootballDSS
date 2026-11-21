@@ -48,6 +48,8 @@ qt_add_qml_module(fdss_ui
         ui/components/ChartTooltip.qml
         ui/components/CheckBoxField.qml
         ui/components/DangerButton.qml
+        ui/components/DashboardCard.qml
+        ui/components/DashboardRow.qml
         ui/components/DataTable.qml
         ui/components/DataTableCell.qml
         ui/components/DateField.qml
@@ -62,6 +64,7 @@ qt_add_qml_module(fdss_ui
         ui/components/LineupPlayerList.qml
         ui/components/LoadChart.qml
         ui/components/LoadStatusBadge.qml
+        ui/components/LockedState.qml
         ui/components/MatchClockBar.qml
         ui/components/MatchCorrectionDialog.qml
         ui/components/MatchEditorDialog.qml
@@ -136,8 +139,12 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/CalendarViewModel.cpp
         src/viewmodels/CalendarWeekModel.hpp
         src/viewmodels/CalendarWeekModel.cpp
+        src/viewmodels/CapabilityModel.hpp
+        src/viewmodels/CapabilityModel.cpp
         src/viewmodels/ChangePinViewModel.hpp
         src/viewmodels/ChangePinViewModel.cpp
+        src/viewmodels/DashboardViewModel.hpp
+        src/viewmodels/DashboardViewModel.cpp
         src/viewmodels/ErrorPresenter.hpp
         src/viewmodels/ErrorPresenter.cpp
         src/viewmodels/IsoDates.hpp

@@ -68,7 +68,10 @@ Item {
             "exitFullscreen": "M9 4v5H4 M15 4v5h5 M20 15h-5v5 M4 15h5v5",
             "note": "M6 3h9l4 4v14H6z M15 3v4h4 M9 12h7 M9 16h5",
             // Live tactics (P13b): a pitch with an arrow, a change of shape.
-            "tactic": "M4 3h16v18H4z M4 12h16 M8 17h.01 M12 17h.01 M16 17h.01 M9 8l3-2.5 3 2.5 M12 5.5V10"
+            "tactic": "M4 3h16v18H4z M4 12h16 M8 17h.01 M12 17h.01 M16 17h.01 M9 8l3-2.5 3 2.5 M12 5.5V10",
+            // Capabilities (P15): a section that waits for data.
+            "lock": "M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z "
+                    + "M8 11V7a4 4 0 0 1 8 0v4 M12 15v2"
         })
 
     implicitWidth: size

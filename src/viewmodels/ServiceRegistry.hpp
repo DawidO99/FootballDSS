@@ -7,6 +7,7 @@
 
 namespace fdss::data {
 class AvailabilityRepository;
+class CapabilityRepository;
 class ClubRepository;
 class DatabaseManager;
 class LineupRepository;
@@ -22,6 +23,8 @@ class TrainingRepository;
 
 namespace fdss::services {
 class CalendarService;
+class CapabilityService;
+class DashboardService;
 class DemoDataService;
 class LineupService;
 class LoadService;
@@ -86,6 +89,8 @@ public:
     [[nodiscard]] services::LineupService& lineup();
     [[nodiscard]] services::MatchDayService& matchDay();
     [[nodiscard]] services::MatchReportService& matchReport();
+    [[nodiscard]] services::CapabilityService& capabilities();
+    [[nodiscard]] services::DashboardService& dashboard();
 
 private:
     // Destroyed from the bottom up, the database last.
@@ -102,6 +107,7 @@ private:
     std::unique_ptr<data::MatchLiveRepository> m_matchLive;
     std::unique_ptr<data::MatchNoteRepository> m_matchNotes;
     std::unique_ptr<data::MatchTacticRepository> m_matchTactics;
+    std::unique_ptr<data::CapabilityRepository> m_capabilityCounts;
     std::unique_ptr<services::Session> m_session;
     std::unique_ptr<services::AuthService> m_auth;
     std::unique_ptr<services::SetupService> m_setup;
@@ -113,6 +119,8 @@ private:
     std::unique_ptr<services::LineupService> m_lineup;
     std::unique_ptr<services::MatchDayService> m_matchDay;
     std::unique_ptr<services::MatchReportService> m_matchReport;
+    std::unique_ptr<services::CapabilityService> m_capabilities;
+    std::unique_ptr<services::DashboardService> m_dashboard;
 };
 
 } // namespace fdss::viewmodels

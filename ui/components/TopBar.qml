@@ -5,14 +5,20 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FootballDSS
 
-// Team name, global search (Ctrl+K), language and theme toggles, current user.
+// Team name, global search (Ctrl+K), days to the next match, language and theme toggles, current
+// user.
 Rectangle {
     id: root
+
+    // Main.qml passes the one of the session (P15); without it there is no chip.
+    property DashboardViewModel dashboard: null
 
     // Main.qml logs out, after asking about changes that are not saved.
     signal logoutRequested
     // Enter in the search field: Main.qml opens the squad with this text in its search.
     signal searchRequested(string text)
+    // The chip: Main.qml opens Pre-match, or Match Day for a live match.
+    signal navigateRequested(string key, var args)
 
     function focusSearch() {
         searchField.forceActiveFocus(Qt.ShortcutFocusReason);
@@ -107,6 +113,61 @@ Rectangle {
 
         Item {
             Layout.fillWidth: true
+        }
+
+        AbstractButton {
+            id: nextMatchChip
+
+            objectName: "nextMatchChip"
+            visible: root.dashboard !== null && root.dashboard.hasNextMatch
+            implicitWidth: chipRow.implicitWidth + 2 * Theme.spacing.m
+            implicitHeight: Theme.hitMin
+            hoverEnabled: true
+            text: root.dashboard ? root.dashboard.daysText : ""
+            Accessible.role: Accessible.Button
+            Accessible.name: root.dashboard ? qsTr("Next match: %1, %2").arg(root.dashboard.nextMatchOpponent).arg(text) : ""
+            Keys.onReturnPressed: click()
+            Keys.onEnterPressed: click()
+            onClicked: root.navigateRequested(root.dashboard.nextMatchSection, {
+                "matchId": root.dashboard.nextMatchId
+            })
+
+            background: Rectangle {
+                radius: height / 2
+                color: nextMatchChip.hovered ? Theme.rowHover : Theme.surfaceAlt
+                border.width: nextMatchChip.visualFocus ? Theme.focusRingWidth : Theme.borderWidth
+                border.color: nextMatchChip.visualFocus ? Theme.accent : Theme.border
+            }
+
+            contentItem: Item {
+                Row {
+                    id: chipRow
+
+                    anchors.centerIn: parent
+                    spacing: Theme.spacing.s
+
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "matchday"
+                        size: Theme.iconSize.sm
+                        color: root.dashboard && root.dashboard.nextMatchLive ? Theme.danger : Theme.accent
+                    }
+
+                    Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: nextMatchChip.text
+                        color: Theme.text
+                        font.pixelSize: Theme.fontSize.body
+                        font.weight: Font.DemiBold
+                    }
+                }
+            }
+
+            PlainToolTip {
+                visible: nextMatchChip.hovered
+                delay: Theme.tooltipDelay
+                text: root.dashboard ? qsTr("Next match: %1, %2").arg(root.dashboard.nextMatchOpponent).arg(root.dashboard.nextMatchDateText) : ""
+            }
         }
 
         LanguageThemeSwitch {}

@@ -65,6 +65,8 @@ Rectangle {
                 required property string title
                 required property bool inSidebar
                 required iconName
+                required locked
+                required lockHint
 
                 width: list.width
                 visible: inSidebar

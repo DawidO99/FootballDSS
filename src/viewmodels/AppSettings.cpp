@@ -15,6 +15,7 @@ namespace fdss::viewmodels {
 namespace {
 constexpr auto kDarkThemeKey = "ui/darkTheme";
 constexpr auto kYellowCardThresholdKey = "rules/yellowCardThreshold";
+constexpr auto kShowAdvancedModulesKey = "ui/showAdvancedModules";
 
 int clampedThreshold(int threshold) {
     return std::clamp(threshold, core::kMinYellowCardThreshold, core::kMaxYellowCardThreshold);
@@ -24,7 +25,8 @@ int clampedThreshold(int threshold) {
 AppSettings::AppSettings(QObject* parent)
     : QObject(parent), m_darkTheme(QSettings().value(kDarkThemeKey, true).toBool()),
       m_yellowCardThreshold(clampedThreshold(
-          QSettings().value(kYellowCardThresholdKey, core::kDefaultYellowCardThreshold).toInt())) {}
+          QSettings().value(kYellowCardThresholdKey, core::kDefaultYellowCardThreshold).toInt())),
+      m_showAdvancedModules(QSettings().value(kShowAdvancedModulesKey, false).toBool()) {}
 
 bool AppSettings::darkTheme() const { return m_darkTheme; }
 
@@ -61,5 +63,16 @@ bool AppSettings::setYellowCardThreshold(int threshold) {
 int AppSettings::minYellowCardThreshold() const { return core::kMinYellowCardThreshold; }
 
 int AppSettings::maxYellowCardThreshold() const { return core::kMaxYellowCardThreshold; }
+
+bool AppSettings::showAdvancedModules() const { return m_showAdvancedModules; }
+
+void AppSettings::setShowAdvancedModules(bool show) {
+    if (m_showAdvancedModules == show) {
+        return;
+    }
+    m_showAdvancedModules = show;
+    QSettings().setValue(kShowAdvancedModulesKey, m_showAdvancedModules);
+    emit showAdvancedModulesChanged();
+}
 
 } // namespace fdss::viewmodels

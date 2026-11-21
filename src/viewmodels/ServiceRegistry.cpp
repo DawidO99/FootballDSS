@@ -2,6 +2,7 @@
 
 #include "data/db/DatabaseManager.hpp"
 #include "data/repositories/AvailabilityRepository.hpp"
+#include "data/repositories/CapabilityRepository.hpp"
 #include "data/repositories/ClubRepository.hpp"
 #include "data/repositories/LineupRepository.hpp"
 #include "data/repositories/MatchLiveRepository.hpp"
@@ -13,6 +14,8 @@
 #include "data/repositories/StaffRepository.hpp"
 #include "data/repositories/TrainingRepository.hpp"
 #include "services/CalendarService.hpp"
+#include "services/CapabilityService.hpp"
+#include "services/DashboardService.hpp"
 #include "services/DemoDataService.hpp"
 #include "services/LineupService.hpp"
 #include "services/LoadService.hpp"
@@ -79,6 +82,7 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
       m_matchLive(std::make_unique<data::MatchLiveRepository>(*m_database)),
       m_matchNotes(std::make_unique<data::MatchNoteRepository>(*m_database)),
       m_matchTactics(std::make_unique<data::MatchTacticRepository>(*m_database)),
+      m_capabilityCounts(std::make_unique<data::CapabilityRepository>(*m_database)),
       m_session(std::make_unique<services::Session>()),
       m_auth(std::make_unique<services::AuthService>(*m_database, *m_staff, *m_session, *m_clock,
                                                      options.pinIterations)),
@@ -103,7 +107,12 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
           *m_clubs, *m_opponents, *m_players, *m_lineup, *m_session, *m_clock)),
       m_matchReport(std::make_unique<services::MatchReportService>(
           *m_database, *m_matches, *m_matchLive, *m_matchNotes, *m_matchTactics, *m_lineups,
-          *m_opponents, *m_players, *m_session)) {}
+          *m_opponents, *m_players, *m_session)),
+      m_capabilities(
+          std::make_unique<services::CapabilityService>(*m_capabilityCounts, *m_session, *m_clock)),
+      m_dashboard(std::make_unique<services::DashboardService>(*m_matches, *m_opponents, *m_players,
+                                                               *m_availability, *m_training,
+                                                               *m_lineup, *m_session, *m_clock)) {}
 
 ServiceRegistry::~ServiceRegistry() = default;
 
@@ -129,5 +138,9 @@ services::LineupService& ServiceRegistry::lineup() { return *m_lineup; }
 services::MatchDayService& ServiceRegistry::matchDay() { return *m_matchDay; }
 
 services::MatchReportService& ServiceRegistry::matchReport() { return *m_matchReport; }
+
+services::CapabilityService& ServiceRegistry::capabilities() { return *m_capabilities; }
+
+services::DashboardService& ServiceRegistry::dashboard() { return *m_dashboard; }
 
 } // namespace fdss::viewmodels
