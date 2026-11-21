@@ -18,6 +18,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(fdss_tests
     test_main.cpp
     core/AvailabilityTest.cpp
+    core/CapabilitiesTest.cpp
     core/DemoGeneratorTest.cpp
     core/EnumsTest.cpp
     core/ErrorTest.cpp
@@ -34,6 +35,7 @@ add_executable(fdss_tests
     data/AppPathsTest.cpp
     data/AvailabilityRepositoryTest.cpp
     data/BackupTest.cpp
+    data/CapabilityRepositoryTest.cpp
     data/ClubRepositoryTest.cpp
     data/DatabaseManagerTest.cpp
     data/EnumsSchemaTest.cpp
@@ -57,6 +59,8 @@ add_executable(fdss_tests
     data/XlsxSpikeTest.cpp
     services/AuthServiceTest.cpp
     services/CalendarServiceTest.cpp
+    services/CapabilityServiceTest.cpp
+    services/DashboardServiceTest.cpp
     services/DemoDataServiceTest.cpp
     services/FakeClock.hpp
     services/LineupServiceTest.cpp
@@ -89,6 +93,7 @@ add_executable(fdss_vm_tests
     viewmodels/AvailabilityViewModelTest.cpp
     viewmodels/CalendarViewModelTest.cpp
     viewmodels/ChangePinViewModelTest.cpp
+    viewmodels/DashboardViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
     viewmodels/LoadViewModelTest.cpp
     viewmodels/MatchDayViewModelTest.cpp

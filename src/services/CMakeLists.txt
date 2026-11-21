@@ -3,6 +3,10 @@ add_library(fdss_services STATIC
     AuthService.cpp
     CalendarService.hpp
     CalendarService.cpp
+    CapabilityService.hpp
+    CapabilityService.cpp
+    DashboardService.hpp
+    DashboardService.cpp
     Clock.hpp
     ServiceSupport.hpp
     Session.hpp

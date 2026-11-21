@@ -24,10 +24,24 @@ class NavigationModel : public QAbstractListModel {
     // and emits leaveRequested(), whichever way the move came: the sidebar writes currentIndex
     // directly, so a view could not stop it on its own.
     Q_PROPERTY(bool leaveGuard READ leaveGuard WRITE setLeaveGuard NOTIFY leaveGuardChanged FINAL)
+    // Capability key -> hint of the locked capabilities (CapabilityModel.locks, packet P15). A
+    // section that needs a locked capability stays in the sidebar with a lock and shows the hint.
+    Q_PROPERTY(QVariantMap locks READ locks WRITE setLocks NOTIFY locksChanged FINAL)
+    Q_PROPERTY(bool currentLocked READ currentLocked NOTIFY currentLockChanged FINAL)
+    // The capability the current section needs; empty when it needs none.
+    Q_PROPERTY(QString currentCapability READ currentCapability NOTIFY currentIndexChanged FINAL)
 
 public:
     // QML uses the role names from roleNames(); the enum is for C++ callers.
-    enum Role { KeyRole = Qt::UserRole + 1, TitleRole, IconNameRole, InSidebarRole };
+    enum Role {
+        KeyRole = Qt::UserRole + 1,
+        TitleRole,
+        IconNameRole,
+        InSidebarRole,
+        CapabilityRole,
+        LockedRole,
+        LockHintRole
+    };
 
     explicit NavigationModel(QObject* parent = nullptr);
 
@@ -56,10 +70,17 @@ public:
     // Forgets the target. Notifies, so a sidebar that has already moved its own index comes back.
     Q_INVOKABLE void cancelLeave();
 
+    [[nodiscard]] QVariantMap locks() const;
+    void setLocks(const QVariantMap& locks);
+    [[nodiscard]] bool currentLocked() const;
+    [[nodiscard]] QString currentCapability() const;
+
 signals:
     void currentIndexChanged();
     void leaveGuardChanged();
     void leaveRequested();
+    void locksChanged();
+    void currentLockChanged();
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -70,6 +91,8 @@ private:
         const char* title; // untranslated source text, translated in data()
         QString iconName;
         bool inSidebar = true;
+        // CapabilityModel::key() of what the section needs; empty: nothing (P15 decision 2).
+        QString capability;
     };
 
     struct Target {
@@ -79,12 +102,14 @@ private:
 
     // Moves there, or remembers it while the guard is on.
     void moveTo(int index, const QVariantMap& args);
+    [[nodiscard]] bool isLocked(const Item& item) const;
 
     std::vector<Item> m_items;
     int m_currentIndex = 0;
     QVariantMap m_currentArgs;
     bool m_leaveGuard = false;
     std::optional<Target> m_pendingTarget;
+    QVariantMap m_locks;
 };
 
 } // namespace fdss::viewmodels

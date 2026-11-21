@@ -177,3 +177,36 @@ TEST_F(NavigationModelTest, TheMatchReportIsASectionWithoutASidebarItem) {
     EXPECT_EQ(m_model.currentKey(), QStringLiteral("matchreport"));
     EXPECT_EQ(m_model.currentArgs(), match);
 }
+
+TEST_F(NavigationModelTest, SectionsNeedingALockedCapabilityAreLocked) {
+    const int prematch = 4;
+    ASSERT_EQ(m_model.data(m_model.index(prematch), NavigationModel::KeyRole).toString(),
+              QStringLiteral("prematch"));
+    EXPECT_FALSE(m_model.data(m_model.index(prematch), NavigationModel::LockedRole).toBool());
+
+    m_model.setLocks({{QStringLiteral("squad"), QStringLiteral("hint")}});
+    EXPECT_TRUE(m_model.data(m_model.index(prematch), NavigationModel::LockedRole).toBool());
+    EXPECT_EQ(m_model.data(m_model.index(prematch), NavigationModel::LockHintRole).toString(),
+              QStringLiteral("hint"));
+    // The squad section itself needs nothing: that is where the players are added.
+    EXPECT_FALSE(m_model.data(m_model.index(1), NavigationModel::LockedRole).toBool());
+    EXPECT_FALSE(m_model.currentLocked());
+
+    int lockChanges = 0;
+    QObject::connect(&m_model, &NavigationModel::currentLockChanged, &m_model,
+                     [&lockChanges] { ++lockChanges; });
+    m_model.activate(QStringLiteral("prematch"));
+    EXPECT_TRUE(m_model.currentLocked());
+    EXPECT_EQ(m_model.currentCapability(), QStringLiteral("squad"));
+    m_model.setLocks({});
+    EXPECT_FALSE(m_model.currentLocked());
+    EXPECT_EQ(lockChanges, 2);
+}
+
+TEST_F(NavigationModelTest, MatchReportNeedsAFinishedMatch) {
+    m_model.setLocks({{QStringLiteral("matches"), QStringLiteral("hint")}});
+    m_model.activate(QStringLiteral("matchreport"));
+    EXPECT_TRUE(m_model.currentLocked());
+    m_model.activate(QStringLiteral("load"));
+    EXPECT_FALSE(m_model.currentLocked());
+}

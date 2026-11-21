@@ -212,6 +212,8 @@ QtObject {
     // The shirt number column of a player list.
     readonly property int shirtNumberWidth: 24
     readonly property int issuesPanelHeight: 196
+    // Dashboard (P15): below this width per card the grid has fewer columns.
+    readonly property int dashboardCardMinWidth: 360
     // The list of the slot picker of Pre-match: about seven rows with their group headings.
     readonly property int slotPickerHeight: 360
     // Icon.qml draws its paths on a square of this side and scales it to the size asked for.

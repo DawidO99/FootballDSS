@@ -29,7 +29,9 @@
 #include "viewmodels/AvailabilityViewModel.hpp"
 #include "viewmodels/CalendarViewModel.hpp"
 #include "viewmodels/CalendarWeekModel.hpp"
+#include "viewmodels/CapabilityModel.hpp"
 #include "viewmodels/ChangePinViewModel.hpp"
+#include "viewmodels/DashboardViewModel.hpp"
 #include "viewmodels/JsGarbageCollector.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/LoadTexts.hpp"
@@ -75,6 +77,7 @@
 #include <QRectF>
 #include <QSet>
 #include <QSettings>
+#include <QSqlError>
 #include <QSqlQuery>
 #include <QStyleHints>
 #include <QThread>
@@ -88,6 +91,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <format>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -5904,6 +5908,445 @@ void exerciseLoadDemo(QQmlApplicationEngine& engine, const std::optional<QString
     grabOrSave(screen->window, screenshotDirectory, QStringLiteral("card-load.png"));
 }
 
+// --- Dashboard and capabilities (P15) ---
+
+void collectByObjectName(QQuickItem* item, const QString& name, QList<QQuickItem*>& found) {
+    if (item->objectName() == name) {
+        found.append(item);
+    }
+    const QList<QQuickItem*> children = item->childItems();
+    for (QQuickItem* child : children) {
+        collectByObjectName(child, name, found);
+    }
+}
+
+// The visible items of that name.
+int countVisible(QQuickItem* root, const QString& name) {
+    QList<QQuickItem*> found;
+    collectByObjectName(root, name, found);
+    return static_cast<int>(std::ranges::count_if(found, &QQuickItem::isVisible));
+}
+
+struct DashboardScreen {
+    QQuickWindow* window = nullptr;
+    NavigationModel* navigation = nullptr;
+    fdss::viewmodels::DashboardViewModel* dashboard = nullptr;
+    fdss::viewmodels::CapabilityModel* capabilities = nullptr;
+    QQuickItem* view = nullptr;
+
+    [[nodiscard]] QQuickItem* find(const QString& name) const {
+        return findByObjectName(view, name);
+    }
+};
+
+std::optional<DashboardScreen> openDashboard(QQmlApplicationEngine& engine) {
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return std::nullopt;
+    }
+    settle();
+    DashboardScreen screen;
+    screen.window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    screen.navigation = screen.window->property("navigation").value<NavigationModel*>();
+    screen.dashboard =
+        screen.window->property("dashboard").value<fdss::viewmodels::DashboardViewModel*>();
+    screen.capabilities =
+        screen.window->property("capabilities").value<fdss::viewmodels::CapabilityModel*>();
+    screen.view = findQmlItem(screen.window->contentItem(), "DashboardView");
+    if (screen.navigation == nullptr || screen.dashboard == nullptr ||
+        screen.capabilities == nullptr || screen.view == nullptr) {
+        fail("the dashboard or its models are not loaded");
+        return std::nullopt;
+    }
+    if (screen.navigation->currentKey() != QLatin1StringView("dashboard")) {
+        fail("the shell does not start on the dashboard");
+    }
+    auto* dashboard = screen.dashboard;
+    if (!waitUntil([dashboard] { return !dashboard->busy(); }, "the dashboard did not finish")) {
+        return std::nullopt;
+    }
+    settle();
+    return screen;
+}
+
+// The cards fit the page at the minimum window, side by side without overlap, and every row of a
+// card is a hit target of at least Theme.hitMin.
+void expectDashboardFits(const DashboardScreen& screen, const char* when) {
+    QQuickItem* page = screen.find(QStringLiteral("dashboardPage"));
+    if (page == nullptr) {
+        fail("the dashboard has no page");
+        return;
+    }
+    QList<QRectF> cards;
+    for (const char* name : {"nextMatchCard", "unavailableCard", "loadSignalsCard", "formCard",
+                             "todayCard", "featuresCard"}) {
+        QQuickItem* card = screen.find(QString::fromLatin1(name));
+        if (card == nullptr || !card->isVisible()) {
+            qWarning("qml_smoke: %s: card %s missing", when, name);
+            fail("a dashboard card is missing");
+            continue;
+        }
+        const QRectF rect = card->mapRectToItem(page, card->boundingRect());
+        if (rect.left() < 0 || rect.right() > page->width() + 0.5) {
+            qWarning("qml_smoke: %s: card %s spans %.0f..%.0f, the page is %.0f wide", when, name,
+                     rect.left(), rect.right(), page->width());
+            fail("a dashboard card does not fit the page");
+        }
+        for (const QRectF& other : std::as_const(cards)) {
+            if (rect.adjusted(1, 1, -1, -1).intersects(other)) {
+                qWarning("qml_smoke: %s: card %s overlaps another card", when, name);
+                fail("dashboard cards overlap");
+            }
+        }
+        cards.append(rect);
+    }
+    for (const char* name : {"unavailableRow", "loadSignalRow", "formRow", "todaySessionRow"}) {
+        QList<QQuickItem*> rows;
+        collectByObjectName(screen.view, QString::fromLatin1(name), rows);
+        for (QQuickItem* row : std::as_const(rows)) {
+            if (row->isVisible() && row->height() < 32) {
+                qWarning("qml_smoke: %s: a %s is %.0f px high", when, name, row->height());
+                fail("a dashboard row is below the minimum hit target");
+            }
+        }
+    }
+}
+
+void exerciseDashboardShortBaseline(const DashboardScreen& screen) {
+    auto& registry = ServiceRegistry::instance();
+    for (int day = 0; day < 14; ++day) {
+        fdss::core::TrainingSessionDraft session;
+        session.date = fdss::core::Date{std::chrono::sys_days{kSheetDay} - std::chrono::days{day}};
+        const auto added = registry.calendar().addSession(smokeTeam(), session);
+        if (!added) {
+            fail("cannot add a session for the dashboard baseline");
+            return;
+        }
+        auto sheet = registry.training().sheet(*added);
+        if (!sheet || sheet->rows.empty()) {
+            fail("cannot read the sheet for the dashboard baseline");
+            return;
+        }
+        std::vector<fdss::core::AttendanceDraft> attendance;
+        for (const auto& row : sheet->rows) {
+            attendance.push_back(row.draft);
+        }
+        attendance.front().rpe = 6;
+        const auto saved = registry.training().saveAttendance(*added, attendance);
+        if (!saved || !saved->empty()) {
+            fail("cannot save RPE for the dashboard baseline");
+            return;
+        }
+    }
+    screen.capabilities->reload();
+    screen.dashboard->reload();
+    if (!waitUntil([&screen] { return !screen.dashboard->busy(); },
+                   "the dashboard baseline did not finish")) {
+        return;
+    }
+    settle();
+    auto* card = screen.find(QStringLiteral("loadSignalsCard"));
+    const QString expected =
+        screen.dashboard->loadSignalsEmpty().value(QStringLiteral("text")).toString();
+    if (screen.capabilities->locks().contains(QStringLiteral("load")) || card == nullptr ||
+        card->property("cardState").toString() != QLatin1StringView("empty") ||
+        card->property("emptyText").toString() != expected ||
+        !expected.startsWith(
+            fdss::viewmodels::DashboardViewModel::tr("Not enough data. %1").arg(""))) {
+        fail("fourteen RPE days show no signals instead of the missing baseline hint");
+    }
+}
+
+void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
+                                           const DashboardScreen& screen) {
+    const auto coach = ServiceRegistry::instance().session().user()->id;
+    std::vector<fdss::core::StaffUserId> users{coach};
+    for (const auto role :
+         {fdss::core::Role::Assistant, fdss::core::Role::Physio, fdss::core::Role::Analyst}) {
+        const auto user = addSmokeStaff(fdss::core::toDbText(role).data(), role);
+        if (!user) {
+            return;
+        }
+        users.push_back(*user);
+    }
+    auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                            QStringLiteral("AppSettings"));
+    settings->setShowAdvancedModules(false);
+    for (const auto user : users) {
+        if (!logInAgain(engine, user)) {
+            return;
+        }
+        for (const bool show : {true, false}) {
+            screen.navigation->activate(QStringLiteral("settings"));
+            settle();
+            auto* toggle = findByObjectName(screen.window->contentItem(),
+                                            QStringLiteral("showAdvancedModules"));
+            if (toggle == nullptr || !toggle->isVisible() || !toggle->isEnabled()) {
+                fail("a role cannot use the advanced modules toggle in Settings");
+                return;
+            }
+            clickItem(screen.window, toggle);
+            if (settings->showAdvancedModules() != show ||
+                screen.capabilities->rowCount() != (show ? 6 : 5)) {
+                fail("the Settings toggle does not change the capability list for every role");
+            }
+            screen.navigation->activate(QStringLiteral("dashboard"));
+            settle();
+            if (countVisible(screen.window->contentItem(), QStringLiteral("feature_eventData")) !=
+                (show ? 1 : 0)) {
+                fail("Event data does not follow the Settings toggle on the dashboard");
+            }
+        }
+    }
+    logInAgain(engine, coach);
+}
+
+// Empty club: the dashboard and the locked Pre-match explain what to enter; after eleven players
+// Pre-match unlocks (packet P15, "Done when").
+void exerciseDashboardEmptyClub(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    const auto screen = openDashboard(engine);
+    if (!screen) {
+        return;
+    }
+    for (const auto& [card, expected] :
+         {std::pair{"nextMatchCard", "empty"}, std::pair{"unavailableCard", "empty"},
+          std::pair{"loadSignalsCard", "locked"}, std::pair{"formCard", "locked"},
+          std::pair{"todayCard", "empty"}}) {
+        QQuickItem* item = screen->find(QString::fromLatin1(card));
+        if (item == nullptr ||
+            item->property("cardState").toString() != QLatin1StringView(expected)) {
+            qWarning("qml_smoke: empty club: %s is not %s", card, expected);
+            fail("a dashboard card of an empty club is in the wrong state");
+        }
+    }
+    if (countVisible(screen->view, QStringLiteral("emptyAction")) < 3) {
+        fail("the Coach gets no button in the empty cards of the dashboard");
+    }
+    if (screen->window->property("shell").value<QQuickItem*>() == nullptr ||
+        countVisible(screen->window->contentItem(), QStringLiteral("nextMatchChip")) != 0) {
+        fail("the top bar shows a next match for an empty club");
+    }
+    for (const bool dark : {true, false}) {
+        auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                                QStringLiteral("AppSettings"));
+        settings->setDarkTheme(dark);
+        settle();
+        if (resizeAndWait(screen->window, QSize(1280, 720))) {
+            expectDashboardFits(*screen, dark ? "empty club, dark" : "empty club, light");
+        }
+        grabOrSave(screen->window, screenshotDirectory,
+                   dark ? QStringLiteral("dashboard-empty-dark.png")
+                        : QStringLiteral("dashboard-empty-light.png"));
+    }
+
+    // Pre-match is locked with the hint and a button to the squad.
+    screen->navigation->activate(QStringLiteral("prematch"));
+    settle();
+    QQuickItem* locked =
+        findByObjectName(screen->window->contentItem(), QStringLiteral("sectionLocked_prematch"));
+    if (locked == nullptr || !locked->isVisible()) {
+        fail("an empty club opens Pre-match without the locked state");
+        return;
+    }
+    QQuickItem* hint = findByObjectName(locked, QStringLiteral("lockedHint"));
+    if (hint == nullptr || !hint->property("text").toString().contains(QStringLiteral("11"))) {
+        fail("the locked Pre-match does not count the players still needed");
+    }
+    QQuickItem* action = findByObjectName(locked, QStringLiteral("lockedAction"));
+    if (action == nullptr || !action->isVisible()) {
+        fail("the Coach gets no button to the squad from the locked Pre-match");
+    }
+    if (QQuickItem* word = findByObjectName(locked, QStringLiteral("lockedWord"));
+        word == nullptr || !word->isVisible()) {
+        fail("the locked state is shown without its word");
+    }
+    if (QQuickItem* view = findQmlItem(screen->window->contentItem(), "PreMatchView");
+        view == nullptr || view->isVisible()) {
+        fail("the locked Pre-match view is shown behind its locked state");
+    }
+    QMetaObject::invokeMethod(action, "clicked");
+    settle();
+    if (screen->navigation->currentKey() != QLatin1StringView("squad")) {
+        fail("the button of the locked Pre-match does not open the squad");
+    }
+
+    // Eleven players: Pre-match unlocks on the next section change.
+    for (int number = 1; number <= 11; ++number) {
+        fdss::core::PlayerDraft draft;
+        draft.firstName = "Gracz";
+        draft.lastName = std::format("Numer{}", number);
+        draft.shirtNumber = number;
+        draft.primaryPosition = number == 1 ? fdss::core::Position::Gk : fdss::core::Position::Cm;
+        if (!ServiceRegistry::instance().squad().addPlayer(smokeTeam(), draft)) {
+            fail("cannot add a player for the dashboard");
+            return;
+        }
+    }
+    screen->navigation->activate(QStringLiteral("prematch"));
+    settle();
+    if (locked->isVisible() || screen->navigation->currentLocked()) {
+        fail("Pre-match stays locked with eleven players");
+    }
+    screen->navigation->activate(QStringLiteral("dashboard"));
+    settle();
+    exerciseDashboardShortBaseline(*screen);
+    exerciseDashboardSettingsForEveryRole(engine, *screen);
+}
+
+// Demo club: the next match, 2 injured + 1 suspended, the overloaded player and the form, in both
+// themes at the minimum window (packet P15, "Done when").
+void exerciseDashboardReadErrors(const DashboardScreen& screen,
+                                 fdss::data::DatabaseManager& database) {
+    // A live match keeps the overview independent of lineup attendance queries.
+    QSqlQuery live(database.database());
+    live.prepare(QStringLiteral("UPDATE match SET status = ? WHERE id = ?"));
+    live.bindValue(0, QStringLiteral("live"));
+    live.bindValue(1, screen.dashboard->nextMatchId());
+    if (!live.exec()) {
+        qWarning("%s",
+                 database.sqlError(live.lastError(), "seed dashboard error test").detail.c_str());
+        fail("cannot prepare the live match for the dashboard error test");
+        return;
+    }
+    screen.navigation->activate(QStringLiteral("dashboard"));
+    if (!waitUntil([&screen] { return !screen.dashboard->busy(); },
+                   "the dashboard did not finish")) {
+        return;
+    }
+    const auto reloadExpecting = [&screen](const char* message) {
+        g_expectedCritical = message;
+        g_expectedCriticalCount = 0;
+        screen.dashboard->reload();
+        g_expectedCritical = nullptr;
+        if (g_expectedCriticalCount != 1) {
+            fail("the dashboard did not report its failed read");
+        }
+        settle();
+    };
+    const auto expectErrorState = [](QQuickItem* item, const char* title) {
+        if (item == nullptr || !item->isVisible() ||
+            item->property("title").toString() !=
+                QCoreApplication::translate("DashboardView", title) ||
+            item->property("iconName").toString() != QLatin1StringView("danger") ||
+            item->property("description").toString().isEmpty() ||
+            item->property("actionText").toString() !=
+                QCoreApplication::translate("DashboardView", "Retry")) {
+            fail("a dashboard error lacks its icon, error title, description or Retry");
+        }
+    };
+    auto* page = screen.find(QStringLiteral("dashboardPage"));
+    auto* readError = screen.find(QStringLiteral("dashboardReadError"));
+    auto* loadError = screen.find(QStringLiteral("loadSignalsReadError"));
+    if (page == nullptr || readError == nullptr || loadError == nullptr) {
+        fail("the dashboard error states are missing");
+        return;
+    }
+    if (!database.execSql(QStringLiteral("ALTER TABLE attendance RENAME TO attendance_unavailable"),
+                          "hide attendance for dashboard test")) {
+        fail("cannot fail the dashboard load read");
+        return;
+    }
+    reloadExpecting("no such table: attendance");
+    expectErrorState(loadError, "Could not read load data");
+    if (!page->isVisible() || readError->isVisible()) {
+        fail("a failed load read hides the dashboard");
+    }
+    for (const char* name : {"nextMatchCard", "unavailableCard", "formCard", "todayCard"}) {
+        auto* card = screen.find(QString::fromLatin1(name));
+        if (card == nullptr || !card->isVisible() ||
+            card->property("cardState").toString() != QLatin1StringView("content")) {
+            fail("a failed load read hides or empties another dashboard card");
+        }
+    }
+    const auto restoreAndRetry = [&database, &screen](const QString& sql, QQuickItem* error) {
+        auto* retry = findQmlItem(error, "PrimaryButton");
+        if (!database.execSql(sql, "restore dashboard test data") || retry == nullptr ||
+            !retry->isVisible() || !QMetaObject::invokeMethod(retry, "clicked")) {
+            fail("cannot retry the failed dashboard read");
+            return;
+        }
+        waitUntil([&screen] { return !screen.dashboard->busy(); },
+                  "the dashboard retry did not finish");
+        settle();
+        if (error->isVisible() || !screen.dashboard->ready() ||
+            screen.dashboard->loadSignals().isEmpty()) {
+            fail("Retry does not restore the dashboard data");
+        }
+    };
+    restoreAndRetry(QStringLiteral("ALTER TABLE attendance_unavailable RENAME TO attendance"),
+                    loadError);
+    if (!database.execSql(
+            QStringLiteral("ALTER TABLE availability RENAME TO availability_unavailable"),
+            "hide availability for dashboard test")) {
+        fail("cannot fail the dashboard overview read");
+        return;
+    }
+    reloadExpecting("no such table: availability");
+    expectErrorState(readError, "Could not load the dashboard");
+    if (page->isVisible()) {
+        fail("a failed overview read still shows the dashboard content");
+    }
+    restoreAndRetry(QStringLiteral("ALTER TABLE availability_unavailable RENAME TO availability"),
+                    readError);
+}
+
+void exerciseDashboardDemo(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database,
+                           const QString& screenshotDirectory) {
+    if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
+        fail("cannot load the demo club for the dashboard");
+        return;
+    }
+    const auto screen = openDashboard(engine);
+    if (!screen) {
+        return;
+    }
+    if (!screen->capabilities->locks().isEmpty()) {
+        fail("the demo club has a locked capability");
+    }
+    if (QQuickItem* card = screen->find(QStringLiteral("nextMatchCard"));
+        card == nullptr || card->property("cardState").toString() != QLatin1StringView("content")) {
+        fail("the demo club shows no next match");
+    }
+    if (countVisible(screen->window->contentItem(), QStringLiteral("nextMatchChip")) != 1) {
+        fail("the top bar shows no days to the next match for the demo club");
+    }
+    if (countVisible(screen->view, QStringLiteral("unavailableRow")) != 3) {
+        fail("the demo club does not show 2 injured and 1 suspended player");
+    }
+    if (countVisible(screen->view, QStringLiteral("loadSignalRow")) < 1) {
+        fail("the demo club shows no load signal");
+    }
+    if (countVisible(screen->view, QStringLiteral("formRow")) != 5) {
+        fail("the demo club does not show the last five matches");
+    }
+    for (const bool dark : {true, false}) {
+        auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                                QStringLiteral("AppSettings"));
+        settings->setDarkTheme(dark);
+        settle();
+        if (resizeAndWait(screen->window, QSize(1280, 720))) {
+            expectDashboardFits(*screen, dark ? "demo club, dark" : "demo club, light");
+        }
+        grabOrSave(screen->window, screenshotDirectory,
+                   dark ? QStringLiteral("dashboard-demo-dark.png")
+                        : QStringLiteral("dashboard-demo-light.png"));
+    }
+    // The chip opens Pre-match for the next match.
+    QQuickItem* chip =
+        findByObjectName(screen->window->contentItem(), QStringLiteral("nextMatchChip"));
+    if (chip != nullptr) {
+        QMetaObject::invokeMethod(chip, "clicked");
+        settle();
+        if (screen->navigation->currentKey() != QLatin1StringView("prematch") ||
+            screen->navigation->currentArgs().value(QStringLiteral("matchId")).toLongLong() !=
+                screen->dashboard->nextMatchId()) {
+            fail("the chip of the top bar does not open Pre-match for the next match");
+        }
+    }
+    exerciseDashboardReadErrors(*screen, database);
+}
+
 int main(int argc, char* argv[]) {
     // As the app does; without it this run shows the CI failures of P12 under QV4_GC_TIMELIMIT=1.
     fdss::viewmodels::useNonIncrementalGarbageCollector();
@@ -5943,7 +6386,9 @@ int main(int argc, char* argv[]) {
         const bool onlyLoad = arguments.contains(QStringLiteral("--only-load"));
         // qml_smoke --only-prematch runs the pre-match scenario alone (P12).
         const bool onlyPreMatch = arguments.contains(QStringLiteral("--only-prematch"));
-        const bool onlyOne = onlyLoad || onlyPreMatch;
+        // qml_smoke --only-dashboard runs the dashboard scenarios alone (P15).
+        const bool onlyDashboard = arguments.contains(QStringLiteral("--only-dashboard"));
+        const bool onlyOne = onlyLoad || onlyPreMatch || onlyDashboard;
 
         std::optional<UiPreferences> leftBehind;
         for (const AppState::State state :
@@ -5991,7 +6436,7 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (onlyLoad) {
+        if (onlyLoad || onlyDashboard) {
             // Not this one.
         } else if (installRegistry(AppState::State::Ready) == nullptr) {
             fail("cannot install the service registry");
@@ -6067,12 +6512,32 @@ int main(int argc, char* argv[]) {
         if (leftBehind) {
             verifyPreferencesSurviveRestart(*leftBehind);
         }
+        for (const bool demo : {false, true}) {
+            if (onlyLoad || onlyPreMatch) {
+                break;
+            }
+            auto* database = installRegistry(AppState::State::Ready);
+            if (database == nullptr) {
+                fail("cannot install the service registry");
+                continue;
+            }
+            {
+                QQmlApplicationEngine engine;
+                if (demo) {
+                    exerciseDashboardDemo(engine, *database, screenshotDirectory);
+                } else {
+                    exerciseDashboardEmptyClub(engine, screenshotDirectory);
+                }
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
         // Last: the load scenarios change the language they start in.
         // In the full run they start in Polish, as an earlier scenario may leave it.
         const std::optional<QString> loadLanguage =
             onlyLoad ? std::nullopt : std::optional(QStringLiteral("pl"));
         for (const bool demo : {false, true}) {
-            if (onlyPreMatch) {
+            if (onlyPreMatch || onlyDashboard) {
                 break;
             }
             if (installRegistry(AppState::State::Ready) == nullptr) {

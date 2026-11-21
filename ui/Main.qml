@@ -10,6 +10,9 @@ ApplicationWindow {
 
     // Exposed for tests (qml_smoke drives navigation through it).
     readonly property NavigationModel navigation: navigationModel
+    // Exposed for tests (P15).
+    readonly property CapabilityModel capabilities: capabilityModel
+    readonly property DashboardViewModel dashboard: dashboardModel
     // Exposed for tests: null unless a user is logged in.
     readonly property Item shell: shellLoader.item as Item
     // Exposed for tests: null unless the state asks for them.
@@ -120,10 +123,34 @@ ApplicationWindow {
     NavigationModel {
         id: navigationModel
 
+        locks: capabilityModel.locks
         onLeaveRequested: {
             if (window.guardedPage)
                 window.guardedPage.askBeforeLeaving();
         }
+        // Services announce no changes: saved data shows on the next section change (P15
+        // decision 5). The dashboard and the chip of the top bar read with the capabilities.
+        onCurrentIndexChanged: {
+            capabilityModel.reload();
+            dashboardModel.reload();
+        }
+    }
+
+    // The capabilities of SPEC section 2 (P15): what the sidebar locks and the dashboard shows.
+    CapabilityModel {
+        id: capabilityModel
+
+        teamId: AppState.teamId
+        showAdvanced: AppSettings.showAdvancedModules
+        onErrorOccurred: message => Toasts.error(message)
+    }
+
+    DashboardViewModel {
+        id: dashboardModel
+
+        teamId: AppState.teamId
+        yellowCardThreshold: AppSettings.yellowCardThreshold
+        onErrorOccurred: message => Toasts.error(message)
     }
 
     Connections {
@@ -137,6 +164,9 @@ ApplicationWindow {
             window.guardedPage = null;
             // An undo toast belongs to the last user, whose views are going away.
             Toasts.dismiss();
+            // The capabilities and permissions of the next user.
+            capabilityModel.reload();
+            dashboardModel.reload();
             // The next user starts on the dashboard: the section of the last one may be hidden.
             navigationModel.activate("dashboard");
             // A login over a running session leaves the state at Ready, so `active` does not change.
@@ -258,6 +288,8 @@ ApplicationWindow {
 
                 TopBar {
                     Layout.fillWidth: true
+                    dashboard: dashboardModel
+                    onNavigateRequested: (key, args) => navigationModel.activate(key, args)
                     onLogoutRequested: window.runGuarded(() => AppState.logout())
                     onSearchRequested: text => navigationModel.activate("squad", {
                             "search": text
@@ -272,22 +304,47 @@ ApplicationWindow {
                     Repeater {
                         model: navigationModel
 
-                        delegate: Loader {
-                            id: sectionLoader
+                        // A section that needs a locked capability shows LockedState instead of
+                        // its view (P15); the view stays loaded and hidden behind it.
+                        delegate: Item {
+                            id: section
 
                             required property string key
+                            required property string title
+                            required property string capabilityKey
+                            required property bool locked
+                            required property string lockHint
+                            readonly property var capability: capabilityModel.byKey[capabilityKey] ?? ({})
 
-                            sourceComponent: window.viewComponents[key] ?? null
+                            Loader {
+                                id: sectionLoader
 
-                            // All sections stay loaded; only the current one gets the arguments,
-                            // the others fall back to their default. A view reacts in
-                            // onNavigationArgsChanged: the order against its visible change is not
-                            // guaranteed.
-                            Binding {
-                                target: sectionLoader.item
-                                property: "navigationArgs"
-                                when: sectionLoader.status === Loader.Ready && navigationModel.currentKey === sectionLoader.key
-                                value: navigationModel.currentArgs
+                                anchors.fill: parent
+                                visible: !section.locked
+                                sourceComponent: window.viewComponents[section.key] ?? null
+
+                                // All sections stay loaded; only the current one gets the
+                                // arguments, the others fall back to their default. A view reacts
+                                // in onNavigationArgsChanged: the order against its visible change
+                                // is not guaranteed.
+                                Binding {
+                                    target: sectionLoader.item
+                                    property: "navigationArgs"
+                                    when: sectionLoader.status === Loader.Ready && navigationModel.currentKey === section.key
+                                    value: navigationModel.currentArgs
+                                }
+                            }
+
+                            LockedState {
+                                objectName: "sectionLocked_" + section.key
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacing.xl
+                                visible: section.locked
+                                title: section.title
+                                hint: section.lockHint
+                                actionText: section.capability.actionText ?? ""
+                                askText: section.capability.askText ?? ""
+                                onActionTriggered: navigationModel.activate(section.capability.actionSection, {})
                             }
                         }
                     }
@@ -312,6 +369,8 @@ ApplicationWindow {
         id: dashboardView
 
         DashboardView {
+            dashboard: dashboardModel
+            capabilities: capabilityModel
             onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
     }

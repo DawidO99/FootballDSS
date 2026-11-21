@@ -1005,6 +1005,58 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Dashboard: DashboardCard, DashboardRow, LockedState</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unavailable: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Injury</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Today&apos;s training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No session today. Plan sessions in the calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load signals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter RPE after sessions to see load signals and trends. Days with RPE still needed: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the physio to enter RPE after sessions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add players to use the tactics board and the lineup validator. Players still needed: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add players</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Match Day: MatchClockBar, MatchPlayerTile, MatchTimeline</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1184,11 +1236,71 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The next match, unavailable players, load signals and recent form will appear here once your squad is set up.</source>
+        <source>Retry</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Set up the squad</source>
+        <source>Could not load the dashboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Match Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Pre-match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unavailable: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unavailable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load signals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not read load data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Signals to talk to the player, not a diagnosis.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reading the load data…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Form: last 5 matches</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, %2 %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Today&apos;s training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Features</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1496,6 +1608,17 @@
     </message>
     <message>
         <source>Record a training session</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>LockedState</name>
+    <message>
+        <source>Locked: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locked</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2927,6 +3050,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Modules</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Advanced modules</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pro analysis appears once event data is imported. On: it is listed on the dashboard before that, with what to import.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show advanced modules</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Club details, custom metrics and backups will be configured here.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3210,6 +3349,17 @@
     </message>
 </context>
 <context>
+    <name>SidebarButton</name>
+    <message>
+        <source>%1, locked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (locked): %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>SlotPickerDialog</name>
     <message>
         <source>Close</source>
@@ -3464,6 +3614,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Next match: %1, %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>%1, %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3712,6 +3866,306 @@
     </message>
     <message>
         <source>This session has saved attendance for %1 players. Delete it together with the attendance?</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::CapabilityModel</name>
+    <message>
+        <source>Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Matches</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponents</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Event data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Available</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tactics board and lineup validator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match report, form and minutes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load signals and trends</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lineup assistant</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pro analysis: shot map and heatmaps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Days until the full acute:chronic comparison: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add players to use the tactics board and the lineup validator. Players still needed: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Finish a match to see the match report, form and minutes. Matches still needed: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter RPE after sessions to see load signals and trends. Days with RPE still needed: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rate the players after a match, or enter attributes or custom metrics, to use the lineup assistant.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the results of finished matches to see opponent profiles. Matches with a result still needed: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import an event data file (StatsBomb JSON) to unlock Pro analysis.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add players</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add the players.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to enter a finished match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the physio to enter RPE after sessions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to rate the players after a match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to enter the results of finished matches.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the analyst to import an event data file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::DashboardViewModel</name>
+    <message>
+        <source>%1, %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source> · </source>
+        <extracomment>Separates the venue, the kick-off and the competition of the next match.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match in progress</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Today</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tomorrow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>In %1 days</source>
+        <extracomment>Days to the next match, 2 or more: &quot;Za %1 dni&quot; fits every such number in Polish.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No lineup saved yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lineup issues: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lineup ready</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lineup ready, warnings: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No match is planned. Add the next match in the calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No match is planned. Ask the coach or the assistant to add the next match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Expected back: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Return date not known</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Everyone is available today. Injuries, illnesses and absences are entered on the player card.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Everyone is available today. The coach, the assistant or the physio enters injuries, illnesses and absences.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter RPE after sessions to build the load comparison.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No load signals today. The Load screen shows the whole team.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>–</source>
+        <extracomment>No result stored: shown instead of W, D or L.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No result</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1:%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>W</source>
+        <extracomment>Win, one letter (Polish: Z).</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Win</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>D</source>
+        <extracomment>Draw, one letter (Polish: R).</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draw</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>L</source>
+        <extracomment>Loss, one letter (Polish: P).</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loss</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rating: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No ratings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No results recorded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goals: %1:%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goals: %1:%2 (matches with a result: %3 of %4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · Average rating: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No start time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 min</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No session today. Plan sessions in the calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No session today. Ask the coach or the assistant to plan a session.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not enough data. %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

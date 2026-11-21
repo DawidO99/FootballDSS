@@ -53,6 +53,8 @@ add_library(fdss_data STATIC
     readers/TacticJson.cpp
     repositories/AvailabilityRepository.hpp
     repositories/AvailabilityRepository.cpp
+    repositories/CapabilityRepository.hpp
+    repositories/CapabilityRepository.cpp
     repositories/ClubRepository.hpp
     repositories/ClubRepository.cpp
     repositories/LineupRepository.hpp

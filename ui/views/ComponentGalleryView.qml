@@ -1548,6 +1548,63 @@ Item {
                     }
                 }
 
+                // Dashboard (P15): a card in its three states and the locked state of a section.
+                Card {
+                    objectName: "galleryDashboard"
+                    Layout.fillWidth: true
+                    Layout.columnSpan: 2
+                    title: qsTr("Dashboard: DashboardCard, DashboardRow, LockedState")
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing.l
+
+                        DashboardCard {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            title: qsTr("Unavailable: %1").arg(1)
+                            iconName: "squad"
+
+                            DashboardRow {
+                                Layout.fillWidth: true
+                                text: qsTr("Sample player")
+
+                                PlayerStatusBadge {
+                                    statusKey: "injured"
+                                    text: qsTr("Injury")
+                                }
+                            }
+                        }
+
+                        DashboardCard {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            title: qsTr("Today's training")
+                            iconName: "training"
+                            cardState: "empty"
+                            emptyText: qsTr("No session today. Plan sessions in the calendar.")
+                            emptyActionText: qsTr("Open the calendar")
+                        }
+
+                        DashboardCard {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            title: qsTr("Load signals")
+                            iconName: "load"
+                            cardState: "locked"
+                            lockHint: qsTr("Enter RPE after sessions to see load signals and trends. Days with RPE still needed: %1.").arg(9)
+                            lockAskText: qsTr("Ask the coach, the assistant or the physio to enter RPE after sessions.")
+                        }
+                    }
+
+                    LockedState {
+                        Layout.fillWidth: true
+                        title: qsTr("Pre-match")
+                        hint: qsTr("Add players to use the tactics board and the lineup validator. Players still needed: %1.").arg(4)
+                        actionText: qsTr("Add players")
+                    }
+                }
+
                 // Match Day (P13): the score and the clock, the player tiles in every state and the
                 // timeline, on constant sample values.
                 Card {
