@@ -58,6 +58,9 @@ qt_add_qml_module(fdss_ui
         ui/components/FocusFlickable.qml
         ui/components/FormField.qml
         ui/components/Icon.qml
+        ui/components/ImportMappingTable.qml
+        ui/components/ImportReportTable.qml
+        ui/components/ImportStepIndicator.qml
         ui/components/IconButton.qml
         ui/components/LanguageThemeSwitch.qml
         ui/components/LineupIssuesPanel.qml
@@ -87,6 +90,7 @@ qt_add_qml_module(fdss_ui
         ui/components/PlayerToken.qml
         ui/components/PlayerStatusBadge.qml
         ui/components/PrimaryButton.qml
+        ui/components/ProgressLine.qml
         ui/components/ProfileTile.qml
         ui/components/RpeCell.qml
         ui/components/SearchField.qml
@@ -147,6 +151,10 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/DashboardViewModel.cpp
         src/viewmodels/ErrorPresenter.hpp
         src/viewmodels/ErrorPresenter.cpp
+        src/viewmodels/ImportTexts.hpp
+        src/viewmodels/ImportTexts.cpp
+        src/viewmodels/ImportWizardViewModel.hpp
+        src/viewmodels/ImportWizardViewModel.cpp
         src/viewmodels/IsoDates.hpp
         src/viewmodels/JsGarbageCollector.hpp
         src/viewmodels/IsoDates.cpp
@@ -223,6 +231,15 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/StartupViewModel.cpp
         src/viewmodels/TrainingSessionViewModel.hpp
         src/viewmodels/TrainingSessionViewModel.cpp
+)
+
+# The templates of the import (packet P16), saved by ImportWizardViewModel::saveTemplate().
+qt_add_resources(fdss_ui "fdss_import_templates"
+    PREFIX "/fdss/import-templates"
+    BASE ui/import-templates
+    FILES
+        ui/import-templates/squad.csv
+        ui/import-templates/squad.xlsx
 )
 
 target_link_libraries(fdss_ui PUBLIC fdss_services Qt6::Quick Qt6::QuickControls2 Qt6::Graphs)

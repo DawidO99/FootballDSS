@@ -23,6 +23,7 @@ add_executable(fdss_tests
     core/EnumsTest.cpp
     core/ErrorTest.cpp
     core/FormationsTest.cpp
+    core/ImportParsingTest.cpp
     core/LineupTest.cpp
     core/LineupValidatorTest.cpp
     core/LiveShapeTest.cpp
@@ -30,6 +31,7 @@ add_executable(fdss_tests
     core/LoadTest.cpp
     core/MatchMinutesTest.cpp
     core/PermissionsTest.cpp
+    core/SquadImportTest.cpp
     core/ValidationTest.cpp
     core/VersionTest.cpp
     data/AppPathsTest.cpp
@@ -38,6 +40,7 @@ add_executable(fdss_tests
     data/CapabilityRepositoryTest.cpp
     data/ClubRepositoryTest.cpp
     data/DatabaseManagerTest.cpp
+    data/ImportLogRepositoryTest.cpp
     data/EnumsSchemaTest.cpp
     data/LineupRepositoryTest.cpp
     data/MatchLiveRepositoryTest.cpp
@@ -56,6 +59,7 @@ add_executable(fdss_tests
     data/TestDatabase.hpp
     data/TrainingRepositoryTest.cpp
     data/TransactionTest.cpp
+    data/XlsxReaderTest.cpp
     data/XlsxSpikeTest.cpp
     services/AuthServiceTest.cpp
     services/CalendarServiceTest.cpp
@@ -63,6 +67,7 @@ add_executable(fdss_tests
     services/DashboardServiceTest.cpp
     services/DemoDataServiceTest.cpp
     services/FakeClock.hpp
+    services/ImportServiceTest.cpp
     services/LineupServiceTest.cpp
     services/LoadServiceTest.cpp
     services/MatchDayServiceTest.cpp
@@ -75,10 +80,12 @@ add_executable(fdss_tests
 )
 # QXlsx is linked here only to prove the library itself (P03 spike); app code reaches it
 # through fdss_data.
-target_link_libraries(fdss_tests PRIVATE fdss_services QXlsx::QXlsx GTest::gtest)
+target_link_libraries(fdss_tests PRIVATE fdss_services QXlsx::QXlsx Qt6::Concurrent GTest::gtest)
 target_compile_definitions(fdss_tests PRIVATE
     FDSS_EXPECTED_VERSION="${PROJECT_VERSION}"
     FDSS_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
+    FDSS_IMPORT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/import"
+    FDSS_IMPORT_TEMPLATES_DIR="${PROJECT_SOURCE_DIR}/ui/import-templates"
 )
 # Test sources contain Polish string literals.
 if(MSVC)
@@ -95,6 +102,7 @@ add_executable(fdss_vm_tests
     viewmodels/ChangePinViewModelTest.cpp
     viewmodels/DashboardViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
+    viewmodels/ImportWizardViewModelTest.cpp
     viewmodels/LoadViewModelTest.cpp
     viewmodels/MatchDayViewModelTest.cpp
     viewmodels/MatchEditorViewModelTest.cpp
@@ -114,6 +122,9 @@ add_executable(fdss_vm_tests
     viewmodels/ViewModelFixture.hpp
 )
 target_link_libraries(fdss_vm_tests PRIVATE fdss_ui GTest::gtest)
+target_compile_definitions(fdss_vm_tests PRIVATE
+    FDSS_IMPORT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/import"
+)
 # Test sources contain Polish string literals.
 if(MSVC)
     target_compile_options(fdss_vm_tests PRIVATE /utf-8)
@@ -129,6 +140,9 @@ qt_add_executable(qml_smoke
     qml_smoke/main.cpp
 )
 target_link_libraries(qml_smoke PRIVATE fdss_ui fdss_uiplugin)
+target_compile_definitions(qml_smoke PRIVATE
+    FDSS_IMPORT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/import"
+)
 add_test(NAME qml_smoke COMMAND qml_smoke)
 set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" LABELS ui)
 

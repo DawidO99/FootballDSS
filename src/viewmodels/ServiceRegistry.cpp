@@ -4,6 +4,7 @@
 #include "data/repositories/AvailabilityRepository.hpp"
 #include "data/repositories/CapabilityRepository.hpp"
 #include "data/repositories/ClubRepository.hpp"
+#include "data/repositories/ImportLogRepository.hpp"
 #include "data/repositories/LineupRepository.hpp"
 #include "data/repositories/MatchLiveRepository.hpp"
 #include "data/repositories/MatchNoteRepository.hpp"
@@ -25,6 +26,7 @@
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
 #include "services/TrainingService.hpp"
+#include "services/import/ImportService.hpp"
 
 #include <QtGlobal>
 
@@ -83,6 +85,7 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
       m_matchNotes(std::make_unique<data::MatchNoteRepository>(*m_database)),
       m_matchTactics(std::make_unique<data::MatchTacticRepository>(*m_database)),
       m_capabilityCounts(std::make_unique<data::CapabilityRepository>(*m_database)),
+      m_importLog(std::make_unique<data::ImportLogRepository>(*m_database)),
       m_session(std::make_unique<services::Session>()),
       m_auth(std::make_unique<services::AuthService>(*m_database, *m_staff, *m_session, *m_clock,
                                                      options.pinIterations)),
@@ -112,7 +115,9 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
           std::make_unique<services::CapabilityService>(*m_capabilityCounts, *m_session, *m_clock)),
       m_dashboard(std::make_unique<services::DashboardService>(*m_matches, *m_opponents, *m_players,
                                                                *m_availability, *m_training,
-                                                               *m_lineup, *m_session, *m_clock)) {}
+                                                               *m_lineup, *m_session, *m_clock)),
+      m_imports(std::make_unique<services::ImportService>(*m_database, *m_importLog, *m_players,
+                                                          *m_session, *m_clock)) {}
 
 ServiceRegistry::~ServiceRegistry() = default;
 
@@ -142,5 +147,6 @@ services::MatchReportService& ServiceRegistry::matchReport() { return *m_matchRe
 services::CapabilityService& ServiceRegistry::capabilities() { return *m_capabilities; }
 
 services::DashboardService& ServiceRegistry::dashboard() { return *m_dashboard; }
+services::ImportService& ServiceRegistry::imports() { return *m_imports; }
 
 } // namespace fdss::viewmodels

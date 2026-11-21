@@ -44,16 +44,17 @@ core::Result<core::Player> PlayerRepository::get(core::PlayerId id) const {
 }
 
 core::Result<core::PlayerId> PlayerRepository::create(core::TeamId team,
-                                                      const core::PlayerDraft& draft) {
+                                                      const core::PlayerDraft& draft,
+                                                      std::optional<core::ImportId> importId) {
     const auto id = insertRow(
         m_db,
         QStringLiteral("INSERT INTO player (team_id, first_name, last_name, shirt_number, "
-                       "birth_year, primary_position, secondary_positions, foot, notes) "
-                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+                       "birth_year, primary_position, secondary_positions, foot, notes, import_id) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
         {idValue(team), nameValue(draft.firstName), nameValue(draft.lastName),
          optionalValue(draft.shirtNumber), optionalValue(draft.birthYear),
          enumValue(draft.primaryPosition), textValue(positionsToDbText(draft.secondaryPositions)),
-         enumValue(draft.foot), optionalTextValue(draft.notes)},
+         enumValue(draft.foot), optionalTextValue(draft.notes), optionalIdValue(importId)},
         "create player");
     if (!id) {
         return std::unexpected(id.error());
@@ -87,6 +88,29 @@ core::Status PlayerRepository::archive(core::PlayerId id, core::Date date) {
 core::Status PlayerRepository::unarchive(core::PlayerId id) {
     return changeRow(m_db, QStringLiteral("UPDATE player SET archived_at = NULL WHERE id = ?"),
                      {idValue(id)}, "unarchive player");
+}
+
+core::Result<std::vector<core::Player>> PlayerRepository::listByImport(core::ImportId id) const {
+    return selectAll(m_db, kSelectPlayer + QStringLiteral("WHERE import_id = ? ORDER BY id"),
+                     {idValue(id)}, "list players of an import", readPlayer);
+}
+
+core::Result<bool> PlayerRepository::isInLineup(core::PlayerId id) const {
+    // .tactic.json version 1: slots[].playerId and bench[] (data/readers/TacticJson.hpp).
+    auto found = selectOne(
+        m_db,
+        QStringLiteral("SELECT EXISTS (SELECT 1 FROM lineup, json_each(lineup.tactic_json, "
+                       "'$.slots') AS slot WHERE json_extract(slot.value, '$.playerId') = ?) "
+                       "OR EXISTS (SELECT 1 FROM lineup, json_each(lineup.tactic_json, "
+                       "'$.bench') AS place WHERE place.value = ?)"),
+        {idValue(id), idValue(id)}, "find player in lineups",
+        [](RowReader& row) { return row.boolean(); });
+    return found;
+}
+
+core::Status PlayerRepository::remove(core::PlayerId id) {
+    return changeRow(m_db, QStringLiteral("DELETE FROM player WHERE id = ?"), {idValue(id)},
+                     "remove player", ForeignKeyFailure::RowInUse);
 }
 
 } // namespace fdss::data

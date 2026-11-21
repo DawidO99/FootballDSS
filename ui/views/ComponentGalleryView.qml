@@ -552,6 +552,76 @@ Item {
                             }
                         }
                     }
+
+                    // Import wizard (P16): steps, progress, column mapping and the report.
+                    Card {
+                        objectName: "galleryImport"
+                        Layout.fillWidth: true
+                        title: qsTr("Import: ImportStepIndicator, ProgressLine, ImportMappingTable, ImportReportTable")
+
+                        ImportStepIndicator {
+                            Layout.fillWidth: true
+                            currentIndex: 3
+                            steps: [qsTr("Type"), qsTr("File"), qsTr("Preview"), qsTr("Columns"), qsTr("Check"), qsTr("Done")]
+                        }
+
+                        ProgressLine {
+                            Layout.fillWidth: true
+                            value: 0.4
+                            text: qsTr("Checking the rows… %1%").arg(40)
+                        }
+
+                        ProgressLine {
+                            Layout.fillWidth: true
+                            text: qsTr("Reading the file…")
+                        }
+
+                        ImportMappingTable {
+                            Layout.fillWidth: true
+                            model: sampleMapping
+                            fieldOptions: [
+                                {
+                                    "value": "",
+                                    "text": qsTr("Ignore column")
+                                },
+                                {
+                                    "value": "last_name",
+                                    "text": qsTr("Last name")
+                                },
+                                {
+                                    "value": "first_name",
+                                    "text": qsTr("First name")
+                                },
+                                {
+                                    "value": "shirt_number",
+                                    "text": qsTr("Shirt number")
+                                }
+                            ]
+                            onFieldChosen: (column, field) => Toasts.info(qsTr("Column %1: %2").arg(column).arg(field))
+                        }
+
+                        ImportReportTable {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 4 * Theme.rowHeight + Theme.tableHeaderHeight
+                            model: sampleReport
+                        }
+
+                        ListModel {
+                            id: sampleMapping
+
+                            ListElement { column: 0; header: "Nazwisko"; samples: "Kowalski, Nowak, Żółkiewski"; field: "last_name"; autoMatched: true }
+                            ListElement { column: 1; header: "Imię"; samples: "Jan, Adam, Łukasz"; field: "first_name"; autoMatched: true }
+                            ListElement { column: 2; header: "Telefon"; samples: "600 100 200"; field: ""; autoMatched: false }
+                        }
+
+                        ListModel {
+                            id: sampleReport
+
+                            ListElement { rowNumber: 2; statusKey: "ok"; statusText: qsTr("OK"); name: "Jan Kowalski"; action: qsTr("New player"); details: ""; message: "" }
+                            ListElement { rowNumber: 3; statusKey: "warning"; statusText: qsTr("Warning"); name: "Adam Nowak"; action: qsTr("New player"); details: qsTr("position set by default — correct it in Squad"); message: qsTr("Row 3: position set by default — correct it in Squad.") }
+                            ListElement { rowNumber: 14; statusKey: "error"; statusText: qsTr("Error"); name: "Piotr Lis"; action: qsTr("Not imported"); details: qsTr("shirt number 'abc', expected a number"); message: qsTr("Row 14: shirt number 'abc', expected a number.") }
+                        }
+                    }
                 }
             }
 

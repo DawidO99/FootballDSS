@@ -32,9 +32,35 @@ QString ErrorPresenter::message(const core::Error& error) {
         return tr("This data was saved by a newer version of FootballDSS. Install the newer "
                   "version to use it.");
     case core::ErrorCode::Io:
+        if (error.field == "import_file") {
+            return tr("The file cannot be read. Check that it still exists and is not open in "
+                      "another program, then choose it again.");
+        }
+        if (error.field == "import_template") {
+            return tr("The template cannot be saved there. Choose another folder.");
+        }
         return tr("A file cannot be read or written. Check that the disk is not full and that you "
                   "may write to the folder.");
     case core::ErrorCode::UnsupportedFormat:
+        if (error.field == "import_xls") {
+            return tr("This is an old Excel file (.xls). Open it in Excel, save it as .xlsx and "
+                      "import that file.");
+        }
+        if (error.field == "import_json") {
+            return tr("JSON files are not supported for this type of import. Choose a CSV or "
+                      "XLSX file.");
+        }
+        if (error.field == "import_xlsx_corrupt") {
+            return tr("This file is not a valid .xlsx workbook, or it is damaged. Open it in "
+                      "Excel, save it again and import the new file.");
+        }
+        if (error.field == "import_file_type") {
+            return tr("This is not a spreadsheet: only CSV, TXT and XLSX files can be imported, "
+                      "whatever their name says. Choose another file.");
+        }
+        if (error.field == "import_type") {
+            return tr("This import cannot be undone here.");
+        }
         if (error.field == "tactic_file") {
             return tr("This is not a tactics file of FootballDSS (.tactic.json), or it is damaged. "
                       "Choose another file.");
@@ -55,6 +81,26 @@ QString ErrorPresenter::message(const core::Error& error) {
 }
 
 QString ErrorPresenter::invalidInputMessage(const std::string& field) {
+    // Import (P16).
+    if (field == "import_file_size") {
+        return tr("The file is larger than 20 MB. Remove what is not needed and try again.");
+    }
+    if (field == "import_empty") {
+        return tr("The file is empty. Choose the file with the data, or fill in the template.");
+    }
+    if (field == "import_no_rows") {
+        return tr("The file has only a header and no rows. Add the data below the header, or "
+                  "choose another sheet.");
+    }
+    if (field == "import_sheet") {
+        return tr("This sheet no longer exists. Open the file again.");
+    }
+    if (field == "import_has_errors") {
+        return tr("Some rows have errors. Fix them in the file, or choose to skip them.");
+    }
+    if (field == "import_nothing") {
+        return tr("There is nothing to import: every row is skipped or has errors.");
+    }
     // Live tactics (P13b): MatchDayService::recordTacticChange().
     if (field == "tactic_shape") {
         return tr("This shape cannot be used: it needs 11 places on the pitch and at most one "
@@ -221,6 +267,9 @@ QString ErrorPresenter::pinCheckMessage(const services::PinCheck& check) {
 }
 
 QString ErrorPresenter::conflictMessage(const std::string& field) {
+    if (field == "import_undone") {
+        return tr("This import has already been undone.");
+    }
     if (field == "last_coach") {
         return tr("The club must keep an active coach. Make someone else a coach first.");
     }

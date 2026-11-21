@@ -32,6 +32,7 @@
 #include "viewmodels/CapabilityModel.hpp"
 #include "viewmodels/ChangePinViewModel.hpp"
 #include "viewmodels/DashboardViewModel.hpp"
+#include "viewmodels/ImportWizardViewModel.hpp"
 #include "viewmodels/JsGarbageCollector.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/LoadTexts.hpp"
@@ -109,6 +110,7 @@ using fdss::viewmodels::AppState;
 using fdss::viewmodels::AvailabilityViewModel;
 using fdss::viewmodels::CalendarViewModel;
 using fdss::viewmodels::ChangePinViewModel;
+using fdss::viewmodels::ImportWizardViewModel;
 using fdss::viewmodels::LanguageManager;
 using fdss::viewmodels::LoadViewModel;
 using fdss::viewmodels::MatchDayViewModel;
@@ -6347,6 +6349,151 @@ void exerciseDashboardDemo(QQmlApplicationEngine& engine, fdss::data::DatabaseMa
     exerciseDashboardReadErrors(*screen, database);
 }
 
+// --- Import (P16) ---
+
+QString importFixture(const char* name) {
+    return QStringLiteral(FDSS_IMPORT_FIXTURES_DIR "/%1").arg(QLatin1StringView(name));
+}
+
+int activePlayers(fdss::data::DatabaseManager& database) {
+    QSqlQuery query(database.database());
+    query.exec(QStringLiteral("SELECT count(*) FROM player WHERE archived_at IS NULL"));
+    return query.next() ? query.value(0).toInt() : -1;
+}
+
+// A button of a step: in the window at its size, at least the minimum hit target high, enabled
+// as expected.
+void expectReachable(QQuickWindow* window, QQuickItem* item, bool enabled, const char* reason) {
+    if (item == nullptr) {
+        fail(reason);
+        return;
+    }
+    renderFrame(window);
+    const QRectF rect = item->mapRectToScene(QRectF(0, 0, item->width(), item->height()));
+    const QRectF windowRect(0, 0, window->width(), window->height());
+    constexpr qreal kMinHit = 32;
+    if (!item->isVisible() || !windowRect.contains(rect) || rect.height() < kMinHit ||
+        item->isEnabled() != enabled) {
+        fail(reason);
+    }
+}
+
+// A click where the item is on screen: a step just shown is laid out only when a frame is
+// rendered (renderFrame()), so a click without one may land beside the button.
+void clickPolished(QQuickWindow* window, QQuickItem* item) {
+    if (item == nullptr) {
+        fail("the item to click is not there");
+        return;
+    }
+    renderFrame(window);
+    clickItem(window, item);
+}
+
+// The whole wizard at the minimum window with the Polish Excel file of the packet (20 players),
+// the undo, and a file without positions that asks for the default one. The file dialog is not
+// driven: the file goes in through the viewmodel, everything else through the buttons.
+void exerciseImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database,
+                    const QString& screenshotDirectory) {
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    settle();
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    constexpr int kMinimumWidth = 1280;
+    constexpr int kMinimumHeight = 720;
+    const QSize originalSize = window->size();
+    window->resize(kMinimumWidth, kMinimumHeight);
+    navigation->activate(QStringLiteral("import"));
+    settle();
+    auto* view = findQmlItem(window->contentItem(), "ImportView");
+    auto* wizard =
+        view != nullptr ? view->property("viewModel").value<ImportWizardViewModel*>() : nullptr;
+    if (wizard == nullptr) {
+        fail("the import view or its viewmodel is not there");
+        return;
+    }
+    const auto find = [view](const char* name) {
+        return findByObjectName(view, QString::fromLatin1(name));
+    };
+    const auto atStep = [wizard](const char* step) {
+        return !wizard->busy() && wizard->step() == QLatin1StringView(step);
+    };
+
+    clickPolished(window, find("importType_squad"));
+    if (!atStep("file")) {
+        fail("the squad type did not lead to the file step");
+        return;
+    }
+    expectReachable(window, find("chooseFileButton"), true, "the file button is not usable");
+    wizard->openPath(importFixture("polish-excel-cp1250.csv"));
+    if (!waitUntil([&] { return atStep("preview"); }, "the Polish Excel file did not open")) {
+        return;
+    }
+    settle();
+    if (find("previewTable")->property("count").toInt() != 20) {
+        fail("the preview does not show 20 rows");
+    }
+    expectReachable(window, find("toMappingButton"), true, "Next on the preview is not usable");
+    clickPolished(window, find("toMappingButton"));
+    if (!atStep("mapping") || find("mappingTable")->property("count").toInt() != 4) {
+        fail("the mapping does not show the four columns");
+        return;
+    }
+    if (find("mappingChoice0")->property("value").toString() != QLatin1StringView("last_name")) {
+        fail("Nazwisko was not recognised as the last name");
+    }
+    expectReachable(window, find("validateButton"), true, "Check the rows is not usable");
+    clickPolished(window, find("validateButton"));
+    if (!waitUntil([&] { return atStep("report"); }, "the validation did not finish")) {
+        return;
+    }
+    settle();
+    // The rows of the table itself: the list inside it.
+    auto* reportRows = findByObjectName(find("reportTable"), QStringLiteral("tableRows"));
+    if (reportRows == nullptr || reportRows->property("count").toInt() != 20 ||
+        wizard->okCount() != 20) {
+        fail("the report does not have 20 rows without problems");
+    }
+    expectReachable(window, find("commitButton"), true, "Import is not usable on the report");
+    grabOrSave(window, screenshotDirectory, QStringLiteral("import-report.png"));
+    clickPolished(window, find("commitButton"));
+    if (!atStep("summary") || activePlayers(database) != 20) {
+        fail("the import did not write the 20 players");
+        return;
+    }
+    expectReachable(window, find("undoImportButton"), true, "Undo import is not usable");
+    clickPolished(window, find("undoImportButton"));
+    auto* dialog = view->property("undoImportDialog").value<QObject*>();
+    expectFlag(dialog, "visible", true, "Undo import did not ask first");
+    QMetaObject::invokeMethod(dialog, "triggerPrimary");
+    settle();
+    if (activePlayers(database) != 0 || !wizard->undone()) {
+        fail("undo import did not remove the players");
+    }
+    expectFlag(find("undoImportButton"), "visible", false, "Undo import is offered twice");
+
+    // Without a position column: the default position is asked for before the check.
+    clickPolished(window, find("importAgainButton"));
+    clickPolished(window, find("importType_squad"));
+    wizard->openPath(importFixture("no-position.csv"));
+    if (!waitUntil([&] { return atStep("preview"); }, "the file without positions did not open")) {
+        return;
+    }
+    clickPolished(window, find("toMappingButton"));
+    settle();
+    expectReachable(window, find("defaultPositionChoice"), true,
+                    "the default position cannot be chosen");
+    expectReachable(window, find("validateButton"), false,
+                    "the rows can be checked without a default position");
+    wizard->setDefaultPosition(QStringLiteral("cm"));
+    settle();
+    expectReachable(window, find("validateButton"), true,
+                    "the default position did not allow the check");
+    grabOrSave(window, screenshotDirectory, QStringLiteral("import-mapping.png"));
+    wizard->reset();
+    window->resize(originalSize);
+    settle();
+}
+
 int main(int argc, char* argv[]) {
     // As the app does; without it this run shows the CI failures of P12 under QV4_GC_TIMELIMIT=1.
     fdss::viewmodels::useNonIncrementalGarbageCollector();
@@ -6388,7 +6535,9 @@ int main(int argc, char* argv[]) {
         const bool onlyPreMatch = arguments.contains(QStringLiteral("--only-prematch"));
         // qml_smoke --only-dashboard runs the dashboard scenarios alone (P15).
         const bool onlyDashboard = arguments.contains(QStringLiteral("--only-dashboard"));
-        const bool onlyOne = onlyLoad || onlyPreMatch || onlyDashboard;
+        // qml_smoke --only-import runs the import wizard alone (P16).
+        const bool onlyImport = arguments.contains(QStringLiteral("--only-import"));
+        const bool onlyOne = onlyLoad || onlyPreMatch || onlyDashboard || onlyImport;
 
         std::optional<UiPreferences> leftBehind;
         for (const AppState::State state :
@@ -6436,7 +6585,7 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (onlyLoad || onlyDashboard) {
+        if (onlyLoad || onlyDashboard || onlyImport) {
             // Not this one.
         } else if (installRegistry(AppState::State::Ready) == nullptr) {
             fail("cannot install the service registry");
@@ -6457,6 +6606,19 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 exerciseMatchDay(engine, *database, screenshotDirectory);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (onlyLoad || onlyPreMatch || onlyDashboard) {
+            // Not this one.
+        } else if (fdss::data::DatabaseManager* database = installRegistry(AppState::State::Ready);
+                   database == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                exerciseImport(engine, *database, screenshotDirectory);
             }
             settle();
             ServiceRegistry::reset();
@@ -6513,7 +6675,7 @@ int main(int argc, char* argv[]) {
             verifyPreferencesSurviveRestart(*leftBehind);
         }
         for (const bool demo : {false, true}) {
-            if (onlyLoad || onlyPreMatch) {
+            if (onlyLoad || onlyPreMatch || onlyImport) {
                 break;
             }
             auto* database = installRegistry(AppState::State::Ready);
@@ -6537,7 +6699,7 @@ int main(int argc, char* argv[]) {
         const std::optional<QString> loadLanguage =
             onlyLoad ? std::nullopt : std::optional(QStringLiteral("pl"));
         for (const bool demo : {false, true}) {
-            if (onlyPreMatch || onlyDashboard) {
+            if (onlyPreMatch || onlyDashboard || onlyImport) {
                 break;
             }
             if (installRegistry(AppState::State::Ready) == nullptr) {
