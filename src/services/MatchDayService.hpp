@@ -9,6 +9,7 @@
 #include "core/domain/Player.hpp"
 #include "core/util/Error.hpp"
 #include "services/CalendarService.hpp"
+#include "services/MatchRecompute.hpp"
 
 #include <chrono>
 #include <optional>
@@ -78,14 +79,6 @@ struct MatchDayStartCheck {
     // The validator errors of the saved lineup, with players no longer in the squad.
     int lineupErrors = 0;
     core::MatchFormat defaultFormat;
-};
-
-// Why an event (entered late, at its minute) cannot be recorded.
-struct EventConflict {
-    core::MatchEventProblem problem = core::MatchEventProblem::UnknownPlayer;
-    // A stored event that would no longer fit (e.g. a goal by a player now sent off before it);
-    // empty when the new event itself does not fit.
-    std::optional<core::MatchEvent> laterEvent;
 };
 
 // Match Day (SPEC section 4 and 6, packet P13). Every action is one transaction that writes the

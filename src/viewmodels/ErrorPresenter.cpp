@@ -196,6 +196,12 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     if (field == "player_unknown" || field == "player_missing") {
         return tr("This player is not in the lineup of the match. Choose another player.");
     }
+    if (field == "rating") {
+        return tr("Enter a rating from 1 to 10.");
+    }
+    if (field == "report_note") {
+        return tr("Write the note of the report, up to 2000 characters.");
+    }
     if (field == "minute_out_of_range" || field == "after_final_minute") {
         return tr("The minute of this event is outside the match. Check the clock and try again.");
     }
@@ -269,6 +275,16 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
     }
     if (field == "event_conflict") {
         return tr("This event conflicts with a later one. Undo or correct the later event first.");
+    }
+    if (field == "match_not_finished") {
+        return tr("This match is not finished. Finish it in Match Day first.");
+    }
+    if (field == "not_correctable") {
+        return tr("The events of this match cannot be corrected: its stored minutes do not follow "
+                  "from them.");
+    }
+    if (field == "event_dependent") {
+        return tr("A later event needs this one. Delete the later event first.");
     }
     if (field == "undo_end_another_live") {
         return tr("Another match of this team is live. Finish it or undo its start first.");

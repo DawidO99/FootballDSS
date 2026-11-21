@@ -48,7 +48,19 @@ Item {
 
     function openItem(kind, itemId) {
         if (kind === "match") {
-            matchDialog.matchStatusKey = calendar.rowAt(calendar.rowOf("match", itemId)).statusKey ?? "";
+            const statusKey = calendar.rowAt(calendar.rowOf("match", itemId)).statusKey ?? "";
+            // A finished match opens its report (P14) instead of the read-only form.
+            if (statusKey === "finished") {
+                root.navigateRequested("matchreport", {
+                    "matchId": itemId,
+                    "returnTo": {
+                        "key": "calendar",
+                        "args": {}
+                    }
+                });
+                return;
+            }
+            matchDialog.matchStatusKey = statusKey;
             matchDialog.openForEditing(itemId);
         }
         else

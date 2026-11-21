@@ -121,7 +121,8 @@ Schema = numbered migrations; the first migration (`src/data/migrations/0001_ini
 every table below at once so later packets do not reshape it. The tables below list the exact column
 names and types of that migration, plus what later migrations added: `0002_match_live.sql` (P13) adds
 `match_live`, `match_clock_step`, `match_note`, `match_event.added_time` and `match_event.seq`;
-`0003_match_tactics.sql` (P13b) adds `match_tactic_change`.
+`0003_match_tactics.sql` (P13b) adds `match_tactic_change`; `0004_match_report.sql` (P14) adds
+`match.report_note`.
 
 Enumerations (stored as lowercase text with a `CHECK` constraint; C++ enums in `core/domain`):
 - Team category: `senior`, `u19`, `u17`, `u15`, `u13`, `u11`, `other`. Season text `2026/27`.
@@ -175,7 +176,7 @@ the import can be undone.
 | `player` | `team_id` INTEGER, `first_name` TEXT, `last_name` TEXT, `shirt_number` INTEGER *null*, `birth_year` INTEGER *null*, `primary_position` TEXT, `secondary_positions` TEXT (comma list, default empty), `foot` TEXT (default `unknown`), `notes` TEXT *null*, `archived_at` TEXT *null*, `import_id` INTEGER | No PESEL, no contact data; "status" is derived from `availability`. Partial unique index on (`team_id`, `shirt_number`) among non-archived players |
 | `availability` | `player_id` INTEGER, `type` TEXT, `from_date` TEXT, `expected_to` TEXT *null*, `actual_to` TEXT *null*, `description` TEXT *null* | Description: Coach + Physio only. End dates not before `from_date` |
 | `opponent` | `name` TEXT, `name_key` TEXT UNIQUE, `notes` TEXT *null* | `name_key` = `QString::toCaseFolded()`, because SQLite `NOCASE` folds ASCII only |
-| `match` | `team_id` INTEGER, `opponent_id` INTEGER, `date` TEXT, `kickoff_time` TEXT *null*, `venue` TEXT, `competition` TEXT *null*, `goals_for` INTEGER *null*, `goals_against` INTEGER *null*, `status` TEXT (default `planned`), `formation` TEXT *null*, `import_id` INTEGER | |
+| `match` | `team_id` INTEGER, `opponent_id` INTEGER, `date` TEXT, `kickoff_time` TEXT *null*, `venue` TEXT, `competition` TEXT *null*, `goals_for` INTEGER *null*, `goals_against` INTEGER *null*, `status` TEXT (default `planned`), `formation` TEXT *null*, `import_id` INTEGER, `report_note` TEXT *null* (1–2000 after trimming, since 0004) | `report_note`: the note of the match report, plain text |
 | `appearance` | `match_id` INTEGER, `player_id` INTEGER, `started` INTEGER 0/1 (default 0), `minute_on` INTEGER *null*, `minute_off` INTEGER *null*, `position` TEXT *null*, `rating` INTEGER *null* (1–10), `rpe` INTEGER *null* (0–10), `import_id` INTEGER | Minutes from Match Day, 0–130. UNIQUE (`match_id`, `player_id`) |
 | `match_event` | `match_id` INTEGER, `minute` INTEGER (0–130), `type` TEXT, `player_id` INTEGER *null*, `related_player_id` INTEGER *null*, `added_time` INTEGER *null* (≥ 1, since 0002), `seq` INTEGER *null* (≥ 1, since 0002) | `player_id` empty only for `opponent_goal`. Semantics below |
 | `match_live` | `match_id` INTEGER UNIQUE, `periods` INTEGER (1–4), `period_length` INTEGER (10–60), `clockless` INTEGER 0/1 (default 0), `next_seq` INTEGER (default 1), `finished_seq` INTEGER *null*, `ended_early_minute` INTEGER *null* (0–130) | Since 0002 (P13): a match that Match Day has started, in its format; `periods` × `period_length` ≤ 130. `next_seq`: the seq of the next action, a counter that only grows |
@@ -272,6 +273,24 @@ Live tactics (`match_tactic_change`, P13b):
 - The board of Match Day spreads the rows of the shape evenly over its height and never draws a name
   wider than the gap to the next token of its row, so no two tokens overlap at the minimum window;
   drops still use the position zones.
+
+Match report (P14):
+- Ratings (1–10) and RPE (0–10) of `appearance` are entered for every player who played; the RPE counts
+  in the match load (§7.1). Recomputing the minutes keeps them.
+- Corrections of a finished match add or delete an event, a note, or delete a change of shape; every
+  correction is one transaction that replays the whole match and recomputes the appearances and the
+  score (`core::computeMatchMinutes`). The final minute of the match never changes; an event after it
+  is refused. Events and notes added in the report have `seq` empty (they are not actions of Match Day,
+  whose undo still takes back the end of the match); a row restored from the undo toast keeps its id
+  and `seq`.
+- Deleting an event that a later one needs (the substitution of a later scorer, the first yellow of a
+  later second yellow) is refused, naming the later event; a second yellow and its red go together.
+  Editing an event is delete + add.
+- A match that Match Day did not run (demo data, import) is corrected on a sheet rebuilt from
+  `appearance`: the starters (`started`, or on from minute 0) with their stored position, the players
+  who came on, then the rest of the squad (who may come on in a correction); the final minute is the
+  largest `minute_off` (90 without one). Corrections are possible only when the stored events replay on
+  that sheet and give the stored minutes and score; otherwise only ratings, RPE and notes.
 
 `.tactic.json`: `{ "version": 1, "formation": "4-3-3", "slots": [{ "position": "GK", "x": 0.5, "y": 0.95, "playerId": 12 }] }`
 — coordinates normalised 0–1 relative to the pitch (own goal at y = 1). Optional `"bench": [playerId, …]`

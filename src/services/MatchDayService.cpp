@@ -47,11 +47,9 @@ constexpr std::string_view kMinuteOutOfMatch = "minute_out_of_match";
 constexpr std::string_view kClockNotRunning = "clock_not_running";
 constexpr std::string_view kClockTime = "clock_time";
 constexpr std::string_view kClockBeforeEvent = "clock_before_event";
-constexpr std::string_view kEventConflict = "event_conflict";
 constexpr std::string_view kNoteText = "note_text";
 constexpr std::string_view kNothingToUndo = "nothing_to_undo";
 constexpr std::string_view kUndoEndAnotherLive = "undo_end_another_live";
-constexpr std::string_view kMatchHistory = "match_history";
 constexpr std::string_view kTacticShape = "tactic_shape";
 constexpr std::string_view kTacticUnchanged = "tactic_unchanged";
 constexpr std::string_view kTacticChangeLater = "tactic_change_later";
@@ -64,44 +62,8 @@ core::Error invalid(std::string_view field, std::string detail) {
     return core::Error{core::ErrorCode::InvalidInput, std::move(detail), std::string(field)};
 }
 
-std::string_view problemField(core::MatchEventProblem problem) {
-    switch (problem) {
-    case core::MatchEventProblem::UnknownPlayer:
-        return "player_unknown";
-    case core::MatchEventProblem::MissingPlayer:
-        return "player_missing";
-    case core::MatchEventProblem::SamePlayer:
-        return "same_player";
-    case core::MatchEventProblem::NotOnPitch:
-        return "player_not_on_pitch";
-    case core::MatchEventProblem::NotOnBench:
-        return "player_not_on_bench";
-    case core::MatchEventProblem::AlreadySubstituted:
-        return "player_substituted";
-    case core::MatchEventProblem::SentOff:
-        return "player_sent_off";
-    case core::MatchEventProblem::MinuteOutOfRange:
-        return "minute_out_of_range";
-    case core::MatchEventProblem::AfterFinalMinute:
-        return "after_final_minute";
-    case core::MatchEventProblem::SecondYellowWithoutRed:
-        return "second_yellow_without_red";
-    }
-    return "player_unknown";
-}
-
-core::Error eventError(core::MatchEventProblem problem, std::string_view context) {
-    const std::string_view field = problemField(problem);
-    return invalid(field, std::format("{}: {}", context, field));
-}
-
-// Stored events that do not fit the lineup: the history of the match is inconsistent (written
-// outside Match Day, or damaged). Never shown as a lineup with 0:0 (P13 review).
 core::Error historyError(const core::MatchEventError& error, std::string_view context) {
-    return core::Error{core::ErrorCode::Database,
-                       std::format("{}: stored event {} does not fit the match ({})", context,
-                                   error.index, problemField(error.problem)),
-                       std::string(kMatchHistory)};
+    return matchHistoryError(error, context);
 }
 
 std::vector<core::MatchEventDraft> draftsOf(const std::vector<core::MatchEvent>& events) {
@@ -518,36 +480,7 @@ core::Result<MatchDayService::Live> MatchDayService::readLive(core::MatchId matc
 core::Result<core::MatchMinutes> MatchDayService::recompute(core::MatchId match,
                                                             const core::Lineup& lineup,
                                                             std::optional<int> finalMinute) {
-    const auto events = m_matches.listEvents(match);
-    if (!events) {
-        return std::unexpected(events.error());
-    }
-    const auto tactics = m_tactics.list(match);
-    if (!tactics) {
-        return std::unexpected(tactics.error());
-    }
-    const auto drafts = draftsOf(*events);
-    auto minutes = core::computeMatchMinutes(lineup, drafts, draftsOf(*tactics), finalMinute);
-    if (!minutes) {
-        return std::unexpected(historyError(minutes.error(), "recompute minutes"));
-    }
-    // Ratings and RPE (packet P14) belong to the player, not to the minutes: they stay.
-    const auto existing = m_matches.listAppearances(match);
-    if (!existing) {
-        return std::unexpected(existing.error());
-    }
-    for (core::AppearanceDraft& appearance : minutes->appearances) {
-        const auto old =
-            std::ranges::find(*existing, appearance.playerId, &core::AppearanceDraft::playerId);
-        if (old != existing->end()) {
-            appearance.rating = old->rating;
-            appearance.rpe = old->rpe;
-        }
-    }
-    if (auto replaced = m_matches.replaceAppearances(match, minutes->appearances); !replaced) {
-        return std::unexpected(replaced.error());
-    }
-    return std::move(*minutes);
+    return recomputeAppearances(m_matches, m_tactics, match, lineup, finalMinute);
 }
 
 core::Status MatchDayService::endNow(const Live& live, int seq, std::optional<int> minute) {
@@ -781,45 +714,7 @@ core::Result<core::MatchTime> MatchDayService::timeFor(const Live& live,
 core::Result<std::vector<core::MatchEventDraft>>
 MatchDayService::prepareEvents(const Live& live, const core::MatchEventDraft& event,
                                std::optional<EventConflict>& conflictFound) const {
-    std::vector<core::MatchEventDraft> all = draftsOf(live.events);
-    const std::size_t stored = all.size();
-    std::vector<core::MatchEventDraft> rows{event};
-    // A second yellow at its time (counted in the order of the match) brings its red row.
-    if (event.type == core::MatchEventType::Yellow && event.playerId) {
-        all.push_back(event);
-        int earlier = 0;
-        for (const std::size_t index : core::replayOrder(all)) {
-            if (index == stored) {
-                break;
-            }
-            if (all[index].type == core::MatchEventType::Yellow &&
-                all[index].playerId == event.playerId) {
-                ++earlier;
-            }
-        }
-        all.pop_back();
-        if (earlier == 1) {
-            core::MatchEventDraft red = event;
-            red.type = core::MatchEventType::Red;
-            red.relatedPlayerId.reset();
-            rows.push_back(red);
-        }
-    }
-    all.insert(all.end(), rows.begin(), rows.end());
-    const auto replayed = core::replayMatch(live.sheet, all);
-    if (!replayed) {
-        const core::MatchEventError& error = replayed.error();
-        if (error.index >= stored) {
-            conflictFound = EventConflict{error.problem, std::nullopt};
-            return std::unexpected(eventError(error.problem, "record match event"));
-        }
-        conflictFound = EventConflict{error.problem, live.events[error.index]};
-        return std::unexpected(
-            conflict(kEventConflict,
-                     std::format("match day: a later event {} no longer fits ({})",
-                                 live.events[error.index].id.value, problemField(error.problem))));
-    }
-    return rows;
+    return eventActionRows(live.sheet, live.events, event, std::nullopt, conflictFound);
 }
 
 core::Result<std::optional<EventConflict>>

@@ -26,11 +26,12 @@ public:
 // eventId, noteId, minuteText ("45+3'"), typeKey (goal, opponentGoal, yellow, red, secondYellow,
 // sub, assist, note, tactic; for a tactic change playerText is "4-4-2 → 4-2-3-1"),
 // iconName, typeText, playerText, relatedText ("Assist: …", "Off: …", the text of a note or empty),
-// and for a note its field values: noteMinute ("45+3"), notePlayerId (0: none), noteText.
+// and for a note its field values: noteMinute ("45+3"), notePlayerId (0: none), noteText; for a
+// change of shape its changeId (packet P14; 0 otherwise). MatchTimelineRows builds the rows.
 class MatchTimelineModel : public RowsModel {
     Q_OBJECT
     QML_ELEMENT
-    QML_UNCREATABLE("Owned by MatchDayViewModel")
+    QML_UNCREATABLE("Owned by a viewmodel")
 
 public:
     explicit MatchTimelineModel(QObject* parent = nullptr);

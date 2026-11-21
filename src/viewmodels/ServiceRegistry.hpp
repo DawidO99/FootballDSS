@@ -26,6 +26,7 @@ class DemoDataService;
 class LineupService;
 class LoadService;
 class MatchDayService;
+class MatchReportService;
 class Session;
 class SetupService;
 class SquadService;
@@ -84,6 +85,7 @@ public:
     [[nodiscard]] services::LoadService& load();
     [[nodiscard]] services::LineupService& lineup();
     [[nodiscard]] services::MatchDayService& matchDay();
+    [[nodiscard]] services::MatchReportService& matchReport();
 
 private:
     // Destroyed from the bottom up, the database last.
@@ -110,6 +112,7 @@ private:
     std::unique_ptr<services::LoadService> m_load;
     std::unique_ptr<services::LineupService> m_lineup;
     std::unique_ptr<services::MatchDayService> m_matchDay;
+    std::unique_ptr<services::MatchReportService> m_matchReport;
 };
 
 } // namespace fdss::viewmodels

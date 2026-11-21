@@ -20,6 +20,9 @@ NavigationModel::NavigationModel(QObject* parent)
           {QStringLiteral("load"), QT_TR_NOOP("Load"), QStringLiteral("load")},
           {QStringLiteral("import"), QT_TR_NOOP("Import"), QStringLiteral("import")},
           {QStringLiteral("settings"), QT_TR_NOOP("Settings"), QStringLiteral("settings")},
+          // Opened from the Calendar, Match Day and the player card (packet P14).
+          {QStringLiteral("matchreport"), QT_TR_NOOP("Match report"), QStringLiteral("matchday"),
+           false},
       } {
     // Installing a translator sends QEvent::LanguageChange to the application object, which only
     // an application-wide filter sees; eventFilter() ignores the copies Qt sends on to the items.
@@ -44,13 +47,22 @@ QVariant NavigationModel::data(const QModelIndex& index, int role) const {
         return tr(item.title);
     case IconNameRole:
         return item.iconName;
+    case InSidebarRole:
+        return item.inSidebar;
     default:
         return {};
     }
 }
 
 QHash<int, QByteArray> NavigationModel::roleNames() const {
-    return {{KeyRole, "key"}, {TitleRole, "title"}, {IconNameRole, "iconName"}};
+    return {{KeyRole, "key"},
+            {TitleRole, "title"},
+            {IconNameRole, "iconName"},
+            {InSidebarRole, "inSidebar"}};
+}
+
+int NavigationModel::sidebarCount() const {
+    return static_cast<int>(std::ranges::count(m_items, true, &Item::inSidebar));
 }
 
 int NavigationModel::currentIndex() const { return m_currentIndex; }

@@ -9,7 +9,8 @@
 
 namespace fdss::viewmodels {
 
-// Sidebar sections of the main window and the currently selected one.
+// Sections of the main window and the currently selected one. The sidebar shows the first
+// sidebarCount of them; the others (the match report) are opened from a view with arguments.
 class NavigationModel : public QAbstractListModel {
     Q_OBJECT
     QML_ELEMENT
@@ -17,6 +18,8 @@ class NavigationModel : public QAbstractListModel {
         int currentIndex READ currentIndex WRITE setCurrentIndex NOTIFY currentIndexChanged FINAL)
     Q_PROPERTY(QString currentKey READ currentKey NOTIFY currentIndexChanged FINAL)
     Q_PROPERTY(QVariantMap currentArgs READ currentArgs NOTIFY currentIndexChanged FINAL)
+    // The sections with a sidebar item; they come first.
+    Q_PROPERTY(int sidebarCount READ sidebarCount CONSTANT FINAL)
     // A view holds changes that are not saved. While on, moving elsewhere only remembers the target
     // and emits leaveRequested(), whichever way the move came: the sidebar writes currentIndex
     // directly, so a view could not stop it on its own.
@@ -24,7 +27,7 @@ class NavigationModel : public QAbstractListModel {
 
 public:
     // QML uses the role names from roleNames(); the enum is for C++ callers.
-    enum Role { KeyRole = Qt::UserRole + 1, TitleRole, IconNameRole };
+    enum Role { KeyRole = Qt::UserRole + 1, TitleRole, IconNameRole, InSidebarRole };
 
     explicit NavigationModel(QObject* parent = nullptr);
 
@@ -37,6 +40,7 @@ public:
     void setCurrentIndex(int index);
     [[nodiscard]] QString currentKey() const;
     [[nodiscard]] QVariantMap currentArgs() const;
+    [[nodiscard]] int sidebarCount() const;
 
     // Selects the section with the given key and hands it the arguments; unknown keys are reported
     // and ignored. New arguments for the current section also emit currentIndexChanged, the notify
@@ -65,6 +69,7 @@ private:
         QString key;
         const char* title; // untranslated source text, translated in data()
         QString iconName;
+        bool inSidebar = true;
     };
 
     struct Target {

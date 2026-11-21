@@ -36,10 +36,12 @@
 #include "viewmodels/LoadViewModel.hpp"
 #include "viewmodels/MatchDayViewModel.hpp"
 #include "viewmodels/MatchEditorViewModel.hpp"
+#include "viewmodels/MatchReportViewModel.hpp"
 #include "viewmodels/NavigationModel.hpp"
 #include "viewmodels/PlayerCardViewModel.hpp"
 #include "viewmodels/PlayerEditorViewModel.hpp"
 #include "viewmodels/PlayerLoadViewModel.hpp"
+#include "viewmodels/PlayerMatchesModel.hpp"
 #include "viewmodels/PreMatchViewModel.hpp"
 #include "viewmodels/ProfilePickerViewModel.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
@@ -107,10 +109,12 @@ using fdss::viewmodels::LanguageManager;
 using fdss::viewmodels::LoadViewModel;
 using fdss::viewmodels::MatchDayViewModel;
 using fdss::viewmodels::MatchEditorViewModel;
+using fdss::viewmodels::MatchReportViewModel;
 using fdss::viewmodels::NavigationModel;
 using fdss::viewmodels::PlayerCardViewModel;
 using fdss::viewmodels::PlayerEditorViewModel;
 using fdss::viewmodels::PlayerLoadViewModel;
+using fdss::viewmodels::PlayerMatchesModel;
 using fdss::viewmodels::PreMatchViewModel;
 using fdss::viewmodels::ProfilePickerViewModel;
 using fdss::viewmodels::ServiceRegistry;
@@ -1348,15 +1352,30 @@ void exerciseCalendar(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     }
     calendar->reload();
     settle();
+    // A finished match opens its report (P14), not the form.
     QMetaObject::invokeMethod(view, "openItem", Q_ARG(QVariant, QStringLiteral("match")),
                               Q_ARG(QVariant, double(currentMatchId)));
+    settle();
     capture("calendar-match-finished");
-    expectFlag(matchDialog, "visible", true, "a finished match did not open");
-    if (!matchDialog->property("primaryText").toString().isEmpty() ||
-        !matchDialog->property("dangerText").toString().isEmpty()) {
-        fail("a finished match can still be saved or deleted");
+    expectFlag(matchDialog, "visible", false, "a finished match opened the form");
+    if (navigation->currentKey() != QLatin1StringView("matchreport")) {
+        fail("a finished match does not open its report from the calendar");
     }
-    pressKey(window, Qt::Key_Escape);
+    if (auto* reportView = findQmlItem(window->contentItem(), "MatchReportView")) {
+        auto* report = reportView->property("viewModel").value<MatchReportViewModel*>();
+        if (report == nullptr || report->matchId() != currentMatchId || !report->hasReport()) {
+            fail("the report of the finished match is not shown");
+        }
+        // Back leads to the calendar.
+        clickItem(window, findByObjectName(reportView, QStringLiteral("reportBackButton")));
+        if (navigation->currentKey() != QLatin1StringView("calendar")) {
+            fail("Back of the report does not lead to the calendar");
+        }
+    } else {
+        fail("the match report view is not loaded");
+    }
+    navigation->activate(QStringLiteral("calendar"));
+    settle();
 
     // A role without EditCalendar reads the calendar and reaches the training sheet.
     auto& auth = ServiceRegistry::instance().auth();
@@ -4957,6 +4976,9 @@ void matchDayBreakAndLeave(QQmlApplicationEngine& engine, fdss::data::DatabaseMa
 // Prepared through the service as the events before 60' happened on the screen: a goal at 10' with
 // an assist, a yellow and the opponent goal at 30', a note in stoppage time, the half time, the
 // substitution in the break and the second half.
+void exerciseMatchReport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database,
+                         qint64 matchId, const std::vector<qint64>& players);
+
 void matchDayFullMatch(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database) {
     using namespace std::chrono_literals;
     const auto setup = newMatchDayMatch("full match", true);
@@ -5021,6 +5043,9 @@ void matchDayFullMatch(QQmlApplicationEngine& engine, fdss::data::DatabaseManage
         fail("match day: the finished match does not show 2:1, its seven events and the note");
     }
     expectFlag(screen->navigation, "leaveGuard", false, "a finished match guards leaving");
+    if (screen->navigation->currentKey() != QLatin1StringView("matchreport")) {
+        fail("match day: the end of the match does not open the report");
+    }
 
     // The hand count: XI 0–90, the player taken off at half time 0–45, the substitute 45–90, the
     // player sent off at 60 0–60.
@@ -5040,11 +5065,138 @@ void matchDayFullMatch(QQmlApplicationEngine& engine, fdss::data::DatabaseManage
         fail("match day: an unused substitute has minutes");
     }
 
+    exerciseMatchReport(engine, database, matchId, players);
+    screen = openMatchDayScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+
     // Full screen on and off.
     screen->click(QStringLiteral("fullScreenButton"));
     expectFlag(screen->view, "fullScreen", true, "match day: full screen does not turn on");
     screen->click(QStringLiteral("fullScreenButton"));
     expectFlag(screen->view, "fullScreen", false, "match day: full screen does not turn off");
+}
+
+// The report after the end of the match (packet P14, Done when): every player who played rated by
+// the keyboard (a digit, Tab to the RPE, a digit, Tab to the next row), Ctrl+S, the ratings in the
+// database and on the "Matches" tab of the player card; leaving with changes asks; a forgotten
+// substitution added afterwards changes the minutes.
+void exerciseMatchReport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database,
+                         qint64 matchId, const std::vector<qint64>& players) {
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    QQuickItem* view = findQmlItem(window->contentItem(), "MatchReportView");
+    if (view == nullptr) {
+        fail("match report: the view is not loaded");
+        return;
+    }
+    auto* report = view->property("viewModel").value<MatchReportViewModel*>();
+    if (report == nullptr || report->matchId() != matchId || report->readOnly()) {
+        fail("match report: the finished match is not open for the coach");
+        return;
+    }
+    const int rows = report->ratings()->rowCount();
+    if (rows != 12) { // the XI and the substitute who came on
+        qWarning("qml_smoke: match report: %d rows", rows);
+        fail("match report: the grid does not hold every player who played");
+        return;
+    }
+    renderFrame(window);
+    // The focus comes into the first rating with the report.
+    QQuickItem* first = findByObjectName(view, QStringLiteral("ratingCell_0"));
+    if (first == nullptr || !first->hasActiveFocus()) {
+        if (first != nullptr) {
+            first->forceActiveFocus(Qt::TabFocusReason);
+        }
+        if (first == nullptr || !first->hasActiveFocus()) {
+            fail("match report: the first rating has no focus");
+            return;
+        }
+    }
+    for (int row = 0; row < rows; ++row) {
+        pressDigit(window, 7);
+        pressKey(window, Qt::Key_Tab);
+        pressDigit(window, row == 0 ? 1 : 6);
+        if (row == 0) {
+            pressDigit(window, 0); // 1 then 0: 10
+        }
+        if (row + 1 < rows) {
+            pressKey(window, Qt::Key_Tab);
+        }
+    }
+    expectFlag(report, "dirty", true, "match report: the ratings typed are not a change");
+    expectFlag(navigation, "leaveGuard", true, "match report: changes do not guard leaving");
+    // Leaving asks; Stay keeps the changes.
+    navigation->activate(QStringLiteral("squad"));
+    settle();
+    auto* leave = view->property("leaveDialog").value<QObject*>();
+    expectFlag(leave, "visible", true, "match report: leaving with changes does not ask");
+    QMetaObject::invokeMethod(leave, "reject");
+    settle();
+    if (navigation->currentKey() != QLatin1StringView("matchreport")) {
+        fail("match report: Stay does not stay");
+    }
+    if (QQuickItem* last =
+            findByObjectName(view, QStringLiteral("matchRpeCell_%1").arg(rows - 1))) {
+        last->forceActiveFocus(Qt::TabFocusReason);
+    }
+    QKeyEvent press(QEvent::KeyPress, Qt::Key_S, Qt::ControlModifier, QStringLiteral("s"));
+    QKeyEvent release(QEvent::KeyRelease, Qt::Key_S, Qt::ControlModifier, QStringLiteral("s"));
+    QCoreApplication::sendEvent(window, &press);
+    QCoreApplication::sendEvent(window, &release);
+    settle();
+    expectFlag(report, "dirty", false, "match report: Ctrl+S does not save");
+    QSqlQuery rated(database.database());
+    rated.prepare(QStringLiteral("SELECT count(*), sum(rating = 10), sum(rpe = 10) FROM appearance "
+                                 "WHERE match_id = ? AND rating IS NOT NULL AND rpe IS NOT NULL"));
+    rated.addBindValue(matchId);
+    if (!rated.exec() || !rated.next() || rated.value(0).toInt() != rows ||
+        rated.value(1).toInt() != 0 || rated.value(2).toInt() != 1) {
+        fail("match report: the ratings in the database are not those typed");
+    }
+
+    // The "Matches" tab of the card of the first player rated.
+    const qint64 ratedPlayer = report->ratings()->value(0, "playerId").toLongLong();
+    navigation->activate(QStringLiteral("squad"), {{QStringLiteral("playerId"), ratedPlayer}});
+    settle();
+    QQuickItem* card = findQmlItem(window->contentItem(), "PlayerCardView");
+    auto* matches =
+        card != nullptr ? card->property("matchesModel").value<PlayerMatchesModel*>() : nullptr;
+    if (matches == nullptr || matches->count() < 1 ||
+        matches->value(0, "matchId").toLongLong() != matchId ||
+        matches->value(0, "rating").toInt() != 7 || matches->value(0, "rpe").toInt() != 10) {
+        fail("match report: the player card does not show the rating of the match");
+        return;
+    }
+    // A row opens the report again.
+    QMetaObject::invokeMethod(card, "openMatchReport", Q_ARG(QVariant, double(matchId)));
+    settle();
+    if (navigation->currentKey() != QLatin1StringView("matchreport")) {
+        fail("match report: the Matches tab does not open the report");
+    }
+
+    // A forgotten substitution: the last bench player for the goalkeeper's neighbour at 70'.
+    const qint64 comingOn = players[13];
+    const qint64 goingOff = players[1];
+    if (!report->addEvent(QStringLiteral("sub"), QStringLiteral("71"), comingOn, goingOff)) {
+        fail("match report: the forgotten substitution cannot be added");
+        return;
+    }
+    if (smokeMinutes(database, matchId, goingOff, "minute_off") != 70 ||
+        smokeMinutes(database, matchId, comingOn, "minute_on") != 70 ||
+        smokeMinutes(database, matchId, comingOn, "minute_off") != 90) {
+        fail("match report: the forgotten substitution does not change the minutes");
+    }
+    // The ratings stay.
+    QSqlQuery kept(database.database());
+    kept.prepare(
+        QStringLiteral("SELECT rating FROM appearance WHERE match_id = ? AND player_id = ?"));
+    kept.addBindValue(matchId);
+    kept.addBindValue(goingOff);
+    if (!kept.exec() || !kept.next() || kept.value(0).toInt() != 7) {
+        fail("match report: a correction lost a rating");
+    }
 }
 
 // Another role logs in during a live match: Match Day opens on it, read-only, and leaving does not

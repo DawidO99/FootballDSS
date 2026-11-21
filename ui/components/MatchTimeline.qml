@@ -5,23 +5,31 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // The events and notes of a match, the latest in the match first (packet P13): minute, icon and
-// word, players or the text of a note. A note can be edited or deleted from its row.
+// word, players or the text of a note. A note can be edited or deleted from its row; in the match
+// report (packet P14) also an event or a change of shape.
 // API:
 //   model                   rows of MatchTimelineModel (kind, eventId, noteId, minuteText, typeKey,
 //                           iconName, typeText, playerText, relatedText, noteMinute,
-//                           notePlayerId, noteText)
+//                           notePlayerId, noteText, changeId)
 //   emptyText: string       shown without events
 //   notesEditable: bool     the buttons of the notes are shown
+//   eventsDeletable: bool   the delete button of the events is shown (default false)
+//   tacticsDeletable: bool  the delete button of the changes of shape is shown (default false)
 //   noteEditRequested(double noteId, string minute, double playerId, string text)
 //   noteDeleteRequested(double noteId)
+//   eventDeleteRequested(double eventId), tacticDeleteRequested(double changeId)
 ListView {
     id: root
 
     property string emptyText: qsTr("No events yet.")
     property bool notesEditable: false
+    property bool eventsDeletable: false
+    property bool tacticsDeletable: false
 
     signal noteEditRequested(double noteId, string minute, double playerId, string text)
     signal noteDeleteRequested(double noteId)
+    signal eventDeleteRequested(double eventId)
+    signal tacticDeleteRequested(double changeId)
 
     clip: true
     spacing: Theme.spacing.xs
@@ -66,6 +74,8 @@ ListView {
 
         required property int index
         required property string kind
+        required property var eventId
+        required property var changeId
         required property var noteId
         required property string noteMinute
         required property var notePlayerId
@@ -158,6 +168,21 @@ ListView {
                 iconColor: Theme.danger
                 text: qsTr("Delete note")
                 onClicked: root.noteDeleteRequested(row.noteId)
+            }
+
+            IconButton {
+                objectName: "deleteEventButton"
+                Layout.alignment: Qt.AlignTop
+                visible: (row.kind === "event" && root.eventsDeletable) || (row.kind === "tactic" && root.tacticsDeletable)
+                iconName: "trash"
+                iconColor: Theme.danger
+                text: row.kind === "tactic" ? qsTr("Delete change of shape") : qsTr("Delete event")
+                onClicked: {
+                    if (row.kind === "tactic")
+                        root.tacticDeleteRequested(row.changeId);
+                    else
+                        root.eventDeleteRequested(row.eventId);
+                }
             }
         }
     }

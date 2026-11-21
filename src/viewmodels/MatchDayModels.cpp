@@ -9,7 +9,7 @@ MatchDayPlayersModel::MatchDayPlayersModel(QObject* parent)
 
 MatchTimelineModel::MatchTimelineModel(QObject* parent)
     : RowsModel({"kind", "eventId", "noteId", "minuteText", "typeKey", "iconName", "typeText",
-                 "playerText", "relatedText", "noteMinute", "notePlayerId", "noteText"},
+                 "playerText", "relatedText", "noteMinute", "notePlayerId", "noteText", "changeId"},
                 parent) {}
 
 } // namespace fdss::viewmodels

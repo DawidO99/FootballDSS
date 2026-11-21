@@ -17,6 +17,7 @@
 #include "services/LineupService.hpp"
 #include "services/LoadService.hpp"
 #include "services/MatchDayService.hpp"
+#include "services/MatchReportService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
@@ -99,7 +100,10 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
                                                          *m_training, *m_session, *m_clock)),
       m_matchDay(std::make_unique<services::MatchDayService>(
           *m_database, *m_matches, *m_matchLive, *m_matchNotes, *m_matchTactics, *m_lineups,
-          *m_clubs, *m_opponents, *m_players, *m_lineup, *m_session, *m_clock)) {}
+          *m_clubs, *m_opponents, *m_players, *m_lineup, *m_session, *m_clock)),
+      m_matchReport(std::make_unique<services::MatchReportService>(
+          *m_database, *m_matches, *m_matchLive, *m_matchNotes, *m_matchTactics, *m_lineups,
+          *m_opponents, *m_players, *m_session)) {}
 
 ServiceRegistry::~ServiceRegistry() = default;
 
@@ -123,5 +127,7 @@ services::LoadService& ServiceRegistry::load() { return *m_load; }
 services::LineupService& ServiceRegistry::lineup() { return *m_lineup; }
 
 services::MatchDayService& ServiceRegistry::matchDay() { return *m_matchDay; }
+
+services::MatchReportService& ServiceRegistry::matchReport() { return *m_matchReport; }
 
 } // namespace fdss::viewmodels

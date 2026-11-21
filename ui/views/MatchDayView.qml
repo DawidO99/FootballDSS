@@ -106,7 +106,7 @@ Item {
         if (matchDay.tooFewPlayers)
             tooFewDialog.open();
         else
-            matchDay.endMatch();
+            root.afterEnd(matchDay.endMatch());
     }
 
     function setClock(text) {
@@ -138,6 +138,30 @@ Item {
             root.swapFrom = -1;
         }
         matchDay.selectSlot(slot);
+    }
+
+    function openReport() {
+        root.navigateRequested("matchreport", {
+            "matchId": matchDay.matchId,
+            "returnTo": {
+                "key": "matchday",
+                "args": {
+                    "matchId": matchDay.matchId
+                }
+            }
+        });
+    }
+
+    // "End match" goes to the report (P14), whichever button ended it. Later, so the leave guard
+    // of the live match is off by then.
+    function afterEnd(done) {
+        if (done && matchDay.statusKey === "finished")
+            Qt.callLater(root.openReport);
+        return done;
+    }
+
+    function advanceClock() {
+        root.afterEnd(matchDay.advanceClock());
     }
 
     function cancelOrExit() {
@@ -478,7 +502,16 @@ Item {
                 visible: matchDay.canAdvanceClock
                 touch: true
                 text: matchDay.clockActionText
-                onClicked: matchDay.advanceClock()
+                onClicked: root.advanceClock()
+            }
+
+            // A finished match: ratings, RPE, the note and the corrections are in the report (P14).
+            PrimaryButton {
+                objectName: "openReportButton"
+                visible: matchDay.statusKey === "finished"
+                touch: true
+                text: qsTr("Open report")
+                onClicked: root.openReport()
             }
         }
 
@@ -1162,7 +1195,7 @@ Item {
         secondaryText: qsTr("Not now")
         onOpened: endMinuteField.text = matchDay.endMinute
         onPrimaryClicked: {
-            if (matchDay.endMatch(matchDay.clockless ? endMinuteField.text : ""))
+            if (root.afterEnd(matchDay.endMatch(matchDay.clockless ? endMinuteField.text : "")))
                 tooFewDialog.close();
         }
 

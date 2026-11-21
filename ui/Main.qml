@@ -74,6 +74,7 @@ ApplicationWindow {
             "training": trainingView,
             "prematch": preMatchView,
             "matchday": matchDayView,
+            "matchreport": matchReportView,
             "load": loadView,
             "import": importView,
             "settings": settingsView
@@ -365,6 +366,19 @@ ApplicationWindow {
 
             onNavigateRequested: (key, args) => navigationModel.activate(key, args)
             onHasUnsavedChangesChanged: window.guardChanged(matchDayViewItem, hasUnsavedChanges)
+            onLeaveAccepted: window.finishLeaving()
+            onLeaveCancelled: window.cancelLeaving()
+        }
+    }
+
+    Component {
+        id: matchReportView
+
+        MatchReportView {
+            id: matchReportViewItem
+
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
+            onHasUnsavedChangesChanged: window.guardChanged(matchReportViewItem, hasUnsavedChanges)
             onLeaveAccepted: window.finishLeaving()
             onLeaveCancelled: window.cancelLeaving()
         }

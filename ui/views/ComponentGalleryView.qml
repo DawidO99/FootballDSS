@@ -1651,6 +1651,47 @@ Item {
                         }
                     }
                 }
+
+                // Match report samples (P14).
+                Card {
+                    objectName: "galleryMatchReport"
+                    Layout.fillWidth: true
+                    Layout.columnSpan: 2
+                    // MatchCorrectionDialog needs MatchReportViewModel, so the services: it is not here.
+                    title: qsTr("Match report: MatchRatingsGrid, MatchTimeline with corrections")
+
+                    ListModel {
+                        id: sampleRatings
+
+                        ListElement { playerId: 1; shirtNumber: 1; playerName: "Bramkarz Pewny"; positionCode: "GK"; started: true; minutes: 90; minutesText: "90'"; goals: 0; assists: 0; yellowCards: 0; redCards: 0; rating: 7; rpe: 5; rowError: ""; changed: false }
+                        ListElement { playerId: 9; shirtNumber: 9; playerName: "Igor Gol"; positionCode: "ST"; started: true; minutes: 90; minutesText: "90'"; goals: 2; assists: 0; yellowCards: 0; redCards: 0; rating: 10; rpe: 8; rowError: ""; changed: true }
+                        ListElement { playerId: 3; shirtNumber: 3; playerName: "Cezary Mur"; positionCode: "CB"; started: true; minutes: 38; minutesText: "38'"; goals: 0; assists: 0; yellowCards: 2; redCards: 1; rating: 0; rpe: 6; rowError: qsTr("Rate from 1 to 10: type 1 and 0 quickly for 10."); changed: true }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing.l
+
+                        MatchRatingsGrid {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Theme.tableHeaderHeight + 4 * Theme.rowHeight
+                            Accessible.name: qsTr("Sample ratings")
+                            model: sampleRatings
+                            onDigitEntered: (row, column, digit) => Toasts.info(qsTr("Row %1, column %2: %3").arg(row).arg(column).arg(digit))
+                        }
+
+                        MatchTimeline {
+                            Layout.preferredWidth: Theme.matchTimelineWidth
+                            Layout.preferredHeight: 4 * Theme.matchTileHeight
+                            model: sampleTimeline
+                            notesEditable: true
+                            eventsDeletable: true
+                            tacticsDeletable: true
+                            onEventDeleteRequested: eventId => Toasts.info(qsTr("Delete event: %1").arg(eventId))
+                        }
+                    }
+
+                }
             }
         }
     }
@@ -1737,11 +1778,11 @@ Item {
     ListModel {
         id: sampleTimeline
 
-        ListElement { kind: "note"; eventId: 0; noteId: 9; minuteText: "45+3'"; typeKey: "note"; iconName: "note"; typeText: qsTr("Note"); playerText: "Cezary Mur"; relatedText: qsTr("Ankle after the tackle, watch him in the break."); noteMinute: "45+3"; notePlayerId: 3; noteText: qsTr("Ankle after the tackle, watch him in the break.") }
-        ListElement { kind: "event"; eventId: 4; noteId: 0; minuteText: "45+2'"; typeKey: "secondYellow"; iconName: "card"; typeText: qsTr("Second yellow, red card"); playerText: "Cezary Mur"; relatedText: ""; noteMinute: ""; notePlayerId: 0; noteText: "" }
-        ListElement { kind: "event"; eventId: 3; noteId: 0; minuteText: "38'"; typeKey: "sub"; iconName: "swap"; typeText: qsTr("Substitution"); playerText: qsTr("On: Leon Rezerwa"); relatedText: qsTr("Off: Filip Skrzydło"); noteMinute: ""; notePlayerId: 0; noteText: "" }
-        ListElement { kind: "event"; eventId: 2; noteId: 0; minuteText: "23'"; typeKey: "opponentGoal"; iconName: "goal"; typeText: qsTr("Opponent goal"); playerText: "Victoria Wzór"; relatedText: ""; noteMinute: ""; notePlayerId: 0; noteText: "" }
-        ListElement { kind: "event"; eventId: 1; noteId: 0; minuteText: "11'"; typeKey: "goal"; iconName: "goal"; typeText: qsTr("Goal"); playerText: "Igor Gol"; relatedText: qsTr("Assist: Jan Szczepaniak-Wojciechowski"); noteMinute: ""; notePlayerId: 0; noteText: "" }
+        ListElement { kind: "note"; eventId: 0; noteId: 9; minuteText: "45+3'"; typeKey: "note"; iconName: "note"; typeText: qsTr("Note"); playerText: "Cezary Mur"; relatedText: qsTr("Ankle after the tackle, watch him in the break."); noteMinute: "45+3"; notePlayerId: 3; noteText: qsTr("Ankle after the tackle, watch him in the break."); changeId: 0 }
+        ListElement { kind: "event"; eventId: 4; noteId: 0; minuteText: "45+2'"; typeKey: "secondYellow"; iconName: "card"; typeText: qsTr("Second yellow, red card"); playerText: "Cezary Mur"; relatedText: ""; noteMinute: ""; notePlayerId: 0; noteText: ""; changeId: 0 }
+        ListElement { kind: "event"; eventId: 3; noteId: 0; minuteText: "38'"; typeKey: "sub"; iconName: "swap"; typeText: qsTr("Substitution"); playerText: qsTr("On: Leon Rezerwa"); relatedText: qsTr("Off: Filip Skrzydło"); noteMinute: ""; notePlayerId: 0; noteText: ""; changeId: 0 }
+        ListElement { kind: "event"; eventId: 2; noteId: 0; minuteText: "23'"; typeKey: "opponentGoal"; iconName: "goal"; typeText: qsTr("Opponent goal"); playerText: "Victoria Wzór"; relatedText: ""; noteMinute: ""; notePlayerId: 0; noteText: ""; changeId: 0 }
+        ListElement { kind: "event"; eventId: 1; noteId: 0; minuteText: "11'"; typeKey: "goal"; iconName: "goal"; typeText: qsTr("Goal"); playerText: "Igor Gol"; relatedText: qsTr("Assist: Jan Szczepaniak-Wojciechowski"); noteMinute: ""; notePlayerId: 0; noteText: ""; changeId: 0 }
     }
 
     // Tactics board samples (P12): a 4-4-2 with one free slot, the coordinates of its zone layout.

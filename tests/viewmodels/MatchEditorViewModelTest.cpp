@@ -304,3 +304,15 @@ TEST_F(MatchEditorViewModelTest, AnUnknownVenueIsReportedAndIgnored) {
 }
 
 } // namespace
+
+TEST_F(MatchEditorViewModelTest, AMatchBeforeTodayIsFilledInAfterItWasPlayed) {
+    // FakeClock: today is 2026-11-01.
+    MatchEditorViewModel editor;
+    editor.setTeamId(m_team.value);
+    editor.startAdding(QStringLiteral("2026-10-31"));
+    EXPECT_TRUE(editor.beforeToday());
+    editor.setDate(QStringLiteral("2026-11-01"));
+    EXPECT_FALSE(editor.beforeToday());
+    editor.setDate(QStringLiteral("not a date"));
+    EXPECT_FALSE(editor.beforeToday());
+}

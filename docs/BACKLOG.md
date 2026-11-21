@@ -46,7 +46,10 @@
 - Match Day: cards at the time of a break itself (a break takes events at minutes already played and
   substitutions at the start of the next part), own goals of the opponent (a `goal` row needs our
   scorer), cards for players on the bench, and a limit of substitutions per competition (P13 decision 7)
-- Match Day: editing an event (P14 corrections); undo of a note edit or delete other than its 10 s toast
+- Match Day: editing an event in place (the match report of P14 corrects by delete + add); undo of a
+  note edit or delete other than its 10 s toast
+- Match report: adding a change of shape after the match (needs the tactics board in the report; today
+  only deleting one, P14 decision 4)
 - Match Day: leaving asks only while Match Day is the section shown; logging out or closing the window from
   another section during a live match does not ask (one guarded page in `Main.qml`, P13)
 - Match Day tactics: inserting a change of shape before a later stored one (refused today with
