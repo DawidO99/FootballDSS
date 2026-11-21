@@ -7,6 +7,7 @@
 
 #include <array>
 #include <chrono>
+#include <utility>
 
 using namespace fdss::core;
 using fdss::services::PinCheck;
@@ -133,4 +134,30 @@ TEST(ErrorPresenterTest, AnUnknownFieldNeverShowsTheColumnName) {
     EXPECT_EQ(conflict, message(ErrorCode::Conflict));
     EXPECT_FALSE(invalid.contains(QLatin1StringView("secret_column")));
     EXPECT_FALSE(conflict.contains(QLatin1StringView("secret_column")));
+}
+
+// Every code and field MatchDayService::recordTacticChange() returns has its own text (P13b review:
+// the tactic fields were under Conflict while the service returns InvalidInput).
+TEST(ErrorPresenterTest, EveryErrorOfATacticChangeHasItsOwnText) {
+    const std::pair<ErrorCode, const char*> pairs[] = {
+        {ErrorCode::Conflict, "match_not_live"},
+        {ErrorCode::Conflict, "match_not_running"},
+        {ErrorCode::Conflict, "too_few_players"},
+        {ErrorCode::Conflict, "tactic_change_later"},
+        {ErrorCode::InvalidInput, "minute_required"},
+        {ErrorCode::InvalidInput, "minute_out_of_match"},
+        {ErrorCode::InvalidInput, "minute_not_played"},
+        {ErrorCode::InvalidInput, "tactic_shape"},
+        {ErrorCode::InvalidInput, "tactic_unchanged"},
+        {ErrorCode::Database, "match_history"},
+    };
+    for (const auto& [code, field] : pairs) {
+        EXPECT_NE(message(code, field), message(code)) << toString(code) << " " << field;
+    }
+    EXPECT_EQ(message(ErrorCode::InvalidInput, "tactic_shape"),
+              "This shape cannot be used: it needs 11 places on the pitch and at most one "
+              "goalkeeper.");
+    EXPECT_EQ(message(ErrorCode::InvalidInput, "tactic_unchanged"),
+              "The shape is the same as before. Move a player or choose another formation.");
+    EXPECT_FALSE(message(ErrorCode::PermissionDenied).isEmpty());
 }

@@ -11,7 +11,7 @@ namespace fdss::viewmodels {
 TacticsBoardModel::TacticsBoardModel(QObject* parent)
     : RowsModel({"slotIndex", "positionKey", "positionText", "pitchX", "pitchY", "playerId",
                  "shirtNumber", "shortName", "fullName", "severity", "issueText", "selected",
-                 "yellowCards", "goals", "hidden"},
+                 "yellowCards", "goals", "hidden", "labelRoom"},
                 parent) {}
 
 BenchListModel::BenchListModel(QObject* parent)

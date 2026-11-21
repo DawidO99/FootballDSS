@@ -113,6 +113,10 @@ draftsOf(const std::vector<core::MatchTacticChange>& changes) {
     return {changes.begin(), changes.end()};
 }
 
+std::vector<core::MatchNoteDraft> draftsOf(const std::vector<core::MatchNote>& notes) {
+    return {notes.begin(), notes.end()};
+}
+
 // 11 slots, coordinates 0–1, at most one GK (also among the empty slots, so the stored
 // `.tactic.json` stays valid).
 bool isValidTacticShape(const core::Lineup& shape) {
@@ -551,7 +555,10 @@ core::Status MatchDayService::endNow(const Live& live, int seq, std::optional<in
     core::MatchClock clock = live.clock;
     if (core::onPitchCount(live.situation) < core::kMinPlayersOnPitch) {
         // Without the clock the minute typed counts too, never before the last event.
-        clock.endedEarlyAt = std::max(core::earlyEndMinute(live.clock, now, draftsOf(live.events)),
+        // Never before a stored action: events, notes and tactic changes (P13b review).
+        const auto latest = core::latestRecordedTime(draftsOf(live.events), draftsOf(live.notes),
+                                                     draftsOf(live.tactics));
+        clock.endedEarlyAt = std::max(core::earlyEndMinute(live.clock, now, latest),
                                       live.clock.clockless ? minute.value_or(0) : 0);
     }
     if (core::phaseOf(clock) == core::MatchPhase::Running && !clock.clockless) {
@@ -733,7 +740,10 @@ core::Status MatchDayService::restoreClock(core::MatchId match, core::Timestamp 
 
 core::Status MatchDayService::moveStart(const Live& live, core::Timestamp start) {
     const int period = core::currentPeriod(live.clock);
-    const auto least = core::minElapsedForEvents(live.clock.format, period, draftsOf(live.events));
+    // Never before a stored action of the part: events, notes and tactic changes (P13b review).
+    const auto latest = core::latestRecordedTime(draftsOf(live.events), draftsOf(live.notes),
+                                                 draftsOf(live.tactics));
+    const auto least = core::minElapsedFor(live.clock.format, period, latest);
     if (m_clock.now() - start < least) {
         return std::unexpected(
             invalid(kClockBeforeEvent, "match day: the clock before an event of the part"));

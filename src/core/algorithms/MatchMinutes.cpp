@@ -152,8 +152,34 @@ int finalMinute(const MatchClock& clock) noexcept {
     return clock.endedEarlyAt.value_or(clock.format.totalMinutes());
 }
 
+std::optional<MatchTime> latestRecordedTime(std::span<const MatchEventDraft> events,
+                                            std::span<const MatchNoteDraft> notes,
+                                            std::span<const MatchTacticChangeDraft> changes) {
+    std::optional<MatchTime> latest;
+    // The order of the match: at the end of a part its added time before the next minute.
+    const auto key = [](const MatchTime& time) {
+        return std::tuple{time.minute, time.addedTime ? 0 : 1, time.addedTime.value_or(0)};
+    };
+    const auto consider = [&](int minute, std::optional<int> added) {
+        const MatchTime time{minute, added};
+        if (!latest || key(time) > key(*latest)) {
+            latest = time;
+        }
+    };
+    for (const MatchEventDraft& event : events) {
+        consider(event.minute, event.addedTime);
+    }
+    for (const MatchNoteDraft& note : notes) {
+        consider(note.minute, note.addedTime);
+    }
+    for (const MatchTacticChangeDraft& change : changes) {
+        consider(change.minute, change.addedTime);
+    }
+    return latest;
+}
+
 int earlyEndMinute(const MatchClock& clock, Timestamp now,
-                   std::span<const MatchEventDraft> events) noexcept {
+                   std::optional<MatchTime> latest) noexcept {
     const int length = clock.format.periodLength;
     const int played = currentPeriod(clock);
     int minute = 0;
@@ -164,8 +190,8 @@ int earlyEndMinute(const MatchClock& clock, Timestamp now,
                           : (played - 1) * length +
                                 std::min(fullMinutes(elapsedSince(last.start, now)), length);
     }
-    for (const MatchEventDraft& event : events) {
-        minute = std::max(minute, event.minute);
+    if (latest) {
+        minute = std::max(minute, latest->minute);
     }
     return std::min(minute, kMaxMatchMinute);
 }
@@ -384,16 +410,16 @@ std::optional<std::chrono::seconds> elapsedFromClockText(std::string_view text, 
     return *value - start;
 }
 
-std::chrono::seconds minElapsedForEvents(MatchFormat format, int period,
-                                         std::span<const MatchEventDraft> events) {
+std::chrono::seconds minElapsedFor(MatchFormat format, int period,
+                                   std::optional<MatchTime> latest) {
     const int length = format.periodLength;
     int minutes = 0;
-    for (const MatchEventDraft& event : events) {
-        if (event.addedTime && event.minute == period * length) {
-            minutes = std::max(minutes, length + *event.addedTime - 1);
-        } else if (!event.addedTime && event.minute >= (period - 1) * length &&
-                   event.minute < period * length) {
-            minutes = std::max(minutes, event.minute - (period - 1) * length);
+    if (latest) {
+        if (latest->addedTime && latest->minute == period * length) {
+            minutes = length + *latest->addedTime - 1;
+        } else if (!latest->addedTime && latest->minute >= (period - 1) * length &&
+                   latest->minute < period * length) {
+            minutes = latest->minute - (period - 1) * length;
         }
     }
     return minutes * kMinute;
@@ -670,6 +696,35 @@ std::tuple<int, int, int> timeKey(int minute, std::optional<int> added) {
     return std::tuple{minute, added ? 0 : 1, added.value_or(0)};
 }
 
+// The players of the slots after the events taken in `order` (indices into `events`): a substitute
+// in the slot of the player going off, a player sent off leaves his slot empty.
+Lineup occupancyAfter(const Lineup& lineup, std::span<const MatchEventDraft> events,
+                      std::span<const std::size_t> order) {
+    Lineup shape = lineup;
+    shape.bench.clear();
+    const auto slotOf = [&shape](PlayerId player) -> LineupSlot* {
+        const auto found = std::ranges::find(shape.pitchSlots, std::optional<PlayerId>(player),
+                                             &LineupSlot::player);
+        return found == shape.pitchSlots.end() ? nullptr : &*found;
+    };
+    for (const std::size_t index : order) {
+        const MatchEventDraft& event = events[index];
+        if (!event.playerId) {
+            continue;
+        }
+        if (event.type == MatchEventType::Sub && event.relatedPlayerId) {
+            if (LineupSlot* slot = slotOf(*event.relatedPlayerId)) {
+                slot->player = event.playerId;
+            }
+        } else if (event.type == MatchEventType::Red) {
+            if (LineupSlot* slot = slotOf(*event.playerId)) {
+                slot->player.reset();
+            }
+        }
+    }
+    return shape;
+}
+
 // The players of the slots after the events up to `time` (all with nullopt).
 std::expected<Lineup, MatchEventError> occupiedAt(const Lineup& lineup,
                                                   std::span<const MatchEventDraft> events,
@@ -690,29 +745,7 @@ std::expected<Lineup, MatchEventError> occupiedAt(const Lineup& lineup,
         error.index = indices[error.index];
         return std::unexpected(error);
     }
-    Lineup shape = lineup;
-    shape.bench.clear();
-    const auto slotOf = [&shape](PlayerId player) -> LineupSlot* {
-        const auto found = std::ranges::find(shape.pitchSlots, std::optional<PlayerId>(player),
-                                             &LineupSlot::player);
-        return found == shape.pitchSlots.end() ? nullptr : &*found;
-    };
-    for (const std::size_t index : replayOrder(before)) {
-        const MatchEventDraft& event = before[index];
-        if (!event.playerId) {
-            continue;
-        }
-        if (event.type == MatchEventType::Sub && event.relatedPlayerId) {
-            if (LineupSlot* slot = slotOf(*event.relatedPlayerId)) {
-                slot->player = event.playerId;
-            }
-        } else if (event.type == MatchEventType::Red) {
-            if (LineupSlot* slot = slotOf(*event.playerId)) {
-                slot->player.reset();
-            }
-        }
-    }
-    return shape;
+    return occupancyAfter(lineup, before, replayOrder(before));
 }
 
 // The index of the change in force at `time` (nullopt: all): the last one up to it in the order of
@@ -808,23 +841,32 @@ computeMatchMinutes(const Lineup& lineup, std::span<const MatchEventDraft> event
     if (!minutes || changes.empty()) {
         return minutes;
     }
+    // The events were checked above: replay them in the order of the match.
+    const std::vector<std::size_t> order = replayOrder(events);
     for (AppearanceDraft& appearance : minutes->appearances) {
         if (appearance.started) {
             continue;
         }
-        const auto sub = std::ranges::find_if(events, [&](const MatchEventDraft& event) {
-            return event.type == MatchEventType::Sub && event.playerId == appearance.playerId;
+        const auto sub = std::ranges::find_if(order, [&](std::size_t index) {
+            return events[index].type == MatchEventType::Sub &&
+                   events[index].playerId == appearance.playerId;
         });
-        if (sub == events.end()) {
+        if (sub == order.end()) {
             continue;
         }
-        auto shape = shapeAt(lineup, events, changes, MatchTime{sub->minute, sub->addedTime});
-        if (!shape) {
-            return std::unexpected(shape.error());
-        }
+        // The pitch right after he came on, before the later events of the same minute (a red
+        // card or his own substitution would take him off it again; P13b review), with the
+        // tactic changes up to that time.
+        const MatchEventDraft& event = events[*sub];
+        const std::span<const std::size_t> upToHim(
+            order.data(), static_cast<std::size_t>(sub - order.begin()) + 1);
+        const std::optional<std::size_t> change =
+            changeInForce(changes, MatchTime{event.minute, event.addedTime});
+        const Lineup shape = withPlaces(occupancyAfter(lineup, events, upToHim),
+                                        change ? &changes[*change] : nullptr);
         const auto slot = std::ranges::find(
-            shape->pitchSlots, std::optional<PlayerId>(appearance.playerId), &LineupSlot::player);
-        if (slot != shape->pitchSlots.end()) {
+            shape.pitchSlots, std::optional<PlayerId>(appearance.playerId), &LineupSlot::player);
+        if (slot != shape.pitchSlots.end()) {
             appearance.position = slot->position;
         }
     }

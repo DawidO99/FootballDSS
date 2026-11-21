@@ -17,8 +17,10 @@ namespace fdss::viewmodels {
 // The 11 slots of the board: slotIndex, positionKey (database text), positionText (GK…), pitchX,
 // pitchY (0–1, own goal at y = 1), playerId, shirtNumber (or nothing), shortName (surname),
 // fullName, severity, issueText (every issue of the slot, one per line), selected; for the live
-// board of Match Day (P13b) also yellowCards, goals and hidden (an empty slot: a player sent off;
-// always false in Pre-match, 0 cards and goals).
+// board of Match Day (P13b) also yellowCards, goals, hidden (an empty slot: a player sent off) and
+// labelRoom (the gap to the nearest token of the same row, 0–1 of the width: the most a name may
+// take). Pre-match: 0 cards and goals, never hidden, labelRoom 1. On the live board pitchY spreads
+// the rows of the shape evenly over the height (P13b review); drops still use the zones.
 class TacticsBoardModel : public RowsModel {
     Q_OBJECT
     QML_ELEMENT

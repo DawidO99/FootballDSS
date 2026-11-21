@@ -37,9 +37,9 @@ TestCase {
                 id: slotsModel
 
                 // A left midfielder and a centre midfielder of a 4-4-2, and a free left winger slot.
-                ListElement { slotIndex: 0; positionText: "LM"; pitchX: 0.125; pitchY: 0.48; playerId: 9; shirtNumber: 11; shortName: "Lewy"; fullName: "Adam Lewy"; severity: ""; issueText: ""; selected: false; yellowCards: 0; goals: 0; hidden: false }
-                ListElement { slotIndex: 1; positionText: "CM"; pitchX: 0.625; pitchY: 0.48; playerId: 7; shirtNumber: 8; shortName: "Środek"; fullName: "Bartosz Środek"; severity: "warning"; issueText: "x"; selected: false; yellowCards: 0; goals: 0; hidden: false }
-                ListElement { slotIndex: 2; positionText: "ST"; pitchX: 0.5; pitchY: 0.12; playerId: 0; shirtNumber: 0; shortName: ""; fullName: ""; severity: ""; issueText: ""; selected: false; yellowCards: 0; goals: 0; hidden: false }
+                ListElement { slotIndex: 0; positionText: "LM"; pitchX: 0.125; pitchY: 0.48; playerId: 9; shirtNumber: 11; shortName: "Lewy"; fullName: "Adam Lewy"; severity: ""; issueText: ""; selected: false; yellowCards: 0; goals: 0; hidden: false; labelRoom: 1 }
+                ListElement { slotIndex: 1; positionText: "CM"; pitchX: 0.625; pitchY: 0.48; playerId: 7; shirtNumber: 8; shortName: "Środek"; fullName: "Bartosz Środek"; severity: "warning"; issueText: "x"; selected: false; yellowCards: 0; goals: 0; hidden: false; labelRoom: 1 }
+                ListElement { slotIndex: 2; positionText: "ST"; pitchX: 0.5; pitchY: 0.12; playerId: 0; shirtNumber: 0; shortName: ""; fullName: ""; severity: ""; issueText: ""; selected: false; yellowCards: 0; goals: 0; hidden: false; labelRoom: 1 }
             }
 
             TacticsPitch {

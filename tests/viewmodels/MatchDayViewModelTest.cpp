@@ -862,3 +862,48 @@ TEST_F(MatchDayViewModelTest, TheShapeCannotChangeBeforeTheKickOff) {
     EXPECT_FALSE(vm->changeFormation("4-3-3"));
     EXPECT_EQ(vm->pendingAction(), "");
 }
+
+// P13b review: the Undo of the toasts (a deleted note, "set clock") is another action too: it drops
+// a draft waiting for Confirm, with the same notice (decision 6).
+TEST_F(MatchDayViewModelTest, TheUndoOfADeletedNoteDropsTheDraft) {
+    const auto vm = kickedOff();
+    m_clock->advance(10min);
+    Messages notices(vm.get(), &MatchDayViewModel::notice);
+    ASSERT_TRUE(vm->addNote("10", 0, "Wiatr"));
+    const qint64 note = vm->timeline()->value(0, "noteId").toLongLong();
+    ASSERT_FALSE(vm->deleteNote(note).isEmpty());
+    ASSERT_TRUE(vm->changeFormation("4-3-3"));
+    vm->restoreDeletedNote();
+    EXPECT_FALSE(vm->tacticsDirty());
+    EXPECT_EQ(vm->pendingAction(), "");
+    EXPECT_EQ(vm->shapeText(), "4-4-2");
+    EXPECT_EQ(vm->timeline()->value(0, "kind"), "note");
+    ASSERT_EQ(notices.texts().size(), 1);
+    EXPECT_EQ(notices.texts().front(), "The unconfirmed change of shape was discarded.");
+}
+
+TEST_F(MatchDayViewModelTest, TheUndoOfSetClockDropsTheDraft) {
+    const auto vm = kickedOff();
+    m_clock->advance(10min);
+    Messages notices(vm.get(), &MatchDayViewModel::notice);
+    ASSERT_FALSE(vm->setClock("12:00").isEmpty());
+    ASSERT_TRUE(vm->changeFormation("4-3-3"));
+    vm->undoSetClock();
+    EXPECT_FALSE(vm->tacticsDirty());
+    EXPECT_EQ(vm->pendingAction(), "");
+    EXPECT_EQ(vm->clockText(), "10:00");
+    ASSERT_EQ(notices.texts().size(), 1);
+    EXPECT_EQ(notices.texts().front(), "The unconfirmed change of shape was discarded.");
+}
+
+// Without the clock the end offered is the last stored action, a tactic change included.
+TEST_F(MatchDayViewModelTest, TheEndOfferedWithoutTheClockIsTheLastAction) {
+    saveLineup();
+    const auto vm = open();
+    ASSERT_TRUE(vm->start("2x45", 0, 0, true));
+    EXPECT_EQ(vm->endMinute(), "");
+    ASSERT_TRUE(vm->changeFormation("4-3-3"));
+    vm->setPendingMinute("60");
+    ASSERT_TRUE(vm->confirmAction());
+    EXPECT_EQ(vm->endMinute(), "60");
+}

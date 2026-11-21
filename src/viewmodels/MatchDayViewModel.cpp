@@ -16,6 +16,7 @@
 #include <QVariantMap>
 
 #include <algorithm>
+#include <cmath>
 #include <ranges>
 #include <tuple>
 
@@ -275,14 +276,16 @@ bool MatchDayViewModel::canEndMatch() const {
 }
 
 QString MatchDayViewModel::endMinute() const {
-    if (!m_state || !clockless() || m_state->events.empty()) {
+    if (!m_state || !clockless()) {
         return {};
     }
-    int minute = 0;
-    for (const core::MatchEvent& event : m_state->events) {
-        minute = std::max(minute, event.minute);
-    }
-    return QString::number(minute + 1);
+    // The last stored action: events, notes and tactic changes (P13b review).
+    const std::vector<core::MatchEventDraft> events(m_state->events.begin(), m_state->events.end());
+    const std::vector<core::MatchNoteDraft> notes(m_state->notes.begin(), m_state->notes.end());
+    const std::vector<core::MatchTacticChangeDraft> changes(m_state->tacticChanges.begin(),
+                                                            m_state->tacticChanges.end());
+    const auto latest = core::latestRecordedTime(events, notes, changes);
+    return latest ? QString::number(latest->minute + 1) : QString{};
 }
 
 bool MatchDayViewModel::canAddNote() const {
@@ -935,6 +938,7 @@ void MatchDayViewModel::undoSetClock() {
     if (!m_clockBefore || !checkRunnable()) {
         return;
     }
+    discardDraft();
     const auto restored = m_service.restoreClock(m_state->match.match.id, *m_clockBefore);
     m_clockBefore.reset();
     if (!restored) {
@@ -1278,6 +1282,7 @@ void MatchDayViewModel::restoreDeletedNote() {
     if (!m_deletedNote || !checkRunnable()) {
         return;
     }
+    discardDraft();
     const auto restored = m_service.restoreNote(*m_deletedNote);
     m_deletedNote.reset();
     if (!restored) {
@@ -1374,6 +1379,40 @@ void MatchDayViewModel::rebuildBoard() {
         return;
     }
     const core::Lineup& shape = boardShape();
+    // The rows of the shape spread evenly over the height of the board (P13b review): at the
+    // minimum window a pitch of 400 px has no room for a token between rows 0.14 apart (the
+    // goalkeeper and the defence). The board shows rows, not metres; drops still use the zones.
+    constexpr double kSameRow = 1e-6;
+    std::vector<double> levels;
+    for (const core::LineupSlot& slot : shape.pitchSlots) {
+        if (slot.player && std::ranges::none_of(levels, [&](double level) {
+                return std::abs(level - slot.y) < kSameRow;
+            })) {
+            levels.push_back(slot.y);
+        }
+    }
+    std::ranges::sort(levels);
+    const auto displayY = [&](const core::LineupSlot& slot) {
+        if (!slot.player || levels.size() < 2) {
+            return levels.size() == 1 && slot.player ? 0.5 : slot.y;
+        }
+        const auto level = std::ranges::find_if(
+            levels, [&](double value) { return std::abs(value - slot.y) < kSameRow; });
+        return static_cast<double>(level - levels.begin()) / static_cast<double>(levels.size() - 1);
+    };
+    // The room for the name: the gap to the nearest token of the same row (0–1 of the width).
+    const auto labelRoom = [&](std::size_t index) {
+        const core::LineupSlot& slot = shape.pitchSlots[index];
+        double room = 1.0;
+        for (std::size_t other = 0; other < shape.pitchSlots.size(); ++other) {
+            const core::LineupSlot& neighbour = shape.pitchSlots[other];
+            if (other != index && slot.player && neighbour.player &&
+                std::abs(neighbour.y - slot.y) < kSameRow) {
+                room = std::min(room, std::abs(neighbour.x - slot.x));
+            }
+        }
+        return room;
+    };
     QList<QVariantList> rows;
     for (std::size_t i = 0; i < shape.pitchSlots.size(); ++i) {
         const core::LineupSlot& slot = shape.pitchSlots[i];
@@ -1386,13 +1425,13 @@ void MatchDayViewModel::rebuildBoard() {
         }
         rows.append(
             QVariantList{static_cast<int>(i), QString::fromUtf8(core::toDbText(slot.position)),
-                         SquadTexts::positionCode(slot.position), slot.x, slot.y,
+                         SquadTexts::positionCode(slot.position), slot.x, displayY(slot),
                          QVariant::fromValue(slot.player ? slot.player->value : 0),
                          info ? shirtNumberValue(info->shirtNumber) : QVariant{},
                          info ? QString::fromStdString(info->lastName) : QString{},
                          info ? SquadTexts::displayName(*info) : QString{}, QString{}, QString{},
                          static_cast<int>(i) == m_selectedSlot, inMatch ? inMatch->yellowCards : 0,
-                         inMatch ? inMatch->goals : 0, !slot.player.has_value()});
+                         inMatch ? inMatch->goals : 0, !slot.player.has_value(), labelRoom(i)});
     }
     m_board->setRows(std::move(rows));
 }

@@ -6,6 +6,7 @@
 #include "core/domain/Ids.hpp"
 #include "core/domain/Lineup.hpp"
 #include "core/domain/MatchEvent.hpp"
+#include "core/domain/MatchNote.hpp"
 #include "core/domain/MatchTacticChange.hpp"
 
 #include <array>
@@ -108,13 +109,6 @@ void applyStep(MatchClock& clock, ClockStep step, Timestamp at);
 // The minute the match ended: parts × length (whatever the stoppage time, or a last part ended a
 // little before its length), or endedEarlyAt for a match ended early.
 [[nodiscard]] int finalMinute(const MatchClock& clock) noexcept;
-// The final minute of a match ended now with fewer than 7 players: while a part runs, the minute of
-// the clock (at most the end of the part); in a break, the end of the part played; without the
-// clock, the last event. Never before a stored event, so every appearance ends at or after it
-// started.
-[[nodiscard]] int earlyEndMinute(const MatchClock& clock, Timestamp now,
-                                 std::span<const MatchEventDraft> events) noexcept;
-
 // What an event stores.
 struct MatchTime {
     int minute = 0;
@@ -122,6 +116,20 @@ struct MatchTime {
 
     friend bool operator==(const MatchTime&, const MatchTime&) = default;
 };
+
+// The latest time of the actions stored for a match, in the order of the match (added time
+// counted): its events, notes and tactic changes (P13b review). nullopt: none. The end of the
+// match, "set clock" and its undo never go before it.
+[[nodiscard]] std::optional<MatchTime>
+latestRecordedTime(std::span<const MatchEventDraft> events, std::span<const MatchNoteDraft> notes,
+                   std::span<const MatchTacticChangeDraft> changes);
+
+// The final minute of a match ended now with fewer than 7 players: while a part runs, the minute of
+// the clock (at most the end of the part); in a break, the end of the part played; without the
+// clock, the last action. Never before `latest` (latestRecordedTime()), so every appearance ends at
+// or after it started and no stored action lies after the end.
+[[nodiscard]] int earlyEndMinute(const MatchClock& clock, Timestamp now,
+                                 std::optional<MatchTime> latest) noexcept;
 
 // The football way of showing a minute: 0 → 1', 44 → 45', {45, +3} → 45+3', {30, +2} → 30+2'.
 struct DisplayMinute {
@@ -141,10 +149,11 @@ struct DisplayMinute {
 // part (before its start, or stoppage time of another part); the limits of the service come after.
 [[nodiscard]] std::optional<std::chrono::seconds>
 elapsedFromClockText(std::string_view text, MatchFormat format, int period);
-// The least time of the running part that keeps its stored events played ("set clock" may not put
-// the clock before them).
-[[nodiscard]] std::chrono::seconds minElapsedForEvents(MatchFormat format, int period,
-                                                       std::span<const MatchEventDraft> events);
+// The least time of the running part `period` that keeps the latest stored action played ("set
+// clock" and its undo may not put the clock before it); `latest` from latestRecordedTime(). 0 when
+// it is in an earlier part, or none.
+[[nodiscard]] std::chrono::seconds minElapsedFor(MatchFormat format, int period,
+                                                 std::optional<MatchTime> latest);
 
 struct ClockReading {
     MatchPhase phase = MatchPhase::NotStarted;

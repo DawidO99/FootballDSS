@@ -240,8 +240,10 @@ the import can be undone.
   warns; with fewer only the end of the match, notes and undo are possible. Every end of the match
   (the clock button, the banner, the dialog) goes one way: with fewer than 7 players it is early,
   `ended_early_minute` = the minute of the end (while a part runs the clock, at most the end of the
-  part; in a break the end of the part played; never before a stored event); with 7 or more a normal
-  end at `periods` × `period_length` (then only at the end of the last part).
+  part; in a break the end of the part played; never before a stored action: an event, a note or a
+  tactic change, `core::latestRecordedTime`); with 7 or more a normal end at `periods` ×
+  `period_length` (then only at the end of the last part). "Set time" and its undo never put the
+  clock before a stored action of the running part either (P13b review).
 
 Live tactics (`match_tactic_change`, P13b):
 - The 11 slots of the saved lineup keep their index for the whole match. A substitute takes the slot of
@@ -265,7 +267,11 @@ Live tactics (`match_tactic_change`, P13b):
   (in a break: the minute that starts the next part, as a substitution), never before a stored change,
   only with 7 players or more and needs `RunMatchDay`. Recording or undoing it recomputes the
   appearances: a substitute's `appearance.position` is the position of his slot at the minute he came
-  on, tactic changes included; starters keep the position of the lineup.
+  on (right after the substitution, before later events of the same minute), tactic changes
+  included; starters keep the position of the lineup.
+- The board of Match Day spreads the rows of the shape evenly over its height and never draws a name
+  wider than the gap to the next token of its row, so no two tokens overlap at the minimum window;
+  drops still use the position zones.
 
 `.tactic.json`: `{ "version": 1, "formation": "4-3-3", "slots": [{ "position": "GK", "x": 0.5, "y": 0.95, "playerId": 12 }] }`
 — coordinates normalised 0–1 relative to the pitch (own goal at y = 1). Optional `"bench": [playerId, …]`

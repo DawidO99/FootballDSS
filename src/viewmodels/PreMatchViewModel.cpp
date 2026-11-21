@@ -925,7 +925,7 @@ void PreMatchViewModel::rebuildRows() {
             player ? shirtNumberOf(player->player) : QVariant{},
             player ? QString::fromStdString(player->player.lastName) : QString{},
             player ? SquadTexts::displayName(player->player) : QString{}, issues.first,
-            issues.second.join(newline), static_cast<int>(i) == m_selectedSlot, 0, 0, false});
+            issues.second.join(newline), static_cast<int>(i) == m_selectedSlot, 0, 0, false, 1.0});
     }
     m_board->setRows(std::move(boardRows));
 

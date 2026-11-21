@@ -159,10 +159,14 @@ Item {
             if (navigationArgs.matchId === undefined)
                 matchDay.reload();
         } else {
+            // A draft, a pending action and a swap started on the board end with the view.
+            root.swapFrom = -1;
             matchDay.cancelAction();
             root.leaveFullScreen();
         }
     }
+    // Each switch of Players / Tactics starts without a swap waiting.
+    onBoardModeChanged: root.swapFrom = -1
     // Views are built for every login: a live match of the team opens Match Day at once. Later than
     // the move to the dashboard that every login makes (Main.qml).
     Component.onCompleted: Qt.callLater(() => {
@@ -290,10 +294,7 @@ Item {
                 ]
                 currentValue: root.boardMode
                 Accessible.name: qsTr("Show the players as")
-                onActivated: value => {
-                    root.swapFrom = -1;
-                    root.boardMode = value;
-                }
+                onActivated: value => root.boardMode = value
             }
 
             MatchStatusBadge {

@@ -55,6 +55,14 @@ QString ErrorPresenter::message(const core::Error& error) {
 }
 
 QString ErrorPresenter::invalidInputMessage(const std::string& field) {
+    // Live tactics (P13b): MatchDayService::recordTacticChange().
+    if (field == "tactic_shape") {
+        return tr("This shape cannot be used: it needs 11 places on the pitch and at most one "
+                  "goalkeeper.");
+    }
+    if (field == "tactic_unchanged") {
+        return tr("The shape is the same as before. Move a player or choose another formation.");
+    }
     if (field == "pin") {
         return tr("A PIN has 4 to 8 digits.");
     }
@@ -250,13 +258,6 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
     if (field == "match_not_over") {
         return tr("With 7 players or more the match ends with the clock, at the end of its last "
                   "part.");
-    }
-    if (field == "tactic_shape") {
-        return tr("This shape cannot be used: it needs 11 places on the pitch and at most one "
-                  "goalkeeper.");
-    }
-    if (field == "tactic_unchanged") {
-        return tr("The shape is the same as before. Move a player or choose another formation.");
     }
     if (field == "tactic_change_later") {
         return tr("A later change of shape is already recorded. A change can be entered only at "

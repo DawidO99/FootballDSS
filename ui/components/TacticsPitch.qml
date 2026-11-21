@@ -13,13 +13,15 @@ import QtQuick.Controls.Basic
 // API:
 //   model: TacticsBoardModel     slotIndex, positionText, pitchX, pitchY, playerId, shirtNumber,
 //                                shortName, fullName, severity, issueText, selected, yellowCards,
-//                                goals, hidden
+//                                goals, hidden, labelRoom
 //   zones: var                   [{ position, text, x, y, width, height }], 0–1
 //   interactive: bool            drags and drops; a read-only board still selects
 //   showEmptySlots: bool         false (Match Day, P13b): rows with `hidden` are not drawn
 //   fitTokens: bool              true (Match Day, P13b): the y of the tokens is laid out in the
 //                                height left by a token, so a low pitch never pushes the goalkeeper
-//                                onto the defence; drops still use the zones
+//                                onto the defence, and a name is never wider than labelRoom (the
+//                                gap to the next token of its row), so no two names overlap; drops
+//                                still use the zones
 //   dragging: bool               read-only: a token is being dragged
 //   slotActivated(slot, pointer) a click or tap (pointer true; also the first of a double one),
 //                                Enter or Space (pointer false) on a token
@@ -270,13 +272,14 @@ Item {
                 required property int yellowCards
                 required property int goals
                 required property bool hidden
+                required property real labelRoom
                 readonly property alias token: slotToken
 
                 visible: root.showEmptySlots || !slotItem.hidden
                 // The circle on the point of the slot; the whole token stays on the pitch.
                 x: Math.max(0, Math.min(pitch.width - width, pitchX * pitch.width - width / 2))
                 y: root.fitTokens ? pitchY * (pitch.height - height) : Math.max(0, Math.min(pitch.height - height, pitchY * pitch.height - Theme.pitch.tokenSize / 2))
-                width: slotToken.implicitWidth
+                width: root.fitTokens ? Math.max(Theme.pitch.tokenSize, Math.min(slotToken.implicitWidth, slotItem.labelRoom * pitch.width - Theme.spacing.xs)) : slotToken.implicitWidth
                 height: slotToken.implicitHeight
                 z: slotToken.activeFocus || slotDrop.containsDrag ? 2 : 1
 

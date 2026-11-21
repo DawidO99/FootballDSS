@@ -108,3 +108,21 @@ atomicity, permission. `qml_smoke`: change the formation at 30', the timeline sh
     `ui/components/TacticsPitch.qml`, `PlayerToken.qml`, `MatchPlayerTile.qml`, `Icon.qml`,
     `ui/theme/Theme.qml`, `ui/views/ComponentGalleryView.qml`, `tests/qml_components/tst_tacticspitch.qml`,
     the schema-version tests, `src/data/CMakeLists.txt`, `docs/BACKLOG.md`.
+11. **Review (Codex)**:
+    - *Position of a substitute*: the place of his slot right after he came on, before the later events
+      of the same minute (a red card or his own substitution in that minute no longer leaves the
+      position before the tactic change).
+    - *The latest stored action*: `core::latestRecordedTime()` over events, notes and tactic changes
+      (with added time). The final minute of an early end (`core::earlyEndMinute`), "set time" and its
+      undo (`core::minElapsedFor`, refused with `clock_before_event`) and the end offered without the
+      clock use it. Choice for Codex's scenario (without the clock: a change at 60', red cards entered
+      late at 20' leave six): the end is at 60', never before a stored action, as P13 for events.
+    - *Swap on the board*: leaving Match Day and every switch of Players / Tactics end a swap started
+      with the swap button.
+    - *Undo of the toasts*: restoring a deleted note and the undo of "set time" drop a draft with the
+      same notice as the other actions.
+    - *Messages*: `tactic_shape` and `tactic_unchanged` are InvalidInput texts of `ErrorPresenter`.
+    - *Minimum window*: the board spreads the rows of the shape evenly over its height (`pitchY` of the
+      live board) and a name is never wider than the gap to the next token of its row (`labelRoom`,
+      `TacticsPitch.fitTokens`); qml_smoke measures that the circles and names of the tokens do not
+      intersect in 4-4-2 and 3-5-2 at 1280×720.

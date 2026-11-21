@@ -1452,3 +1452,67 @@ TEST_F(MatchDayRestartTest, TheShapeSurvivesARestart) {
     ASSERT_NE(substitute, appearances->end());
     EXPECT_EQ(substitute->position, Position::St);
 }
+
+// --- Review of P13b: the end of the match and "set clock" never go before a stored action ---
+
+// Codex: without the clock, a tactic change at 60', then red cards entered late at 20' leave six
+// players. The end is never before a stored action (as P13 for events): the match ends at 60', not
+// at 20', so the change stays inside the match.
+TEST_F(MatchDayServiceTest, AnEarlyEndIsNeverBeforeAStoredTacticChange) {
+    logInAs(Role::Coach);
+    saveLineup();
+    ASSERT_TRUE(m_service->start(kMatch, kHalves, 4, true).has_value());
+    ASSERT_TRUE(m_service
+                    ->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-3-3")),
+                                         MatchTime{59, std::nullopt})
+                    .has_value());
+    for (const std::int64_t player : {1, 2, 4, 5, 6}) {
+        ASSERT_TRUE(m_service->recordRed(kMatch, pid(player), MatchTime{19, std::nullopt}));
+    }
+    ASSERT_LT(onPitchCount(read().situation), kMinPlayersOnPitch);
+    // The minute typed (20') is earlier than the change: the end is at the change.
+    const auto ended = m_service->endMatch(kMatch, 19);
+    ASSERT_TRUE(ended.has_value()) << ended.error().detail;
+    const MatchDayState state = read();
+    ASSERT_TRUE(state.clock.has_value());
+    EXPECT_EQ(state.clock->endedEarlyAt, 59);
+    EXPECT_EQ(finalMinute(*state.clock), 59);
+    expectMinutes(3, 0, 59);
+    ASSERT_EQ(state.tacticChanges.size(), 1U);
+    EXPECT_LE(state.tacticChanges.front().minute, finalMinute(*state.clock));
+}
+
+TEST_F(MatchDayServiceTest, SetClockNeverGoesBeforeATacticChangeOrANote) {
+    startMatch();
+    advance();
+    m_clock.advance(35min);
+    ASSERT_TRUE(m_service
+                    ->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-3-3")),
+                                         MatchTime{30, std::nullopt})
+                    .has_value());
+    // 10:00 would put the change at 31' in the future.
+    expectError(m_service->setClock(kMatch, 10min), ErrorCode::InvalidInput, "clock_before_event");
+    ASSERT_TRUE(m_service->setClock(kMatch, 31min).has_value());
+    // A note counts too: at 32' (stored 31) it needs 31:00.
+    ASSERT_TRUE(
+        m_service->addNote(kMatch, MatchTime{31, std::nullopt}, std::nullopt, "Wiatr").has_value());
+    expectError(m_service->setClock(kMatch, 30min), ErrorCode::InvalidInput, "clock_before_event");
+    EXPECT_TRUE(m_service->setClock(kMatch, 31min).has_value());
+}
+
+TEST_F(MatchDayServiceTest, TheUndoOfSetClockNeverGoesBeforeATacticChange) {
+    startMatch();
+    advance();
+    m_clock.advance(20min);
+    // The clock shows 40:00; its undo would bring back 20:00.
+    const auto before = m_service->setClock(kMatch, 40min);
+    ASSERT_TRUE(before.has_value());
+    ASSERT_TRUE(m_service
+                    ->recordTacticChange(kMatch, changeShape(read().shape, *findFormation("4-3-3")),
+                                         MatchTime{35, std::nullopt})
+                    .has_value());
+    expectError(m_service->restoreClock(kMatch, *before), ErrorCode::InvalidInput,
+                "clock_before_event");
+    const auto reading = readClock(*read().clock, m_clock.now());
+    EXPECT_EQ(reading.regular, 40min);
+}

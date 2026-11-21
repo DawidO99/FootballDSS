@@ -4310,6 +4310,48 @@ void exerciseLiveTactics(QQmlApplicationEngine& engine, const MatchDayScreen& sc
                 }
             }
         }
+        // The circle and the name of every token are apart from those of every other token
+        // (P13b review), for 4-4-2 and for 3-5-2 (three centre backs in one zone).
+        const auto expectTextApart = [&](const char* shape) {
+            renderFrame(screen.window);
+            std::vector<std::vector<QRectF>> parts;
+            for (int slot = 0; slot < 11; ++slot) {
+                QQuickItem* token = screen.find(QStringLiteral("token_%1").arg(slot));
+                std::vector<QRectF> rects;
+                for (const char* name : {"tokenCircle", "tokenLabel"}) {
+                    auto* part = token != nullptr
+                                     ? findByObjectName(token, QString::fromLatin1(name))
+                                     : nullptr;
+                    if (part != nullptr && part->isVisible()) {
+                        rects.push_back(
+                            part->mapRectToScene(QRectF(0, 0, part->width(), part->height())));
+                    }
+                }
+                parts.push_back(std::move(rects));
+            }
+            for (std::size_t a = 0; a < parts.size(); ++a) {
+                for (std::size_t b = a + 1; b < parts.size(); ++b) {
+                    for (const QRectF& first : parts[a]) {
+                        for (const QRectF& second : parts[b]) {
+                            if (first.intersects(second)) {
+                                qWarning("qml_smoke: match day (%s): tokens %zu and %zu overlap",
+                                         shape, a, b);
+                                fail("match day: the texts of two tokens overlap at the minimum "
+                                     "window");
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        expectTextApart("4-4-2");
+        if (!matchDay->changeFormation(QStringLiteral("3-5-2"))) {
+            fail("match day: 3-5-2 cannot be chosen on the live board");
+        }
+        settle();
+        expectTextApart("3-5-2");
+        matchDay->cancelAction();
+        settle();
         auto* pitch = screen.find(QStringLiteral("livePitch"));
         auto* bench = screen.find(QStringLiteral("liveBench"));
         auto* timeline = screen.find(QStringLiteral("timeline"));
@@ -4384,8 +4426,62 @@ void exerciseLiveTactics(QQmlApplicationEngine& engine, const MatchDayScreen& sc
     if (tacticRow() >= 0 || matchDay->shapeText() != QLatin1StringView("4-4-2")) {
         fail("match day: undo does not take back the change of shape");
     }
-    QMetaObject::invokeMethod(modeSwitch, "select", Q_ARG(QVariant, QVariant(0)));
-    settle();
+    // A swap started on the board ends with the view (P13b review): leave Match Day with a swap
+    // waiting, come back, and a plain click on a token only selects it.
+    {
+        // The strikers, at the top of the pitch: no toast covers them.
+        QQuickItem* token = screen.find(QStringLiteral("token_9"));
+        if (token == nullptr) {
+            fail("match day: no token to start a swap from");
+            return;
+        }
+        tapItem(screen.window, token);
+        renderFrame(screen.window);
+        if (matchDay->selectedSlot() != 9) {
+            fail("match day: a click on a token does not select it");
+        }
+        screen.click(QStringLiteral("liveSwapButton"));
+        if (screen.view->property("swapFrom").toInt() != 9) {
+            fail("match day: the swap button does not start a swap");
+        }
+        screen.navigation->activate(QStringLiteral("dashboard"));
+        settle();
+        auto* question = screen.view->property("leaveDialog").value<QObject*>();
+        if (question == nullptr || !question->property("visible").toBool()) {
+            fail("match day: leaving the live match does not ask");
+            return;
+        }
+        QMetaObject::invokeMethod(question, "primaryClicked");
+        settle();
+        if (screen.navigation->currentKey() != QLatin1StringView("dashboard")) {
+            fail("match day: Leave does not leave the live match");
+        }
+        screen.navigation->activate(QStringLiteral("matchday"));
+        settle();
+        renderFrame(screen.window);
+        if (screen.view->property("swapFrom").toInt() != -1 ||
+            screen.view->property("boardMode").toString() != QLatin1StringView("tactics")) {
+            fail("match day: a swap started before leaving is still waiting after the return");
+        }
+        token = screen.find(QStringLiteral("token_10"));
+        if (token == nullptr) {
+            fail("match day: no token to click after the return");
+            return;
+        }
+        tapItem(screen.window, token);
+        renderFrame(screen.window);
+        if (!matchDay->pendingAction().isEmpty() || matchDay->tacticsDirty() ||
+            matchDay->selectedSlot() != 10) {
+            fail("match day: a plain click after the return makes a swap");
+        }
+        // A switch of the view ends a swap too.
+        screen.click(QStringLiteral("liveSwapButton"));
+        QMetaObject::invokeMethod(modeSwitch, "select", Q_ARG(QVariant, QVariant(0)));
+        settle();
+        if (screen.view->property("swapFrom").toInt() != -1) {
+            fail("match day: Players does not end a swap waiting on the board");
+        }
+    }
     renderFrame(screen.window);
     if (tiles == nullptr || !tiles->isVisible()) {
         fail("match day: Players does not bring the tiles back");

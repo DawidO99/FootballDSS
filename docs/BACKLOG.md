@@ -52,9 +52,6 @@
 - Match Day tactics: inserting a change of shape before a later stored one (refused today with
   `tactic_change_later`; it would need the draft based on the shape at its minute and the later changes
   rebased on it) (P13b decision 5)
-- Match Day tactics at the minimum window (1280×720): the goalkeeper's circle touches the name labels of
-  the back four (centres stay 44 px apart); a lower Match Day header or a pitch lying sideways would give
-  the board more room (P13b)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,

@@ -110,6 +110,8 @@ struct EventConflict {
 //   change at a time before a stored one [tactic_change_later].
 // - Without the clock: an action with no minute [minute_required, InvalidInput]; a minute outside
 //   the format [minute_out_of_match, InvalidInput].
+// - The end of the match and "set clock" (also its undo) never go before a stored action: an event,
+//   a note or a tactic change (core::latestRecordedTime()).
 // - InvalidInput: a format outside 1–4 × 10–60, at most 130 minutes [match_format]; a minute not
 //   played yet [minute_not_played]; an event that does not fit the match [player_unknown,
 //   player_missing, same_player, player_not_on_pitch, player_not_on_bench, player_substituted,

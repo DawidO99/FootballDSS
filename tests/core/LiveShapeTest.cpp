@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <vector>
 
 using namespace fdss::core;
@@ -258,4 +259,53 @@ TEST(LiveShapeTest, SubstituteGetsThePositionOfHisSlotWithTheChanges) {
     const auto plain = computeMatchMinutes(matchSheetOf(lineup), events, 90);
     ASSERT_TRUE(plain.has_value());
     EXPECT_EQ(plain->appearances.back().position, Position::St);
+}
+
+// P13b review: the position of a substitute is the place of his slot right after he came on, not
+// after the later events of the same minute.
+TEST(LiveShapeTest, ASubstituteSentOffInTheMinuteHeCameOnKeepsThePlaceHeTook) {
+    const Lineup lineup = lineup442();
+    const std::vector<MatchTacticChangeDraft> changes{
+        changeAt(30, changeShape(lineup, *findFormation("4-2-3-1")))};
+    // Player 11 is the AM of 4-2-3-1; 13 replaces him at 60' and is sent off at 60'.
+    const std::vector<MatchEventDraft> events{sub(60, 13, 11), red(60, 13)};
+    const auto minutes = computeMatchMinutes(lineup, events, changes, 90);
+    ASSERT_TRUE(minutes.has_value());
+    const auto substitute =
+        std::ranges::find(minutes->appearances, pid(13), &AppearanceDraft::playerId);
+    ASSERT_NE(substitute, minutes->appearances.end());
+    EXPECT_EQ(substitute->position, Position::Am);
+}
+
+TEST(LiveShapeTest, ASubstituteReplacedInTheMinuteHeCameOnKeepsThePlaceHeTook) {
+    const Lineup lineup = lineup442();
+    const std::vector<MatchTacticChangeDraft> changes{
+        changeAt(30, changeShape(lineup, *findFormation("4-2-3-1")))};
+    const std::vector<MatchEventDraft> events{sub(60, 13, 11), sub(60, 14, 13)};
+    const auto minutes = computeMatchMinutes(lineup, events, changes, 90);
+    ASSERT_TRUE(minutes.has_value());
+    for (const std::int64_t player : {13, 14}) {
+        const auto found =
+            std::ranges::find(minutes->appearances, pid(player), &AppearanceDraft::playerId);
+        ASSERT_NE(found, minutes->appearances.end()) << player;
+        EXPECT_EQ(found->position, Position::Am) << player;
+    }
+}
+
+// The latest stored action in the order of the match, over events, notes and tactic changes.
+TEST(LiveShapeTest, TheLatestRecordedTimeCoversEventsNotesAndChanges) {
+    const Lineup lineup = lineup442();
+    EXPECT_EQ(latestRecordedTime({}, {}, {}), std::nullopt);
+    MatchEventDraft stoppage = red(45, 3);
+    stoppage.addedTime = 2;
+    const std::vector<MatchEventDraft> events{red(20, 2), stoppage};
+    EXPECT_EQ(latestRecordedTime(events, {}, {}), (MatchTime{45, 2}));
+    // A note at 46' (stored 45, no added time) is after 45+2'.
+    const std::vector<MatchNoteDraft> notes{{45, std::nullopt, std::nullopt, "x"}};
+    EXPECT_EQ(latestRecordedTime(events, notes, {}), (MatchTime{45, std::nullopt}));
+    // A tactic change at 60' is the latest.
+    const std::vector<MatchTacticChangeDraft> changes{
+        changeAt(59, changeShape(lineup, *findFormation("4-3-3")))};
+    EXPECT_EQ(latestRecordedTime(events, notes, changes), (MatchTime{59, std::nullopt}));
+    EXPECT_EQ(latestRecordedTime({}, {}, changes), (MatchTime{59, std::nullopt}));
 }

@@ -89,6 +89,7 @@ Item {
     Rectangle {
         id: circle
 
+        objectName: "tokenCircle"
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         width: Theme.pitch.tokenSize
@@ -188,6 +189,7 @@ Item {
     }
 
     Rectangle {
+        objectName: "tokenLabel"
         visible: !root.empty
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: circle.bottom
