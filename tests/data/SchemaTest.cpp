@@ -417,6 +417,14 @@ TEST_F(SchemaTest, MatchNoteTextAndMinute) {
                     {QString(500, u'ż')}));
 }
 
+TEST_F(SchemaTest, ReportNoteIsEmptyOrOneToTwoThousandCharacters) {
+    EXPECT_TRUE(hasColumn(QStringLiteral("match"), QStringLiteral("report_note")));
+    EXPECT_TRUE(sql("UPDATE match SET report_note = NULL WHERE id = 1"));
+    EXPECT_TRUE(sql("UPDATE match SET report_note = ? WHERE id = 1", {QString(2000, u'ż')}));
+    EXPECT_FALSE(sql("UPDATE match SET report_note = ? WHERE id = 1", {QString(2001, u'x')}));
+    EXPECT_FALSE(sql("UPDATE match SET report_note = '   ' WHERE id = 1"));
+}
+
 TEST_F(SchemaTest, DeletingAMatchRemovesItsLiveStateAndNotes) {
     ASSERT_TRUE(sql("INSERT INTO match_live (match_id, periods, period_length) VALUES (1, 2, 45)"));
     ASSERT_TRUE(sql("INSERT INTO match_clock_step (match_id, period, kind, at, seq) "

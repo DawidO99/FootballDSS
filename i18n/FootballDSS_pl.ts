@@ -1057,6 +1057,30 @@
         <translation>Usunięcie notatki: %1</translation>
     </message>
     <message>
+        <source>Match report: MatchRatingsGrid, MatchTimeline with corrections</source>
+        <translation>Raport meczowy: MatchRatingsGrid, MatchTimeline z korektami</translation>
+    </message>
+    <message>
+        <source>Match report: MatchRatingsGrid, MatchTimeline with corrections, MatchCorrectionDialog</source>
+        <translation type="vanished">Raport meczowy: MatchRatingsGrid, MatchTimeline z korektami, MatchCorrectionDialog</translation>
+    </message>
+    <message>
+        <source>Rate from 1 to 10: type 1 and 0 quickly for 10.</source>
+        <translation>Oceń od 1 do 10: dla 10 wpisz szybko 1 i 0.</translation>
+    </message>
+    <message>
+        <source>Sample ratings</source>
+        <translation>Przykładowe oceny</translation>
+    </message>
+    <message>
+        <source>Row %1, column %2: %3</source>
+        <translation>Wiersz %1, kolumna %2: %3</translation>
+    </message>
+    <message>
+        <source>Delete event: %1</source>
+        <translation>Usuń zdarzenie: %1</translation>
+    </message>
+    <message>
         <source>Add player</source>
         <translation>Dodaj zawodnika</translation>
     </message>
@@ -1522,6 +1546,49 @@
     </message>
 </context>
 <context>
+    <name>MatchCorrectionDialog</name>
+    <message>
+        <source>Add event</source>
+        <translation>Dodaj zdarzenie</translation>
+    </message>
+    <message>
+        <source>Event</source>
+        <translation>Zdarzenie</translation>
+    </message>
+    <message>
+        <source>Minute</source>
+        <translation>Minuta</translation>
+    </message>
+    <message>
+        <source>Player coming on</source>
+        <translation>Zawodnik wchodzący</translation>
+    </message>
+    <message>
+        <source>Scorer</source>
+        <translation>Strzelec</translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation>Zawodnik</translation>
+    </message>
+    <message>
+        <source>Choose a player</source>
+        <translation>Wybierz zawodnika</translation>
+    </message>
+    <message>
+        <source>Player going off</source>
+        <translation>Zawodnik schodzący</translation>
+    </message>
+    <message>
+        <source>Assist (optional)</source>
+        <translation>Asysta (opcjonalnie)</translation>
+    </message>
+    <message>
+        <source>The minutes of the players and the score are counted again from the events.</source>
+        <translation>Minuty zawodników i wynik zostaną przeliczone ze zdarzeń.</translation>
+    </message>
+</context>
+<context>
     <name>MatchDayView</name>
     <message>
         <source>Match Day</source>
@@ -1582,6 +1649,10 @@
     <message>
         <source>Set time</source>
         <translation>Ustaw czas</translation>
+    </message>
+    <message>
+        <source>Open report</source>
+        <translation>Otwórz raport</translation>
     </message>
     <message>
         <source>Goal</source>
@@ -1858,6 +1929,14 @@
         <source>Save and open Match Day</source>
         <translation>Zapisz i otwórz tryb meczowy</translation>
     </message>
+    <message>
+        <source>Fill in after the match</source>
+        <translation>Uzupełnij po meczu</translation>
+    </message>
+    <message>
+        <source>Save and fill in after the match</source>
+        <translation>Zapisz i uzupełnij po meczu</translation>
+    </message>
 </context>
 <context>
     <name>MatchNoteDialog</name>
@@ -1899,6 +1978,207 @@
     <message>
         <source>Yellow card</source>
         <translation>Żółta kartka</translation>
+    </message>
+</context>
+<context>
+    <name>MatchRatingsGrid</name>
+    <message>
+        <source>No.</source>
+        <translation>Nr</translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation>Zawodnik</translation>
+    </message>
+    <message>
+        <source>Pos.</source>
+        <translation>Poz.</translation>
+    </message>
+    <message>
+        <source>Min.</source>
+        <translation>Min.</translation>
+    </message>
+    <message>
+        <source>Goals</source>
+        <translation>Gole</translation>
+    </message>
+    <message>
+        <source>Assists</source>
+        <translation>Asysty</translation>
+    </message>
+    <message>
+        <source>Cards</source>
+        <translation>Kartki</translation>
+    </message>
+    <message>
+        <source>Rating</source>
+        <translation>Ocena</translation>
+    </message>
+    <message>
+        <source>RPE</source>
+        <translation>RPE</translation>
+    </message>
+</context>
+<context>
+    <name>MatchRatingsGridRow</name>
+    <message>
+        <source>Yellow cards: %1</source>
+        <translation>Żółte kartki: %1</translation>
+    </message>
+    <message>
+        <source>Red cards: %1</source>
+        <translation>Czerwone kartki: %1</translation>
+    </message>
+    <message>
+        <source>Rating of %1</source>
+        <translation>Ocena: %1</translation>
+    </message>
+    <message>
+        <source>RPE of %1</source>
+        <translation>RPE: %1</translation>
+    </message>
+</context>
+<context>
+    <name>MatchReportView</name>
+    <message>
+        <source>← Player card</source>
+        <translation>← Karta zawodnika</translation>
+    </message>
+    <message>
+        <source>← Match Day</source>
+        <translation>← Tryb meczowy</translation>
+    </message>
+    <message>
+        <source>← Calendar</source>
+        <translation>← Kalendarz</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>Cofnij</translation>
+    </message>
+    <message>
+        <source>%1:%2 against %3</source>
+        <translation>%1:%2 z %3</translation>
+    </message>
+    <message>
+        <source>Match report</source>
+        <translation>Raport meczowy</translation>
+    </message>
+    <message>
+        <source>Not saved</source>
+        <translation>Niezapisane</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>Save (%1)</source>
+        <translation>Zapisz (%1)</translation>
+    </message>
+    <message>
+        <source>The match report could not be read</source>
+        <translation>Nie udało się odczytać raportu meczowego</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>No match chosen</source>
+        <translation>Nie wybrano meczu</translation>
+    </message>
+    <message>
+        <source>Open a finished match from the Calendar to see its report.</source>
+        <translation>Otwórz zakończony mecz z kalendarza, aby zobaczyć jego raport.</translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation>Otwórz kalendarz</translation>
+    </message>
+    <message>
+        <source>This match is not finished</source>
+        <translation>Ten mecz nie jest zakończony</translation>
+    </message>
+    <message>
+        <source>The match is live again in Match Day. Finish it there, then the report opens.</source>
+        <translation>Mecz znów trwa w trybie meczowym. Zakończ go tam, a raport się otworzy.</translation>
+    </message>
+    <message>
+        <source>Back to Match Day</source>
+        <translation>Wróć do trybu meczowego</translation>
+    </message>
+    <message>
+        <source>Ratings and RPE</source>
+        <translation>Oceny i RPE</translation>
+    </message>
+    <message>
+        <source>Note of the report</source>
+        <translation>Notatka do raportu</translation>
+    </message>
+    <message>
+        <source>%1 / %2 characters</source>
+        <translation>%1 / %2 znaków</translation>
+    </message>
+    <message>
+        <source>At most %1 characters.</source>
+        <translation>Najwyżej %1 znaków.</translation>
+    </message>
+    <message>
+        <source>What went well, what to work on</source>
+        <translation>Co wyszło dobrze, nad czym pracować</translation>
+    </message>
+    <message>
+        <source>Events</source>
+        <translation>Zdarzenia</translation>
+    </message>
+    <message>
+        <source>Add event</source>
+        <translation>Dodaj zdarzenie</translation>
+    </message>
+    <message>
+        <source>Add note</source>
+        <translation>Dodaj notatkę</translation>
+    </message>
+    <message>
+        <source>No events in this match.</source>
+        <translation>W tym meczu nie ma zdarzeń.</translation>
+    </message>
+    <message>
+        <source>Shapes</source>
+        <translation>Ustawienia</translation>
+    </message>
+    <message>
+        <source>%1 – %2 (%3 min)</source>
+        <translation>%1 – %2 (%3 min)</translation>
+    </message>
+    <message>
+        <source>Delete the goal?</source>
+        <translation>Usunąć gola?</translation>
+    </message>
+    <message>
+        <source>Delete goal</source>
+        <translation>Usuń gola</translation>
+    </message>
+    <message>
+        <source>The score of the match changes. The goal can be brought back from the message that follows.</source>
+        <translation>Wynik meczu się zmieni. Gola można przywrócić z komunikatu, który się pojawi.</translation>
+    </message>
+    <message>
+        <source>Save the changes?</source>
+        <translation>Zapisać zmiany?</translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation>Zostań</translation>
+    </message>
+    <message>
+        <source>Discard changes</source>
+        <translation>Odrzuć zmiany</translation>
+    </message>
+    <message>
+        <source>The ratings, RPE or note of this match have changes that are not saved.</source>
+        <translation>Oceny, RPE lub notatka tego meczu mają niezapisane zmiany.</translation>
     </message>
 </context>
 <context>
@@ -1973,6 +2253,14 @@
     <message>
         <source>Delete note</source>
         <translation>Usuń notatkę</translation>
+    </message>
+    <message>
+        <source>Delete change of shape</source>
+        <translation>Usuń zmianę ustawienia</translation>
+    </message>
+    <message>
+        <source>Delete event</source>
+        <translation>Usuń zdarzenie</translation>
     </message>
 </context>
 <context>
@@ -2128,12 +2416,72 @@
         <translation>Oznacz powrót</translation>
     </message>
     <message>
+        <source>Date</source>
+        <translation>Data</translation>
+    </message>
+    <message>
+        <source>Opponent</source>
+        <translation>Przeciwnik</translation>
+    </message>
+    <message>
+        <source>Result</source>
+        <translation>Wynik</translation>
+    </message>
+    <message>
+        <source>Minutes</source>
+        <translation>Minuty</translation>
+    </message>
+    <message>
+        <source>Goals</source>
+        <translation>Gole</translation>
+    </message>
+    <message>
+        <source>Assists</source>
+        <translation>Asysty</translation>
+    </message>
+    <message>
+        <source>Yellow</source>
+        <translation>Żółte</translation>
+    </message>
+    <message>
+        <source>Red</source>
+        <translation>Czerwone</translation>
+    </message>
+    <message>
+        <source>Rating</source>
+        <translation>Ocena</translation>
+    </message>
+    <message>
+        <source>RPE</source>
+        <translation>RPE</translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation>%1 %2</translation>
+    </message>
+    <message>
+        <source>The matches could not be read</source>
+        <translation>Nie udało się odczytać meczów</translation>
+    </message>
+    <message>
+        <source>No matches yet</source>
+        <translation>Brak meczów</translation>
+    </message>
+    <message>
+        <source>The finished matches of this player, with minutes and ratings, will appear here. Finish a match in Match Day or fill it in from the Calendar.</source>
+        <translation>Tutaj pojawią się zakończone mecze tego zawodnika z minutami i ocenami. Zakończ mecz w trybie meczowym albo uzupełnij go z kalendarza.</translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation>Otwórz kalendarz</translation>
+    </message>
+    <message>
         <source>The training load of this player will appear here.</source>
         <translation type="vanished">Tutaj pojawi się obciążenie treningowe tego zawodnika.</translation>
     </message>
     <message>
         <source>The matches, minutes and ratings of this player will appear here.</source>
-        <translation>Tutaj pojawią się mecze, minuty i oceny tego zawodnika.</translation>
+        <translation type="vanished">Tutaj pojawią się mecze, minuty i oceny tego zawodnika.</translation>
     </message>
     <message>
         <source>Dated notes about this player will appear here.</source>
@@ -3666,6 +4014,14 @@
         <translation>Tego zawodnika nie ma w składzie meczu. Wybierz innego zawodnika.</translation>
     </message>
     <message>
+        <source>Enter a rating from 1 to 10.</source>
+        <translation>Wpisz ocenę od 1 do 10.</translation>
+    </message>
+    <message>
+        <source>Write the note of the report, up to 2000 characters.</source>
+        <translation>Napisz notatkę do raportu, najwyżej 2000 znaków.</translation>
+    </message>
+    <message>
         <source>The minute of this event is outside the match. Check the clock and try again.</source>
         <translation>Minuta tego zdarzenia wypada poza meczem. Sprawdź zegar i spróbuj ponownie.</translation>
     </message>
@@ -3756,6 +4112,18 @@
     <message>
         <source>This event conflicts with a later one. Undo or correct the later event first.</source>
         <translation>To zdarzenie koliduje z późniejszym. Najpierw cofnij albo popraw późniejsze zdarzenie.</translation>
+    </message>
+    <message>
+        <source>This match is not finished. Finish it in Match Day first.</source>
+        <translation>Ten mecz nie jest zakończony. Najpierw zakończ go w trybie meczowym.</translation>
+    </message>
+    <message>
+        <source>The events of this match cannot be corrected: its stored minutes do not follow from them.</source>
+        <translation>Zdarzeń tego meczu nie można poprawić: zapisane minuty nie wynikają z nich.</translation>
+    </message>
+    <message>
+        <source>A later event needs this one. Delete the later event first.</source>
+        <translation>Późniejsze zdarzenie zależy od tego. Najpierw usuń późniejsze zdarzenie.</translation>
     </message>
     <message>
         <source>Another match of this team is live. Finish it or undo its start first.</source>
@@ -4325,15 +4693,15 @@
     </message>
     <message>
         <source>Assist: %1</source>
-        <translation>Asysta: %1</translation>
+        <translation type="vanished">Asysta: %1</translation>
     </message>
     <message>
         <source>On: %1</source>
-        <translation>Wchodzi: %1</translation>
+        <translation type="vanished">Wchodzi: %1</translation>
     </message>
     <message>
         <source>Off: %1</source>
-        <translation>Schodzi: %1</translation>
+        <translation type="vanished">Schodzi: %1</translation>
     </message>
     <message>
         <source>Only %1 players are left on the pitch. With fewer the match cannot go on.</source>
@@ -4405,6 +4773,116 @@
     </message>
 </context>
 <context>
+    <name>fdss::viewmodels::MatchReportViewModel</name>
+    <message>
+        <source>Win</source>
+        <translation>Wygrana</translation>
+    </message>
+    <message>
+        <source>Loss</source>
+        <translation>Porażka</translation>
+    </message>
+    <message>
+        <source>Draw</source>
+        <translation>Remis</translation>
+    </message>
+    <message>
+        <source>Only the coach or an assistant can rate the players and correct the match.</source>
+        <translation>Tylko trener lub asystent może oceniać zawodników i poprawiać mecz.</translation>
+    </message>
+    <message>
+        <source>The stored minutes of this match do not follow from its events, so events cannot be added or deleted here. Ratings, RPE and notes can still be entered.</source>
+        <translation>Zapisane minuty tego meczu nie wynikają z jego zdarzeń, więc nie można tu dodawać ani usuwać zdarzeń. Oceny, RPE i notatki można nadal wpisywać.</translation>
+    </message>
+    <message>
+        <source>%1 of %2 rated</source>
+        <translation>Ocenieni: %1 z %2</translation>
+    </message>
+    <message>
+        <source>No player</source>
+        <translation>Bez zawodnika</translation>
+    </message>
+    <message>
+        <source>the end</source>
+        <translation>koniec</translation>
+    </message>
+    <message>
+        <source>%1&apos;</source>
+        <translation>%1&apos;</translation>
+    </message>
+    <message>
+        <source>Rate from 1 to 10: type 1 and 0 quickly for 10.</source>
+        <translation>Oceń od 1 do 10: dla 10 wpisz szybko 1 i 0.</translation>
+    </message>
+    <message>
+        <source>Enter an RPE from 0 to 10.</source>
+        <translation>Wpisz RPE od 0 do 10.</translation>
+    </message>
+    <message>
+        <source>Some ratings are not valid. Correct the marked rows first.</source>
+        <translation>Niektóre oceny są nieprawidłowe. Najpierw popraw zaznaczone wiersze.</translation>
+    </message>
+    <message>
+        <source>Enter the minute as 23, or 45+2 in stoppage time.</source>
+        <translation>Wpisz minutę jako 23, a w doliczonym czasie jako 45+2.</translation>
+    </message>
+    <message>
+        <source>This minute is outside the match.</source>
+        <translation>Ta minuta wypada poza meczem.</translation>
+    </message>
+    <message>
+        <source>No assist</source>
+        <translation>Bez asysty</translation>
+    </message>
+    <message>
+        <source>This event conflicts with a later one: %1. Delete or correct that event first.</source>
+        <translation>To zdarzenie koliduje z późniejszym: %1. Najpierw usuń lub popraw tamto zdarzenie.</translation>
+    </message>
+    <message>
+        <source>Choose the kind of event.</source>
+        <translation>Wybierz rodzaj zdarzenia.</translation>
+    </message>
+    <message>
+        <source>This event cannot be deleted: the later event %1 needs it. Delete that event first.</source>
+        <translation>Tego zdarzenia nie można usunąć: zależy od niego późniejsze zdarzenie %1. Najpierw usuń tamto zdarzenie.</translation>
+    </message>
+    <message>
+        <source>Deleted: %1</source>
+        <translation>Usunięto: %1</translation>
+    </message>
+    <message>
+        <source>Note deleted: %1</source>
+        <translation>Usunięto notatkę: %1</translation>
+    </message>
+    <message>
+        <source>Change of shape deleted: %1</source>
+        <translation>Usunięto zmianę ustawienia: %1</translation>
+    </message>
+    <message>
+        <source>%1 for %2</source>
+        <translation>%1 za %2</translation>
+    </message>
+    <message>
+        <source>%1 · %2 %3</source>
+        <translation>%1 · %2 %3</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MatchTimelineRows</name>
+    <message>
+        <source>Assist: %1</source>
+        <translation>Asysta: %1</translation>
+    </message>
+    <message>
+        <source>On: %1</source>
+        <translation>Wchodzi: %1</translation>
+    </message>
+    <message>
+        <source>Off: %1</source>
+        <translation>Schodzi: %1</translation>
+    </message>
+</context>
+<context>
     <name>fdss::viewmodels::NavigationModel</name>
     <message>
         <source>Dashboard</source>
@@ -4442,6 +4920,10 @@
         <source>Settings</source>
         <translation>Ustawienia</translation>
     </message>
+    <message>
+        <source>Match report</source>
+        <translation>Raport meczowy</translation>
+    </message>
 </context>
 <context>
     <name>fdss::viewmodels::PlayerLoadViewModel</name>
@@ -4472,6 +4954,21 @@
     <message>
         <source>Ratio</source>
         <translation>Stosunek</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::PlayerMatchesModel</name>
+    <message>
+        <source>Win</source>
+        <translation>Wygrana</translation>
+    </message>
+    <message>
+        <source>Loss</source>
+        <translation>Porażka</translation>
+    </message>
+    <message>
+        <source>Draw</source>
+        <translation>Remis</translation>
     </message>
 </context>
 <context>

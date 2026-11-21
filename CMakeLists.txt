@@ -63,9 +63,12 @@ qt_add_qml_module(fdss_ui
         ui/components/LoadChart.qml
         ui/components/LoadStatusBadge.qml
         ui/components/MatchClockBar.qml
+        ui/components/MatchCorrectionDialog.qml
         ui/components/MatchEditorDialog.qml
         ui/components/MatchNoteDialog.qml
         ui/components/MatchPlayerTile.qml
+        ui/components/MatchRatingsGrid.qml
+        ui/components/MatchRatingsGridRow.qml
         ui/components/MatchStartDialog.qml
         ui/components/MatchStatusBadge.qml
         ui/components/MatchTimeline.qml
@@ -107,6 +110,7 @@ qt_add_qml_module(fdss_ui
         ui/views/ImportView.qml
         ui/views/LoadView.qml
         ui/views/MatchDayView.qml
+        ui/views/MatchReportView.qml
         ui/views/PlayerCardView.qml
         ui/views/PreMatchView.qml
         ui/views/ProfilePickerView.qml
@@ -163,6 +167,12 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/MatchDayViewModel.cpp
         src/viewmodels/MatchEditorViewModel.hpp
         src/viewmodels/MatchEditorViewModel.cpp
+        src/viewmodels/MatchReportModels.hpp
+        src/viewmodels/MatchReportModels.cpp
+        src/viewmodels/MatchReportViewModel.hpp
+        src/viewmodels/MatchReportViewModel.cpp
+        src/viewmodels/MatchTimelineRows.hpp
+        src/viewmodels/MatchTimelineRows.cpp
         src/viewmodels/NavigationModel.hpp
         src/viewmodels/NavigationModel.cpp
         src/viewmodels/OpponentListModel.hpp
@@ -173,6 +183,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/PlayerEditorViewModel.cpp
         src/viewmodels/PlayerLoadViewModel.hpp
         src/viewmodels/PlayerLoadViewModel.cpp
+        src/viewmodels/PlayerMatchesModel.hpp
+        src/viewmodels/PlayerMatchesModel.cpp
         src/viewmodels/QmlValues.hpp
         src/viewmodels/PreMatchViewModel.hpp
         src/viewmodels/PreMatchViewModel.cpp

@@ -15,6 +15,10 @@ add_library(fdss_services STATIC
     LineupService.cpp
     MatchDayService.hpp
     MatchDayService.cpp
+    MatchRecompute.hpp
+    MatchRecompute.cpp
+    MatchReportService.hpp
+    MatchReportService.cpp
     LoadService.hpp
     LoadService.cpp
     SquadService.hpp

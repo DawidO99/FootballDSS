@@ -163,3 +163,17 @@ TEST_F(NavigationModelTest, UnknownSectionChangesNothing) {
     EXPECT_EQ(m_model.currentKey(), QStringLiteral("training"));
     EXPECT_EQ(m_model.currentArgs(), kSession);
 }
+
+TEST_F(NavigationModelTest, TheMatchReportIsASectionWithoutASidebarItem) {
+    const int last = m_model.rowCount() - 1;
+    EXPECT_EQ(m_model.sidebarCount(), last);
+    EXPECT_EQ(m_model.data(m_model.index(last), NavigationModel::KeyRole),
+              QStringLiteral("matchreport"));
+    EXPECT_FALSE(m_model.data(m_model.index(last), NavigationModel::InSidebarRole).toBool());
+    EXPECT_TRUE(m_model.data(m_model.index(0), NavigationModel::InSidebarRole).toBool());
+
+    const QVariantMap match{{QStringLiteral("matchId"), 3}};
+    m_model.activate(QStringLiteral("matchreport"), match);
+    EXPECT_EQ(m_model.currentKey(), QStringLiteral("matchreport"));
+    EXPECT_EQ(m_model.currentArgs(), match);
+}

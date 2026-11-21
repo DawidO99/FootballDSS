@@ -24,18 +24,35 @@ Item {
     readonly property alias availabilityEditor: availabilityDialog
     readonly property alias returnEditor: returnDialog
     readonly property alias loadPanel: cardLoadPanel
+    readonly property alias matchesModel: matches
+    readonly property alias matchesView: matchesTable
 
     signal backRequested
     signal editRequested(double playerId)
     // After a change of availability, which changes the status in the list too.
     signal squadChanged
-    // The Load tab leads to the training sheet.
+    // The Load tab leads to the training sheet, the Matches tab to the match report.
     signal navigateRequested(string key, var args)
 
     function reload() {
         card.reload();
         availability.reload();
         cardLoadPanel.reload();
+        matches.reload();
+    }
+
+    function openMatchReport(matchId) {
+        if (!matchId)
+            return;
+        root.navigateRequested("matchreport", {
+            "matchId": matchId,
+            "returnTo": {
+                "key": "squad",
+                "args": {
+                    "playerId": root.playerId
+                }
+            }
+        });
     }
 
     function focusFirst() {
@@ -79,6 +96,12 @@ Item {
 
     PlayerCardViewModel {
         id: card
+
+        playerId: root.playerId
+    }
+
+    PlayerMatchesModel {
+        id: matches
 
         playerId: root.playerId
     }
@@ -405,10 +428,124 @@ Item {
                 onNavigateRequested: (key, args) => root.navigateRequested(key, args)
             }
 
-            EmptyState {
-                iconName: "matchday"
-                title: qsTr("Matches")
-                description: qsTr("The matches, minutes and ratings of this player will appear here.")
+            // The finished matches of the player, the most recent first (P14); a row opens the report.
+            FocusScope {
+                id: matchesPage
+
+                objectName: "matchesPage"
+
+                DataTable {
+                    id: matchesTable
+
+                    objectName: "playerMatchesTable"
+                    anchors.fill: parent
+                    Accessible.name: qsTr("Matches")
+                    model: matches
+                    columns: [
+                        {
+                            "role": "dateText",
+                            "title": qsTr("Date"),
+                            "width": 0.14,
+                            "sortable": false
+                        },
+                        {
+                            "role": "opponentName",
+                            "title": qsTr("Opponent"),
+                            "width": 0.22,
+                            "sortable": false
+                        },
+                        {
+                            "role": "scoreText",
+                            "title": qsTr("Result"),
+                            "width": 0.16,
+                            "delegate": resultCell,
+                            "sortable": false
+                        },
+                        {
+                            "role": "minutes",
+                            "title": qsTr("Minutes"),
+                            "width": 0.08,
+                            "align": Text.AlignRight,
+                            "sortable": false
+                        },
+                        {
+                            "role": "goals",
+                            "title": qsTr("Goals"),
+                            "width": 0.07,
+                            "align": Text.AlignRight,
+                            "sortable": false
+                        },
+                        {
+                            "role": "assists",
+                            "title": qsTr("Assists"),
+                            "width": 0.07,
+                            "align": Text.AlignRight,
+                            "sortable": false
+                        },
+                        {
+                            "role": "yellowCards",
+                            "title": qsTr("Yellow"),
+                            "width": 0.07,
+                            "align": Text.AlignRight,
+                            "sortable": false
+                        },
+                        {
+                            "role": "redCards",
+                            "title": qsTr("Red"),
+                            "width": 0.06,
+                            "align": Text.AlignRight,
+                            "sortable": false
+                        },
+                        {
+                            "role": "rating",
+                            "title": qsTr("Rating"),
+                            "width": 0.07,
+                            "align": Text.AlignRight,
+                            "sortable": false
+                        },
+                        {
+                            "role": "rpe",
+                            "title": qsTr("RPE"),
+                            "width": 0.06,
+                            "align": Text.AlignRight,
+                            "sortable": false
+                        }
+                    ]
+                    emptyState: matchesEmptyState
+                    onActivated: index => root.openMatchReport(matches.get(index).matchId)
+                }
+
+                Component {
+                    id: resultCell
+
+                    DataTableCell {
+                        id: cell
+
+                        StatusBadge {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: cell.rowData !== undefined && cell.rowData !== null
+                            kind: !cell.rowData ? StatusBadge.Neutral : cell.rowData.resultKey === "win" ? StatusBadge.Ok : cell.rowData.resultKey === "loss" ? StatusBadge.Danger : StatusBadge.Neutral
+                            text: cell.rowData ? qsTr("%1 %2").arg(cell.rowData.resultWord).arg(cell.rowData.scoreText) : ""
+                        }
+                    }
+                }
+
+                Component {
+                    id: matchesEmptyState
+
+                    EmptyState {
+                        iconName: "matchday"
+                        title: matches.loadError.length > 0 ? qsTr("The matches could not be read") : qsTr("No matches yet")
+                        description: matches.loadError.length > 0 ? matches.loadError : qsTr("The finished matches of this player, with minutes and ratings, will appear here. Finish a match in Match Day or fill it in from the Calendar.")
+                        actionText: matches.loadError.length > 0 ? qsTr("Try again") : qsTr("Open the calendar")
+                        onActionTriggered: {
+                            if (matches.loadError.length > 0)
+                                matches.reload();
+                            else
+                                root.navigateRequested("calendar", {});
+                        }
+                    }
+                }
             }
 
             EmptyState {

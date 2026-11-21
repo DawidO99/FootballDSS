@@ -3,6 +3,7 @@
 #include "core/domain/Permissions.hpp"
 #include "core/domain/Validation.hpp"
 #include "services/CalendarService.hpp"
+#include "services/Clock.hpp"
 #include "services/Session.hpp"
 #include "viewmodels/CalendarTexts.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
@@ -79,6 +80,11 @@ QString MatchEditorViewModel::opponentName() const {
 }
 
 QString MatchEditorViewModel::date() const { return m_date; }
+
+bool MatchEditorViewModel::beforeToday() const {
+    const auto date = IsoDates::parse(m_date);
+    return date && *date < ServiceRegistry::instance().clock().today();
+}
 
 void MatchEditorViewModel::setDate(const QString& date) {
     if (date != m_date) {

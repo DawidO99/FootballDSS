@@ -8,6 +8,7 @@
 #include "viewmodels/ErrorPresenter.hpp"
 #include "viewmodels/LineupTexts.hpp"
 #include "viewmodels/MatchDayTexts.hpp"
+#include "viewmodels/MatchTimelineRows.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/SquadTexts.hpp"
 
@@ -34,12 +35,6 @@ QVariant shirtNumberValue(const std::optional<int>& number) {
 
 QString formatKey(core::MatchFormat format) {
     return QStringLiteral("%1x%2").arg(format.periods).arg(format.periodLength);
-}
-
-// The order of the match for the timeline: by minute, the added time of a part before the start
-// of the next one.
-std::tuple<int, int, int> matchOrder(int minute, std::optional<int> addedTime) {
-    return {minute, addedTime ? 0 : 1, addedTime.value_or(0)};
 }
 
 const auto kCustomShape = QStringLiteral("custom");
@@ -714,78 +709,20 @@ void MatchDayViewModel::rebuildRows() {
     m_pitch->setRows(std::move(pitchRows));
     m_bench->setRows(std::move(benchRows));
 
-    // Events and notes in the order of the match; the timeline shows the latest first.
-    struct Entry {
-        std::tuple<int, int, int> order;
-        int sequence;
-        QVariantList row;
-    };
-    std::vector<Entry> entries;
-    const std::vector<core::MatchEvent>& list = m_state->events;
-    const std::vector<core::MatchEventDraft> drafts(list.begin(), list.end());
-    // Counted in replay order from the yellow cards before each red (P13 review).
-    const std::vector<bool> secondYellows = core::secondYellowReds(drafts);
-    for (std::size_t index = 0; index < list.size(); ++index) {
-        const core::MatchEvent& event = list[index];
-        const bool secondYellow = secondYellows[index];
-        QString playerText;
-        QString relatedText;
-        switch (event.type) {
-        case core::MatchEventType::Goal:
-            playerText = playerName(event.playerId);
-            if (event.relatedPlayerId) {
-                relatedText = tr("Assist: %1").arg(playerName(event.relatedPlayerId));
-            }
-            break;
-        case core::MatchEventType::Sub:
-            playerText = tr("On: %1").arg(playerName(event.playerId));
-            relatedText = tr("Off: %1").arg(playerName(event.relatedPlayerId));
-            break;
-        case core::MatchEventType::OpponentGoal:
-            playerText = opponentName();
-            break;
-        case core::MatchEventType::Assist:
-        case core::MatchEventType::Yellow:
-        case core::MatchEventType::Red:
-            playerText = playerName(event.playerId);
-            break;
-        }
-        entries.push_back(
-            {matchOrder(event.minute, event.addedTime), static_cast<int>(entries.size()),
-             QVariantList{QStringLiteral("event"), QVariant::fromValue(event.id.value), 0,
-                          MatchDayTexts::minuteText(event.minute, event.addedTime),
-                          MatchDayTexts::eventKey(event.type, secondYellow),
-                          MatchDayTexts::eventIcon(event.type),
-                          MatchDayTexts::eventName(event.type, secondYellow), playerText,
-                          relatedText, QString{}, 0, QString{}}});
-    }
-    for (const core::MatchNote& note : m_state->notes) {
-        const QString text = QString::fromStdString(note.text);
-        entries.push_back(
-            {matchOrder(note.minute, note.addedTime), static_cast<int>(entries.size()),
-             QVariantList{QStringLiteral("note"), 0, QVariant::fromValue(note.id.value),
-                          MatchDayTexts::minuteText(note.minute, note.addedTime),
-                          QStringLiteral("note"), QStringLiteral("note"), MatchDayTexts::noteName(),
-                          playerName(note.playerId), text,
-                          MatchDayTexts::minuteFieldText({note.minute, note.addedTime}),
-                          QVariant::fromValue(note.playerId ? note.playerId->value : 0), text}});
-    }
-    for (const core::MatchTacticChange& change : m_state->tacticChanges) {
-        entries.push_back(
-            {matchOrder(change.minute, change.addedTime), static_cast<int>(entries.size()),
-             QVariantList{QStringLiteral("tactic"), 0, 0,
-                          MatchDayTexts::minuteText(change.minute, change.addedTime),
-                          QStringLiteral("tactic"), QStringLiteral("tactic"),
-                          MatchDayTexts::tacticChangeName(), tacticChangeText(change.id), QString{},
-                          QString{}, 0, QString{}}});
-    }
-    std::ranges::stable_sort(entries, [](const Entry& left, const Entry& right) {
-        return std::tie(left.order, left.sequence) > std::tie(right.order, right.sequence);
-    });
-    QList<QVariantList> rows;
-    for (Entry& entry : entries) {
-        rows.append(std::move(entry.row));
-    }
+    // Events, notes and changes of shape; the timeline shows the latest first.
+    const std::vector<core::MatchEventDraft> drafts(m_state->events.begin(), m_state->events.end());
+    const std::vector<core::MatchTacticChangeDraft> changes(m_state->tacticChanges.begin(),
+                                                            m_state->tacticChanges.end());
+    const auto names = core::shapeChangeNames(m_state->lineup, drafts, changes);
+    const MatchTimelineInput timeline{
+        m_state->events,
+        m_state->notes,
+        m_state->tacticChanges,
+        names ? std::span<const core::ShapeChangeNames>(*names)
+              : std::span<const core::ShapeChangeNames>{},
+        [this](std::optional<core::PlayerId> player) { return playerName(player); },
+        opponentName()};
+    QList<QVariantList> rows = MatchTimelineRows::build(timeline);
     m_timeline->setRows(std::move(rows));
     rebuildBoard();
 }

@@ -43,6 +43,8 @@ class MatchEditorViewModel : public QObject {
     Q_PROPERTY(QString venue READ venue WRITE setVenue NOTIFY fieldsChanged FINAL)
     Q_PROPERTY(QString competition READ competition WRITE setCompetition NOTIFY fieldsChanged FINAL)
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged FINAL)
+    // The date is before today: a planned match is filled in after it was played (packet P14).
+    Q_PROPERTY(bool beforeToday READ beforeToday NOTIFY fieldsChanged FINAL)
     Q_PROPERTY(fdss::viewmodels::OpponentListModel* opponents READ opponents CONSTANT FINAL)
     // The most recent first.
     Q_PROPERTY(QStringList competitionSuggestions READ competitionSuggestions NOTIFY
@@ -66,6 +68,7 @@ public:
     void setOpponentId(qint64 opponentId);
     [[nodiscard]] QString opponentName() const;
     [[nodiscard]] QString date() const;
+    [[nodiscard]] bool beforeToday() const;
     void setDate(const QString& date);
     [[nodiscard]] QString kickoffTime() const;
     void setKickoffTime(const QString& time);

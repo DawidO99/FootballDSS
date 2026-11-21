@@ -558,3 +558,93 @@ TEST_F(MatchRepositoryTest, WritesWorkAfterDeleteLast) {
     EXPECT_TRUE(repository().appendEvent(kMatch, event(20)).has_value());
     EXPECT_EQ(repository().listEvents(kMatch)->at(0).minute, 20);
 }
+
+// --- Match report (packet P14) ---
+
+TEST_F(MatchRepositoryTest, SetRatingsChangesOnlyRatingAndRpe) {
+    AppearanceDraft played = appearance(kPlayer);
+    played.started = true;
+    played.minuteOn = 0;
+    played.minuteOff = 90;
+    const std::vector<AppearanceDraft> rows{played, appearance(kOtherPlayer, 6)};
+    ASSERT_TRUE(repository().replaceAppearances(kMatch, rows));
+    const std::vector<AppearanceRating> ratings{{kPlayer, 8, 7}, {kOtherPlayer, std::nullopt, 3}};
+    const auto saved = repository().setRatings(kMatch, ratings);
+    ASSERT_TRUE(saved.has_value()) << saved.error().detail;
+    const auto read = repository().listAppearances(kMatch);
+    ASSERT_TRUE(read.has_value());
+    EXPECT_EQ(read->at(0).rating, 8);
+    EXPECT_EQ(read->at(0).rpe, 7);
+    EXPECT_EQ(read->at(0).minuteOff, 90);
+    EXPECT_EQ(read->at(1).rating, std::nullopt);
+    EXPECT_EQ(read->at(1).rpe, 3);
+}
+
+TEST_F(MatchRepositoryTest, SetRatingsOfAPlayerWithoutAnAppearanceIsNotFound) {
+    const std::vector<AppearanceRating> ratings{{kPlayer, 8, 7}};
+    expectCode(repository().setRatings(kMatch, ratings), ErrorCode::NotFound);
+}
+
+TEST_F(MatchRepositoryTest, RatingOutOfRangeIsInvalidInput) {
+    const std::vector<AppearanceDraft> rows{appearance(kPlayer)};
+    ASSERT_TRUE(repository().replaceAppearances(kMatch, rows));
+    const std::vector<AppearanceRating> ratings{{kPlayer, 11, std::nullopt}};
+    expectCode(repository().setRatings(kMatch, ratings), ErrorCode::InvalidInput);
+}
+
+TEST_F(MatchRepositoryTest, ReportNoteIsStoredAndCleared) {
+    EXPECT_EQ(repository().reportNote(kMatch).value(), std::nullopt);
+    ASSERT_TRUE(repository().setReportNote(kMatch, std::string("Dobry pressing")));
+    EXPECT_EQ(repository().reportNote(kMatch).value(), std::string("Dobry pressing"));
+    ASSERT_TRUE(repository().setReportNote(kMatch, std::nullopt));
+    EXPECT_EQ(repository().reportNote(kMatch).value(), std::nullopt);
+    expectCode(repository().setReportNote(kNoMatch, std::string("x")), ErrorCode::NotFound);
+    EXPECT_EQ(repository().reportNote(kNoMatch).error().code, ErrorCode::NotFound);
+}
+
+TEST_F(MatchRepositoryTest, PlayerAppearancesAreOfFinishedMatchesNewestFirst) {
+    const MatchId older = create(2026y / October / 1d);
+    const MatchId newer = create(2026y / October / 20d);
+    const MatchId planned = create(2026y / October / 25d);
+    for (const MatchId match : {older, newer, planned}) {
+        const std::vector<AppearanceDraft> rows{appearance(kPlayer, 7)};
+        ASSERT_TRUE(repository().replaceAppearances(match, rows));
+    }
+    ASSERT_TRUE(repository().setResult(older, 1, 0, MatchStatus::Finished));
+    ASSERT_TRUE(repository().setResult(newer, 2, 2, MatchStatus::Finished));
+    const auto rows = repository().listPlayerAppearances(kPlayer);
+    ASSERT_TRUE(rows.has_value()) << rows.error().detail;
+    ASSERT_EQ(rows->size(), 2U);
+    EXPECT_EQ(rows->at(0).match.id, newer);
+    EXPECT_EQ(rows->at(0).match.goalsFor, 2);
+    EXPECT_EQ(rows->at(0).opponentName, "Rywal");
+    EXPECT_EQ(rows->at(0).appearance.rating, 7);
+    EXPECT_EQ(rows->at(1).match.id, older);
+    EXPECT_TRUE(repository().listPlayerAppearances(kOtherPlayer)->empty());
+}
+
+TEST_F(MatchRepositoryTest, DeletedEventIsRestoredWithItsIdAndSeq) {
+    ASSERT_TRUE(repository().appendEvent(kMatch, event(10), 4));
+    const auto second = repository().appendEvent(kMatch, event(10, MatchEventType::Yellow));
+    ASSERT_TRUE(second.has_value());
+    ASSERT_TRUE(repository().appendEvent(kMatch, event(10, MatchEventType::Red)));
+    const auto first = repository().listEvents(kMatch)->at(0);
+    const auto deleted = repository().deleteEvent(kMatch, first.id);
+    ASSERT_TRUE(deleted.has_value()) << deleted.error().detail;
+    EXPECT_EQ(*deleted, first);
+    EXPECT_EQ(repository().listEvents(kMatch)->size(), 2U);
+    ASSERT_TRUE(repository().restoreEvent(*deleted));
+    const auto events = repository().listEvents(kMatch);
+    ASSERT_TRUE(events.has_value());
+    ASSERT_EQ(events->size(), 3U);
+    EXPECT_EQ(events->at(0), first); // back in its place at that minute
+    expectCode(repository().restoreEvent(first), ErrorCode::Conflict);
+}
+
+TEST_F(MatchRepositoryTest, DeleteOfAnEventOfAnotherMatchIsNotFound) {
+    const MatchId other = create();
+    const auto id = repository().appendEvent(other, event(10));
+    ASSERT_TRUE(id.has_value());
+    EXPECT_EQ(repository().deleteEvent(kMatch, *id).error().code, ErrorCode::NotFound);
+    EXPECT_EQ(repository().listEvents(other)->size(), 1U);
+}

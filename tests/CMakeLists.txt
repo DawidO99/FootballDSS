@@ -62,6 +62,7 @@ add_executable(fdss_tests
     services/LineupServiceTest.cpp
     services/LoadServiceTest.cpp
     services/MatchDayServiceTest.cpp
+    services/MatchReportServiceTest.cpp
     services/ServiceFixture.hpp
     services/SessionTest.cpp
     services/SetupServiceTest.cpp
@@ -92,6 +93,7 @@ add_executable(fdss_vm_tests
     viewmodels/LoadViewModelTest.cpp
     viewmodels/MatchDayViewModelTest.cpp
     viewmodels/MatchEditorViewModelTest.cpp
+    viewmodels/MatchReportViewModelTest.cpp
     viewmodels/NavigationModelTest.cpp
     viewmodels/PlayerCardViewModelTest.cpp
     viewmodels/PlayerEditorViewModelTest.cpp

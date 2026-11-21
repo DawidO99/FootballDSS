@@ -11,7 +11,8 @@ import FootballDSS
 //   saved(double matchId, string date)
 //   deleteRequested(double matchId, string opponentName)
 //   matchStatusKey: string  planned, live or finished; the caller sets it before openForEditing()
-//   matchDayRequested(double matchId)   a planned or live match: open it in Match Day (P13)
+//   matchDayRequested(double matchId)   a planned or live match: open it in Match Day (P13); a
+//                           planned one before today is filled in there after the match (P14)
 AppDialog {
     id: root
 
@@ -292,7 +293,9 @@ AppDialog {
         objectName: "openMatchDayButton"
         visible: !editor.adding && (root.matchStatusKey === "planned" || root.matchStatusKey === "live")
         enabled: editor.readOnly || root.primaryEnabled
-        text: editor.readOnly ? qsTr("Open Match Day") : qsTr("Save and open Match Day")
+        // A planned match before today is entered after it was played, in Match Day without the
+        // clock (P14).
+        text: root.matchStatusKey === "planned" && editor.beforeToday ? (editor.readOnly ? qsTr("Fill in after the match") : qsTr("Save and fill in after the match")) : editor.readOnly ? qsTr("Open Match Day") : qsTr("Save and open Match Day")
         onClicked: {
             if (!editor.readOnly && !editor.save()) {
                 root.focusFirstError();

@@ -14,6 +14,8 @@ const auto kSelectMatch =
     QStringLiteral("SELECT id, team_id, opponent_id, date, kickoff_time, venue, competition, "
                    "goals_for, goals_against, status, formation FROM match ");
 const auto kMatchExists = QStringLiteral("SELECT 1 FROM match WHERE id = ?");
+const auto kEventColumns =
+    QStringLiteral("id, match_id, minute, type, player_id, related_player_id, added_time, seq");
 
 core::Match readMatch(RowReader& row) {
     core::Match match;
@@ -213,6 +215,56 @@ MatchRepository::listAppearances(core::MatchId match) const {
                      {idValue(match)}, "list appearances", readAppearance);
 }
 
+core::Status MatchRepository::setRatings(core::MatchId match,
+                                         std::span<const AppearanceRating> ratings) {
+    constexpr std::string_view kContext = "set appearance ratings";
+    for (const AppearanceRating& rating : ratings) {
+        if (auto changed = changeRow(m_db,
+                                     QStringLiteral("UPDATE appearance SET rating = ?, rpe = ? "
+                                                    "WHERE match_id = ? AND player_id = ?"),
+                                     {optionalValue(rating.rating), optionalValue(rating.rpe),
+                                      idValue(match), idValue(rating.player)},
+                                     kContext);
+            !changed) {
+            return changed;
+        }
+    }
+    return {};
+}
+
+core::Result<std::vector<PlayerAppearanceRow>>
+MatchRepository::listPlayerAppearances(core::PlayerId player) const {
+    return selectAll(
+        m_db,
+        QStringLiteral(
+            "SELECT a.id, a.match_id, a.player_id, a.started, a.minute_on, a.minute_off, "
+            "a.position, a.rating, a.rpe, m.id, m.team_id, m.opponent_id, m.date, "
+            "m.kickoff_time, m.venue, m.competition, m.goals_for, m.goals_against, m.status, "
+            "m.formation, o.name FROM appearance a JOIN match m ON m.id = a.match_id "
+            "JOIN opponent o ON o.id = m.opponent_id WHERE a.player_id = ? AND m.status = ? "
+            "ORDER BY m.date DESC, m.kickoff_time IS NULL, m.kickoff_time DESC, m.id DESC"),
+        {idValue(player), enumValue(core::MatchStatus::Finished)}, "list player appearances",
+        [](RowReader& row) {
+            PlayerAppearanceRow result;
+            result.appearance = readAppearance(row);
+            result.match = readMatch(row);
+            result.opponentName = row.text();
+            return result;
+        });
+}
+
+core::Result<std::optional<std::string>> MatchRepository::reportNote(core::MatchId match) const {
+    return selectOne(m_db, QStringLiteral("SELECT report_note FROM match WHERE id = ?"),
+                     {idValue(match)}, "get report note",
+                     [](RowReader& row) { return row.optionalText(); });
+}
+
+core::Status MatchRepository::setReportNote(core::MatchId match,
+                                            const std::optional<std::string>& note) {
+    return changeRow(m_db, QStringLiteral("UPDATE match SET report_note = ? WHERE id = ?"),
+                     {optionalTextValue(note), idValue(match)}, "set report note");
+}
+
 core::Result<core::MatchEventId> MatchRepository::appendEvent(core::MatchId match,
                                                               const core::MatchEventDraft& draft,
                                                               std::optional<int> seq) {
@@ -246,6 +298,30 @@ core::Result<core::MatchEvent> MatchRepository::deleteLastEvent(core::MatchId ma
                                     "RETURNING id, match_id, minute, type, player_id, "
                                     "related_player_id, added_time, seq"),
                      {idValue(match)}, "delete last match event", readEvent);
+}
+
+core::Result<core::MatchEvent> MatchRepository::deleteEvent(core::MatchId match,
+                                                            core::MatchEventId event) {
+    return selectOne(m_db,
+                     QStringLiteral("DELETE FROM match_event WHERE match_id = ? AND id = ? "
+                                    "RETURNING ") +
+                         kEventColumns,
+                     {idValue(match), idValue(event)}, "delete match event", readEvent);
+}
+
+core::Status MatchRepository::restoreEvent(const core::MatchEvent& event) {
+    const auto id =
+        insertRow(m_db,
+                  QStringLiteral("INSERT INTO match_event (") + kEventColumns +
+                      QStringLiteral(") VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
+                  {idValue(event.id), idValue(event.matchId), event.minute, enumValue(event.type),
+                   optionalIdValue(event.playerId), optionalIdValue(event.relatedPlayerId),
+                   optionalValue(event.addedTime), optionalValue(event.seq)},
+                  "restore match event");
+    if (!id) {
+        return std::unexpected(id.error());
+    }
+    return {};
 }
 
 core::Result<std::vector<core::MatchEvent>>

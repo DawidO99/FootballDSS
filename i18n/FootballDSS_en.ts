@@ -1049,6 +1049,26 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Match report: MatchRatingsGrid, MatchTimeline with corrections</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rate from 1 to 10: type 1 and 0 quickly for 10.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample ratings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row %1, column %2: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete event: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Add player</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1498,6 +1518,49 @@
     </message>
 </context>
 <context>
+    <name>MatchCorrectionDialog</name>
+    <message>
+        <source>Add event</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Event</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minute</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player coming on</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Scorer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player going off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assist (optional)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The minutes of the players and the score are counted again from the events.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>MatchDayView</name>
     <message>
         <source>Match Day</source>
@@ -1557,6 +1620,10 @@
     </message>
     <message>
         <source>Set time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open report</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1826,6 +1893,14 @@
         <source>Save and open Match Day</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Fill in after the match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save and fill in after the match</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>MatchNoteDialog</name>
@@ -1866,6 +1941,207 @@
     <name>MatchPlayerTile</name>
     <message>
         <source>Yellow card</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MatchRatingsGrid</name>
+    <message>
+        <source>No.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pos.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Min.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assists</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cards</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rating</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RPE</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MatchRatingsGridRow</name>
+    <message>
+        <source>Yellow cards: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red cards: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rating of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RPE of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MatchReportView</name>
+    <message>
+        <source>← Player card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>← Match Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>← Calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1:%2 against %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The match report could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No match chosen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open a finished match from the Calendar to see its report.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match is not finished</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The match is live again in Match Day. Finish it there, then the report opens.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back to Match Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratings and RPE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note of the report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 / %2 characters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>At most %1 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>What went well, what to work on</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Events</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add event</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No events in this match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shapes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 – %2 (%3 min)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete the goal?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The score of the match changes. The goal can be brought back from the message that follows.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the changes?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Discard changes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The ratings, RPE or note of this match have changes that are not saved.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1932,6 +2208,14 @@
     </message>
     <message>
         <source>Delete note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete change of shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete event</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2084,7 +2368,63 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The matches, minutes and ratings of this player will appear here.</source>
+        <source>Date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Result</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minutes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assists</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rating</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RPE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The matches could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No matches yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The finished matches of this player, with minutes and ratings, will appear here. Finish a match in Match Day or fill it in from the Calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3590,6 +3930,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Enter a rating from 1 to 10.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Write the note of the report, up to 2000 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The minute of this event is outside the match. Check the clock and try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3679,6 +4027,18 @@
     </message>
     <message>
         <source>This event conflicts with a later one. Undo or correct the later event first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This match is not finished. Finish it in Match Day first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The events of this match cannot be corrected: its stored minutes do not follow from them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A later event needs this one. Delete the later event first.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4244,18 +4604,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Assist: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>On: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Off: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Only %1 players are left on the pitch. With fewer the match cannot go on.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4325,6 +4673,116 @@
     </message>
 </context>
 <context>
+    <name>fdss::viewmodels::MatchReportViewModel</name>
+    <message>
+        <source>Win</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loss</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draw</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only the coach or an assistant can rate the players and correct the match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The stored minutes of this match do not follow from its events, so events cannot be added or deleted here. Ratings, RPE and notes can still be entered.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 of %2 rated</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the end</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1&apos;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rate from 1 to 10: type 1 and 0 quickly for 10.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter an RPE from 0 to 10.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Some ratings are not valid. Correct the marked rows first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the minute as 23, or 45+2 in stoppage time.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This minute is outside the match.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No assist</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This event conflicts with a later one: %1. Delete or correct that event first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the kind of event.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This event cannot be deleted: the later event %1 needs it. Delete that event first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Deleted: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note deleted: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change of shape deleted: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 for %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2 %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MatchTimelineRows</name>
+    <message>
+        <source>Assist: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>On: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Off: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>fdss::viewmodels::NavigationModel</name>
     <message>
         <source>Dashboard</source>
@@ -4362,6 +4820,10 @@
         <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Match report</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>fdss::viewmodels::PlayerLoadViewModel</name>
@@ -4391,6 +4853,21 @@
     </message>
     <message>
         <source>Ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::PlayerMatchesModel</name>
+    <message>
+        <source>Win</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Loss</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Draw</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

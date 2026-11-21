@@ -51,6 +51,11 @@ Rectangle {
             boundsBehavior: Flickable.StopAtBounds
             keyNavigationEnabled: true
             activeFocusOnTab: true
+            // The sections without a sidebar item come last; the keys never select them.
+            Keys.onDownPressed: {
+                if (list.currentIndex < root.navigation.sidebarCount - 1)
+                    list.incrementCurrentIndex();
+            }
 
             Accessible.role: Accessible.PageTabList
             Accessible.name: qsTr("Main navigation")
@@ -58,9 +63,12 @@ Rectangle {
             delegate: SidebarButton {
                 required property int index
                 required property string title
+                required property bool inSidebar
                 required iconName
 
                 width: list.width
+                visible: inSidebar
+                height: inSidebar ? implicitHeight : 0
                 text: title
                 collapsed: root.collapsed
                 current: ListView.isCurrentItem

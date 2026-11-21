@@ -3,7 +3,8 @@ import QtTest
 import FootballDSS
 
 // MatchTimeline (P13): a note row can be edited and deleted (touch-sized buttons) while the notes
-// are editable; an event row cannot. Texts of user data are plain.
+// are editable; an event row cannot. Texts of user data are plain. In the report (P14) events and
+// changes of shape can be deleted, only when switched on.
 TestCase {
     id: testCase
 
@@ -16,8 +17,9 @@ TestCase {
     ListModel {
         id: rows
 
-        ListElement { kind: "note"; eventId: 0; noteId: 7; minuteText: "12'"; typeKey: "note"; iconName: "note"; typeText: "Note"; playerText: "Jan Gol"; relatedText: "<b>Kostka</b>"; noteMinute: "12"; notePlayerId: 3; noteText: "<b>Kostka</b>" }
-        ListElement { kind: "event"; eventId: 5; noteId: 0; minuteText: "11'"; typeKey: "goal"; iconName: "goal"; typeText: "Goal"; playerText: "Jan Gol"; relatedText: ""; noteMinute: ""; notePlayerId: 0; noteText: "" }
+        ListElement { kind: "note"; eventId: 0; noteId: 7; minuteText: "12'"; typeKey: "note"; iconName: "note"; typeText: "Note"; playerText: "Jan Gol"; relatedText: "<b>Kostka</b>"; noteMinute: "12"; notePlayerId: 3; noteText: "<b>Kostka</b>"; changeId: 0 }
+        ListElement { kind: "event"; eventId: 5; noteId: 0; minuteText: "11'"; typeKey: "goal"; iconName: "goal"; typeText: "Goal"; playerText: "Jan Gol"; relatedText: ""; noteMinute: ""; notePlayerId: 0; noteText: ""; changeId: 0 }
+        ListElement { kind: "tactic"; eventId: 0; noteId: 0; minuteText: "60'"; typeKey: "tactic"; iconName: "tactic"; typeText: "Change of shape"; playerText: "4-4-2 → 4-3-3"; relatedText: ""; noteMinute: ""; notePlayerId: 0; noteText: ""; changeId: 9 }
     }
 
     Component {
@@ -26,12 +28,16 @@ TestCase {
         MatchTimeline {
             property var edited: []
             property double deleted: 0
+            property double deletedEvent: 0
+            property double deletedChange: 0
 
             width: 360
             height: 280
             model: rows
             onNoteEditRequested: (noteId, minute, playerId, text) => edited = [noteId, minute, playerId, text]
             onNoteDeleteRequested: noteId => deleted = noteId
+            onEventDeleteRequested: eventId => deletedEvent = eventId
+            onTacticDeleteRequested: changeId => deletedChange = changeId
         }
     }
 
@@ -69,5 +75,24 @@ TestCase {
         compare(timeline.edited[3], "<b>Kostka</b>");
         mouseClick(remove[0]);
         compare(timeline.deleted, 7);
+    }
+
+    function test_events_and_changes_deleted_only_when_switched_on() {
+        const timeline = createTemporaryObject(timelineComponent, testCase);
+        waitForRendering(timeline);
+        compare(buttonsOf(timeline, "deleteEventButton").length, 0);
+        timeline.eventsDeletable = true;
+        waitForRendering(timeline);
+        let buttons = buttonsOf(timeline, "deleteEventButton");
+        compare(buttons.length, 1); // the event row only
+        mouseClick(buttons[0]);
+        compare(timeline.deletedEvent, 5);
+        timeline.tacticsDeletable = true;
+        waitForRendering(timeline);
+        buttons = buttonsOf(timeline, "deleteEventButton");
+        compare(buttons.length, 2);
+        mouseClick(buttons[1]);
+        compare(timeline.deletedChange, 9);
+        compare(timeline.deletedEvent, 5);
     }
 }
