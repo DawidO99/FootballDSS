@@ -1528,6 +1528,18 @@
         <translation>Tryb meczowy</translation>
     </message>
     <message>
+        <source>Players</source>
+        <translation>Zawodnicy</translation>
+    </message>
+    <message>
+        <source>Tactics</source>
+        <translation>Taktyka</translation>
+    </message>
+    <message>
+        <source>Show the players as</source>
+        <translation>Pokaż zawodników jako</translation>
+    </message>
+    <message>
         <source>Leave full screen (%1)</source>
         <translation>Wyjdź z pełnego ekranu (%1)</translation>
     </message>
@@ -1648,6 +1660,10 @@
         <translation>Zapisz</translation>
     </message>
     <message>
+        <source>Confirm</source>
+        <translation>Zatwierdź</translation>
+    </message>
+    <message>
         <source>No assist</source>
         <translation>Bez asysty</translation>
     </message>
@@ -1666,6 +1682,42 @@
     <message>
         <source>Bench</source>
         <translation>Ławka</translation>
+    </message>
+    <message>
+        <source>Shape: %1</source>
+        <translation>Ustawienie: %1</translation>
+    </message>
+    <message>
+        <source>No goalkeeper on the pitch</source>
+        <translation>Brak bramkarza na boisku</translation>
+    </message>
+    <message>
+        <source>Formation</source>
+        <translation>Ustawienie</translation>
+    </message>
+    <message>
+        <source>Selected: %1</source>
+        <translation>Zaznaczono: %1</translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation>Pozycja</translation>
+    </message>
+    <message>
+        <source>Now choose the player to swap with</source>
+        <translation>Teraz wybierz zawodnika do zamiany</translation>
+    </message>
+    <message>
+        <source>Swap places with another player</source>
+        <translation>Zamień miejscami z innym zawodnikiem</translation>
+    </message>
+    <message>
+        <source>Drag a player to another zone, or onto another player to swap places. Drag a bench player onto a player to substitute.</source>
+        <translation>Przeciągnij zawodnika do innej strefy albo na innego zawodnika, aby zamienić ich miejscami. Przeciągnij rezerwowego na zawodnika, aby zrobić zmianę.</translation>
+    </message>
+    <message>
+        <source>The shape can be changed while a part runs or in a break.</source>
+        <translation>Ustawienie można zmienić w trakcie części meczu albo w przerwie.</translation>
     </message>
     <message>
         <source>Events</source>
@@ -1689,7 +1741,7 @@
     </message>
     <message>
         <source>Not before the last event (%1&apos;).</source>
-        <translation>Nie wcześniej niż ostatnie zdarzenie (%1').</translation>
+        <translation>Nie wcześniej niż ostatnie zdarzenie (%1&apos;).</translation>
     </message>
     <message>
         <source>Set</source>
@@ -2215,6 +2267,14 @@
     <message>
         <source>free slot</source>
         <translation>wolne miejsce</translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation>Żółta kartka</translation>
+    </message>
+    <message>
+        <source>Goals: %1</source>
+        <translation>Gole: %1</translation>
     </message>
 </context>
 <context>
@@ -3678,6 +3738,18 @@
         <translation>Przy 7 lub więcej zawodnikach mecz kończy się zegarem, na końcu ostatniej części.</translation>
     </message>
     <message>
+        <source>This shape cannot be used: it needs 11 places on the pitch and at most one goalkeeper.</source>
+        <translation>Tego ustawienia nie można użyć: potrzebuje 11 miejsc na boisku i co najwyżej jednego bramkarza.</translation>
+    </message>
+    <message>
+        <source>The shape is the same as before. Move a player or choose another formation.</source>
+        <translation>Ustawienie jest takie samo jak wcześniej. Przesuń zawodnika albo wybierz inne ustawienie.</translation>
+    </message>
+    <message>
+        <source>A later change of shape is already recorded. A change can be entered only at or after the minute of the last one.</source>
+        <translation>Zapisano już późniejszą zmianę ustawienia. Zmianę można wpisać tylko w minucie ostatniej zmiany lub później.</translation>
+    </message>
+    <message>
         <source>Fewer than 7 players are on the pitch, so the match cannot go on. End the match or undo the last action.</source>
         <translation>Na boisku jest mniej niż 7 zawodników, więc mecz nie może być kontynuowany. Zakończ mecz albo cofnij ostatnią akcję.</translation>
     </message>
@@ -4121,6 +4193,22 @@
         <translation>Notatka</translation>
     </message>
     <message>
+        <source>Change of shape</source>
+        <translation>Zmiana ustawienia</translation>
+    </message>
+    <message>
+        <source>%1 (custom)</source>
+        <translation>%1 (własne)</translation>
+    </message>
+    <message>
+        <source>%1: positions changed</source>
+        <translation>%1: zmiana pozycji</translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation>%1 → %2</translation>
+    </message>
+    <message>
         <source>On the pitch</source>
         <translation>Na boisku</translation>
     </message>
@@ -4208,8 +4296,16 @@
         <translation>Schodzi: %1. Kto wchodzi? Dotknij zawodnika na ławce.</translation>
     </message>
     <message>
+        <source>Substitution: %1 comes on for %2. Check the minute and save.</source>
+        <translation>Zmiana: %1 wchodzi za %2. Sprawdź minutę i zapisz.</translation>
+    </message>
+    <message>
         <source>Opponent goal: check the minute and save.</source>
         <translation>Gol rywala: sprawdź minutę i zapisz.</translation>
+    </message>
+    <message>
+        <source>Change of shape: %1. Check the minute and confirm.</source>
+        <translation>Zmiana ustawienia: %1. Sprawdź minutę i zatwierdź.</translation>
     </message>
     <message>
         <source>%1 for %2</source>
@@ -4282,6 +4378,26 @@
     <message>
         <source>Note deleted: %1</source>
         <translation>Usunięto notatkę: %1</translation>
+    </message>
+    <message>
+        <source>Only one player can be in goal. Move the goalkeeper out first.</source>
+        <translation>W bramce może stać tylko jeden zawodnik. Najpierw przesuń bramkarza.</translation>
+    </message>
+    <message>
+        <source>Confirm or cancel the change of shape first, then make the substitution.</source>
+        <translation>Najpierw zatwierdź albo anuluj zmianę ustawienia, potem zrób zmianę zawodnika.</translation>
+    </message>
+    <message>
+        <source>Only a player on the bench can come on.</source>
+        <translation>Wejść może tylko zawodnik z ławki.</translation>
+    </message>
+    <message>
+        <source>The unconfirmed change of shape was discarded.</source>
+        <translation>Niezatwierdzona zmiana ustawienia została odrzucona.</translation>
+    </message>
+    <message>
+        <source>A later change of shape is already recorded: %1 at %2. A change can be entered only at or after that minute.</source>
+        <translation>Zapisano już późniejszą zmianę ustawienia: %1 w %2. Zmianę można wpisać tylko w tej minucie lub później.</translation>
     </message>
     <message>
         <source>Another match of this team is live. First finish it, or undo its start, in the match against %1.</source>

@@ -1,5 +1,7 @@
 #include "core/algorithms/MatchMinutes.hpp"
 
+#include "core/algorithms/Formations.hpp"
+
 #include <algorithm>
 #include <map>
 #include <numeric>
@@ -659,6 +661,174 @@ computeMatchMinutes(const MatchSheet& sheet, std::span<const MatchEventDraft> ev
         return std::unexpected(situation.error());
     }
     return minutesOf(*situation, finalMinute);
+}
+
+namespace {
+
+// The order of the match of a time: at the end of a part its added time comes first.
+std::tuple<int, int, int> timeKey(int minute, std::optional<int> added) {
+    return std::tuple{minute, added ? 0 : 1, added.value_or(0)};
+}
+
+// The players of the slots after the events up to `time` (all with nullopt).
+std::expected<Lineup, MatchEventError> occupiedAt(const Lineup& lineup,
+                                                  std::span<const MatchEventDraft> events,
+                                                  std::optional<MatchTime> time) {
+    std::vector<std::size_t> indices;
+    std::vector<MatchEventDraft> before;
+    for (std::size_t index = 0; index < events.size(); ++index) {
+        const MatchEventDraft& event = events[index];
+        if (!time ||
+            timeKey(event.minute, event.addedTime) <= timeKey(time->minute, time->addedTime)) {
+            indices.push_back(index);
+            before.push_back(event);
+        }
+    }
+    // The events must fit the lineup; an error names the event in `events`.
+    if (auto replayed = replayMatch(matchSheetOf(lineup), before); !replayed) {
+        MatchEventError error = replayed.error();
+        error.index = indices[error.index];
+        return std::unexpected(error);
+    }
+    Lineup shape = lineup;
+    shape.bench.clear();
+    const auto slotOf = [&shape](PlayerId player) -> LineupSlot* {
+        const auto found = std::ranges::find(shape.pitchSlots, std::optional<PlayerId>(player),
+                                             &LineupSlot::player);
+        return found == shape.pitchSlots.end() ? nullptr : &*found;
+    };
+    for (const std::size_t index : replayOrder(before)) {
+        const MatchEventDraft& event = before[index];
+        if (!event.playerId) {
+            continue;
+        }
+        if (event.type == MatchEventType::Sub && event.relatedPlayerId) {
+            if (LineupSlot* slot = slotOf(*event.relatedPlayerId)) {
+                slot->player = event.playerId;
+            }
+        } else if (event.type == MatchEventType::Red) {
+            if (LineupSlot* slot = slotOf(*event.playerId)) {
+                slot->player.reset();
+            }
+        }
+    }
+    return shape;
+}
+
+// The index of the change in force at `time` (nullopt: all): the last one up to it in the order of
+// the match, then as given.
+std::optional<std::size_t> changeInForce(std::span<const MatchTacticChangeDraft> changes,
+                                         std::optional<MatchTime> time,
+                                         std::optional<std::size_t> before = std::nullopt) {
+    std::optional<std::size_t> found;
+    for (std::size_t index = 0; index < changes.size(); ++index) {
+        const MatchTacticChangeDraft& change = changes[index];
+        const auto key = timeKey(change.minute, change.addedTime);
+        if (time && key > timeKey(time->minute, time->addedTime)) {
+            continue;
+        }
+        if (before) {
+            const MatchTacticChangeDraft& limit = changes[*before];
+            const auto limitKey = timeKey(limit.minute, limit.addedTime);
+            if (key > limitKey || (key == limitKey && index >= *before)) {
+                continue;
+            }
+        }
+        if (!found || key >= timeKey(changes[*found].minute, changes[*found].addedTime)) {
+            found = index;
+        }
+    }
+    return found;
+}
+
+// The places of the change (or of the lineup) on the occupied slots, laid out where a slot is
+// empty.
+Lineup withPlaces(Lineup shape, const MatchTacticChangeDraft* change) {
+    if (change != nullptr) {
+        const std::size_t count =
+            std::min(shape.pitchSlots.size(), change->shape.pitchSlots.size());
+        for (std::size_t i = 0; i < count; ++i) {
+            const LineupSlot& place = change->shape.pitchSlots[i];
+            shape.pitchSlots[i].position = place.position;
+            shape.pitchSlots[i].x = place.x;
+            shape.pitchSlots[i].y = place.y;
+        }
+    }
+    std::vector<Position> zonesWithEmpty;
+    for (const LineupSlot& slot : shape.pitchSlots) {
+        if (!slot.player &&
+            std::ranges::find(zonesWithEmpty, slot.position) == zonesWithEmpty.end()) {
+            zonesWithEmpty.push_back(slot.position);
+        }
+    }
+    for (const Position zone : zonesWithEmpty) {
+        layoutZone(shape, zone, true);
+    }
+    shape.formation = liveFormationName(shape);
+    return shape;
+}
+
+} // namespace
+
+std::expected<Lineup, MatchEventError> shapeAt(const Lineup& lineup,
+                                               std::span<const MatchEventDraft> events,
+                                               std::span<const MatchTacticChangeDraft> changes,
+                                               std::optional<MatchTime> time) {
+    auto occupied = occupiedAt(lineup, events, time);
+    if (!occupied) {
+        return std::unexpected(occupied.error());
+    }
+    const std::optional<std::size_t> change = changeInForce(changes, time);
+    return withPlaces(std::move(*occupied), change ? &changes[*change] : nullptr);
+}
+
+std::expected<std::vector<ShapeChangeNames>, MatchEventError>
+shapeChangeNames(const Lineup& lineup, std::span<const MatchEventDraft> events,
+                 std::span<const MatchTacticChangeDraft> changes) {
+    std::vector<ShapeChangeNames> names;
+    names.reserve(changes.size());
+    for (std::size_t index = 0; index < changes.size(); ++index) {
+        const MatchTime time{changes[index].minute, changes[index].addedTime};
+        auto occupied = occupiedAt(lineup, events, time);
+        if (!occupied) {
+            return std::unexpected(occupied.error());
+        }
+        const std::optional<std::size_t> previous = changeInForce(changes, time, index);
+        names.push_back({withPlaces(*occupied, previous ? &changes[*previous] : nullptr).formation,
+                         withPlaces(*occupied, &changes[index]).formation});
+    }
+    return names;
+}
+
+std::expected<MatchMinutes, MatchEventError>
+computeMatchMinutes(const Lineup& lineup, std::span<const MatchEventDraft> events,
+                    std::span<const MatchTacticChangeDraft> changes,
+                    std::optional<int> finalMinute) {
+    auto minutes = computeMatchMinutes(matchSheetOf(lineup), events, finalMinute);
+    if (!minutes || changes.empty()) {
+        return minutes;
+    }
+    for (AppearanceDraft& appearance : minutes->appearances) {
+        if (appearance.started) {
+            continue;
+        }
+        const auto sub = std::ranges::find_if(events, [&](const MatchEventDraft& event) {
+            return event.type == MatchEventType::Sub && event.playerId == appearance.playerId;
+        });
+        if (sub == events.end()) {
+            continue;
+        }
+        auto shape = shapeAt(lineup, events, changes, MatchTime{sub->minute, sub->addedTime});
+        if (!shape) {
+            return std::unexpected(shape.error());
+        }
+        const auto slot = std::ranges::find(
+            shape->pitchSlots, std::optional<PlayerId>(appearance.playerId), &LineupSlot::player);
+        if (slot != shape->pitchSlots.end()) {
+            appearance.position = slot->position;
+        }
+    }
+    return minutes;
 }
 
 } // namespace fdss::core

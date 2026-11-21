@@ -1504,6 +1504,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Players</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tactics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Show the players as</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Leave full screen (%1)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1624,6 +1636,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Confirm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No assist</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1641,6 +1657,42 @@
     </message>
     <message>
         <source>Bench</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shape: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No goalkeeper on the pitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Formation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Selected: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Now choose the player to swap with</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Swap places with another player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Drag a player to another zone, or onto another player to swap places. Drag a bench player onto a player to substitute.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The shape can be changed while a part runs or in a break.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2166,6 +2218,14 @@
     </message>
     <message>
         <source>free slot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goals: %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -3602,6 +3662,18 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>This shape cannot be used: it needs 11 places on the pitch and at most one goalkeeper.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The shape is the same as before. Move a player or choose another formation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A later change of shape is already recorded. A change can be entered only at or after the minute of the last one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Fewer than 7 players are on the pitch, so the match cannot go on. End the match or undo the last action.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4041,6 +4113,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Change of shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (custom)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: positions changed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 → %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>On the pitch</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4128,7 +4216,15 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Substitution: %1 comes on for %2. Check the minute and save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Opponent goal: check the minute and save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Change of shape: %1. Check the minute and confirm.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4201,6 +4297,26 @@
     </message>
     <message>
         <source>Note deleted: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only one player can be in goal. Move the goalkeeper out first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Confirm or cancel the change of shape first, then make the substitution.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Only a player on the bench can come on.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The unconfirmed change of shape was discarded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A later change of shape is already recorded: %1 at %2. A change can be entered only at or after that minute.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

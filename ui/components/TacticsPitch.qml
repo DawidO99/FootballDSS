@@ -12,9 +12,14 @@ import QtQuick.Controls.Basic
 // squad list (Drag.keys "fdss-player", source.payload { kind, playerId }) are dropped on a token.
 // API:
 //   model: TacticsBoardModel     slotIndex, positionText, pitchX, pitchY, playerId, shirtNumber,
-//                                shortName, fullName, severity, issueText, selected
+//                                shortName, fullName, severity, issueText, selected, yellowCards,
+//                                goals, hidden
 //   zones: var                   [{ position, text, x, y, width, height }], 0–1
 //   interactive: bool            drags and drops; a read-only board still selects
+//   showEmptySlots: bool         false (Match Day, P13b): rows with `hidden` are not drawn
+//   fitTokens: bool              true (Match Day, P13b): the y of the tokens is laid out in the
+//                                height left by a token, so a low pitch never pushes the goalkeeper
+//                                onto the defence; drops still use the zones
 //   dragging: bool               read-only: a token is being dragged
 //   slotActivated(slot, pointer) a click or tap (pointer true; also the first of a double one),
 //                                Enter or Space (pointer false) on a token
@@ -32,6 +37,8 @@ Item {
     property var model
     property var zones: []
     property bool interactive: true
+    property bool showEmptySlots: true
+    property bool fitTokens: false
     readonly property bool dragging: ghost.visible
     // The zone under a dragged token, -1: none.
     readonly property int hoverZone: pitchDrop.containsDrag ? root.zoneAt(pitchDrop.drag.x / pitch.width, pitchDrop.drag.y / pitch.height) : -1
@@ -260,11 +267,15 @@ Item {
                 required property string issueText
                 required property bool selected
                 required property var playerId
+                required property int yellowCards
+                required property int goals
+                required property bool hidden
                 readonly property alias token: slotToken
 
+                visible: root.showEmptySlots || !slotItem.hidden
                 // The circle on the point of the slot; the whole token stays on the pitch.
                 x: Math.max(0, Math.min(pitch.width - width, pitchX * pitch.width - width / 2))
-                y: Math.max(0, Math.min(pitch.height - height, pitchY * pitch.height - Theme.pitch.tokenSize / 2))
+                y: root.fitTokens ? pitchY * (pitch.height - height) : Math.max(0, Math.min(pitch.height - height, pitchY * pitch.height - Theme.pitch.tokenSize / 2))
                 width: slotToken.implicitWidth
                 height: slotToken.implicitHeight
                 z: slotToken.activeFocus || slotDrop.containsDrag ? 2 : 1
@@ -281,6 +292,8 @@ Item {
                     severity: slotItem.severity
                     issueText: slotItem.issueText
                     selected: slotItem.selected
+                    yellowCards: slotItem.yellowCards
+                    goals: slotItem.goals
                     interactive: root.interactive
                     onActivated: root.slotActivated(slotItem.slotIndex, false)
                     onTapped: root.slotActivated(slotItem.slotIndex, true)

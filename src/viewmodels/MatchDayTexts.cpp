@@ -1,5 +1,7 @@
 #include "viewmodels/MatchDayTexts.hpp"
 
+#include "core/algorithms/Formations.hpp"
+
 #include <chrono>
 
 namespace fdss::viewmodels {
@@ -194,6 +196,20 @@ QString MatchDayTexts::eventIcon(core::MatchEventType type) {
 }
 
 QString MatchDayTexts::noteName() { return tr("Note"); }
+
+QString MatchDayTexts::tacticChangeName() { return tr("Change of shape"); }
+
+QString MatchDayTexts::shapeText(const core::Lineup& shape) {
+    const QString name = QString::fromStdString(core::liveFormationName(shape));
+    return core::isCustomLiveShape(shape) ? tr("%1 (custom)").arg(name) : name;
+}
+
+QString MatchDayTexts::tacticChangeText(const QString& from, const QString& to) {
+    if (from == to) {
+        return tr("%1: positions changed").arg(to);
+    }
+    return tr("%1 → %2").arg(from, to);
+}
 
 QString MatchDayTexts::playerStateKey(core::PlayerMatchState state) {
     switch (state) {

@@ -6,6 +6,7 @@
 #include "core/domain/Ids.hpp"
 #include "core/domain/Lineup.hpp"
 #include "core/domain/MatchEvent.hpp"
+#include "core/domain/MatchTacticChange.hpp"
 
 #include <array>
 #include <chrono>
@@ -13,6 +14,7 @@
 #include <expected>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -287,6 +289,43 @@ struct MatchMinutes {
 
 [[nodiscard]] std::expected<MatchMinutes, MatchEventError>
 computeMatchMinutes(const MatchSheet& sheet, std::span<const MatchEventDraft> events,
+                    std::optional<int> finalMinute);
+
+// --- Live tactics (packet P13b). The 11 slots of the saved lineup keep their index for the whole
+// match: a substitute takes the slot of the player going off, a player sent off leaves his slot
+// empty, and a tactic change gives the slots new places (position and coordinates) without changing
+// who is in them. So events entered late never conflict with tactic changes, and a substitution and
+// a tactic change at the same time commute.
+
+// The shape on the pitch at `time` (nullopt: after everything given): the slots of `lineup` with
+// the players after the events up to that time (as situationAt()) and the places of the last tactic
+// change up to it (in the order of the match, then as given), or of the lineup before any. A zone
+// with an empty slot is laid out again with its occupied slots. `formation` is liveFormationName();
+// the bench is empty. The events must fit the lineup, as in replayMatch().
+[[nodiscard]] std::expected<Lineup, MatchEventError>
+shapeAt(const Lineup& lineup, std::span<const MatchEventDraft> events,
+        std::span<const MatchTacticChangeDraft> changes,
+        std::optional<MatchTime> time = std::nullopt);
+
+struct ShapeChangeNames {
+    std::string from;
+    std::string to;
+
+    friend bool operator==(const ShapeChangeNames&, const ShapeChangeNames&) = default;
+};
+
+// For every change, in the order given: the name of the shape before it (the change before it in
+// the order of the match, or the lineup) and after it, both with the players on the pitch at its
+// time.
+[[nodiscard]] std::expected<std::vector<ShapeChangeNames>, MatchEventError>
+shapeChangeNames(const Lineup& lineup, std::span<const MatchEventDraft> events,
+                 std::span<const MatchTacticChangeDraft> changes);
+
+// computeMatchMinutes() with the shape (P13b): a substitute gets the position of his slot at the
+// time he came on, tactic changes included; starters keep the position of the lineup.
+[[nodiscard]] std::expected<MatchMinutes, MatchEventError>
+computeMatchMinutes(const Lineup& lineup, std::span<const MatchEventDraft> events,
+                    std::span<const MatchTacticChangeDraft> changes,
                     std::optional<int> finalMinute);
 
 } // namespace fdss::core

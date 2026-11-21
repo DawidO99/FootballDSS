@@ -57,8 +57,10 @@ struct PitchZone {
 // Lays the tokens of the zone out in a grid: as many in a row as the zone has room for (one in a
 // side zone, three in a wide one), left to right by x; more tokens go to further rows around the y
 // of the zone, top to bottom by y. Tokens of one zone never overlap.
-void layoutZone(Lineup& lineup, Position zone);
-void layoutAllZones(Lineup& lineup);
+// `occupiedOnly` (live tactics, P13b): empty slots (a player sent off) take no room and keep their
+// coordinates.
+void layoutZone(Lineup& lineup, Position zone, bool occupiedOnly = false);
+void layoutAllZones(Lineup& lineup, bool occupiedOnly = false);
 
 // The outfield rows from defence to attack with the number of slots in them, empty rows left out,
 // e.g. "4-2-3-1". The goalkeeper is not counted.
@@ -89,5 +91,35 @@ struct FormationChange {
 // the old slots, from left to right; the others go to the end of the bench while it has room and
 // leave the lineup after that. The bench stays as it was before them.
 [[nodiscard]] FormationChange changeFormation(const Lineup& lineup, const Formation& to);
+
+// --- Live tactics (packet P13b). The shape of a running match: the 11 slots of the saved lineup
+// keep their index, players stay in their slots (a substitute takes the slot of the player going
+// off), an empty slot is a player sent off. Edits change the places of the slots (position and
+// coordinates), never who is in them, and lay out the zones with the occupied slots only. An empty
+// slot never blocks a position.
+
+// The name of the occupied slots: formationName() with eleven, otherwise rowsName() ("4-4-1").
+[[nodiscard]] std::string liveFormationName(const Lineup& shape);
+// The occupied slots are eleven and their positions are not a catalogue formation.
+[[nodiscard]] bool isCustomLiveShape(const Lineup& shape);
+// Whether an occupied slot holds the GK position.
+[[nodiscard]] bool hasGoalkeeperOnPitch(const Lineup& shape) noexcept;
+
+// The formation for a live match: nobody leaves the pitch. With fewer than eleven players the
+// empty slots take the positions of `to` left over: the goalkeeper when none is on the pitch, then
+// the ones furthest forward (ten players in 4-4-2 play 4-4-1). Each remaining position first takes
+// the occupied slots of the same position, left to right (as changeFormation()); the other occupied
+// slots take the free positions from the own goal up, left to right (the GK position only when
+// nothing else is left). Laid out.
+[[nodiscard]] Lineup changeShape(const Lineup& shape, const Formation& to);
+// Exchanges the places (position and coordinates) of two occupied slots, so on the board their
+// players swap places. The same slot: Unchanged; an empty or invalid one: InvalidSlot.
+LineupEdit swapPlaces(Lineup& shape, int first, int second);
+// moveSlot() for a live shape: the slot must be occupied (InvalidSlot); the GK zone is refused only
+// when an occupied slot holds it (GoalkeeperTaken); an empty slot there gives its place to the slot
+// that moves in.
+LineupEdit moveLiveSlot(Lineup& shape, int slot, Position zone,
+                        std::optional<double> x = std::nullopt,
+                        std::optional<double> y = std::nullopt);
 
 } // namespace fdss::core

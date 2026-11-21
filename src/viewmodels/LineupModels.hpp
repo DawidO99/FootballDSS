@@ -16,11 +16,13 @@ namespace fdss::viewmodels {
 
 // The 11 slots of the board: slotIndex, positionKey (database text), positionText (GK…), pitchX,
 // pitchY (0–1, own goal at y = 1), playerId, shirtNumber (or nothing), shortName (surname),
-// fullName, severity, issueText (every issue of the slot, one per line), selected.
+// fullName, severity, issueText (every issue of the slot, one per line), selected; for the live
+// board of Match Day (P13b) also yellowCards, goals and hidden (an empty slot: a player sent off;
+// always false in Pre-match, 0 cards and goals).
 class TacticsBoardModel : public RowsModel {
     Q_OBJECT
     QML_ELEMENT
-    QML_UNCREATABLE("Owned by PreMatchViewModel")
+    QML_UNCREATABLE("Owned by PreMatchViewModel or MatchDayViewModel")
 
 public:
     explicit TacticsBoardModel(QObject* parent = nullptr);

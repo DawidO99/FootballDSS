@@ -662,3 +662,203 @@ TEST_F(MatchDayViewModelTest, AMatchBeforeTodayStartsWithoutTheClock) {
     EXPECT_EQ(vm->goalsAgainst(), 1);
     EXPECT_EQ(vm->clockText(), "90:00");
 }
+
+// --- Live tactics (packet P13b). The lineup by slot: 0 GK 1, 1 RB 2, 2 CB 3, 3 CB 4, 4 LB 5, 5 RM
+// 6, 6 CM 7, 7 CM 8, 8 LM 9, 9 ST 10, 10 ST 11. ---
+
+TEST_F(MatchDayViewModelTest, AChangeOfShapeIsConfirmedWithItsMinuteAndUndone) {
+    const auto vm = kickedOff();
+    m_clock->advance(30min);
+    ASSERT_EQ(vm->board()->rowCount(), 11);
+    EXPECT_EQ(vm->shapeText(), "4-4-2");
+    EXPECT_EQ(vm->shapeFormation(), "4-4-2");
+    EXPECT_TRUE(vm->canChangeTactics());
+
+    ASSERT_TRUE(vm->changeFormation("4-2-3-1"));
+    EXPECT_EQ(vm->pendingAction(), "tactic");
+    EXPECT_TRUE(vm->tacticsDirty());
+    EXPECT_EQ(vm->shapeText(), "4-2-3-1");
+    EXPECT_EQ(vm->pendingMinute(), "31");
+    EXPECT_EQ(vm->pendingPrompt(),
+              "Change of shape: 4-4-2 → 4-2-3-1. Check the minute and confirm.");
+    EXPECT_EQ(vm->board()->value(6, "positionKey"), "dm");
+    // The tiles still show the shape on the pitch until Confirm.
+    EXPECT_EQ(vm->pitch()->value(rowOf(*vm->pitch(), player(7)), "positionCode"), "CM");
+
+    vm->setPendingMinute("30");
+    ASSERT_TRUE(vm->confirmAction());
+    EXPECT_EQ(vm->pendingAction(), "");
+    EXPECT_FALSE(vm->tacticsDirty());
+    EXPECT_EQ(vm->shapeText(), "4-2-3-1");
+    EXPECT_EQ(vm->pitch()->value(rowOf(*vm->pitch(), player(7)), "positionCode"), "DM");
+    EXPECT_EQ(vm->timeline()->value(0, "kind"), "tactic");
+    EXPECT_EQ(vm->timeline()->value(0, "iconName"), "tactic");
+    EXPECT_EQ(vm->timeline()->value(0, "typeText"), "Change of shape");
+    EXPECT_EQ(vm->timeline()->value(0, "playerText"), "4-4-2 → 4-2-3-1");
+    EXPECT_EQ(vm->timeline()->value(0, "minuteText"), "30'");
+    EXPECT_EQ(vm->undoText(), "Change of shape · 4-4-2 → 4-2-3-1 30'");
+
+    EXPECT_EQ(vm->undo(), "Undone: Change of shape · 4-4-2 → 4-2-3-1 30'");
+    EXPECT_EQ(vm->shapeText(), "4-4-2");
+    EXPECT_EQ(vm->timeline()->rowCount(), 0);
+}
+
+TEST_F(MatchDayViewModelTest, ADraftIsDroppedByCancelSilentlyAndByAnotherActionWithANotice) {
+    const auto vm = kickedOff();
+    m_clock->advance(10min);
+    Messages notices(vm.get(), &MatchDayViewModel::notice);
+    ASSERT_TRUE(vm->changeFormation("4-3-3"));
+    vm->cancelAction();
+    EXPECT_FALSE(vm->tacticsDirty());
+    EXPECT_EQ(vm->shapeText(), "4-4-2");
+    EXPECT_TRUE(notices.texts().isEmpty());
+
+    ASSERT_TRUE(vm->changeFormation("4-3-3"));
+    vm->beginAction("goal");
+    EXPECT_FALSE(vm->tacticsDirty());
+    EXPECT_EQ(vm->pendingAction(), "scorer");
+    EXPECT_EQ(vm->shapeText(), "4-4-2");
+    ASSERT_EQ(notices.texts().size(), 1);
+    EXPECT_EQ(notices.texts().front(), "The unconfirmed change of shape was discarded.");
+
+    // Undo drops it too.
+    vm->cancelAction();
+    ASSERT_TRUE(vm->changeFormation("4-3-3"));
+    EXPECT_FALSE(vm->undo().isEmpty());
+    EXPECT_FALSE(vm->tacticsDirty());
+    EXPECT_EQ(notices.texts().size(), 2);
+}
+
+TEST_F(MatchDayViewModelTest, TheKeyboardPathMovesAndSwapsPlayers) {
+    const auto vm = kickedOff();
+    m_clock->advance(10min);
+    Messages errors(vm.get(), &MatchDayViewModel::errorOccurred);
+    vm->selectSlot(1);
+    EXPECT_EQ(vm->selectedSlot(), 1);
+    EXPECT_EQ(vm->selectedPosition(), "rb");
+    EXPECT_TRUE(vm->board()->value(1, "selected").toBool());
+
+    ASSERT_TRUE(vm->setSlotPosition(1, "rwb"));
+    EXPECT_EQ(vm->board()->value(1, "positionKey"), "rwb");
+    EXPECT_EQ(vm->shapeText(), "3-1-4-2 (custom)");
+    EXPECT_EQ(vm->shapeFormation(), "custom");
+    EXPECT_EQ(vm->formationOptions().front().toMap().value("value"), "custom");
+    // Back to where he was: nothing left to confirm.
+    ASSERT_TRUE(vm->setSlotPosition(1, "rb"));
+    EXPECT_FALSE(vm->tacticsDirty());
+    EXPECT_EQ(vm->pendingAction(), "");
+
+    // A second goalkeeper is refused.
+    EXPECT_FALSE(vm->setSlotPosition(5, "gk"));
+    ASSERT_EQ(errors.texts().size(), 1);
+    EXPECT_EQ(errors.texts().front(),
+              "Only one player can be in goal. Move the goalkeeper out first.");
+
+    // The two strikers swap places: the players stay in their slots.
+    const double leftX = vm->board()->value(9, "pitchX").toDouble();
+    const double rightX = vm->board()->value(10, "pitchX").toDouble();
+    ASSERT_TRUE(vm->swapSlots(9, 10));
+    EXPECT_EQ(vm->board()->value(9, "playerId").toLongLong(), player(10));
+    EXPECT_DOUBLE_EQ(vm->board()->value(9, "pitchX").toDouble(), rightX);
+    EXPECT_DOUBLE_EQ(vm->board()->value(10, "pitchX").toDouble(), leftX);
+    EXPECT_EQ(vm->pendingAction(), "tactic");
+    EXPECT_EQ(vm->pendingPrompt(),
+              "Change of shape: 4-4-2: positions changed. Check the minute and confirm.");
+    ASSERT_TRUE(vm->confirmAction());
+    EXPECT_EQ(vm->timeline()->value(0, "playerText"), "4-4-2: positions changed");
+}
+
+TEST_F(MatchDayViewModelTest, TheBoardWarnsWithoutAGoalkeeper) {
+    const auto vm = kickedOff();
+    m_clock->advance(10min);
+    EXPECT_FALSE(vm->noGoalkeeper());
+    vm->beginAction("red");
+    ASSERT_TRUE(vm->choosePlayer(player(1)));
+    EXPECT_TRUE(vm->noGoalkeeper());
+    EXPECT_TRUE(vm->board()->value(0, "hidden").toBool());
+    EXPECT_EQ(vm->shapeText(), "4-4-2");
+    // The right back goes in goal: the empty slot of the goalkeeper does not block it.
+    ASSERT_TRUE(vm->setSlotPosition(1, "gk"));
+    EXPECT_FALSE(vm->noGoalkeeper());
+    EXPECT_EQ(vm->shapeText(), "3-4-2");
+    ASSERT_TRUE(vm->confirmAction());
+    EXPECT_FALSE(vm->noGoalkeeper());
+
+    // Moving the goalkeeper out without a new one is allowed, with the warning.
+    m_clock->advance(5min);
+    ASSERT_TRUE(vm->setSlotPosition(1, "cb"));
+    EXPECT_TRUE(vm->noGoalkeeper());
+    ASSERT_TRUE(vm->confirmAction());
+    EXPECT_TRUE(vm->noGoalkeeper());
+}
+
+TEST_F(MatchDayViewModelTest, ABenchPlayerDroppedOnATokenIsASubstitutionWaitingForSave) {
+    const auto vm = kickedOff();
+    m_clock->advance(20min);
+    Messages errors(vm.get(), &MatchDayViewModel::errorOccurred);
+    ASSERT_TRUE(vm->substituteOnBoard(9, player(12)));
+    EXPECT_EQ(vm->pendingAction(), "subConfirm");
+    EXPECT_EQ(vm->pendingPrompt(), "Substitution: Gracz Numer12 comes on for Gracz Numer10. Check "
+                                   "the minute and save.");
+    EXPECT_EQ(vm->pendingMinute(), "21");
+    // Nothing is written before Save.
+    EXPECT_EQ(vm->board()->value(9, "playerId").toLongLong(), player(10));
+    vm->setPendingMinute("18");
+    ASSERT_TRUE(vm->confirmAction());
+    EXPECT_EQ(vm->pendingAction(), "");
+    EXPECT_EQ(vm->board()->value(9, "playerId").toLongLong(), player(12));
+    EXPECT_EQ(vm->board()->value(9, "positionKey"), "st");
+    EXPECT_EQ(vm->timeline()->value(0, "minuteText"), "18'");
+
+    // A player on the pitch cannot come on; nor while a change of shape waits.
+    EXPECT_FALSE(vm->substituteOnBoard(1, player(3)));
+    ASSERT_TRUE(vm->changeFormation("4-3-3"));
+    EXPECT_FALSE(vm->substituteOnBoard(1, player(13)));
+    ASSERT_EQ(errors.texts().size(), 2);
+    EXPECT_EQ(errors.texts().back(),
+              "Confirm or cancel the change of shape first, then make the substitution.");
+    EXPECT_EQ(vm->pendingAction(), "tactic");
+}
+
+TEST_F(MatchDayViewModelTest, AChangeBeforeAStoredOneIsRefusedNamingIt) {
+    const auto vm = kickedOff();
+    m_clock->advance(30min);
+    Messages errors(vm.get(), &MatchDayViewModel::errorOccurred);
+    ASSERT_TRUE(vm->changeFormation("4-3-3"));
+    ASSERT_TRUE(vm->confirmAction());
+    ASSERT_TRUE(vm->changeFormation("4-4-2"));
+    vm->setPendingMinute("10");
+    EXPECT_FALSE(vm->confirmAction());
+    ASSERT_EQ(errors.texts().size(), 1);
+    EXPECT_EQ(errors.texts().front(),
+              "A later change of shape is already recorded: 4-4-2 → 4-3-3 at 31'. A change can be "
+              "entered only at or after that minute.");
+    // The draft stays for another minute.
+    EXPECT_EQ(vm->pendingAction(), "tactic");
+    vm->setPendingMinute("31");
+    EXPECT_TRUE(vm->confirmAction());
+    EXPECT_EQ(vm->shapeText(), "4-4-2");
+}
+
+TEST_F(MatchDayViewModelTest, OtherRolesSeeTheBoardReadOnly) {
+    const auto vm = kickedOff();
+    m_clock->advance(10min);
+    logInAs(Role::Analyst);
+    const auto viewer = open();
+    EXPECT_EQ(viewer->board()->rowCount(), 11);
+    EXPECT_FALSE(viewer->canChangeTactics());
+    EXPECT_FALSE(viewer->changeFormation("4-3-3"));
+    EXPECT_FALSE(viewer->substituteOnBoard(9, player(12)));
+    EXPECT_EQ(viewer->pendingAction(), "");
+    EXPECT_EQ(viewer->shapeText(), "4-4-2");
+}
+
+TEST_F(MatchDayViewModelTest, TheShapeCannotChangeBeforeTheKickOff) {
+    saveLineup();
+    const auto vm = open();
+    ASSERT_TRUE(vm->start("2x45", 0, 0));
+    EXPECT_EQ(vm->board()->rowCount(), 11);
+    EXPECT_FALSE(vm->canChangeTactics());
+    EXPECT_FALSE(vm->changeFormation("4-3-3"));
+    EXPECT_EQ(vm->pendingAction(), "");
+}

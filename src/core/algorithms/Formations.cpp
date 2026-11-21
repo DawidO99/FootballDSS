@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cstddef>
 #include <format>
+#include <numeric>
 #include <ranges>
+#include <tuple>
 #include <utility>
 
 namespace fdss::core {
@@ -160,10 +162,11 @@ int pitchRow(Position position) noexcept {
     return 3;
 }
 
-void layoutZone(Lineup& lineup, Position zone) {
+void layoutZone(Lineup& lineup, Position zone, bool occupiedOnly) {
     std::vector<std::size_t> members;
     for (std::size_t i = 0; i < lineup.pitchSlots.size(); ++i) {
-        if (lineup.pitchSlots[i].position == zone) {
+        if (lineup.pitchSlots[i].position == zone &&
+            (!occupiedOnly || lineup.pitchSlots[i].player)) {
             members.push_back(i);
         }
     }
@@ -195,9 +198,9 @@ void layoutZone(Lineup& lineup, Position zone) {
     }
 }
 
-void layoutAllZones(Lineup& lineup) {
+void layoutAllZones(Lineup& lineup, bool occupiedOnly) {
     for (const PitchZone& zone : kZones) {
-        layoutZone(lineup, zone.position);
+        layoutZone(lineup, zone.position, occupiedOnly);
     }
 }
 
@@ -322,6 +325,190 @@ FormationChange changeFormation(const Lineup& lineup, const Formation& to) {
         }
     }
     return change;
+}
+
+namespace {
+
+std::vector<LineupSlot> occupiedSlots(const Lineup& shape) {
+    std::vector<LineupSlot> occupied;
+    for (const LineupSlot& slot : shape.pitchSlots) {
+        if (slot.player) {
+            occupied.push_back(slot);
+        }
+    }
+    return occupied;
+}
+
+bool isOccupied(const Lineup& shape, int slot) noexcept {
+    return isValidSlot(shape, slot) && shape.pitchSlots[static_cast<std::size_t>(slot)].player;
+}
+
+} // namespace
+
+std::string liveFormationName(const Lineup& shape) {
+    const std::vector<LineupSlot> occupied = occupiedSlots(shape);
+    if (std::ssize(occupied) == kLineupSlots) {
+        return formationName(occupied);
+    }
+    return rowsName(occupied);
+}
+
+bool isCustomLiveShape(const Lineup& shape) {
+    const std::vector<LineupSlot> occupied = occupiedSlots(shape);
+    return std::ssize(occupied) == kLineupSlots && matchingFormation(occupied) == nullptr;
+}
+
+bool hasGoalkeeperOnPitch(const Lineup& shape) noexcept {
+    return std::ranges::any_of(shape.pitchSlots, [](const LineupSlot& slot) {
+        return slot.player && slot.position == Gk;
+    });
+}
+
+Lineup changeShape(const Lineup& shape, const Formation& to) {
+    const Lineup target = emptyLineup(to);
+    Lineup result = shape;
+    // From the own goal up: row, then left to right.
+    const auto byRow = [](const Lineup& lineup) {
+        return [&lineup](std::size_t a, std::size_t b) {
+            const LineupSlot& left = lineup.pitchSlots[a];
+            const LineupSlot& right = lineup.pitchSlots[b];
+            return std::tuple{pitchRow(left.position), left.x} <
+                   std::tuple{pitchRow(right.position), right.x};
+        };
+    };
+    std::vector<std::size_t> positions(target.pitchSlots.size());
+    std::iota(positions.begin(), positions.end(), std::size_t{0});
+    std::ranges::stable_sort(positions, byRow(target));
+    std::vector<std::size_t> occupied;
+    std::vector<std::size_t> empty;
+    for (std::size_t i = 0; i < shape.pitchSlots.size(); ++i) {
+        (shape.pitchSlots[i].player ? occupied : empty).push_back(i);
+    }
+    // The positions left to the empty slots: the goalkeeper when none is on the pitch, then the
+    // ones furthest forward.
+    std::vector<std::size_t> dropped;
+    if (!hasGoalkeeperOnPitch(shape) && !empty.empty()) {
+        const auto gk = std::ranges::find_if(
+            positions, [&](std::size_t i) { return target.pitchSlots[i].position == Gk; });
+        if (gk != positions.end()) {
+            dropped.push_back(*gk);
+            positions.erase(gk);
+        }
+    }
+    while (dropped.size() < empty.size() && !positions.empty()) {
+        dropped.push_back(positions.back());
+        positions.pop_back();
+    }
+    std::vector<bool> slotDone(shape.pitchSlots.size(), false);
+    std::vector<bool> positionDone(target.pitchSlots.size(), false);
+    const auto assign = [&](std::size_t slot, std::size_t position) {
+        result.pitchSlots[slot].position = target.pitchSlots[position].position;
+        result.pitchSlots[slot].x = target.pitchSlots[position].x;
+        result.pitchSlots[slot].y = target.pitchSlots[position].y;
+        slotDone[slot] = true;
+        positionDone[position] = true;
+    };
+    // The occupied slots of the same position, left to right.
+    for (const PitchZone& zone : kZones) {
+        std::vector<std::size_t> slots;
+        for (const std::size_t i : occupied) {
+            if (shape.pitchSlots[i].position == zone.position) {
+                slots.push_back(i);
+            }
+        }
+        std::ranges::stable_sort(slots, {}, [&](std::size_t i) { return shape.pitchSlots[i].x; });
+        std::vector<std::size_t> same;
+        for (const std::size_t i : positions) {
+            if (target.pitchSlots[i].position == zone.position) {
+                same.push_back(i);
+            }
+        }
+        std::ranges::stable_sort(same, {}, [&](std::size_t i) { return target.pitchSlots[i].x; });
+        for (std::size_t i = 0; i < std::min(slots.size(), same.size()); ++i) {
+            // The x of the old slot keeps the left-to-right order inside the zone.
+            const double x = shape.pitchSlots[slots[i]].x;
+            assign(slots[i], same[i]);
+            result.pitchSlots[slots[i]].x = x;
+        }
+    }
+    // The other occupied slots take the free positions from the own goal up; the goalkeeper
+    // position last, so no outfield player goes in goal while another position is free.
+    std::vector<std::size_t> freePositions;
+    for (const std::size_t i : positions) {
+        if (!positionDone[i]) {
+            freePositions.push_back(i);
+        }
+    }
+    std::ranges::stable_partition(
+        freePositions, [&](std::size_t i) { return target.pitchSlots[i].position != Gk; });
+    std::vector<std::size_t> occupiedLeft;
+    for (const std::size_t i : occupied) {
+        if (!slotDone[i]) {
+            occupiedLeft.push_back(i);
+        }
+    }
+    std::ranges::stable_sort(occupiedLeft, byRow(shape));
+    for (std::size_t i = 0; i < std::min(occupiedLeft.size(), freePositions.size()); ++i) {
+        assign(occupiedLeft[i], freePositions[i]);
+    }
+    for (std::size_t i = 0; i < std::min(empty.size(), dropped.size()); ++i) {
+        assign(empty[i], dropped[i]);
+    }
+    layoutAllZones(result, true);
+    result.formation = liveFormationName(result);
+    return result;
+}
+
+LineupEdit swapPlaces(Lineup& shape, int first, int second) {
+    if (!isOccupied(shape, first) || !isOccupied(shape, second)) {
+        return LineupEdit::InvalidSlot;
+    }
+    if (first == second) {
+        return LineupEdit::Unchanged;
+    }
+    LineupSlot& a = shape.pitchSlots[static_cast<std::size_t>(first)];
+    LineupSlot& b = shape.pitchSlots[static_cast<std::size_t>(second)];
+    std::swap(a.position, b.position);
+    std::swap(a.x, b.x);
+    std::swap(a.y, b.y);
+    shape.formation = liveFormationName(shape);
+    return LineupEdit::Done;
+}
+
+LineupEdit moveLiveSlot(Lineup& shape, int slot, Position zone, std::optional<double> x,
+                        std::optional<double> y) {
+    if (!isOccupied(shape, slot)) {
+        return LineupEdit::InvalidSlot;
+    }
+    const Lineup before = shape;
+    LineupSlot& moved = shape.pitchSlots[static_cast<std::size_t>(slot)];
+    const Position from = moved.position;
+    if (zone == Gk && from != Gk) {
+        if (hasGoalkeeperOnPitch(shape)) {
+            return LineupEdit::GoalkeeperTaken;
+        }
+        // The slot of a sent-off goalkeeper takes the place the new one leaves.
+        for (LineupSlot& other : shape.pitchSlots) {
+            if (!other.player && other.position == Gk) {
+                other.position = from;
+                other.x = moved.x;
+                other.y = moved.y;
+            }
+        }
+    }
+    moved.position = zone;
+    if (x) {
+        moved.x = std::clamp(*x, 0.0, 1.0);
+    }
+    if (y) {
+        moved.y = std::clamp(*y, 0.0, 1.0);
+    }
+    if (from != zone) {
+        layoutZone(shape, from, true);
+    }
+    layoutZone(shape, zone, true);
+    shape.formation = liveFormationName(shape);
+    return shape == before ? LineupEdit::Unchanged : LineupEdit::Done;
 }
 
 } // namespace fdss::core

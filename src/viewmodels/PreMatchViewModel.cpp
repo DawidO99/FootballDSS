@@ -919,13 +919,13 @@ void PreMatchViewModel::rebuildRows() {
         const core::LineupSlot& slot = m_lineup.pitchSlots[i];
         const auto* player = slot.player ? candidate(*slot.player) : nullptr;
         const auto& issues = bySlot[static_cast<int>(i)];
-        boardRows.append(
-            QVariantList{static_cast<int>(i), QString::fromUtf8(core::toDbText(slot.position)),
-                         SquadTexts::positionCode(slot.position), slot.x, slot.y,
-                         idOrZero(slot.player), player ? shirtNumberOf(player->player) : QVariant{},
-                         player ? QString::fromStdString(player->player.lastName) : QString{},
-                         player ? SquadTexts::displayName(player->player) : QString{}, issues.first,
-                         issues.second.join(newline), static_cast<int>(i) == m_selectedSlot});
+        boardRows.append(QVariantList{
+            static_cast<int>(i), QString::fromUtf8(core::toDbText(slot.position)),
+            SquadTexts::positionCode(slot.position), slot.x, slot.y, idOrZero(slot.player),
+            player ? shirtNumberOf(player->player) : QVariant{},
+            player ? QString::fromStdString(player->player.lastName) : QString{},
+            player ? SquadTexts::displayName(player->player) : QString{}, issues.first,
+            issues.second.join(newline), static_cast<int>(i) == m_selectedSlot, 0, 0, false});
     }
     m_board->setRows(std::move(boardRows));
 

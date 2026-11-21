@@ -1,5 +1,6 @@
 #include "services/MatchDayService.hpp"
 
+#include "core/algorithms/Formations.hpp"
 #include "core/algorithms/LineupValidator.hpp"
 #include "core/domain/Validation.hpp"
 #include "data/db/Transaction.hpp"
@@ -8,6 +9,7 @@
 #include "data/repositories/MatchLiveRepository.hpp"
 #include "data/repositories/MatchNoteRepository.hpp"
 #include "data/repositories/MatchRepository.hpp"
+#include "data/repositories/MatchTacticRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
 #include "services/Clock.hpp"
@@ -15,11 +17,13 @@
 #include "services/Session.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <format>
 #include <ranges>
 #include <set>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 
 namespace fdss::services {
@@ -48,6 +52,9 @@ constexpr std::string_view kNoteText = "note_text";
 constexpr std::string_view kNothingToUndo = "nothing_to_undo";
 constexpr std::string_view kUndoEndAnotherLive = "undo_end_another_live";
 constexpr std::string_view kMatchHistory = "match_history";
+constexpr std::string_view kTacticShape = "tactic_shape";
+constexpr std::string_view kTacticUnchanged = "tactic_unchanged";
+constexpr std::string_view kTacticChangeLater = "tactic_change_later";
 
 core::Error conflict(std::string_view field, std::string detail) {
     return core::Error{core::ErrorCode::Conflict, std::move(detail), std::string(field)};
@@ -101,6 +108,27 @@ std::vector<core::MatchEventDraft> draftsOf(const std::vector<core::MatchEvent>&
     return {events.begin(), events.end()};
 }
 
+std::vector<core::MatchTacticChangeDraft>
+draftsOf(const std::vector<core::MatchTacticChange>& changes) {
+    return {changes.begin(), changes.end()};
+}
+
+// 11 slots, coordinates 0–1, at most one GK (also among the empty slots, so the stored
+// `.tactic.json` stays valid).
+bool isValidTacticShape(const core::Lineup& shape) {
+    if (std::ssize(shape.pitchSlots) != core::kLineupSlots) {
+        return false;
+    }
+    const auto inside = [](double value) {
+        return std::isfinite(value) && value >= 0.0 && value <= 1.0;
+    };
+    return std::ranges::all_of(
+               shape.pitchSlots,
+               [&](const core::LineupSlot& slot) { return inside(slot.x) && inside(slot.y); }) &&
+           std::ranges::count(shape.pitchSlots, core::Position::Gk, &core::LineupSlot::position) <=
+               1;
+}
+
 core::MatchClock clockOf(const data::LiveMatchRow& row) {
     core::MatchClock clock;
     clock.format = row.format;
@@ -115,8 +143,12 @@ core::MatchClock clockOf(const data::LiveMatchRow& row) {
 
 // The highest seq of a match: the action entered last.
 int lastSeqOf(const std::vector<core::MatchEvent>& events,
-              const std::vector<core::MatchNote>& notes, const data::LiveMatchRow& row) {
+              const std::vector<core::MatchNote>& notes,
+              const std::vector<core::MatchTacticChange>& tactics, const data::LiveMatchRow& row) {
     int seq = row.finishedSeq.value_or(0);
+    for (const core::MatchTacticChange& change : tactics) {
+        seq = std::max(seq, change.seq);
+    }
     for (const core::MatchEvent& event : events) {
         seq = std::max(seq, event.seq.value_or(0));
     }
@@ -132,10 +164,17 @@ int lastSeqOf(const std::vector<core::MatchEvent>& events,
 // What the action with the highest seq is.
 std::optional<MatchDayAction> lastActionOf(const std::vector<core::MatchEvent>& events,
                                            const std::vector<core::MatchNote>& notes,
+                                           const std::vector<core::MatchTacticChange>& tactics,
                                            const data::LiveMatchRow& row) {
-    const int seq = lastSeqOf(events, notes, row);
+    const int seq = lastSeqOf(events, notes, tactics, row);
     if (seq == 0) {
         return std::nullopt;
+    }
+    const auto tactic = std::ranges::find(tactics, seq, &core::MatchTacticChange::seq);
+    if (tactic != tactics.end()) {
+        MatchDayAction action{MatchDayAction::Kind::TacticChange, std::nullopt, std::nullopt,
+                              std::nullopt, *tactic};
+        return action;
     }
     std::optional<core::ClockStep> step;
     for (const data::ClockStepRow& taken : row.steps) {
@@ -186,21 +225,24 @@ struct MatchDayService::Live {
     core::Match match;
     data::LiveMatchRow row;
     core::MatchClock clock;
+    core::Lineup lineup;
     core::MatchSheet sheet;
     std::vector<core::MatchEvent> events;
     std::vector<core::MatchNote> notes;
+    std::vector<core::MatchTacticChange> tactics;
     core::MatchSituation situation;
 };
 
 MatchDayService::MatchDayService(data::DatabaseManager& db, data::MatchRepository& matches,
                                  data::MatchLiveRepository& live, data::MatchNoteRepository& notes,
+                                 data::MatchTacticRepository& tactics,
                                  data::LineupRepository& lineups, data::ClubRepository& clubs,
                                  data::OpponentRepository& opponents,
                                  data::PlayerRepository& players, LineupService& lineupService,
                                  Session& session, const Clock& clock)
-    : m_db(db), m_matches(matches), m_live(live), m_notes(notes), m_lineups(lineups),
-      m_clubs(clubs), m_opponents(opponents), m_players(players), m_lineupService(lineupService),
-      m_session(session), m_clock(clock) {}
+    : m_db(db), m_matches(matches), m_live(live), m_notes(notes), m_tactics(tactics),
+      m_lineups(lineups), m_clubs(clubs), m_opponents(opponents), m_players(players),
+      m_lineupService(lineupService), m_session(session), m_clock(clock) {}
 
 core::Status MatchDayService::requireLogin() const {
     if (!m_session.user()) {
@@ -230,15 +272,15 @@ core::Result<std::optional<core::MatchId>> MatchDayService::liveMatch(core::Team
     return m_matches.findLive(team);
 }
 
-core::Result<core::MatchSheet> MatchDayService::sheetOf(core::MatchId match) const {
-    const auto lineup = m_lineups.findForMatch(match);
+core::Result<core::Lineup> MatchDayService::lineupOf(core::MatchId match) const {
+    auto lineup = m_lineups.findForMatch(match);
     if (!lineup) {
         return std::unexpected(lineup.error());
     }
     if (!*lineup) {
         return std::unexpected(conflict(kNoLineup, "match day: no saved lineup"));
     }
-    return core::matchSheetOf(**lineup);
+    return std::move(**lineup);
 }
 
 core::Result<MatchDayState> MatchDayService::state(core::MatchId matchId) const {
@@ -274,6 +316,7 @@ core::Result<MatchDayState> MatchDayService::state(core::MatchId matchId) const 
     }
     if (*lineup) {
         state.sheet = core::matchSheetOf(**lineup);
+        state.lineup = **lineup;
         state.hasLineup = true;
     }
     auto players = m_players.list(match->teamId, data::ArchivedPlayers::Include);
@@ -299,14 +342,27 @@ core::Result<MatchDayState> MatchDayService::state(core::MatchId matchId) const 
         return std::unexpected(notes.error());
     }
     state.notes = std::move(*notes);
+    auto tactics = m_tactics.list(matchId);
+    if (!tactics) {
+        return std::unexpected(tactics.error());
+    }
+    state.tacticChanges = std::move(*tactics);
     const auto drafts = draftsOf(state.events);
     auto situation = core::replayMatch(state.sheet, drafts);
+    state.shape = state.lineup;
     if (*live) {
         if (!situation) {
             return std::unexpected(historyError(situation.error(), "match day state"));
         }
         state.situation = std::move(*situation);
-        state.lastAction = lastActionOf(state.events, state.notes, **live);
+        state.lastAction = lastActionOf(state.events, state.notes, state.tacticChanges, **live);
+        if (state.hasLineup) {
+            auto shape = core::shapeAt(state.lineup, drafts, draftsOf(state.tacticChanges));
+            if (!shape) {
+                return std::unexpected(historyError(shape.error(), "match day shape"));
+            }
+            state.shape = std::move(*shape);
+        }
     } else {
         // Data that Match Day did not write (an import, a match without a lineup): show the
         // lineup and the stored score.
@@ -402,11 +458,11 @@ core::Status MatchDayService::start(core::MatchId match, core::MatchFormat forma
     if (auto status = m_matches.setStatus(match, core::MatchStatus::Live); !status) {
         return status;
     }
-    const auto sheet = sheetOf(match);
-    if (!sheet) {
-        return std::unexpected(sheet.error());
+    const auto lineup = lineupOf(match);
+    if (!lineup) {
+        return std::unexpected(lineup.error());
     }
-    if (const auto minutes = recompute(match, *sheet, std::nullopt); !minutes) {
+    if (const auto minutes = recompute(match, *lineup, std::nullopt); !minutes) {
         return std::unexpected(minutes.error());
     }
     return transaction->commit();
@@ -427,10 +483,11 @@ core::Result<MatchDayService::Live> MatchDayService::readLive(core::MatchId matc
     if (!accepted || !*row) {
         return std::unexpected(conflict(kMatchNotLive, "match day: the match is not live"));
     }
-    auto sheet = sheetOf(matchId);
-    if (!sheet) {
-        return std::unexpected(sheet.error());
+    auto lineup = lineupOf(matchId);
+    if (!lineup) {
+        return std::unexpected(lineup.error());
     }
+    core::MatchSheet sheet = core::matchSheetOf(*lineup);
     auto events = m_matches.listEvents(matchId);
     if (!events) {
         return std::unexpected(events.error());
@@ -439,25 +496,34 @@ core::Result<MatchDayService::Live> MatchDayService::readLive(core::MatchId matc
     if (!notes) {
         return std::unexpected(notes.error());
     }
+    auto tactics = m_tactics.list(matchId);
+    if (!tactics) {
+        return std::unexpected(tactics.error());
+    }
     const auto drafts = draftsOf(*events);
-    auto situation = core::replayMatch(*sheet, drafts);
+    auto situation = core::replayMatch(sheet, drafts);
     if (!situation) {
         return std::unexpected(historyError(situation.error(), "replay stored events"));
     }
     core::MatchClock clock = clockOf(**row);
-    return Live{std::move(*match),  std::move(**row),  std::move(clock),     std::move(*sheet),
-                std::move(*events), std::move(*notes), std::move(*situation)};
+    return Live{std::move(*match),  std::move(**row),    std::move(clock),
+                std::move(*lineup), std::move(sheet),    std::move(*events),
+                std::move(*notes),  std::move(*tactics), std::move(*situation)};
 }
 
 core::Result<core::MatchMinutes> MatchDayService::recompute(core::MatchId match,
-                                                            const core::MatchSheet& sheet,
+                                                            const core::Lineup& lineup,
                                                             std::optional<int> finalMinute) {
     const auto events = m_matches.listEvents(match);
     if (!events) {
         return std::unexpected(events.error());
     }
+    const auto tactics = m_tactics.list(match);
+    if (!tactics) {
+        return std::unexpected(tactics.error());
+    }
     const auto drafts = draftsOf(*events);
-    auto minutes = core::computeMatchMinutes(sheet, drafts, finalMinute);
+    auto minutes = core::computeMatchMinutes(lineup, drafts, draftsOf(*tactics), finalMinute);
     if (!minutes) {
         return std::unexpected(historyError(minutes.error(), "recompute minutes"));
     }
@@ -499,7 +565,7 @@ core::Status MatchDayService::endNow(const Live& live, int seq, std::optional<in
     if (auto finished = m_live.setFinished(live.match.id, seq, clock.endedEarlyAt); !finished) {
         return finished;
     }
-    const auto minutes = recompute(live.match.id, live.sheet, core::finalMinute(clock));
+    const auto minutes = recompute(live.match.id, live.lineup, core::finalMinute(clock));
     if (!minutes) {
         return std::unexpected(minutes.error());
     }
@@ -520,7 +586,7 @@ core::Status MatchDayService::cancelStart(core::MatchId match) {
         return std::unexpected(live.error());
     }
     if ((core::phaseOf(live->clock) != core::MatchPhase::NotStarted && !live->clock.clockless) ||
-        !live->events.empty() || !live->notes.empty()) {
+        !live->events.empty() || !live->notes.empty() || !live->tactics.empty()) {
         return std::unexpected(conflict(kMatchStarted, "match day: the match has kicked off"));
     }
     if (auto removed = m_live.remove(match); !removed) {
@@ -798,7 +864,7 @@ core::Status MatchDayService::recordEvent(core::MatchId match, core::MatchEventD
             return std::unexpected(appended.error());
         }
     }
-    if (const auto minutes = recompute(match, live->sheet, std::nullopt); !minutes) {
+    if (const auto minutes = recompute(match, live->lineup, std::nullopt); !minutes) {
         return std::unexpected(minutes.error());
     }
     return transaction->commit();
@@ -969,6 +1035,77 @@ core::Result<core::MatchNoteId> MatchDayService::restoreNote(const core::MatchNo
     return *id;
 }
 
+core::Result<core::MatchTacticChangeId>
+MatchDayService::recordTacticChange(core::MatchId match, const core::Lineup& shape,
+                                    std::optional<core::MatchTime> time) {
+    if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    const auto live = readLive(match, false);
+    if (!live) {
+        return std::unexpected(live.error());
+    }
+    if (core::onPitchCount(live->situation) < core::kMinPlayersOnPitch) {
+        return std::unexpected(conflict(kTooFewPlayers, "match day: fewer than 7 players"));
+    }
+    const auto chosen = timeFor(*live, time, true);
+    if (!chosen) {
+        return std::unexpected(chosen.error());
+    }
+    if (!isValidTacticShape(shape)) {
+        return std::unexpected(invalid(kTacticShape, "match day: not a shape of 11 slots"));
+    }
+    const auto key = [](int minute, std::optional<int> added) {
+        return std::tuple{minute, added ? 0 : 1, added.value_or(0)};
+    };
+    for (const core::MatchTacticChange& stored : live->tactics) {
+        if (key(stored.minute, stored.addedTime) > key(chosen->minute, chosen->addedTime)) {
+            return std::unexpected(
+                conflict(kTacticChangeLater,
+                         std::format("match day: tactic change {} is later", stored.id.value)));
+        }
+    }
+    const auto events = draftsOf(live->events);
+    std::vector<core::MatchTacticChangeDraft> changes = draftsOf(live->tactics);
+    const auto before = core::shapeAt(live->lineup, events, changes, *chosen);
+    if (!before) {
+        return std::unexpected(historyError(before.error(), "tactic change"));
+    }
+    core::MatchTacticChangeDraft change{chosen->minute, chosen->addedTime, shape};
+    change.shape.bench.clear();
+    for (core::LineupSlot& slot : change.shape.pitchSlots) {
+        slot.player.reset();
+    }
+    changes.push_back(change);
+    const auto after = core::shapeAt(live->lineup, events, changes, *chosen);
+    if (!after) {
+        return std::unexpected(historyError(after.error(), "tactic change"));
+    }
+    if (*after == *before) {
+        return std::unexpected(invalid(kTacticUnchanged, "match day: the shape is the same"));
+    }
+    change.shape.formation = after->formation;
+    const auto seq = m_live.takeSeq(match);
+    if (!seq) {
+        return std::unexpected(seq.error());
+    }
+    const auto id = m_tactics.create(match, change, *seq);
+    if (!id) {
+        return std::unexpected(id.error());
+    }
+    if (const auto minutes = recompute(match, live->lineup, std::nullopt); !minutes) {
+        return std::unexpected(minutes.error());
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(committed.error());
+    }
+    return *id;
+}
+
 core::Result<MatchDayAction> MatchDayService::undoLast(core::MatchId match) {
     if (auto allowed = m_session.require(core::Permission::RunMatchDay); !allowed) {
         return std::unexpected(allowed.error());
@@ -981,12 +1118,12 @@ core::Result<MatchDayAction> MatchDayService::undoLast(core::MatchId match) {
     if (!live) {
         return std::unexpected(live.error());
     }
-    const auto action = lastActionOf(live->events, live->notes, live->row);
+    const auto action = lastActionOf(live->events, live->notes, live->tactics, live->row);
     if (!action) {
         return std::unexpected(core::Error{core::ErrorCode::NotFound, "match day: nothing to undo",
                                            std::string(kNothingToUndo)});
     }
-    const int seq = lastSeqOf(live->events, live->notes, live->row);
+    const int seq = lastSeqOf(live->events, live->notes, live->tactics, live->row);
     if (action->kind == MatchDayAction::Kind::Finish) {
         // A finished match made live again next to another live match of the team: two live
         // matches, and the start of the other one would refuse that (P13 review).
@@ -1017,7 +1154,10 @@ core::Result<MatchDayAction> MatchDayService::undoLast(core::MatchId match) {
     if (const auto notes = m_notes.deleteWithSeq(match, seq); !notes) {
         return std::unexpected(notes.error());
     }
-    if (const auto minutes = recompute(match, live->sheet, std::nullopt); !minutes) {
+    if (const auto tactics = m_tactics.deleteWithSeq(match, seq); !tactics) {
+        return std::unexpected(tactics.error());
+    }
+    if (const auto minutes = recompute(match, live->lineup, std::nullopt); !minutes) {
         return std::unexpected(minutes.error());
     }
     if (auto committed = transaction->commit(); !committed) {

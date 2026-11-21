@@ -9,7 +9,9 @@ import FootballDSS
 // the players as tiles and the timeline. Every action is a tap or a click: an action button first,
 // then the player tiles it asks for; letters are only accelerators of the visible buttons. The clock
 // is derived from the stored steps, so a closed app resumes the running match. Leaving a live match
-// asks first (Main.qml guard). Read-only without RunMatchDay.
+// asks first (Main.qml guard). Read-only without RunMatchDay. Live tactics (P13b): "Tactics" in
+// place of the tiles shows the team on the board; a change of shape is a draft until Confirm, a
+// bench player dropped on a token is a substitution waiting for Save.
 Item {
     id: root
 
@@ -21,6 +23,12 @@ Item {
     readonly property bool failed: matchDay.loadError.length > 0
     readonly property bool started: matchDay.statusKey === "live" || matchDay.statusKey === "finished"
     readonly property bool choosing: matchDay.pendingAction.length > 0
+    // The pending action is saved with the button of the bar (and Enter in its minute field).
+    readonly property bool confirmable: matchDay.pendingAction === "opponentGoal" || matchDay.pendingAction === "subConfirm" || matchDay.pendingAction === "tactic"
+    // players (the tiles) or tactics (the board, P13b).
+    property string boardMode: "players"
+    // A slot waiting for the slot to swap with on the board (keyboard path of P12); -1: none.
+    property int swapFrom: -1
     readonly property bool dialogOpen: startDialog.visible || leaveQuestion.visible || noteDialog.visible || tooFewDialog.visible || setClockDialog.visible
     // The single-letter accelerators and Ctrl+Z stay off while a dialog (of this view or any other
     // popup, e.g. Change PIN) holds the focus, and while a text field does: there the letters are
@@ -115,7 +123,25 @@ Item {
             Toasts.info(text);
     }
 
+    // A token was clicked or got Enter: the player of an action waiting for one on the pitch,
+    // otherwise finish a swap started with the swap button, or select it.
+    function activateLiveSlot(slot) {
+        const waiting = ["scorer", "assist", "yellow", "red", "subOff"];
+        if (waiting.indexOf(matchDay.pendingAction) >= 0) {
+            const playerId = matchDay.board.get(slot).playerId;
+            if (playerId)
+                matchDay.choosePlayer(playerId);
+            return;
+        }
+        if (root.swapFrom >= 0 && root.swapFrom !== slot) {
+            matchDay.swapSlots(root.swapFrom, slot);
+            root.swapFrom = -1;
+        }
+        matchDay.selectSlot(slot);
+    }
+
     function cancelOrExit() {
+        root.swapFrom = -1;
         if (root.choosing)
             matchDay.cancelAction();
         else if (root.fullScreen)
@@ -245,6 +271,30 @@ Item {
         PageHeader {
             Layout.fillWidth: true
             title: qsTr("Match Day")
+
+            // Players (the tiles) or Tactics (the board, P13b): in the title row, so the board keeps
+            // the height of the screen.
+            SegmentedControl {
+                objectName: "boardModeSwitch"
+                visible: matchDay.hasMatch && root.started
+                touch: true
+                model: [
+                    {
+                        "value": "players",
+                        "text": qsTr("Players")
+                    },
+                    {
+                        "value": "tactics",
+                        "text": qsTr("Tactics")
+                    }
+                ]
+                currentValue: root.boardMode
+                Accessible.name: qsTr("Show the players as")
+                onActivated: value => {
+                    root.swapFrom = -1;
+                    root.boardMode = value;
+                }
+            }
 
             MatchStatusBadge {
                 objectName: "statusBadge"
@@ -563,11 +613,11 @@ Item {
             }
         }
 
-        // An action waits for its players.
+        // An action waits for its players. In Tactics the same is in the column next to the board.
         Rectangle {
             objectName: "pendingBar"
             Layout.fillWidth: true
-            visible: root.choosing
+            visible: root.choosing && root.boardMode === "players"
             implicitHeight: pendingRow.implicitHeight + 2 * Theme.spacing.s
             radius: Theme.radius.m
             color: Theme.selection
@@ -612,7 +662,7 @@ Item {
                         Accessible.name: minuteFormField.label
                         onTextEdited: matchDay.setPendingMinute(text)
                         onAccepted: {
-                            if (matchDay.pendingAction === "opponentGoal")
+                            if (root.confirmable)
                                 matchDay.confirmAction();
                         }
                     }
@@ -620,9 +670,9 @@ Item {
 
                 PrimaryButton {
                     objectName: "saveActionButton"
-                    visible: matchDay.pendingAction === "opponentGoal"
+                    visible: root.confirmable
                     touch: true
-                    text: qsTr("Save")
+                    text: matchDay.pendingAction === "tactic" ? qsTr("Confirm") : qsTr("Save")
                     onClicked: matchDay.confirmAction()
                 }
 
@@ -652,98 +702,392 @@ Item {
             visible: matchDay.hasMatch && root.started
             spacing: Theme.spacing.l
 
-            FocusFlickable {
-                id: tilesArea
-
-                objectName: "tilesArea"
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true
-                contentHeight: tilesColumn.implicitHeight
+                spacing: Theme.spacing.s
 
-                ColumnLayout {
-                    id: tilesColumn
+                FocusFlickable {
+                    id: tilesArea
 
-                    width: tilesArea.width
-                    spacing: Theme.spacing.s
+                    objectName: "tilesArea"
+                    visible: root.boardMode === "players"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    contentHeight: tilesColumn.implicitHeight
 
-                    Label {
-                        text: qsTr("On the pitch")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontSize.caption
-                        font.weight: Font.DemiBold
-                    }
+                    ColumnLayout {
+                        id: tilesColumn
 
-                    Flow {
-                        objectName: "pitchTiles"
-                        Layout.fillWidth: true
+                        width: tilesArea.width
                         spacing: Theme.spacing.s
 
-                        Repeater {
-                            model: matchDay.pitch
+                        Label {
+                            text: qsTr("On the pitch")
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontSize.caption
+                            font.weight: Font.DemiBold
+                        }
 
-                            delegate: MatchPlayerTile {
-                                id: pitchTileItem
+                        Flow {
+                            objectName: "pitchTiles"
+                            Layout.fillWidth: true
+                            spacing: Theme.spacing.s
 
-                                required property var playerId
-                                required property string name
-                                required shirtNumber
-                                required shortName
-                                required positionCode
-                                required stateKey
-                                required stateText
-                                required minutesText
-                                required goals
-                                required yellowCards
-                                required selectable
-                                required historyText
+                            Repeater {
+                                model: matchDay.pitch
 
-                                objectName: "pitchTile"
-                                fullName: pitchTileItem.name
-                                choosing: root.choosing
-                                onClicked: matchDay.choosePlayer(pitchTileItem.playerId)
+                                delegate: MatchPlayerTile {
+                                    id: pitchTileItem
+
+                                    required playerId
+                                    required property string name
+                                    required shirtNumber
+                                    required shortName
+                                    required positionCode
+                                    required stateKey
+                                    required stateText
+                                    required minutesText
+                                    required goals
+                                    required yellowCards
+                                    required selectable
+                                    required historyText
+
+                                    objectName: "pitchTile"
+                                    fullName: pitchTileItem.name
+                                    choosing: root.choosing
+                                    onClicked: matchDay.choosePlayer(pitchTileItem.playerId)
+                                }
+                            }
+                        }
+
+                        Label {
+                            Layout.topMargin: Theme.spacing.s
+                            text: qsTr("Bench")
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontSize.caption
+                            font.weight: Font.DemiBold
+                        }
+
+                        Flow {
+                            objectName: "benchTiles"
+                            Layout.fillWidth: true
+                            spacing: Theme.spacing.s
+
+                            Repeater {
+                                model: matchDay.bench
+
+                                delegate: MatchPlayerTile {
+                                    id: benchTileItem
+
+                                    required playerId
+                                    required property string name
+                                    required shirtNumber
+                                    required shortName
+                                    required positionCode
+                                    required stateKey
+                                    required stateText
+                                    required minutesText
+                                    required goals
+                                    required yellowCards
+                                    required selectable
+                                    required historyText
+
+                                    objectName: "benchTile"
+                                    fullName: benchTileItem.name
+                                    choosing: root.choosing
+                                    onClicked: matchDay.choosePlayer(benchTileItem.playerId)
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+                // The team on the tactics board (P13b): the shape now, or the draft being edited.
+                RowLayout {
+                    objectName: "tacticsArea"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: root.boardMode === "tactics"
+                    spacing: Theme.spacing.m
+
+                    TacticsPitch {
+                        id: livePitch
+
+                        objectName: "livePitch"
+                        Layout.fillHeight: true
+                        Layout.preferredWidth: livePitch.height * Theme.pitch.aspect
+                        model: matchDay.board
+                        zones: matchDay.zones
+                        interactive: matchDay.canChangeTactics
+                        showEmptySlots: false
+                        fitTokens: true
+                        onSlotActivated: slot => root.activateLiveSlot(slot)
+                        onSlotsSwapped: (from, to) => matchDay.swapSlots(from, to)
+                        onSlotMoved: (slot, x, y) => matchDay.moveSlotTo(slot, x, y)
+                        onPlayerDropped: (slot, playerId) => matchDay.substituteOnBoard(slot, playerId)
+                    }
+
+                    ColumnLayout {
+                        Layout.preferredWidth: Theme.benchColumnWidth
+                        Layout.maximumWidth: Theme.benchColumnWidth
+                        Layout.fillHeight: true
+                        spacing: Theme.spacing.s
+
+                        // The pending action next to the board: the prompt, the minute and its
+                        // buttons, as the bar above the tiles.
+                        Rectangle {
+                            objectName: "livePendingPanel"
+                            Layout.fillWidth: true
+                            visible: root.choosing
+                            implicitHeight: livePending.implicitHeight + 2 * Theme.spacing.s
+                            radius: Theme.radius.m
+                            color: Theme.selection
+
+                            ColumnLayout {
+                                id: livePending
+
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacing.s
+                                spacing: Theme.spacing.s
+
+                                Label {
+                                    objectName: "livePendingPrompt"
+                                    Layout.fillWidth: true
+                                    text: matchDay.pendingPrompt
+                                    textFormat: Text.PlainText
+                                    color: Theme.text
+                                    font.pixelSize: Theme.fontSize.caption
+                                    wrapMode: Text.WordWrap
+                                }
+
+                                FormField {
+                                    id: liveMinuteFormField
+
+                                    Layout.fillWidth: true
+                                    label: qsTr("Minute")
+                                    error: matchDay.pendingMinuteError
+
+                                    TextInputField {
+                                        objectName: "liveMinuteField"
+                                        implicitWidth: Theme.matchMinuteFieldWidth
+                                        implicitHeight: Theme.hitTouch
+                                        maximumLength: 7
+                                        text: matchDay.pendingMinute
+                                        error: matchDay.pendingMinuteError
+                                        Accessible.name: liveMinuteFormField.label
+                                        onTextEdited: matchDay.setPendingMinute(text)
+                                        onAccepted: {
+                                            if (root.confirmable)
+                                                matchDay.confirmAction();
+                                        }
+                                    }
+                                }
+
+                                Flow {
+                                    Layout.fillWidth: true
+                                    spacing: Theme.spacing.xs
+
+                                    PrimaryButton {
+                                        objectName: "liveSaveActionButton"
+                                        visible: root.confirmable
+                                        touch: true
+                                        text: matchDay.pendingAction === "tactic" ? qsTr("Confirm") : qsTr("Save")
+                                        onClicked: matchDay.confirmAction()
+                                    }
+
+                                    SecondaryButton {
+                                        objectName: "liveNoAssistButton"
+                                        visible: matchDay.pendingAction === "assist"
+                                        touch: true
+                                        text: qsTr("No assist")
+                                        onClicked: matchDay.skipAssist()
+                                    }
+
+                                    SecondaryButton {
+                                        objectName: "liveCancelActionButton"
+                                        touch: true
+                                        text: qsTr("Cancel")
+                                        ToolTip.visible: hovered
+                                        ToolTip.delay: Theme.tooltipDelay
+                                        ToolTip.text: qsTr("Cancel (%1)").arg(cancelShortcut.nativeText)
+                                        onClicked: {
+                                            root.swapFrom = -1;
+                                            matchDay.cancelAction();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Label {
+                            objectName: "shapeLabel"
+                            Layout.fillWidth: true
+                            text: qsTr("Shape: %1").arg(matchDay.shapeText)
+                            color: Theme.text
+                            font.pixelSize: Theme.fontSize.body
+                            font.weight: Font.DemiBold
+                            elide: Text.ElideRight
+                        }
+
+                        // No player in the GK zone: a warning with an icon and words, never a block.
+                        RowLayout {
+                            objectName: "noGoalkeeperWarning"
+                            Layout.fillWidth: true
+                            visible: matchDay.noGoalkeeper
+                            spacing: Theme.spacing.xs
+
+                            Icon {
+                                name: "warn"
+                                size: Theme.iconSize.s
+                                color: Theme.warn
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: qsTr("No goalkeeper on the pitch")
+                                color: Theme.text
+                                font.pixelSize: Theme.fontSize.caption
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        SelectField {
+                            id: formationField
+
+                            objectName: "liveFormationField"
+                            Layout.fillWidth: true
+                            touch: true
+                            enabled: matchDay.canChangeTactics
+                            model: matchDay.formationOptions
+                            textRole: "text"
+                            valueRole: "value"
+                            value: matchDay.shapeFormation
+                            Accessible.name: qsTr("Formation")
+                            onValueActivated: value => {
+                                if (value === "custom" || !matchDay.changeFormation(value))
+                                    formationField.showValue();
+                            }
+                        }
+
+                        // The selected slot: its position (the keyboard path of a drag to another
+                        // zone) and the swap (P12).
+                        ColumnLayout {
+                            objectName: "liveSlotPanel"
+                            Layout.fillWidth: true
+                            visible: matchDay.selectedSlot >= 0
+                            spacing: Theme.spacing.s
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: matchDay.selectedSlot >= 0 ? qsTr("Selected: %1").arg(matchDay.board.get(matchDay.selectedSlot).fullName ?? "") : ""
+                                textFormat: Text.PlainText
+                                elide: Text.ElideRight
+                                color: Theme.text
+                                font.pixelSize: Theme.fontSize.body
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacing.xs
+
+                                SelectField {
+                                    id: livePositionField
+
+                                    objectName: "livePositionField"
+                                    Layout.fillWidth: true
+                                    touch: true
+                                    enabled: matchDay.canChangeTactics
+                                    model: matchDay.positionOptions
+                                    textRole: "text"
+                                    valueRole: "value"
+                                    value: matchDay.selectedPosition
+                                    Accessible.name: qsTr("Position")
+                                    // A refused position (a second goalkeeper) shows the current one.
+                                    onValueActivated: value => {
+                                        if (!matchDay.setSlotPosition(matchDay.selectedSlot, value))
+                                            livePositionField.showValue();
+                                    }
+                                }
+
+                                IconButton {
+                                    objectName: "liveSwapButton"
+                                    touch: true
+                                    enabled: matchDay.canChangeTactics
+                                    iconName: "swap"
+                                    iconColor: root.swapFrom >= 0 ? Theme.accent : Theme.text
+                                    text: root.swapFrom >= 0 ? qsTr("Now choose the player to swap with") : qsTr("Swap places with another player")
+                                    onClicked: root.swapFrom = root.swapFrom >= 0 ? -1 : matchDay.selectedSlot
+                                }
+                            }
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            visible: !root.choosing
+                            text: matchDay.canChangeTactics ? qsTr("Drag a player to another zone, or onto another player to swap places. Drag a bench player onto a player to substitute.") : qsTr("The shape can be changed while a part runs or in a break.")
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontSize.caption
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Label {
+                            text: qsTr("Bench")
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontSize.caption
+                            font.weight: Font.DemiBold
+                        }
+
+                        FocusFlickable {
+                            id: liveBenchArea
+
+                            objectName: "liveBench"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            contentHeight: liveBenchColumn.implicitHeight
+
+                            Column {
+                                id: liveBenchColumn
+
+                                width: liveBenchArea.width
+                                spacing: Theme.spacing.s
+
+                                Repeater {
+                                    model: matchDay.bench
+
+                                    delegate: MatchPlayerTile {
+                                        id: liveBenchTile
+
+                                        required playerId
+                                        required property string name
+                                        required shirtNumber
+                                        required shortName
+                                        required positionCode
+                                        required stateKey
+                                        required stateText
+                                        required minutesText
+                                        required goals
+                                        required yellowCards
+                                        required selectable
+                                        required historyText
+
+                                        objectName: "liveBenchTile"
+                                        width: liveBenchColumn.width
+                                        fullName: liveBenchTile.name
+                                        choosing: root.choosing
+                                        dragEnabled: matchDay.canSubstitute && liveBenchTile.stateKey === "bench" && !matchDay.tacticsDirty
+                                        onClicked: matchDay.choosePlayer(liveBenchTile.playerId)
+                                    }
+                                }
                             }
                         }
                     }
 
-                    Label {
-                        Layout.topMargin: Theme.spacing.s
-                        text: qsTr("Bench")
-                        color: Theme.textMuted
-                        font.pixelSize: Theme.fontSize.caption
-                        font.weight: Font.DemiBold
-                    }
-
-                    Flow {
-                        objectName: "benchTiles"
+                    Item {
                         Layout.fillWidth: true
-                        spacing: Theme.spacing.s
-
-                        Repeater {
-                            model: matchDay.bench
-
-                            delegate: MatchPlayerTile {
-                                id: benchTileItem
-
-                                required property var playerId
-                                required property string name
-                                required shirtNumber
-                                required shortName
-                                required positionCode
-                                required stateKey
-                                required stateText
-                                required minutesText
-                                required goals
-                                required yellowCards
-                                required selectable
-                                required historyText
-
-                                objectName: "benchTile"
-                                fullName: benchTileItem.name
-                                choosing: root.choosing
-                                onClicked: matchDay.choosePlayer(benchTileItem.playerId)
-                            }
-                        }
                     }
                 }
             }

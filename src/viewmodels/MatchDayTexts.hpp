@@ -43,6 +43,12 @@ public:
     // The icon of Icon.qml: goal, card, swap; note.
     [[nodiscard]] static QString eventIcon(core::MatchEventType type);
     [[nodiscard]] static QString noteName();
+    // Live tactics (P13b): "Change of shape", and "4-4-2 → 4-2-3-1" or, for the same name,
+    // "4-4-2: positions changed".
+    [[nodiscard]] static QString tacticChangeName();
+    [[nodiscard]] static QString tacticChangeText(const QString& from, const QString& to);
+    // The live shape (core::liveFormationName()), "(custom)" for an eleven not in the catalogue.
+    [[nodiscard]] static QString shapeText(const core::Lineup& shape);
     // onPitch, bench, substitutedOff, sentOff.
     [[nodiscard]] static QString playerStateKey(core::PlayerMatchState state);
     [[nodiscard]] static QString playerStateName(core::PlayerMatchState state);

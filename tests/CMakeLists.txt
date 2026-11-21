@@ -24,6 +24,7 @@ add_executable(fdss_tests
     core/FormationsTest.cpp
     core/LineupTest.cpp
     core/LineupValidatorTest.cpp
+    core/LiveShapeTest.cpp
     core/LoadDemoTest.cpp
     core/LoadTest.cpp
     core/MatchMinutesTest.cpp
@@ -40,6 +41,7 @@ add_executable(fdss_tests
     data/MatchLiveRepositoryTest.cpp
     data/MatchNoteRepositoryTest.cpp
     data/MatchRepositoryTest.cpp
+    data/MatchTacticRepositoryTest.cpp
     data/MigrationsTest.cpp
     data/OpponentRepositoryTest.cpp
     data/PlayerRepositoryTest.cpp

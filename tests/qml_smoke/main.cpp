@@ -4078,6 +4078,10 @@ void expectMatchDayHitTargets(const MatchDayScreen& screen, const char* when) {
         const QString name = item->objectName();
         const bool target = name == QLatin1StringView("pitchTile") ||
                             name == QLatin1StringView("benchTile") ||
+                            name == QLatin1StringView("liveBenchTile") ||
+                            name == QLatin1StringView("liveFormationField") ||
+                            name == QLatin1StringView("livePositionField") ||
+                            name.startsWith(QLatin1StringView("token_")) ||
                             name.endsWith(QLatin1StringView("Button"));
         if (target) {
             ++checked;
@@ -4255,6 +4259,139 @@ int smokeMinutes(fdss::data::DatabaseManager& database, qint64 matchId, qint64 p
 // substitution, a yellow and a second yellow, undo, the end; the minutes in the database match a
 // hand count (packet P13, Done when). Leaving the live match asks; a login opens the live match,
 // read-only for another role.
+// Live tactics (P13b), at 30:20 of the first half: the Tactics view in both themes at the minimum
+// window (tokens of Theme.hitTouch that do not overlap, the board and the timeline inside the
+// window), 4-4-2 → 4-2-3-1 confirmed at 30', on the timeline, then undone. Back to the tiles.
+void exerciseLiveTactics(QQmlApplicationEngine& engine, const MatchDayScreen& screen,
+                         const QString& screenshotDirectory) {
+    MatchDayViewModel* matchDay = screen.matchDay;
+    QQuickItem* modeSwitch = screen.find(QStringLiteral("boardModeSwitch"));
+    if (modeSwitch == nullptr) {
+        fail("match day: the Players / Tactics switch is not there");
+        return;
+    }
+    QMetaObject::invokeMethod(modeSwitch, "select", Q_ARG(QVariant, QVariant(1)));
+    settle();
+    renderFrame(screen.window);
+    auto* tactics = screen.find(QStringLiteral("tacticsArea"));
+    auto* tiles = screen.find(QStringLiteral("tilesArea"));
+    if (tactics == nullptr || !tactics->isVisible() || tiles == nullptr || tiles->isVisible()) {
+        fail("match day: Tactics does not show the board in place of the tiles");
+        return;
+    }
+    if (matchDay->shapeText() != QLatin1StringView("4-4-2")) {
+        fail("match day: the board does not show the 4-4-2 of the lineup");
+    }
+    expectMatchDayHitTargets(screen, "tactics");
+
+    auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                            QStringLiteral("AppSettings"));
+    const bool startDark = settings->darkTheme();
+    const QSize originalSize = screen.window->size();
+    screen.window->resize(1280, 720);
+    for (const bool dark : {true, false}) {
+        settings->setDarkTheme(dark);
+        settle();
+        renderFrame(screen.window);
+        std::vector<QPointF> centres;
+        for (int slot = 0; slot < 11; ++slot) {
+            QQuickItem* token = screen.find(QStringLiteral("token_%1").arg(slot));
+            if (token == nullptr || !token->isVisible() || token->height() < 44 ||
+                token->width() < 44) {
+                fail("match day: a token of the live board is missing or smaller than 44 px");
+                break;
+            }
+            centres.push_back(token->mapToScene(QPointF(token->width() / 2, 22)));
+        }
+        for (std::size_t a = 0; a < centres.size(); ++a) {
+            for (std::size_t b = a + 1; b < centres.size(); ++b) {
+                if (QLineF(centres[a], centres[b]).length() < 44) {
+                    fail("match day: two tokens of the live board overlap at the minimum window");
+                }
+            }
+        }
+        auto* pitch = screen.find(QStringLiteral("livePitch"));
+        auto* bench = screen.find(QStringLiteral("liveBench"));
+        auto* timeline = screen.find(QStringLiteral("timeline"));
+        if (pitch == nullptr || bench == nullptr || timeline == nullptr || pitch->height() < 250 ||
+            bench->mapToScene(QPointF(bench->width(), 0)).x() >
+                timeline->mapToScene(QPointF(0, 0)).x() ||
+            timeline->mapToScene(QPointF(timeline->width(), 0)).x() > screen.window->width()) {
+            fail("match day: the live board does not fit the minimum window");
+        }
+        expectMatchDayHitTargets(screen,
+                                 dark ? "tactics, dark, 1280 x 720" : "tactics, 1280 x 720");
+        grabOrSave(screen.window, screenshotDirectory,
+                   QStringLiteral("match-day-tactics-%1.png")
+                       .arg(dark ? QStringLiteral("dark") : QStringLiteral("light")));
+    }
+    settings->setDarkTheme(startDark);
+    screen.window->resize(originalSize);
+    settle();
+
+    // 4-2-3-1 from the formation field: a draft until Confirm, at 30' typed in the minute field.
+    auto* formation = screen.find(QStringLiteral("liveFormationField"));
+    if (formation == nullptr || !formation->isEnabled()) {
+        fail("match day: the formation field of the live board is missing or disabled");
+        return;
+    }
+    auto* livePitch = screen.find(QStringLiteral("livePitch"));
+    const qreal pitchHeight = livePitch != nullptr ? livePitch->height() : 0;
+    QMetaObject::invokeMethod(formation, "valueActivated",
+                              Q_ARG(QVariant, QVariant(QStringLiteral("4-2-3-1"))));
+    settle();
+    renderFrame(screen.window);
+    if (livePitch == nullptr || livePitch->height() != pitchHeight) {
+        fail("match day: the board changes its size while a change of shape waits");
+    }
+    // Next to the board, which keeps its size: the bar above the tiles stays hidden.
+    expectFlag(screen.find(QStringLiteral("pendingBar")), "visible", false,
+               "match day: the pending bar takes height from the board");
+    auto* confirm = screen.find(QStringLiteral("liveSaveActionButton"));
+    if (matchDay->pendingAction() != QLatin1StringView("tactic") || confirm == nullptr ||
+        !confirm->isVisible() ||
+        confirm->property("text").toString() != QStringLiteral("Confirm")) {
+        fail("match day: a change of shape does not wait for Confirm");
+        return;
+    }
+    if (auto* minute = screen.find(QStringLiteral("liveMinuteField"))) {
+        minute->forceActiveFocus();
+        QMetaObject::invokeMethod(minute, "selectAll");
+        typeText(screen.window, QStringLiteral("30"));
+    } else {
+        fail("match day: the minute field of the change of shape is not there");
+    }
+    screen.click(QStringLiteral("liveSaveActionButton"));
+    settle();
+    // The latest in the match first: the opponent goal at 31', then the change at 30'.
+    const auto tacticRow = [&]() -> int {
+        for (int row = 0; row < matchDay->timeline()->rowCount(); ++row) {
+            if (matchDay->timeline()->value(row, "kind") == QStringLiteral("tactic")) {
+                return row;
+            }
+        }
+        return -1;
+    };
+    const int row = tacticRow();
+    if (matchDay->pendingAction() != QLatin1StringView("") || row < 0 ||
+        matchDay->timeline()->value(row, "minuteText") != QStringLiteral("30'") ||
+        matchDay->timeline()->value(row, "playerText") != QStringLiteral("4-4-2 → 4-2-3-1") ||
+        matchDay->shapeText() != QLatin1StringView("4-2-3-1")) {
+        fail("match day: the change of shape at 30' is not on the timeline");
+    }
+    screen.click(QStringLiteral("undoButton"));
+    settle();
+    if (tacticRow() >= 0 || matchDay->shapeText() != QLatin1StringView("4-4-2")) {
+        fail("match day: undo does not take back the change of shape");
+    }
+    QMetaObject::invokeMethod(modeSwitch, "select", Q_ARG(QVariant, QVariant(0)));
+    settle();
+    renderFrame(screen.window);
+    if (tiles == nullptr || !tiles->isVisible()) {
+        fail("match day: Players does not bring the tiles back");
+    }
+}
+
 void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database,
                       const QString& screenshotDirectory) {
     using namespace std::chrono_literals;
@@ -4414,6 +4551,7 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
             fail("match day: the undo tooltip does not show the opponent as plain text");
         }
     }
+    exerciseLiveTactics(engine, *screen, screenshotDirectory);
     g_clock->advance(16min); // 46:20: stoppage time
     renderFrame(screen->window);
     if (!matchDay->clockText().startsWith(QLatin1StringView("45+1:"))) {
