@@ -72,3 +72,29 @@ Posortuj od najpoważniejszych.
 - Co 1–2 h: review planu / diffu, akceptacja, test ręczny.
 - Merge tylko z zielonym CI.
 - Wieczorem: tag, krótka notatka w `docs/devlog.md` (co powstało, co nie działa) — materiał do pracy.
+
+## Models and roles (from W2 on)
+
+Goal: spend the Claude Code limit only where thinking pays off.
+
+| Step | Who | Model |
+| --- | --- | --- |
+| Plan of a packet | Claude Code | Opus |
+| Implementation of an accepted plan | Claude Code | Opus |
+| Review of the packet | Codex | – |
+| Fix round after the review | Codex (fixes its own findings) | – |
+| Short check of the fix round (diff only) | Claude Code | Opus |
+| Fix round after CI or the manual test | Claude Code | Opus |
+
+Session hygiene
+- One Claude Code session per packet (plan → implementation → fixes). `/clear` before the next packet.
+- Before a push you may run `ctest --preset dev-local-ci` yourself; the agent then runs plain ctest.
+
+Prompt for Codex fix rounds:
+"Fix your own review findings for <packet> (list below). Change only what the findings name, add the
+test each one asks for, run §3, commit '<fix(Pxx): review findings>', report in ≤ 15 lines. Do not
+push."
+
+Prompt for the Claude check after a Codex fix round:
+"Check commit <hash> (Codex fixed the review of <packet>). Diff only: does each fix address its
+finding without breaking AGENTS.md or the Decisions? Findings only, ≤ 10 lines. Do not change code."
