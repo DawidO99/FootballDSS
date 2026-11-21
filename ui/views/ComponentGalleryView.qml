@@ -1657,7 +1657,8 @@ Item {
                     objectName: "galleryMatchReport"
                     Layout.fillWidth: true
                     Layout.columnSpan: 2
-                    // MatchCorrectionDialog needs MatchReportViewModel, so the services: it is not here.
+                    // MatchCorrectionDialog needs the services (MatchReportViewModel), which the gallery
+                    // does not have in qml_components: an exception of P14 decision 15.
                     title: qsTr("Match report: MatchRatingsGrid, MatchTimeline with corrections")
 
                     ListModel {

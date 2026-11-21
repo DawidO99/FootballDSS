@@ -74,7 +74,7 @@ Screenshot of the report; the correction flow shows robustness against user erro
    after the match" for a planned match before today); `ui/views/ComponentGalleryView.qml`;
    `docs/SPEC.md` §6; `docs/BACKLOG.md`.
 2. **Matches without Match Day** (demo data P10, import P18: no `match_live` or no saved lineup): the
-   sheet is rebuilt from `appearance` (starters: `started` or `minute_on` 0, with their position; bench:
+   sheet is rebuilt from `appearance` (starters: `minute_on` 0, with their position; bench:
    the players who came on, then the rest of the active squad, so a forgotten substitution of a player
    who did not play can be added), the final minute is the largest `minute_off`, or 2 × 45 without one.
    When the stored events replay on that sheet and give the stored minutes and score, corrections work as for a match of Match Day. Only with
@@ -108,3 +108,20 @@ Screenshot of the report; the correction flow shows robustness against user erro
     "today"), `src/viewmodels/MatchDayModels.*` (role `changeId` of the timeline, 0 in Match Day),
     `tests/qml_components/tst_matchratingsgrid.qml`. Whether deleting an event changes the score is read
     by the viewmodel from the event type (goal, opponent goal), not by a service call.
+15. **Review (Codex)**:
+    - *Undo of a deleted substitution*: the delete keeps the rating and RPE of the appearances it takes
+      (`DeletedEvents`); Undo writes them back with the events in one transaction. Unsaved ratings of a
+      player a correction takes away stay in the viewmodel and come back with him; dirty counts them.
+    - *Correction dialog*: the players offered are computed at every opening, at every change of a
+      field and whenever the report is read again (`MatchCorrectionDialog.refresh()`), not by bindings.
+    - *Undo and another report*: the undo state carries its match; Undo restores there, and the report
+      shown reads again only when it is that match.
+    - *Try again*: the viewmodel keeps the match asked for when reading it fails; "Try again" reads it
+      again and the unsaved ratings stay.
+    - *Starter* = `minute_on` 0, in the rebuilt sheet and in the check of the stored minutes (`started`
+      is not compared).
+    - *No guessed format*: a match without Match Day takes a minute 0 to its final minute, without added
+      time (`MatchReport::format` is empty).
+    - *Gallery exception*: `MatchCorrectionDialog` needs `MatchReportViewModel` and so the services;
+      the gallery also runs in `qml_components` without them, so the dialog is not in the gallery. It is
+      covered by `qml_smoke` on the real report.

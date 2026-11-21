@@ -49,21 +49,9 @@ template <class T, class U> std::vector<T> draftsOf(const std::vector<U>& rows) 
     return {rows.begin(), rows.end()};
 }
 
-// The format of a match that Match Day did not run, from its final minute.
-core::MatchFormat guessedFormat(int finalMinute) {
-    if (finalMinute % 2 == 0) {
-        const core::MatchFormat halves{2, finalMinute / 2};
-        if (core::isValidMatchFormat(halves)) {
-            return halves;
-        }
-    }
-    const core::MatchFormat single{1, finalMinute};
-    return core::isValidMatchFormat(single) ? single : core::MatchFormat{};
-}
-
-// The sheet of a match that Match Day did not run (P14 decision 2): the starters (`started`, or
-// on from minute 0) with their position, the players who came on in that order, then the rest of
-// the squad, who may come on in a correction.
+// The sheet of a match that Match Day did not run (P14 decision 2): the starters (on from minute 0;
+// the `started` flag is not needed, P14 review) with their position, the players who came on in
+// that order, then the rest of the squad, who may come on in a correction.
 core::MatchSheet rebuiltSheet(const std::vector<core::Appearance>& appearances,
                               const std::vector<core::Player>& squad) {
     core::MatchSheet sheet;
@@ -73,7 +61,7 @@ core::MatchSheet rebuiltSheet(const std::vector<core::Appearance>& appearances,
         const auto player = std::ranges::find(squad, appearance.playerId, &core::Player::id);
         const core::Position fallback =
             player != squad.end() ? player->primaryPosition : core::Position::Cm;
-        if (appearance.started || appearance.minuteOn == 0) {
+        if (appearance.minuteOn == 0) {
             sheet.starters.push_back({appearance.playerId, appearance.position.value_or(fallback)});
         } else {
             cameOn.push_back(&appearance);
@@ -94,7 +82,8 @@ core::MatchSheet rebuiltSheet(const std::vector<core::Appearance>& appearances,
     return sheet;
 }
 
-// The minutes and the score the events give are those stored.
+// The minutes and the score the events give are those stored. The `started` flag is not compared:
+// a starter is the one on from minute 0 (P14 review).
 bool sameAsStored(const core::MatchMinutes& minutes, const std::vector<core::Appearance>& stored,
                   const core::Match& match) {
     if (minutes.appearances.size() != stored.size() ||
@@ -105,8 +94,8 @@ bool sameAsStored(const core::MatchMinutes& minutes, const std::vector<core::App
     return std::ranges::all_of(minutes.appearances, [&](const core::AppearanceDraft& computed) {
         const auto old =
             std::ranges::find(stored, computed.playerId, &core::AppearanceDraft::playerId);
-        return old != stored.end() && old->started == computed.started &&
-               old->minuteOn == computed.minuteOn && old->minuteOff == computed.minuteOff;
+        return old != stored.end() && old->minuteOn == computed.minuteOn &&
+               old->minuteOff == computed.minuteOff;
     });
 }
 
@@ -200,7 +189,7 @@ core::Result<MatchReportService::Basis> MatchReportService::readBasis(core::Matc
     if (*live && *lineup) {
         report.fromMatchDay = true;
         report.format = (*live)->format;
-        report.finalMinute = (*live)->endedEarlyAt.value_or(report.format.totalMinutes());
+        report.finalMinute = (*live)->endedEarlyAt.value_or(report.format->totalMinutes());
         report.sheet = core::matchSheetOf(**lineup);
         basis.lineup = **lineup;
         minutes = core::computeMatchMinutes(**lineup, events, changeDrafts, report.finalMinute);
@@ -213,7 +202,6 @@ core::Result<MatchReportService::Basis> MatchReportService::readBasis(core::Matc
             last = std::max(last, appearance.minuteOff.value_or(0));
         }
         report.finalMinute = last > 0 ? last : kDefaultFinalMinute;
-        report.format = guessedFormat(report.finalMinute);
         report.sheet = rebuiltSheet(*appearances, *squad);
         minutes = core::computeMatchMinutes(report.sheet, events, report.finalMinute);
     }
@@ -401,8 +389,10 @@ core::Status MatchReportService::save(core::MatchId match, std::span<const Ratin
 }
 
 core::Status MatchReportService::checkTime(const Basis& basis, core::MatchTime time) const {
-    if (!core::isValidMatchTime(basis.report.format, time) ||
-        time.minute > basis.report.finalMinute) {
+    // Without Match Day there is no format: a minute 0 to the final minute of the data.
+    const bool valid = basis.report.format ? core::isValidMatchTime(*basis.report.format, time)
+                                           : !time.addedTime && time.minute >= 0;
+    if (!valid || time.minute > basis.report.finalMinute) {
         return std::unexpected(
             invalid(kMinuteOutOfMatch, "match report: minute outside the match"));
     }
@@ -580,8 +570,8 @@ MatchReportService::checkDeleteEvent(core::MatchId match, core::MatchEventId eve
     return dependent;
 }
 
-core::Result<std::vector<core::MatchEvent>>
-MatchReportService::deleteEvent(core::MatchId match, core::MatchEventId event) {
+core::Result<DeletedEvents> MatchReportService::deleteEvent(core::MatchId match,
+                                                            core::MatchEventId event) {
     auto transaction = data::Transaction::begin(m_db);
     if (!transaction) {
         return std::unexpected(transaction.error());
@@ -608,14 +598,27 @@ MatchReportService::deleteEvent(core::MatchId match, core::MatchEventId event) {
     if (auto recomputed = recompute(*basis); !recomputed) {
         return std::unexpected(recomputed.error());
     }
+    const auto after = m_matches.listAppearances(match);
+    if (!after) {
+        return std::unexpected(after.error());
+    }
+    DeletedEvents deleted{std::move(*rows), {}};
+    // The appearances the delete took (a substitute) keep their rating and RPE for undo.
+    for (const core::Appearance& before : basis->report.appearances) {
+        if ((before.rating || before.rpe) &&
+            !containsValue(*after, before.playerId, &core::AppearanceDraft::playerId)) {
+            deleted.ratings.push_back({before.playerId, before.rating, before.rpe});
+        }
+    }
     if (auto committed = transaction->commit(); !committed) {
         return std::unexpected(committed.error());
     }
-    return std::move(*rows);
+    return deleted;
 }
 
 core::Status MatchReportService::restoreEvents(core::MatchId match,
-                                               std::span<const core::MatchEvent> events) {
+                                               std::span<const core::MatchEvent> events,
+                                               std::span<const RatingEntry> ratings) {
     auto transaction = data::Transaction::begin(m_db);
     if (!transaction) {
         return std::unexpected(transaction.error());
@@ -646,6 +649,20 @@ core::Status MatchReportService::restoreEvents(core::MatchId match,
     }
     if (auto recomputed = recompute(*basis); !recomputed) {
         return recomputed;
+    }
+    // The ratings of the appearances that came back with the events.
+    const auto after = m_matches.listAppearances(match);
+    if (!after) {
+        return std::unexpected(after.error());
+    }
+    std::vector<data::AppearanceRating> back;
+    for (const RatingEntry& entry : ratings) {
+        if (containsValue(*after, entry.player, &core::AppearanceDraft::playerId)) {
+            back.push_back({entry.player, entry.rating, entry.rpe});
+        }
+    }
+    if (auto rated = m_matches.setRatings(match, back); !rated) {
+        return rated;
     }
     return transaction->commit();
 }

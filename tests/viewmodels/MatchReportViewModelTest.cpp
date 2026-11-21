@@ -5,12 +5,15 @@
 #include "core/domain/Match.hpp"
 #include "core/domain/Opponent.hpp"
 #include "core/domain/Player.hpp"
+#include "data/db/DatabaseManager.hpp"
+#include "data/repositories/MatchRepository.hpp"
 #include "services/CalendarService.hpp"
 #include "services/LineupService.hpp"
 #include "services/MatchDayService.hpp"
 #include "services/SquadService.hpp"
 #include "viewmodels/PlayerMatchesModel.hpp"
 
+#include <QSqlQuery>
 #include <QStringList>
 
 #include <gtest/gtest.h>
@@ -129,6 +132,42 @@ protected:
         }
         ADD_FAILURE() << "no appearance of player " << i;
         return {};
+    }
+
+    // A finished match two days ago that Match Day did not run (an import): players 1–11 from 0
+    // to `finalMinute`, 0:0.
+    MatchId addOutsideMatch(int finalMinute) {
+        MatchDraft draft;
+        draft.opponentId = registry().calendar().listOpponents()->front().id;
+        draft.date = Date{std::chrono::year{2026}, std::chrono::October, std::chrono::day{30}};
+        const auto id = registry().calendar().addMatch(m_team, draft);
+        EXPECT_TRUE(id.has_value());
+        fdss::data::MatchRepository matches(*m_db);
+        std::vector<AppearanceDraft> rows;
+        for (int i = 0; i < 11; ++i) {
+            AppearanceDraft row;
+            row.playerId = m_players[static_cast<std::size_t>(i)];
+            row.minuteOn = 0;
+            row.minuteOff = finalMinute;
+            rows.push_back(row);
+        }
+        EXPECT_TRUE(matches.replaceAppearances(*id, rows).has_value());
+        EXPECT_TRUE(matches.setResult(*id, 0, 0, MatchStatus::Finished).has_value());
+        return id.value_or(MatchId{});
+    }
+
+    void runSql(const char* statement) const {
+        QSqlQuery query(m_db->database());
+        ASSERT_TRUE(query.exec(QString::fromUtf8(statement)));
+    }
+
+    [[nodiscard]] qint64 timelineEvent(const MatchReportViewModel& vm, const char* typeKey) const {
+        for (int row = 0; row < vm.timeline()->rowCount(); ++row) {
+            if (vm.timeline()->value(row, "typeKey").toString() == QLatin1StringView(typeKey)) {
+                return vm.timeline()->value(row, "eventId").toLongLong();
+            }
+        }
+        return 0;
     }
 
     TeamId m_team;
@@ -384,4 +423,98 @@ TEST_F(MatchReportViewModelTest, PlayerMatchesShowTheRatingNewestFirst) {
     matches.setPlayerId(player(15));
     EXPECT_EQ(matches.count(), 0);
     EXPECT_EQ(stored(10).rating, 8);
+}
+
+// --- P14 review ---
+
+TEST_F(MatchReportViewModelTest, AnUnsavedRatingOfASubstituteSurvivesDeleteAndUndo) {
+    const auto vm = open();
+    ASSERT_TRUE(vm->addEvent(QStringLiteral("sub"), QStringLiteral("61"), player(12), player(10)));
+    vm->enterDigitAt(rowOf(*vm->ratings(), player(12)), kRating, 9, 0);
+    vm->enterDigitAt(rowOf(*vm->ratings(), player(12)), kRpe, 4, kApart);
+    ASSERT_TRUE(vm->dirty());
+    ASSERT_TRUE(vm->deleteEvent(timelineEvent(*vm, "sub")));
+    EXPECT_EQ(rowOf(*vm->ratings(), player(12)), -1);
+    EXPECT_TRUE(vm->dirty()); // the typed rating is still there, only not shown
+    vm->undoDelete();
+    const int row = rowOf(*vm->ratings(), player(12));
+    ASSERT_GE(row, 0);
+    EXPECT_EQ(vm->ratings()->value(row, "rating").toInt(), 9);
+    EXPECT_EQ(vm->ratings()->value(row, "rpe").toInt(), 4);
+    EXPECT_TRUE(vm->dirty());
+    ASSERT_TRUE(vm->save());
+    EXPECT_EQ(stored(12).rating, 9);
+    EXPECT_FALSE(vm->dirty());
+}
+
+TEST_F(MatchReportViewModelTest, ASavedRatingOfASubstituteComesBackWithUndo) {
+    const auto vm = open();
+    ASSERT_TRUE(vm->addEvent(QStringLiteral("sub"), QStringLiteral("61"), player(12), player(10)));
+    vm->enterDigitAt(rowOf(*vm->ratings(), player(12)), kRating, 6, 0);
+    ASSERT_TRUE(vm->save());
+    ASSERT_TRUE(vm->deleteEvent(timelineEvent(*vm, "sub")));
+    EXPECT_FALSE(vm->dirty());
+    vm->undoDelete();
+    const int row = rowOf(*vm->ratings(), player(12));
+    ASSERT_GE(row, 0);
+    EXPECT_EQ(vm->ratings()->value(row, "rating").toInt(), 6);
+    EXPECT_FALSE(vm->dirty());
+    EXPECT_EQ(stored(12).rating, 6);
+}
+
+TEST_F(MatchReportViewModelTest, UndoStillBelongsToItsMatchAfterAnotherReportOpened) {
+    const MatchId other = addOutsideMatch(90);
+    const auto vm = open();
+    const qint64 goal = timelineEvent(*vm, "goal");
+    ASSERT_TRUE(vm->deleteEvent(goal));
+    vm->openMatch(other.value);
+    ASSERT_EQ(vm->matchId(), other.value);
+    Messages errors(vm.get(), &MatchReportViewModel::errorOccurred);
+    vm->undoDelete();
+    EXPECT_TRUE(errors.texts().isEmpty());
+    EXPECT_EQ(vm->matchId(), other.value); // the report shown stays
+    const auto report = registry().matchReport().report(m_match);
+    ASSERT_TRUE(report.has_value());
+    EXPECT_EQ(report->match.match.goalsFor, 1);
+    EXPECT_EQ(report->events.size(), 2U);
+}
+
+TEST_F(MatchReportViewModelTest, TryAgainReadsTheSameMatchAndKeepsTheUnsavedRatings) {
+    const auto vm = open();
+    vm->enterDigitAt(0, kRating, 8, 0);
+    runSql("ALTER TABLE match_note RENAME TO match_note_away");
+    vm->reload();
+    EXPECT_FALSE(vm->loadError().isEmpty());
+    EXPECT_EQ(vm->matchId(), m_match.value);
+    runSql("ALTER TABLE match_note_away RENAME TO match_note");
+    vm->reload();
+    EXPECT_TRUE(vm->loadError().isEmpty());
+    ASSERT_TRUE(vm->hasReport());
+    EXPECT_EQ(vm->ratings()->value(0, "rating").toInt(), 8);
+    EXPECT_TRUE(vm->dirty());
+
+    // A match that cannot be read at all is read again by its id, too.
+    runSql("ALTER TABLE match_note RENAME TO match_note_away");
+    auto fresh = std::make_unique<MatchReportViewModel>();
+    fresh->openMatch(m_match.value);
+    EXPECT_FALSE(fresh->hasReport());
+    EXPECT_EQ(fresh->matchId(), m_match.value);
+    runSql("ALTER TABLE match_note_away RENAME TO match_note");
+    fresh->reload();
+    EXPECT_TRUE(fresh->hasReport());
+}
+
+TEST_F(MatchReportViewModelTest, AMatchWithoutMatchDayTakesTheMinutesOfItsData) {
+    const MatchId outside = addOutsideMatch(115);
+    auto vm = std::make_unique<MatchReportViewModel>();
+    vm->openMatch(outside.value);
+    ASSERT_TRUE(vm->hasReport());
+    EXPECT_TRUE(vm->correctable());
+    EXPECT_TRUE(vm->formatText().isEmpty());
+    EXPECT_TRUE(vm->minuteError(QStringLiteral("101")).isEmpty());
+    EXPECT_TRUE(vm->minuteError(QStringLiteral("115")).isEmpty());
+    EXPECT_FALSE(vm->minuteError(QStringLiteral("117")).isEmpty());
+    EXPECT_FALSE(vm->minuteError(QStringLiteral("45+2")).isEmpty());
+    ASSERT_TRUE(vm->addEvent(QStringLiteral("goal"), QStringLiteral("101"), player(10), 0));
+    EXPECT_EQ(vm->goalsFor(), 1);
 }

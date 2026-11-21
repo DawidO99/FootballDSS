@@ -10,7 +10,9 @@ import FootballDSS
 // API:
 //   viewModel: MatchReportViewModel
 //   openForAdding()
-//   The dialog closes itself when the event was saved.
+//   firstOptions, secondOptions: var   read-only: the players offered now
+//   The dialog closes itself when the event was saved. The lists are computed again at every
+//   opening and whenever the report is read again (a correction, a reload).
 AppDialog {
     id: root
 
@@ -22,11 +24,37 @@ AppDialog {
     readonly property alias minuteInput: minuteField
     readonly property bool needsFirst: root.eventType !== "opponentGoal"
     readonly property bool hasSecond: root.eventType === "goal" || root.eventType === "sub"
-    readonly property string minuteError: root.viewModel ? root.viewModel.minuteError(minuteField.text) : ""
-    readonly property var firstOptions: root.viewModel && root.minuteError.length === 0 ? root.viewModel.playerOptions(root.eventType, minuteField.text, "first") : []
-    readonly property var secondOptions: root.viewModel && root.minuteError.length === 0 && root.hasSecond ? root.viewModel.playerOptions(root.eventType, minuteField.text, "second") : []
+    // Not bindings on the viewmodel calls: those would not see a correction or a reload of the
+    // report (P14 review). refresh() computes them at every opening, at every change of a field
+    // and whenever the report is read again.
+    property string minuteError
+    property var firstOptions: []
+    property var secondOptions: []
+    property string eventError
     readonly property bool complete: root.minuteError.length === 0 && (!root.needsFirst || root.firstPlayer > 0) && (root.eventType !== "sub" || root.secondPlayer > 0)
-    readonly property string eventError: root.viewModel && root.complete ? root.viewModel.eventError(root.eventType, minuteField.text, root.firstPlayer, root.secondPlayer) : ""
+
+    function refresh() {
+        if (!root.viewModel) {
+            root.minuteError = "";
+            root.firstOptions = [];
+            root.secondOptions = [];
+            root.eventError = "";
+            return;
+        }
+        root.minuteError = root.viewModel.minuteError(minuteField.text);
+        const readable = root.minuteError.length === 0;
+        root.firstOptions = readable && root.needsFirst ? root.viewModel.playerOptions(root.eventType, minuteField.text, "first") : [];
+        root.secondOptions = readable && root.hasSecond ? root.viewModel.playerOptions(root.eventType, minuteField.text, "second") : [];
+        // A player who is no longer there to choose is no choice.
+        const contains = (options, playerId) => options.some(option => option.value === playerId);
+        if (root.firstPlayer > 0 && !contains(root.firstOptions, root.firstPlayer))
+            root.firstPlayer = 0;
+        if (root.secondPlayer > 0 && !contains(root.secondOptions, root.secondPlayer))
+            root.secondPlayer = 0;
+        firstField.showValue();
+        secondField.showValue();
+        root.eventError = root.complete ? root.viewModel.eventError(root.eventType, minuteField.text, root.firstPlayer, root.secondPlayer) : "";
+    }
 
     function openForAdding() {
         root.eventType = "goal";
@@ -34,8 +62,7 @@ AppDialog {
         root.secondPlayer = 0;
         minuteField.text = root.viewModel ? root.viewModel.lastMinute : "";
         typeField.showValue();
-        firstField.showValue();
-        secondField.showValue();
+        root.refresh();
         root.open();
         typeField.forceActiveFocus(Qt.TabFocusReason);
     }
@@ -49,6 +76,17 @@ AppDialog {
             return;
         if (root.viewModel.addEvent(root.eventType, minuteField.text, root.firstPlayer, root.secondPlayer))
             root.close();
+    }
+    onEventTypeChanged: root.refresh()
+    onFirstPlayerChanged: root.refresh()
+    onSecondPlayerChanged: root.refresh()
+
+    Connections {
+        target: root.viewModel
+
+        function onMatchChanged() {
+            root.refresh();
+        }
     }
 
     RowLayout {
@@ -95,6 +133,7 @@ AppDialog {
                 maximumLength: 7
                 error: root.minuteError
                 Accessible.name: minuteFormField.label
+                onTextChanged: root.refresh()
             }
         }
     }

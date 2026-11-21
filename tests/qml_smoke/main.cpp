@@ -5197,6 +5197,55 @@ void exerciseMatchReport(QQmlApplicationEngine& engine, fdss::data::DatabaseMana
     if (!kept.exec() || !kept.next() || kept.value(0).toInt() != 7) {
         fail("match report: a correction lost a rating");
     }
+
+    // The dialog offers the players of the match as it is now (P14 review): open, cancel, delete
+    // the substitution, open again.
+    auto* dialog = view->property("correctionEditor").value<QObject*>();
+    if (dialog == nullptr) {
+        fail("match report: the correction dialog is not there");
+        return;
+    }
+    const auto offers = [&](qint64 player) {
+        for (const QVariant& option : dialog->property("firstOptions").toList()) {
+            if (option.toMap().value(QStringLiteral("value")).toLongLong() == player) {
+                return true;
+            }
+        }
+        return false;
+    };
+    QMetaObject::invokeMethod(dialog, "openForAdding");
+    settle();
+    expectFlag(dialog, "visible", true, "match report: Add event does not open the dialog");
+    if (!offers(comingOn) || offers(goingOff)) {
+        fail("match report: the dialog does not offer the players on the pitch at the end");
+    }
+    QMetaObject::invokeMethod(dialog, "reject");
+    settle();
+    qint64 substitution = 0;
+    for (const auto& event :
+         ServiceRegistry::instance().matchReport().report(fdss::core::MatchId{matchId})->events) {
+        if (event.type == fdss::core::MatchEventType::Sub &&
+            event.playerId == fdss::core::PlayerId{comingOn}) {
+            substitution = event.id.value;
+        }
+    }
+    if (substitution == 0 || !report->deleteEvent(substitution)) {
+        fail("match report: the forgotten substitution cannot be deleted");
+        return;
+    }
+    QMetaObject::invokeMethod(dialog, "openForAdding");
+    settle();
+    if (offers(comingOn) || !offers(goingOff)) {
+        fail("match report: the dialog offers the players from before the correction");
+    }
+    // Open, the lists follow a correction made meanwhile (Undo of the delete).
+    report->undoDelete();
+    settle();
+    if (!offers(comingOn) || offers(goingOff)) {
+        fail("match report: the open dialog does not follow a correction");
+    }
+    QMetaObject::invokeMethod(dialog, "reject");
+    settle();
 }
 
 // Another role logs in during a live match: Match Day opens on it, read-only, and leaving does not

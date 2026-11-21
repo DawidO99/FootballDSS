@@ -68,9 +68,7 @@ MatchReportViewModel::MatchReportViewModel(QObject* parent)
     m_digitTimer.start();
 }
 
-qint64 MatchReportViewModel::matchId() const {
-    return m_report ? m_report->match.match.id.value : 0;
-}
+qint64 MatchReportViewModel::matchId() const { return m_matchId; }
 
 bool MatchReportViewModel::hasReport() const { return m_report.has_value(); }
 
@@ -96,8 +94,7 @@ QString MatchReportViewModel::venueText() const {
 }
 
 QString MatchReportViewModel::formatText() const {
-    return m_report && m_report->fromMatchDay ? MatchDayTexts::formatText(m_report->format)
-                                              : QString{};
+    return m_report && m_report->format ? MatchDayTexts::formatText(*m_report->format) : QString{};
 }
 
 int MatchReportViewModel::goalsFor() const {
@@ -222,6 +219,11 @@ void MatchReportViewModel::reload() { load(matchId(), true); }
 void MatchReportViewModel::load(qint64 id, bool keepChanges) {
     m_lastOne.reset();
     m_remembered.reset();
+    const bool sameMatch = keepChanges && id > 0 && id == m_matchId;
+    m_matchId = std::max<qint64>(id, 0);
+    if (!sameMatch) {
+        m_hidden.clear();
+    }
     if (id <= 0) {
         m_report.reset();
         m_rows.clear();
@@ -234,30 +236,45 @@ void MatchReportViewModel::load(qint64 id, bool keepChanges) {
     auto read = m_service.report(core::MatchId{id});
     if (!read) {
         qCritical("MatchReportViewModel: %s", read.error().detail.c_str());
-        m_report.reset();
-        m_rows.clear();
+        // The same match keeps what the user typed, for "Try again".
+        if (!sameMatch) {
+            m_report.reset();
+            m_rows.clear();
+            m_note.clear();
+            m_savedNote.clear();
+        }
         m_loadFailure = read.error();
         rebuild();
         return;
     }
-    const bool sameMatch = keepChanges && m_report && m_report->match.match.id.value == id;
+    // The user's changes stay, also of a player who comes back; the saved values are those read.
+    std::vector<Row> previous = sameMatch ? m_rows : std::vector<Row>{};
+    if (sameMatch) {
+        previous.insert(previous.end(), m_hidden.begin(), m_hidden.end());
+    }
+    const auto changed = [](const Row& row) {
+        return row.rating != row.savedRating || row.rpe != row.savedRpe;
+    };
     std::vector<Row> rows;
     for (const core::Appearance& appearance : read->appearances) {
         Row row{appearance.playerId, appearance.rating, appearance.rpe, appearance.rating,
                 appearance.rpe};
-        if (sameMatch) {
-            const auto old = std::ranges::find(m_rows, appearance.playerId, &Row::player);
-            if (old != m_rows.end()) {
-                // The user's changes stay; the saved values are those read now.
-                if (old->rating != old->savedRating) {
-                    row.rating = old->rating;
-                }
-                if (old->rpe != old->savedRpe) {
-                    row.rpe = old->rpe;
-                }
+        const auto old = std::ranges::find(previous, appearance.playerId, &Row::player);
+        if (old != previous.end()) {
+            if (old->rating != old->savedRating) {
+                row.rating = old->rating;
+            }
+            if (old->rpe != old->savedRpe) {
+                row.rpe = old->rpe;
             }
         }
         rows.push_back(row);
+    }
+    std::vector<Row> hidden;
+    for (const Row& row : previous) {
+        if (changed(row) && std::ranges::find(rows, row.player, &Row::player) == rows.end()) {
+            hidden.push_back(row);
+        }
     }
     const QString savedNote = QString::fromStdString(read->reportNote.value_or(""));
     if (!sameMatch || m_note == m_savedNote) {
@@ -265,6 +282,7 @@ void MatchReportViewModel::load(qint64 id, bool keepChanges) {
     }
     m_savedNote = savedNote;
     m_rows = std::move(rows);
+    m_hidden = std::move(hidden);
     m_report = std::move(*read);
     m_loadFailure.reset();
     rebuild();
@@ -351,7 +369,8 @@ void MatchReportViewModel::rebuildRatings() {
 }
 
 void MatchReportViewModel::updateDirty() {
-    const bool dirty = m_note != m_savedNote || std::ranges::any_of(m_rows, [](const Row& row) {
+    const bool dirty = m_note != m_savedNote || !m_hidden.empty() ||
+                       std::ranges::any_of(m_rows, [](const Row& row) {
                            return row.rating != row.savedRating || row.rpe != row.savedRpe;
                        });
     m_dirty = dirty;
@@ -476,7 +495,13 @@ std::optional<core::MatchTime> MatchReportViewModel::parseMinute(const QString& 
         error = tr("Enter the minute as 23, or 45+2 in stoppage time.");
         return std::nullopt;
     }
-    const auto time = core::matchTimeOf(*shown, m_report->format);
+    // Without Match Day there is no format: a minute up to the final one, without added time.
+    std::optional<core::MatchTime> time;
+    if (m_report->format) {
+        time = core::matchTimeOf(*shown, *m_report->format);
+    } else if (!shown->added && shown->minute >= 1) {
+        time = core::MatchTime{shown->minute - 1};
+    }
     if (!time || time->minute > m_report->finalMinute) {
         error = tr("This minute is outside the match.");
         return std::nullopt;
@@ -631,7 +656,7 @@ bool MatchReportViewModel::deleteEvent(qint64 eventId) {
         report(removed.error());
         return false;
     }
-    m_deleted = Deleted{std::move(*removed)};
+    m_deleted = Deleted{match, std::move(*removed)};
     afterChange();
     emit deleted(tr("Deleted: %1").arg(text));
     return true;
@@ -692,7 +717,7 @@ bool MatchReportViewModel::deleteNote(qint64 noteId) {
         return false;
     }
     const QString text = QString::fromStdString(removed->text);
-    m_deleted = Deleted{std::move(*removed)};
+    m_deleted = Deleted{m_report->match.match.id, std::move(*removed)};
     afterChange();
     emit deleted(tr("Note deleted: %1")
                      .arg(text.size() > kNotePreview ? text.left(kNotePreview) + u'…' : text));
@@ -722,32 +747,35 @@ bool MatchReportViewModel::deleteTacticChange(qint64 changeId) {
         report(removed.error());
         return false;
     }
-    m_deleted = Deleted{std::move(*removed)};
+    m_deleted = Deleted{m_report->match.match.id, std::move(*removed)};
     afterChange();
     emit deleted(tr("Change of shape deleted: %1").arg(text));
     return true;
 }
 
 void MatchReportViewModel::undoDelete() {
-    if (!m_deleted || !m_report) {
+    if (!m_deleted) {
         return;
     }
     const Deleted deleted = std::move(*m_deleted);
     m_deleted.reset();
     core::Status restored;
-    if (const auto* events = std::get_if<std::vector<core::MatchEvent>>(&deleted)) {
-        restored = m_service.restoreEvents(m_report->match.match.id, *events);
-    } else if (const auto* note = std::get_if<core::MatchNote>(&deleted)) {
+    if (const auto* events = std::get_if<services::DeletedEvents>(&deleted.rows)) {
+        restored = m_service.restoreEvents(deleted.match, events->events, events->ratings);
+    } else if (const auto* note = std::get_if<core::MatchNote>(&deleted.rows)) {
         if (auto id = m_service.restoreNote(*note); !id) {
             restored = std::unexpected(id.error());
         }
-    } else if (const auto* change = std::get_if<core::MatchTacticChange>(&deleted)) {
+    } else if (const auto* change = std::get_if<core::MatchTacticChange>(&deleted.rows)) {
         restored = m_service.restoreTacticChange(*change);
     }
     if (!restored) {
         report(restored.error());
     }
-    afterChange();
+    // The report shown reads again only when it is of that match.
+    if (deleted.match.value == m_matchId) {
+        afterChange();
+    }
 }
 
 void MatchReportViewModel::afterChange() { load(matchId(), true); }

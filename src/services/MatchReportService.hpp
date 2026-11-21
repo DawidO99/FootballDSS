@@ -50,9 +50,9 @@ struct ShapePeriod {
 struct MatchReport {
     CalendarMatch match;
     std::optional<std::string> reportNote;
-    // The format of Match Day; for a match without it, guessed from the final minute (2 × half of
-    // it, if that is a format; otherwise one part), so a minute such as "45+2" can be read.
-    core::MatchFormat format;
+    // The format of Match Day; nullopt for a match without it, whose events take a minute 0 to
+    // finalMinute without added time (no format is guessed, P14 review).
+    std::optional<core::MatchFormat> format;
     // Match Day ran the match (a `match_live` row and a saved lineup).
     bool fromMatchDay = false;
     int finalMinute = 0;
@@ -99,6 +99,15 @@ struct RatingEntry {
     core::PlayerId player;
     std::optional<int> rating;
     std::optional<int> rpe;
+
+    friend bool operator==(const RatingEntry&, const RatingEntry&) = default;
+};
+
+// What deleting an event took, for the undo toast: the rows, and the rating and RPE of the
+// appearances that went with them (a substitute whose substitution was deleted, P14 review).
+struct DeletedEvents {
+    std::vector<core::MatchEvent> events;
+    std::vector<RatingEntry> ratings;
 };
 
 // The match report (SPEC section 4 and 6, packet P14). Reading needs a logged-in user of any role;
@@ -115,7 +124,8 @@ struct RatingEntry {
 // - InvalidInput: a rating outside 1–10 [rating], an RPE outside 0–10 [rpe], or for a player who
 // did
 //   not play [player_unknown]; a report note over 2000 characters [report_note]; a note of 1–500
-//   characters [note_text]; a minute outside the format [minute_out_of_match]; an event that does
+//   characters [note_text]; a minute outside the format, or for a match without Match Day outside
+//   0 to the final minute or with added time [minute_out_of_match]; an event that does
 //   not fit the match [player_unknown, player_missing, same_player, player_not_on_pitch,
 //   player_not_on_bench, player_substituted, player_sent_off, after_final_minute…].
 // - NotFound: a missing match, event, note or change of shape.
@@ -151,11 +161,14 @@ public:
     // whose substitution goes, a second yellow whose first one goes); nullopt: none.
     [[nodiscard]] core::Result<std::optional<core::MatchEvent>>
     checkDeleteEvent(core::MatchId match, core::MatchEventId event) const;
-    // Deletes the event (a second yellow and its red together) and returns the rows for undo.
-    [[nodiscard]] core::Result<std::vector<core::MatchEvent>> deleteEvent(core::MatchId match,
-                                                                          core::MatchEventId event);
+    // Deletes the event (a second yellow and its red together) and returns what undo needs.
+    [[nodiscard]] core::Result<DeletedEvents> deleteEvent(core::MatchId match,
+                                                          core::MatchEventId event);
+    // Writes the events back with their id and seq and, in the same transaction, the ratings and
+    // RPE of the appearances that come back with them.
     [[nodiscard]] core::Status restoreEvents(core::MatchId match,
-                                             std::span<const core::MatchEvent> events);
+                                             std::span<const core::MatchEvent> events,
+                                             std::span<const RatingEntry> ratings = {});
 
     // Notes of the match with their minute; never change the minutes or the score.
     [[nodiscard]] core::Result<core::MatchNoteId> addNote(core::MatchId match, core::MatchTime time,

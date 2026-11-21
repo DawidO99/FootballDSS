@@ -282,14 +282,15 @@ Match report (P14):
   score (`core::computeMatchMinutes`). The final minute of the match never changes; an event after it
   is refused. Events and notes added in the report have `seq` empty (they are not actions of Match Day,
   whose undo still takes back the end of the match); a row restored from the undo toast keeps its id
-  and `seq`.
+  and `seq`, and a substitute whose substitution comes back gets his rating and RPE back with it.
 - Deleting an event that a later one needs (the substitution of a later scorer, the first yellow of a
   later second yellow) is refused, naming the later event; a second yellow and its red go together.
   Editing an event is delete + add.
 - A match that Match Day did not run (demo data, import) is corrected on a sheet rebuilt from
-  `appearance`: the starters (`started`, or on from minute 0) with their stored position, the players
-  who came on, then the rest of the squad (who may come on in a correction); the final minute is the
-  largest `minute_off` (90 without one). Corrections are possible only when the stored events replay on
+  `appearance`: the starters (on from minute 0; the `started` flag is not needed) with their stored
+  position, the players who came on, then the rest of the squad (who may come on in a correction); the
+  final minute is the largest `minute_off` (90 without one). No format is guessed: an event takes a
+  minute 0 to the final minute, without added time. Corrections are possible only when the stored events replay on
   that sheet and give the stored minutes and score; otherwise only ratings, RPE and notes.
 
 `.tactic.json`: `{ "version": 1, "formation": "4-3-3", "slots": [{ "position": "GK", "x": 0.5, "y": 0.95, "playerId": 12 }] }`

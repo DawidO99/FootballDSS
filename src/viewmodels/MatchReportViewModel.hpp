@@ -60,7 +60,8 @@ class MatchReportViewModel : public QObject {
     Q_PROPERTY(QString ratedText READ ratedText NOTIFY dirtyChanged FINAL)
     Q_PROPERTY(QString note READ note NOTIFY noteChanged FINAL)
     Q_PROPERTY(int noteMaxLength READ noteMaxLength CONSTANT FINAL)
-    // Ratings, RPE or the note changed since they were saved.
+    // Ratings, RPE or the note changed since they were saved (also of a player a correction took
+    // away for now).
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged FINAL)
     // [{ value, text }]: goal, opponentGoal, yellow, red, sub.
     Q_PROPERTY(QVariantList eventTypeOptions READ eventTypeOptions NOTIFY textsChanged FINAL)
@@ -187,8 +188,12 @@ private:
         int column = -1;
         qint64 elapsedMs = 0;
     };
-    using Deleted =
-        std::variant<std::vector<core::MatchEvent>, core::MatchNote, core::MatchTacticChange>;
+    // What the undo toast brings back, and the match it belongs to: another report may be open
+    // by the time Undo is pressed (P14 review).
+    struct Deleted {
+        core::MatchId match;
+        std::variant<services::DeletedEvents, core::MatchNote, core::MatchTacticChange> rows;
+    };
 
     void load(qint64 matchId, bool keepChanges);
     void rebuild();
@@ -218,8 +223,13 @@ private:
     MatchTimelineModel* m_timeline;
     MatchShapesModel* m_shapes;
 
+    // The match asked for; it stays when reading it fails, so "Try again" reads it again.
+    qint64 m_matchId = 0;
     std::optional<services::MatchReport> m_report;
     std::vector<Row> m_rows;
+    // Unsaved ratings of players who no longer played after a correction (their substitution was
+    // deleted): they come back with the player, e.g. from Undo. Cleared by a save or another match.
+    std::vector<Row> m_hidden;
     QString m_note;
     QString m_savedNote;
     bool m_dirty = false;

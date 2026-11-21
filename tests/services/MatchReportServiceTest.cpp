@@ -147,16 +147,17 @@ protected:
     }
 
     // Match 5 as the demo data writes it (no Match Day): 11 starters, 12 on for 9 at 60', a goal
-    // of 12 at 70'; 1:0.
-    void fillOutsideMatch(bool consistent = true) {
+    // of 12 at 70'; 1:0. `finalMinute`: how long the match lasted; `startedFlag`: the starters have
+    // `started` set (an import may give minute_on 0 only).
+    void fillOutsideMatch(bool consistent = true, int finalMinute = 90, bool startedFlag = true) {
         const std::int64_t starters[] = {3, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11};
         std::vector<AppearanceDraft> rows;
         for (const std::int64_t player : starters) {
             AppearanceDraft row;
             row.playerId = pid(player);
-            row.started = true;
+            row.started = startedFlag;
             row.minuteOn = 0;
-            row.minuteOff = player == 9 ? 60 : 90;
+            row.minuteOff = player == 9 ? 60 : finalMinute;
             row.position = player == 3 ? Position::Gk : Position::Cb;
             row.rating = 6;
             rows.push_back(row);
@@ -164,7 +165,7 @@ protected:
         AppearanceDraft sub;
         sub.playerId = pid(12);
         sub.minuteOn = 60;
-        sub.minuteOff = consistent ? 90 : 80;
+        sub.minuteOff = consistent ? finalMinute : finalMinute - 10;
         sub.position = Position::St;
         rows.push_back(sub);
         ASSERT_TRUE(m_matches->replaceAppearances(kOutside, rows));
@@ -401,7 +402,7 @@ TEST_F(MatchReportServiceTest, ASecondYellowBringsItsRedAndGoesWithIt) {
     const MatchEventId red = eventId(MatchEventType::Red, 4);
     const auto deleted = m_service->deleteEvent(kMatch, red);
     ASSERT_TRUE(deleted.has_value()) << deleted.error().detail;
-    EXPECT_EQ(deleted->size(), 2U);
+    EXPECT_EQ(deleted->events.size(), 2U);
     expectMinutes(4, 0, 90);
     EXPECT_EQ(m_matches->listEvents(kMatch)->size(), 3U); // goal, first yellow, opponent goal
 }
@@ -436,7 +437,7 @@ TEST_F(MatchReportServiceTest, ARestoredEventKeepsItsIdAndSeq) {
     const auto deleted = m_service->deleteEvent(kMatch, goal.id);
     ASSERT_TRUE(deleted.has_value());
     EXPECT_EQ(score(), std::pair(0, 1));
-    const auto restored = m_service->restoreEvents(kMatch, *deleted);
+    const auto restored = m_service->restoreEvents(kMatch, deleted->events, deleted->ratings);
     ASSERT_TRUE(restored.has_value()) << restored.error().detail;
     EXPECT_EQ(m_matches->listEvents(kMatch)->front(), goal);
     EXPECT_EQ(score(), std::pair(1, 1));
@@ -479,7 +480,7 @@ TEST_F(MatchReportServiceTest, AMatchWithoutMatchDayIsCorrectedOnItsRebuiltSheet
     EXPECT_FALSE(report.fromMatchDay);
     EXPECT_TRUE(report.correctable);
     EXPECT_EQ(report.finalMinute, 90);
-    EXPECT_EQ(report.format, kHalves);
+    EXPECT_EQ(report.format, std::nullopt); // no format is guessed
     EXPECT_EQ(report.appearances.size(), 12U);
     EXPECT_TRUE(report.shapes.empty());
     // 15 never played: the rest of the squad may come on in a correction.
@@ -506,6 +507,76 @@ TEST_F(MatchReportServiceTest, AnInconsistentMatchHasRatingsButNoCorrections) {
     const std::vector<RatingEntry> ratings{{pid(12), 9, 6}};
     EXPECT_TRUE(m_service->save(kOutside, ratings, "Mecz z importu").has_value());
     EXPECT_TRUE(m_service->addNote(kOutside, at(30), pid(12), "Uraz").has_value());
+}
+
+TEST_F(MatchReportServiceTest, AStarterIsTheOneOnFromMinuteZero) {
+    logInAs(Role::Coach);
+    fillOutsideMatch(true, 90, false); // started = 0, minute_on = 0
+    const MatchReport report = read(kOutside);
+    EXPECT_TRUE(report.correctable);
+    EXPECT_EQ(report.sheet.starters.size(), 11U);
+    const auto added = m_service->addEvent(kOutside, eventOf(MatchEventType::Sub, 15, 75, 4));
+    ASSERT_TRUE(added.has_value()) << added.error().detail;
+    expectMinutes(4, 0, 75, kOutside);
+    expectMinutes(15, 75, 90, kOutside);
+}
+
+TEST_F(MatchReportServiceTest, AMatchWithoutMatchDayTakesEveryMinuteOfItsData) {
+    logInAs(Role::Coach);
+    for (const int finalMinute : {95, 101, 115}) {
+        SCOPED_TRACE(finalMinute);
+        ASSERT_TRUE(sql("DELETE FROM match_event WHERE match_id = 5"));
+        fillOutsideMatch(true, finalMinute);
+        const MatchReport report = read(kOutside);
+        ASSERT_TRUE(report.correctable);
+        EXPECT_EQ(report.finalMinute, finalMinute);
+        EXPECT_EQ(report.format, std::nullopt);
+        const auto late = m_service->addEvent(
+            kOutside, eventOf(MatchEventType::OpponentGoal, std::nullopt, finalMinute - 1));
+        ASSERT_TRUE(late.has_value()) << late.error().detail;
+        EXPECT_EQ(score(kOutside), std::pair(1, 1));
+        expectError(m_service->addEvent(kOutside, eventOf(MatchEventType::OpponentGoal,
+                                                          std::nullopt, finalMinute + 1)),
+                    ErrorCode::InvalidInput, "minute_out_of_match");
+        MatchEventDraft added = eventOf(MatchEventType::OpponentGoal, std::nullopt, 45);
+        added.addedTime = 2;
+        expectError(m_service->addEvent(kOutside, added), ErrorCode::InvalidInput,
+                    "minute_out_of_match");
+        expectMinutes(12, 60, finalMinute, kOutside);
+        ASSERT_TRUE(sql("UPDATE match SET goals_against = 0 WHERE id = 5"));
+    }
+}
+
+TEST_F(MatchReportServiceTest, UndoOfADeletedSubstitutionBringsBackItsRating) {
+    playMatch();
+    ASSERT_TRUE(m_service->addEvent(kMatch, eventOf(MatchEventType::Sub, 12, 60, 9)).has_value());
+    const std::vector<RatingEntry> ratings{{pid(12), 8, 6}, {pid(9), 5, 7}};
+    ASSERT_TRUE(m_service->save(kMatch, ratings, ""));
+    const auto deleted = m_service->deleteEvent(kMatch, eventId(MatchEventType::Sub, 12));
+    ASSERT_TRUE(deleted.has_value()) << deleted.error().detail;
+    const std::vector<RatingEntry> taken{{pid(12), 8, 6}};
+    EXPECT_EQ(deleted->ratings, taken);
+    EXPECT_EQ(read().appearances.size(), 11U);
+    EXPECT_EQ(appearance(9).rating, 5); // the player who stayed keeps his
+    const auto restored = m_service->restoreEvents(kMatch, deleted->events, deleted->ratings);
+    ASSERT_TRUE(restored.has_value()) << restored.error().detail;
+    EXPECT_EQ(appearance(12).rating, 8);
+    EXPECT_EQ(appearance(12).rpe, 6);
+    expectMinutes(12, 60, 90);
+}
+
+TEST_F(MatchReportServiceTest, AFailedUndoOfASubstitutionRestoresNothing) {
+    playMatch();
+    ASSERT_TRUE(m_service->addEvent(kMatch, eventOf(MatchEventType::Sub, 12, 60, 9)).has_value());
+    const std::vector<RatingEntry> ratings{{pid(12), 8, 6}};
+    ASSERT_TRUE(m_service->save(kMatch, ratings, ""));
+    const auto deleted = m_service->deleteEvent(kMatch, eventId(MatchEventType::Sub, 12));
+    ASSERT_TRUE(deleted.has_value());
+    const QString before = snapshot(*m_db);
+    ASSERT_TRUE(sql("CREATE TEMP TRIGGER fail_rating BEFORE UPDATE OF rating ON appearance "
+                    "BEGIN SELECT RAISE(ABORT, 'forced'); END"));
+    EXPECT_FALSE(m_service->restoreEvents(kMatch, deleted->events, deleted->ratings));
+    EXPECT_EQ(snapshot(*m_db), before);
 }
 
 // --- Notes and changes of shape ---
