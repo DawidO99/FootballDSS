@@ -6012,6 +6012,95 @@ void expectDashboardFits(const DashboardScreen& screen, const char* when) {
     }
 }
 
+void exerciseDashboardShortBaseline(const DashboardScreen& screen) {
+    auto& registry = ServiceRegistry::instance();
+    for (int day = 0; day < 14; ++day) {
+        fdss::core::TrainingSessionDraft session;
+        session.date = fdss::core::Date{std::chrono::sys_days{kSheetDay} - std::chrono::days{day}};
+        const auto added = registry.calendar().addSession(smokeTeam(), session);
+        if (!added) {
+            fail("cannot add a session for the dashboard baseline");
+            return;
+        }
+        auto sheet = registry.training().sheet(*added);
+        if (!sheet || sheet->rows.empty()) {
+            fail("cannot read the sheet for the dashboard baseline");
+            return;
+        }
+        std::vector<fdss::core::AttendanceDraft> attendance;
+        for (const auto& row : sheet->rows) {
+            attendance.push_back(row.draft);
+        }
+        attendance.front().rpe = 6;
+        const auto saved = registry.training().saveAttendance(*added, attendance);
+        if (!saved || !saved->empty()) {
+            fail("cannot save RPE for the dashboard baseline");
+            return;
+        }
+    }
+    screen.capabilities->reload();
+    screen.dashboard->reload();
+    if (!waitUntil([&screen] { return !screen.dashboard->busy(); },
+                   "the dashboard baseline did not finish")) {
+        return;
+    }
+    settle();
+    auto* card = screen.find(QStringLiteral("loadSignalsCard"));
+    const QString expected =
+        screen.dashboard->loadSignalsEmpty().value(QStringLiteral("text")).toString();
+    if (screen.capabilities->locks().contains(QStringLiteral("load")) || card == nullptr ||
+        card->property("cardState").toString() != QLatin1StringView("empty") ||
+        card->property("emptyText").toString() != expected ||
+        !expected.startsWith(
+            fdss::viewmodels::DashboardViewModel::tr("Not enough data. %1").arg(""))) {
+        fail("fourteen RPE days show no signals instead of the missing baseline hint");
+    }
+}
+
+void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
+                                           const DashboardScreen& screen) {
+    const auto coach = ServiceRegistry::instance().session().user()->id;
+    std::vector<fdss::core::StaffUserId> users{coach};
+    for (const auto role :
+         {fdss::core::Role::Assistant, fdss::core::Role::Physio, fdss::core::Role::Analyst}) {
+        const auto user = addSmokeStaff(fdss::core::toDbText(role).data(), role);
+        if (!user) {
+            return;
+        }
+        users.push_back(*user);
+    }
+    auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                            QStringLiteral("AppSettings"));
+    settings->setShowAdvancedModules(false);
+    for (const auto user : users) {
+        if (!logInAgain(engine, user)) {
+            return;
+        }
+        for (const bool show : {true, false}) {
+            screen.navigation->activate(QStringLiteral("settings"));
+            settle();
+            auto* toggle = findByObjectName(screen.window->contentItem(),
+                                            QStringLiteral("showAdvancedModules"));
+            if (toggle == nullptr || !toggle->isVisible() || !toggle->isEnabled()) {
+                fail("a role cannot use the advanced modules toggle in Settings");
+                return;
+            }
+            clickItem(screen.window, toggle);
+            if (settings->showAdvancedModules() != show ||
+                screen.capabilities->rowCount() != (show ? 6 : 5)) {
+                fail("the Settings toggle does not change the capability list for every role");
+            }
+            screen.navigation->activate(QStringLiteral("dashboard"));
+            settle();
+            if (countVisible(screen.window->contentItem(), QStringLiteral("feature_eventData")) !=
+                (show ? 1 : 0)) {
+                fail("Event data does not follow the Settings toggle on the dashboard");
+            }
+        }
+    }
+    logInAgain(engine, coach);
+}
+
 // Empty club: the dashboard and the locked Pre-match explain what to enter; after eleven players
 // Pre-match unlocks (packet P15, "Done when").
 void exerciseDashboardEmptyClub(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
@@ -6100,6 +6189,8 @@ void exerciseDashboardEmptyClub(QQmlApplicationEngine& engine, const QString& sc
     }
     screen->navigation->activate(QStringLiteral("dashboard"));
     settle();
+    exerciseDashboardShortBaseline(*screen);
+    exerciseDashboardSettingsForEveryRole(engine, *screen);
 }
 
 // Demo club: the next match, 2 injured + 1 suspended, the overloaded player and the form, in both

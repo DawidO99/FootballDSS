@@ -67,8 +67,13 @@ bool DashboardViewModel::busy() const { return m_busy; }
 
 bool DashboardViewModel::ready() const { return m_overview.has_value(); }
 
+QString DashboardViewModel::readError() const {
+    return m_readFailure ? ErrorPresenter::message(*m_readFailure) : QString{};
+}
+
 void DashboardViewModel::reload() {
     const int request = ++m_request;
+    m_readFailure.reset();
     // ViewAnalysis: every role, and nobody logged out. The services check it again.
     if (m_teamId == 0 || !m_session.isAllowed(core::Permission::ViewAnalysis)) {
         clear();
@@ -77,6 +82,7 @@ void DashboardViewModel::reload() {
     auto overview = m_dashboard.overview(core::TeamId{m_teamId}, m_yellowCardThreshold);
     if (!overview) {
         qCritical("DashboardViewModel: %s", overview.error().detail.c_str());
+        m_readFailure = overview.error();
         clear();
         emit errorOccurred(ErrorPresenter::message(overview.error()));
         return;
@@ -87,8 +93,8 @@ void DashboardViewModel::reload() {
     auto future = m_load.teamLoad(core::TeamId{m_teamId});
     if (!future) {
         qCritical("DashboardViewModel: %s", future.error().detail.c_str());
-        m_teamLoad.reset();
-        setBusy(false);
+        m_readFailure = future.error();
+        clear();
         emit errorOccurred(ErrorPresenter::message(future.error()));
         return;
     }
@@ -104,13 +110,10 @@ void DashboardViewModel::reload() {
 }
 
 void DashboardViewModel::clear() {
-    const bool had = m_overview || m_teamLoad;
     m_overview.reset();
     m_teamLoad.reset();
     setBusy(false);
-    if (had) {
-        emit contentChanged();
-    }
+    emit contentChanged();
 }
 
 void DashboardViewModel::setBusy(bool busy) {
@@ -332,6 +335,20 @@ QVariantList DashboardViewModel::loadSignals() const {
 
 QVariantMap DashboardViewModel::loadSignalsEmpty() const {
     // ViewAnalysis: every role opens the Load screen.
+    if (m_teamLoad && std::ranges::all_of(m_teamLoad->players, [](const auto& row) {
+            return row.assessment.verdict.status == core::LoadStatus::NotEnoughData;
+        })) {
+        // As on the P11 team screen, the player closest to a status supplies the hint.
+        const auto closest = std::ranges::min_element(m_teamLoad->players, {}, [](const auto& row) {
+            return std::pair(row.assessment.rpeDaysMissing,
+                             row.assessment.baselineFrom.value_or(core::kMaxSupportedDate));
+        });
+        const QString hint = closest != m_teamLoad->players.end()
+                                 ? LoadTexts::hint(closest->assessment)
+                                 : tr("Enter RPE after sessions to build the load comparison.");
+        return emptyState(tr("Not enough data. %1").arg(hint), tr("Open load"),
+                          QStringLiteral("load"));
+    }
     return emptyState(tr("No load signals today. The Load screen shows the whole team."),
                       tr("Open load"), QStringLiteral("load"));
 }
@@ -392,15 +409,27 @@ QString DashboardViewModel::formSummary() const {
     int goalsAgainst = 0;
     double ratingSum = 0.0;
     int rated = 0;
+    int withResult = 0;
     for (const services::FormMatch& item : m_overview->lastMatches) {
-        goalsFor += item.match.match.goalsFor.value_or(0);
-        goalsAgainst += item.match.match.goalsAgainst.value_or(0);
+        const core::Match& match = item.match.match;
+        if (match.goalsFor && match.goalsAgainst) {
+            goalsFor += *match.goalsFor;
+            goalsAgainst += *match.goalsAgainst;
+            ++withResult;
+        }
         if (item.averageRating) {
             ratingSum += *item.averageRating;
             ++rated;
         }
     }
-    const QString goals = tr("Goals: %1:%2").arg(goalsFor).arg(goalsAgainst);
+    const QString goals = withResult == 0 ? tr("No results recorded")
+                          : withResult == static_cast<int>(m_overview->lastMatches.size())
+                              ? tr("Goals: %1:%2").arg(goalsFor).arg(goalsAgainst)
+                              : tr("Goals: %1:%2 (matches with a result: %3 of %4)")
+                                    .arg(goalsFor)
+                                    .arg(goalsAgainst)
+                                    .arg(withResult)
+                                    .arg(m_overview->lastMatches.size());
     if (rated == 0) {
         return goals;
     }

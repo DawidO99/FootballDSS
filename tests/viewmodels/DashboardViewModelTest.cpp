@@ -5,11 +5,23 @@
 #include "core/domain/Player.hpp"
 #include "services/DemoDataService.hpp"
 #include "services/SquadService.hpp"
+#include "viewmodels/AppSettings.hpp"
 #include "viewmodels/CapabilityModel.hpp"
+#include "viewmodels/IsoDates.hpp"
+#include "viewmodels/LoadTexts.hpp"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QQmlComponent>
+#include <QQmlContext>
+#include <QQmlEngine>
+#include <QScopeGuard>
+#include <QSettings>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QTemporaryDir>
 #include <QThread>
+#include <QThreadPool>
 
 #include <gtest/gtest.h>
 
@@ -72,6 +84,62 @@ protected:
         const StaffUserId id = addStaff("Inna Osoba", role);
         const auto check = registry().auth().login(id, kPin);
         ASSERT_TRUE(check.has_value()) << check.error().detail;
+    }
+
+    bool sql(const QString& statement, const QVariantList& values = {}) {
+        QSqlQuery query(m_db->database());
+        if (!query.prepare(statement)) {
+            ADD_FAILURE() << m_db->sqlError(query.lastError(), "prepare dashboard test").detail;
+            return false;
+        }
+        for (qsizetype i = 0; i < values.size(); ++i) {
+            query.bindValue(static_cast<int>(i), values[i]);
+        }
+        if (!query.exec()) {
+            ADD_FAILURE() << m_db->sqlError(query.lastError(), "seed dashboard test").detail;
+            return false;
+        }
+        return true;
+    }
+
+    void expectReadFailureClearsBindings(const QString& failingTable) {
+        loadDemo();
+        // Skip lineup queries, so dropping attendance fails the load read after overview succeeds.
+        ASSERT_TRUE(
+            sql(QStringLiteral("DELETE FROM match WHERE status = ?"), {QStringLiteral("planned")}));
+        DashboardViewModel dashboard;
+        dashboard.setTeamId(m_team.value);
+        ASSERT_TRUE(waitForLoad(dashboard));
+        ASSERT_FALSE(dashboard.loadSignals().isEmpty());
+
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("dashboard"), &dashboard);
+        QQmlComponent component(&engine);
+        component.setData(R"(import QtQml
+            QtObject {
+                readonly property int rows: dashboard.loadSignals.length
+                readonly property int absences: dashboard.unavailable.length
+                readonly property int matches: dashboard.form.length
+                readonly property bool ready: dashboard.ready
+                readonly property string error: dashboard.readError
+            })",
+                          QUrl());
+        const std::unique_ptr<QObject> binding(component.create());
+        ASSERT_NE(binding, nullptr) << component.errorString().toStdString();
+        ASSERT_GT(binding->property("rows").toInt(), 0);
+        QString reported;
+        QObject::connect(&dashboard, &DashboardViewModel::errorOccurred, &dashboard,
+                         [&reported](const QString& error) { reported = error; });
+        // Callers supply compile-time DDL only.
+        ASSERT_TRUE(sql(failingTable));
+        dashboard.reload();
+        EXPECT_FALSE(dashboard.busy());
+        EXPECT_EQ(binding->property("rows").toInt(), 0);
+        EXPECT_EQ(binding->property("absences").toInt(), 0);
+        EXPECT_EQ(binding->property("matches").toInt(), 0);
+        EXPECT_FALSE(binding->property("ready").toBool());
+        EXPECT_FALSE(reported.isEmpty());
+        EXPECT_EQ(binding->property("error").toString(), reported);
     }
 
     TeamId m_team;
@@ -246,4 +314,164 @@ TEST_F(DashboardViewModelTest, LoggedOutShowsNothing) {
     EXPECT_FALSE(capabilities.ready());
     EXPECT_EQ(capabilities.rowCount(), 0);
     EXPECT_TRUE(capabilities.locks().isEmpty());
+}
+
+TEST_F(DashboardViewModelTest, FourteenRpeDaysShowTheBaselineHintInsteadOfNoSignals) {
+    ASSERT_TRUE(sql(QStringLiteral("INSERT INTO player (id, team_id, first_name, last_name, "
+                                   "primary_position) VALUES (?, ?, ?, ?, ?)"),
+                    {1, static_cast<qint64>(m_team.value), QStringLiteral("Jan"),
+                     QStringLiteral("Gracz"), QStringLiteral("cm")}));
+    for (int day = 0; day < 14; ++day) {
+        const Date date{sys_days{kToday} - days{day}};
+        ASSERT_TRUE(sql(QStringLiteral("INSERT INTO training_session (id, team_id, date, "
+                                       "duration_min, type) VALUES (?, ?, ?, ?, ?)"),
+                        {day + 1, static_cast<qint64>(m_team.value),
+                         fdss::viewmodels::IsoDates::toIso(date), 60, QStringLiteral("training")}));
+        ASSERT_TRUE(sql(QStringLiteral("INSERT INTO attendance (session_id, player_id, status, "
+                                       "rpe) VALUES (?, ?, ?, ?)"),
+                        {day + 1, 1, QStringLiteral("present"), 6}));
+    }
+    CapabilityModel capabilities;
+    capabilities.setTeamId(m_team.value);
+    ASSERT_EQ(capabilities.capability(QStringLiteral("load")).value(QStringLiteral("stateKey")),
+              QStringLiteral("available"));
+
+    DashboardViewModel dashboard;
+    dashboard.setTeamId(m_team.value);
+    ASSERT_TRUE(waitForLoad(dashboard));
+    EXPECT_TRUE(dashboard.loadSignals().isEmpty());
+    auto load = registry().load().teamLoad(m_team);
+    ASSERT_TRUE(load.has_value());
+    load->waitForFinished();
+    const auto teamLoad = load->result();
+    ASSERT_EQ(teamLoad.players.size(), 1U);
+    const auto& assessment = teamLoad.players.front().assessment;
+    ASSERT_EQ(assessment.verdict.status, LoadStatus::NotEnoughData);
+    ASSERT_TRUE(assessment.baselineFrom.has_value());
+    const QString hint = fdss::viewmodels::LoadTexts::hint(assessment);
+    EXPECT_FALSE(hint.isEmpty());
+    EXPECT_EQ(dashboard.loadSignalsEmpty().value(QStringLiteral("text")).toString(),
+              dashboardText("Not enough data. %1").arg(hint));
+}
+
+TEST_F(DashboardViewModelTest, FailedLoadReadClearsRowsAndPublishesTheErrorToBindings) {
+    expectReadFailureClearsBindings(QStringLiteral("DROP TABLE attendance"));
+}
+
+TEST_F(DashboardViewModelTest, FailedOverviewReadClearsRowsAndPublishesTheErrorToBindings) {
+    expectReadFailureClearsBindings(QStringLiteral("DROP TABLE availability"));
+}
+
+TEST_F(DashboardViewModelTest, MissingResultsStayUnknownInRowsAndTheGoalsSummary) {
+    loadDemo();
+    ASSERT_TRUE(sql(QStringLiteral("UPDATE match SET goals_for = NULL, goals_against = NULL")));
+    ASSERT_TRUE(sql(QStringLiteral("UPDATE appearance SET rating = NULL")));
+    DashboardViewModel dashboard;
+    dashboard.setTeamId(m_team.value);
+    ASSERT_TRUE(waitForLoad(dashboard));
+    ASSERT_EQ(dashboard.form().size(), 5);
+    for (const QVariant& item : dashboard.form()) {
+        const QVariantMap row = item.toMap();
+        EXPECT_EQ(row.value(QStringLiteral("resultKey")), QStringLiteral("none"));
+        EXPECT_EQ(row.value(QStringLiteral("scoreText")), dashboardText("–"));
+        EXPECT_EQ(row.value(QStringLiteral("resultText")), dashboardText("No result"));
+    }
+    EXPECT_EQ(dashboard.formSummary(), dashboardText("No results recorded"));
+}
+
+TEST_F(DashboardViewModelTest, GoalsSummaryCountsOnlyCompleteResults) {
+    loadDemo();
+    ASSERT_TRUE(sql(QStringLiteral("UPDATE match SET goals_for = NULL, goals_against = NULL")));
+    ASSERT_TRUE(sql(QStringLiteral("UPDATE appearance SET rating = NULL")));
+    DashboardViewModel dashboard;
+    dashboard.setTeamId(m_team.value);
+    ASSERT_TRUE(waitForLoad(dashboard));
+    const QVariantList form = dashboard.form();
+    ASSERT_EQ(form.size(), 5);
+    const auto matchId = [&form](int row) {
+        return form[row].toMap().value(QStringLiteral("matchId"));
+    };
+    ASSERT_TRUE(
+        sql(QStringLiteral("UPDATE match SET goals_for = ?, goals_against = ? WHERE id = ?"),
+            {2, 1, matchId(0)}));
+    ASSERT_TRUE(
+        sql(QStringLiteral("UPDATE match SET goals_for = ?, goals_against = ? WHERE id = ?"),
+            {0, 0, matchId(1)}));
+    // A one-sided result is still unknown, rather than 99:0.
+    ASSERT_TRUE(
+        sql(QStringLiteral("UPDATE match SET goals_for = ? WHERE id = ?"), {99, matchId(2)}));
+    dashboard.reload();
+    ASSERT_TRUE(waitForLoad(dashboard));
+    EXPECT_EQ(column(dashboard.form(), "resultKey"),
+              QStringList({QStringLiteral("win"), QStringLiteral("draw"), QStringLiteral("none"),
+                           QStringLiteral("none"), QStringLiteral("none")}));
+    EXPECT_EQ(dashboard.formSummary(),
+              dashboardText("Goals: %1:%2 (matches with a result: %3 of %4)")
+                  .arg(2)
+                  .arg(1)
+                  .arg(2)
+                  .arg(5));
+}
+
+TEST_F(DashboardViewModelTest, LogoutDuringALoadReadDropsItsResult) {
+    loadDemo();
+    DashboardViewModel dashboard;
+    registry().load().holdResults();
+    const auto release = qScopeGuard([] { registry().load().releaseResults(); });
+    dashboard.setTeamId(m_team.value);
+    ASSERT_TRUE(dashboard.busy());
+    registry().auth().logout();
+    // Main.qml reloads the shared model on sessionSerialChanged.
+    dashboard.reload();
+    SignalCount changed(&dashboard, &DashboardViewModel::contentChanged);
+    registry().load().releaseResults();
+    QThreadPool::globalInstance()->waitForDone();
+    QCoreApplication::processEvents();
+    EXPECT_EQ(changed.count(), 0);
+    EXPECT_FALSE(dashboard.ready());
+    EXPECT_FALSE(dashboard.busy());
+    EXPECT_TRUE(dashboard.loadSignals().isEmpty());
+    EXPECT_TRUE(dashboard.unavailable().isEmpty());
+}
+
+TEST_F(DashboardViewModelTest, AnOlderLoadResultAfterANewerReloadIsIgnored) {
+    loadDemo();
+    DashboardViewModel dashboard;
+    registry().load().holdResults();
+    const auto release = qScopeGuard([] { registry().load().releaseResults(); });
+    dashboard.setTeamId(m_team.value);
+    ASSERT_TRUE(dashboard.busy());
+    // The older snapshot contains the load signals; the newer one has no RPE to assess.
+    ASSERT_TRUE(sql(QStringLiteral("UPDATE attendance SET rpe = NULL")));
+    ASSERT_TRUE(sql(QStringLiteral("UPDATE appearance SET rpe = NULL")));
+    dashboard.reload();
+    SignalCount changed(&dashboard, &DashboardViewModel::contentChanged);
+    registry().load().releaseResults();
+    QThreadPool::globalInstance()->waitForDone();
+    QCoreApplication::processEvents();
+    EXPECT_EQ(changed.count(), 1);
+    EXPECT_FALSE(dashboard.busy());
+    EXPECT_TRUE(dashboard.ready());
+    EXPECT_TRUE(dashboard.loadSignals().isEmpty());
+}
+
+TEST(AppSettingsPersistenceTest, AdvancedModulesSurvivesNewInstances) {
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const auto previousFormat = QSettings::defaultFormat();
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    const auto restore =
+        qScopeGuard([previousFormat] { QSettings::setDefaultFormat(previousFormat); });
+    {
+        fdss::viewmodels::AppSettings settings;
+        EXPECT_FALSE(settings.showAdvancedModules());
+        settings.setShowAdvancedModules(true);
+    }
+    {
+        fdss::viewmodels::AppSettings settings;
+        EXPECT_TRUE(settings.showAdvancedModules());
+        settings.setShowAdvancedModules(false);
+    }
+    EXPECT_FALSE(fdss::viewmodels::AppSettings().showAdvancedModules());
 }

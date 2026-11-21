@@ -34,6 +34,7 @@ class DashboardViewModel : public QObject {
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged FINAL)
     // False until the first read succeeded, and after a failed one.
     Q_PROPERTY(bool ready READ ready NOTIFY contentChanged FINAL)
+    Q_PROPERTY(QString readError READ readError NOTIFY contentChanged FINAL)
 
     Q_PROPERTY(bool hasNextMatch READ hasNextMatch NOTIFY contentChanged FINAL)
     Q_PROPERTY(qint64 nextMatchId READ nextMatchId NOTIFY contentChanged FINAL)
@@ -87,6 +88,7 @@ public:
     void setYellowCardThreshold(int threshold);
     [[nodiscard]] bool busy() const;
     [[nodiscard]] bool ready() const;
+    [[nodiscard]] QString readError() const;
 
     [[nodiscard]] bool hasNextMatch() const;
     [[nodiscard]] qint64 nextMatchId() const;
@@ -144,6 +146,7 @@ private:
     int m_yellowCardThreshold;
     bool m_busy = false;
     int m_request = 0;
+    std::optional<core::Error> m_readFailure;
     std::optional<services::DashboardOverview> m_overview;
     std::optional<services::TeamLoad> m_teamLoad;
 };

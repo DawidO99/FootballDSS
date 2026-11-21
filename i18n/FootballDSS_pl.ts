@@ -1248,6 +1248,10 @@
         <translation>Pulpit</translation>
     </message>
     <message>
+        <source>Retry</source>
+        <translation>Ponów</translation>
+    </message>
+    <message>
         <source>Next match</source>
         <translation>Najbliższy mecz</translation>
     </message>
@@ -4149,6 +4153,10 @@
         <translation>Dziś wszyscy są dostępni. Kontuzje, choroby i nieobecności wpisuje trener, asystent lub fizjoterapeuta.</translation>
     </message>
     <message>
+        <source>Enter RPE after sessions to build the load comparison.</source>
+        <translation>Wpisuj RPE po zajęciach, aby zbudować porównanie obciążenia.</translation>
+    </message>
+    <message>
         <source>No load signals today. The Load screen shows the whole team.</source>
         <translation>Dziś brak sygnałów obciążenia. Ekran Obciążenie pokazuje całą drużynę.</translation>
     </message>
@@ -4205,8 +4213,16 @@
         <translation>Brak ocen</translation>
     </message>
     <message>
+        <source>No results recorded</source>
+        <translation>Nie zapisano wyników</translation>
+    </message>
+    <message>
         <source>Goals: %1:%2</source>
         <translation>Bramki: %1:%2</translation>
+    </message>
+    <message>
+        <source>Goals: %1:%2 (matches with a result: %3 of %4)</source>
+        <translation>Bramki: %1:%2 (mecze z wynikiem: %3 z %4)</translation>
     </message>
     <message>
         <source>%1 · Average rating: %2</source>
@@ -4227,6 +4243,10 @@
     <message>
         <source>No session today. Ask the coach or the assistant to plan a session.</source>
         <translation>Dziś nie ma zajęć. Poproś trenera lub asystenta o zaplanowanie zajęć.</translation>
+    </message>
+    <message>
+        <source>Not enough data. %1</source>
+        <translation>Za mało danych. %1</translation>
     </message>
 </context>
 <context>

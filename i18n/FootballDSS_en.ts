@@ -1236,6 +1236,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Retry</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Next match</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4061,6 +4065,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Enter RPE after sessions to build the load comparison.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No load signals today. The Load screen shows the whole team.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4117,7 +4125,15 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>No results recorded</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Goals: %1:%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goals: %1:%2 (matches with a result: %3 of %4)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4138,6 +4154,10 @@
     </message>
     <message>
         <source>No session today. Ask the coach or the assistant to plan a session.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not enough data. %1</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

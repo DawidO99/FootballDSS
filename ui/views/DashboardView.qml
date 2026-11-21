@@ -57,12 +57,24 @@ Item {
             title: qsTr("Dashboard")
         }
 
+        EmptyState {
+            objectName: "dashboardReadError"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: root.dashboard !== null && root.dashboard.readError.length > 0
+            iconName: "danger"
+            description: root.dashboard ? root.dashboard.readError : ""
+            actionText: qsTr("Retry")
+            onActionTriggered: root.dashboard.reload()
+        }
+
         FocusFlickable {
             id: page
 
             objectName: "dashboardPage"
             Layout.fillWidth: true
             Layout.fillHeight: true
+            visible: root.dashboard === null || root.dashboard.readError.length === 0
             contentHeight: grid.implicitHeight
             clip: true
 
