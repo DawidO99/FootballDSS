@@ -126,3 +126,13 @@ atomicity, permission. `qml_smoke`: change the formation at 30', the timeline sh
       live board) and a name is never wider than the gap to the next token of its row (`labelRoom`,
       `TacticsPitch.fitTokens`); qml_smoke measures that the circles and names of the tokens do not
       intersect in 4-4-2 and 3-5-2 at 1280×720.
+12. **CI-only Match Day failures** (fix): the smoke compared the Confirm button with the English text,
+    but the language the earlier scenarios leave follows the system one (English on a Polish desktop,
+    Polish on CI), and it measured the pitch before an asynchronous xcb resize had landed; the early
+    return then left the view in Tactics with a draft, so every later step failed. Not an application
+    bug. Texts are compared with their translation, resizes are awaited (`resizeAndWait`), and the
+    Match Day scenario is split into independent steps (start, events, tactics, break and leave,
+    the whole match, read-only), each with its own match of today prepared through the services and a
+    clean view (dialogs closed, tiles, no pending action). `qml_smoke --without-focus` runs Match Day
+    while another window holds the focus; keys activate the window first, as a user's click would.
+    `dev-local-ci` runs in the C locale as CI does, and AGENTS §3 asks for it from P13b on.
