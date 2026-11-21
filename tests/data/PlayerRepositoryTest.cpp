@@ -262,3 +262,69 @@ TEST_F(PlayerRepositoryTest, UnknownStoredPositionFailsTheRead) {
     ASSERT_FALSE(player.has_value());
     EXPECT_EQ(player.error().code, ErrorCode::Database);
 }
+
+// --- Import (packet P16) ---
+
+class PlayerImportTest : public PlayerRepositoryTest {
+protected:
+    void SetUp() override {
+        PlayerRepositoryTest::SetUp();
+        ASSERT_TRUE(sql("INSERT INTO import_log (id, timestamp, file, hash, type) "
+                        "VALUES (1, '2026-11-01T10:00:00Z', 'kadra.csv', 'abc', 'squad')"));
+    }
+
+    static constexpr ImportId kImport{1};
+};
+
+TEST_F(PlayerImportTest, CreateKeepsTheImportAndListByImportFindsIt) {
+    const auto imported = repository().create(kTeam, draft(7), kImport);
+    ASSERT_TRUE(imported.has_value()) << imported.error().detail;
+    const PlayerId manual = create(8);
+    EXPECT_EQ(count("SELECT import_id FROM player WHERE id = ?", {qlonglong(imported->value)}), 1);
+    EXPECT_TRUE(scalar(m_db->database(),
+                       QStringLiteral("SELECT import_id FROM player WHERE id = ?"),
+                       {qlonglong(manual.value)})
+                    .isNull());
+    const auto listed = repository().listByImport(kImport);
+    ASSERT_TRUE(listed.has_value()) << listed.error().detail;
+    ASSERT_EQ(listed->size(), 1U);
+    EXPECT_EQ(listed->front().id, *imported);
+}
+
+TEST_F(PlayerImportTest, RemoveDeletesAnUnreferencedPlayer) {
+    const PlayerId id = create(7);
+    ASSERT_TRUE(repository().remove(id).has_value());
+    EXPECT_EQ(count("SELECT count(*) FROM player"), 0);
+    const auto again = repository().remove(id);
+    ASSERT_FALSE(again.has_value());
+    EXPECT_EQ(again.error().code, ErrorCode::NotFound);
+}
+
+TEST_F(PlayerImportTest, RemoveOfAReferencedPlayerIsAConflict) {
+    const PlayerId id = create(7);
+    ASSERT_TRUE(sql("INSERT INTO availability (player_id, type, from_date) "
+                    "VALUES (?, 'injury', '2026-11-01')",
+                    {qlonglong(id.value)}));
+    const auto removed = repository().remove(id);
+    ASSERT_FALSE(removed.has_value());
+    EXPECT_EQ(removed.error().code, ErrorCode::Conflict) << removed.error().detail;
+    EXPECT_EQ(count("SELECT count(*) FROM player"), 1);
+}
+
+TEST_F(PlayerImportTest, LineupSlotsAndBenchCount) {
+    const PlayerId inSlot = create(7);
+    const PlayerId onBench = create(8);
+    const PlayerId outside = create(9);
+    const QString json =
+        QStringLiteral("{\"version\":1,\"formation\":\"4-4-2\",\"slots\":[{\"position\":\"GK\","
+                       "\"x\":0.5,\"y\":0.9,\"playerId\":%1},{\"position\":\"CB\",\"x\":0.4,"
+                       "\"y\":0.7,\"playerId\":null}],\"bench\":[%2]}")
+            .arg(inSlot.value)
+            .arg(onBench.value);
+    ASSERT_TRUE(sql("INSERT INTO lineup (template_name, formation, tactic_json) "
+                    "VALUES ('Szablon', '4-4-2', ?)",
+                    {json}));
+    EXPECT_EQ(repository().isInLineup(inSlot), true);
+    EXPECT_EQ(repository().isInLineup(onBench), true);
+    EXPECT_EQ(repository().isInLineup(outside), false);
+}

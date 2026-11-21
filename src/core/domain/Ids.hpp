@@ -77,4 +77,9 @@ struct LineupId {
     auto operator<=>(const LineupId&) const = default;
 };
 
+struct ImportId {
+    std::int64_t value = 0;
+    auto operator<=>(const ImportId&) const = default;
+};
+
 } // namespace fdss::core

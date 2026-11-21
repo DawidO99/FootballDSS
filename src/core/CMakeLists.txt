@@ -34,6 +34,18 @@ add_library(fdss_core STATIC
     domain/TrainingSession.hpp
     domain/Validation.hpp
     domain/Validation.cpp
+    parsing/Csv.hpp
+    parsing/Csv.cpp
+    parsing/HeaderMatching.hpp
+    parsing/HeaderMatching.cpp
+    parsing/PositionSynonyms.hpp
+    parsing/PositionSynonyms.cpp
+    parsing/SourceTable.hpp
+    parsing/SourceTable.cpp
+    parsing/SquadImport.hpp
+    parsing/SquadImport.cpp
+    parsing/TextEncoding.hpp
+    parsing/TextEncoding.cpp
     util/Error.hpp
     util/Error.cpp
     util/Version.hpp

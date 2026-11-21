@@ -769,6 +769,86 @@
         <translation>Zamień z innym miejscem</translation>
     </message>
     <message>
+        <source>Import: ImportStepIndicator, ProgressLine, ImportMappingTable, ImportReportTable</source>
+        <translation>Import: ImportStepIndicator, ProgressLine, ImportMappingTable, ImportReportTable</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Rodzaj</translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation>Plik</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Podgląd</translation>
+    </message>
+    <message>
+        <source>Columns</source>
+        <translation>Kolumny</translation>
+    </message>
+    <message>
+        <source>Check</source>
+        <translation>Sprawdzenie</translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation>Gotowe</translation>
+    </message>
+    <message>
+        <source>Checking the rows… %1%</source>
+        <translation>Sprawdzanie wierszy… %1%</translation>
+    </message>
+    <message>
+        <source>Reading the file…</source>
+        <translation>Wczytywanie pliku…</translation>
+    </message>
+    <message>
+        <source>Ignore column</source>
+        <translation>Pomiń kolumnę</translation>
+    </message>
+    <message>
+        <source>Last name</source>
+        <translation>Nazwisko</translation>
+    </message>
+    <message>
+        <source>First name</source>
+        <translation>Imię</translation>
+    </message>
+    <message>
+        <source>Column %1: %2</source>
+        <translation>Kolumna %1: %2</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>New player</source>
+        <translation>Nowy zawodnik</translation>
+    </message>
+    <message>
+        <source>position set by default — correct it in Squad</source>
+        <translation>pozycja ustawiona domyślnie — popraw w Kadrze</translation>
+    </message>
+    <message>
+        <source>Row 3: position set by default — correct it in Squad.</source>
+        <translation>Wiersz 3: pozycja ustawiona domyślnie — popraw w Kadrze.</translation>
+    </message>
+    <message>
+        <source>Not imported</source>
+        <translation>Niezaimportowany</translation>
+    </message>
+    <message>
+        <source>shirt number &apos;abc&apos;, expected a number</source>
+        <translation>numer na koszulce „abc”, oczekiwano liczby</translation>
+    </message>
+    <message>
+        <source>Row 14: shirt number &apos;abc&apos;, expected a number.</source>
+        <translation>Wiersz 14: numer na koszulce „abc”, oczekiwano liczby.</translation>
+    </message>
+    <message>
         <source>Coach</source>
         <translation>Trener</translation>
     </message>
@@ -1405,18 +1485,327 @@
     </message>
 </context>
 <context>
+    <name>ImportMappingTable</name>
+    <message>
+        <source>Column in the file</source>
+        <translation>Kolumna w pliku</translation>
+    </message>
+    <message>
+        <source>Examples</source>
+        <translation>Przykłady</translation>
+    </message>
+    <message>
+        <source>Meaning</source>
+        <translation>Znaczenie</translation>
+    </message>
+    <message>
+        <source>Recognised</source>
+        <translation>Rozpoznana</translation>
+    </message>
+    <message>
+        <source>Meaning of the column %1</source>
+        <translation>Znaczenie kolumny %1</translation>
+    </message>
+</context>
+<context>
+    <name>ImportReportTable</name>
+    <message>
+        <source>Row</source>
+        <translation>Wiersz</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation>Zawodnik</translation>
+    </message>
+    <message>
+        <source>Action</source>
+        <translation>Działanie</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Szczegóły</translation>
+    </message>
+</context>
+<context>
+    <name>ImportStepIndicator</name>
+    <message>
+        <source>Step %1 of %2: %3</source>
+        <translation>Krok %1 z %2: %3</translation>
+    </message>
+</context>
+<context>
     <name>ImportView</name>
     <message>
         <source>Import</source>
         <translation>Import</translation>
     </message>
     <message>
+        <source>Import is not available for your role</source>
+        <translation>Import nie jest dostępny dla Twojej roli</translation>
+    </message>
+    <message>
+        <source>Ask the coach, an assistant or the analyst to import the data.</source>
+        <translation>Poproś trenera, asystenta lub analityka o zaimportowanie danych.</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Rodzaj</translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation>Plik</translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation>Podgląd</translation>
+    </message>
+    <message>
+        <source>Columns</source>
+        <translation>Kolumny</translation>
+    </message>
+    <message>
+        <source>Check</source>
+        <translation>Sprawdzenie</translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation>Gotowe</translation>
+    </message>
+    <message>
+        <source>What do you want to import?</source>
+        <translation>Co chcesz zaimportować?</translation>
+    </message>
+    <message>
+        <source>Choose</source>
+        <translation>Wybierz</translation>
+    </message>
+    <message>
+        <source>Training sessions and matches will be imported here too in a later version.</source>
+        <translation>Treningi i mecze będzie można importować tutaj w kolejnej wersji.</translation>
+    </message>
+    <message>
+        <source>Templates</source>
+        <translation>Szablony</translation>
+    </message>
+    <message>
+        <source>Start from a template if you have no file yet: it has every column the import recognises. Positions may be written as BR, ŚO, N or as GK, CB, ST.</source>
+        <translation>Jeśli nie masz jeszcze pliku, zacznij od szablonu: ma wszystkie kolumny, które import rozpoznaje. Pozycje można wpisać jako BR, ŚO, N albo GK, CB, ST.</translation>
+    </message>
+    <message>
+        <source>Save the squad template (XLSX)</source>
+        <translation>Zapisz szablon kadry (XLSX)</translation>
+    </message>
+    <message>
+        <source>Save the squad template (CSV)</source>
+        <translation>Zapisz szablon kadry (CSV)</translation>
+    </message>
+    <message>
+        <source>Choose the file</source>
+        <translation>Wybierz plik</translation>
+    </message>
+    <message>
+        <source>A CSV, TXT, TSV or XLSX file of at most 20 MB, for example the list of players you keep in Excel. The first row with text must hold the column names. Nothing is saved until you confirm the import.</source>
+        <translation>Plik CSV, TXT, TSV lub XLSX do 20 MB, na przykład lista zawodników prowadzona w Excelu. Pierwszy wiersz z tekstem musi zawierać nazwy kolumn. Nic nie zostanie zapisane, dopóki nie potwierdzisz importu.</translation>
+    </message>
+    <message>
+        <source>Choose file…</source>
+        <translation>Wybierz plik…</translation>
+    </message>
+    <message>
+        <source>Choose file (%1)</source>
+        <translation>Wybierz plik (%1)</translation>
+    </message>
+    <message>
+        <source>Reading the file…</source>
+        <translation>Wczytywanie pliku…</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Wstecz</translation>
+    </message>
+    <message>
+        <source>Sheet</source>
+        <translation>Arkusz</translation>
+    </message>
+    <message>
+        <source>The first %1 of %2 rows. Check that the columns are split right and the Polish letters look right.</source>
+        <translation>Pierwsze %1 z %2 wierszy. Sprawdź, czy kolumny są poprawnie rozdzielone, a polskie litery wyglądają dobrze.</translation>
+    </message>
+    <message>
+        <source>Check that the columns are split right and the Polish letters look right.</source>
+        <translation>Sprawdź, czy kolumny są poprawnie rozdzielone, a polskie litery wyglądają dobrze.</translation>
+    </message>
+    <message>
+        <source>No rows to show</source>
+        <translation>Brak wierszy do pokazania</translation>
+    </message>
+    <message>
+        <source>Choose the sheet with the players.</source>
+        <translation>Wybierz arkusz z zawodnikami.</translation>
+    </message>
+    <message>
+        <source>Choose another file.</source>
+        <translation>Wybierz inny plik.</translation>
+    </message>
+    <message>
+        <source>Choose another file</source>
+        <translation>Wybierz inny plik</translation>
+    </message>
+    <message>
+        <source>Next: columns</source>
+        <translation>Dalej: kolumny</translation>
+    </message>
+    <message>
+        <source>The columns are set as in your last import of a file with these headers.</source>
+        <translation>Kolumny ustawiono tak jak przy ostatnim imporcie pliku z tymi nagłówkami.</translation>
+    </message>
+    <message>
+        <source>Order in the name column</source>
+        <translation>Kolejność w kolumnie z nazwiskiem</translation>
+    </message>
+    <message>
+        <source>A double last name stays together, e.g. Nowak-Kowalski.</source>
+        <translation>Nazwisko dwuczłonowe zostaje razem, np. Nowak-Kowalski.</translation>
+    </message>
+    <message>
+        <source>%1 → first name: %2, last name: %3</source>
+        <translation>%1 → imię: %2, nazwisko: %3</translation>
+    </message>
+    <message>
+        <source>%1 → cannot be split</source>
+        <translation>%1 → nie da się rozdzielić</translation>
+    </message>
+    <message>
+        <source>Default position</source>
+        <translation>Pozycja domyślna</translation>
+    </message>
+    <message>
+        <source>Some players have no position in the file. They get this one with a warning; correct it later in Squad.</source>
+        <translation>Część zawodników nie ma pozycji w pliku. Dostaną tę pozycję z ostrzeżeniem; popraw ją później w Kadrze.</translation>
+    </message>
+    <message>
+        <source>Every player has a position in the file; this one is not used.</source>
+        <translation>Każdy zawodnik ma pozycję w pliku; ta nie zostanie użyta.</translation>
+    </message>
+    <message>
+        <source>Choose a position</source>
+        <translation>Wybierz pozycję</translation>
+    </message>
+    <message>
+        <source>Checking the rows… %1%</source>
+        <translation>Sprawdzanie wierszy… %1%</translation>
+    </message>
+    <message>
+        <source>Next: check the rows</source>
+        <translation>Dalej: sprawdź wiersze</translation>
+    </message>
+    <message>
+        <source>OK: %1</source>
+        <translation>OK: %1</translation>
+    </message>
+    <message>
+        <source>Warnings: %1</source>
+        <translation>Ostrzeżenia: %1</translation>
+    </message>
+    <message>
+        <source>Errors: %1</source>
+        <translation>Błędy: %1</translation>
+    </message>
+    <message>
+        <source>Update players already in the squad</source>
+        <translation>Aktualizuj zawodników, którzy już są w kadrze</translation>
+    </message>
+    <message>
+        <source>Skip rows with errors</source>
+        <translation>Pomiń wiersze z błędami</translation>
+    </message>
+    <message>
+        <source>Nothing will be imported while rows have errors. Fix them in the file, or skip them.</source>
+        <translation>Nic nie zostanie zaimportowane, dopóki są wiersze z błędami. Popraw je w pliku albo je pomiń.</translation>
+    </message>
+    <message>
+        <source>To add: %1. To update: %2. Skipped: %3. With errors: %4.</source>
+        <translation>Do dodania: %1. Do aktualizacji: %2. Pominięte: %3. Z błędami: %4.</translation>
+    </message>
+    <message>
+        <source>No rows were checked</source>
+        <translation>Nie sprawdzono żadnego wiersza</translation>
+    </message>
+    <message>
+        <source>Go back to the columns and check the rows again.</source>
+        <translation>Wróć do kolumn i sprawdź wiersze jeszcze raz.</translation>
+    </message>
+    <message>
+        <source>The import was undone</source>
+        <translation>Import został cofnięty</translation>
+    </message>
+    <message>
+        <source>The import is done</source>
+        <translation>Import zakończony</translation>
+    </message>
+    <message>
+        <source>Added: %1. Updated: %2. Skipped: %3. Not imported because of errors: %4.</source>
+        <translation>Dodano: %1. Zaktualizowano: %2. Pominięto: %3. Niezaimportowane z powodu błędów: %4.</translation>
+    </message>
+    <message>
+        <source>Removed: %1. Archived, because they already have data such as attendance or a lineup: %2. Updated players were not changed back: %3.</source>
+        <translation>Usunięto: %1. Zarchiwizowano, bo mają już dane, np. obecność lub skład: %2. Zaktualizowanych zawodników nie przywrócono: %3.</translation>
+    </message>
+    <message>
+        <source>Undo import removes the players this import added. Players it updated are not changed back.</source>
+        <translation>Cofnięcie importu usuwa zawodników dodanych przez ten import. Zawodnicy zaktualizowani nie wracają do poprzednich danych.</translation>
+    </message>
+    <message>
+        <source>Undo import</source>
+        <translation>Cofnij import</translation>
+    </message>
+    <message>
+        <source>Open Squad</source>
+        <translation>Otwórz Kadrę</translation>
+    </message>
+    <message>
+        <source>Import another file</source>
+        <translation>Importuj inny plik</translation>
+    </message>
+    <message>
+        <source>Choose the file to import</source>
+        <translation>Wybierz plik do importu</translation>
+    </message>
+    <message>
+        <source>Tables (*.csv *.txt *.tsv *.xlsx)</source>
+        <translation>Tabele (*.csv *.txt *.tsv *.xlsx)</translation>
+    </message>
+    <message>
+        <source>Save the squad template</source>
+        <translation>Zapisz szablon kadry</translation>
+    </message>
+    <message>
+        <source>Excel workbooks (*.xlsx)</source>
+        <translation>Skoroszyty Excela (*.xlsx)</translation>
+    </message>
+    <message>
+        <source>CSV files (*.csv)</source>
+        <translation>Pliki CSV (*.csv)</translation>
+    </message>
+    <message>
+        <source>Undo this import?</source>
+        <translation>Cofnąć ten import?</translation>
+    </message>
+    <message>
+        <source>The players this import added are removed, or archived when they already have data. Players it updated stay as they are.</source>
+        <translation>Zawodnicy dodani przez ten import zostaną usunięci albo zarchiwizowani, jeśli mają już dane. Zawodnicy zaktualizowani pozostaną bez zmian.</translation>
+    </message>
+    <message>
         <source>Import squads, matches and training data from CSV or XLSX files.</source>
-        <translation>Importuj kadrę, mecze i dane treningowe z plików CSV lub XLSX.</translation>
+        <translation type="vanished">Importuj kadrę, mecze i dane treningowe z plików CSV lub XLSX.</translation>
     </message>
     <message>
         <source>Back to the dashboard</source>
-        <translation>Wróć do pulpitu</translation>
+        <translation type="vanished">Wróć do pulpitu</translation>
     </message>
 </context>
 <context>
@@ -4288,8 +4677,40 @@
         <translation>Te dane zostały zapisane przez nowszą wersję FootballDSS. Zainstaluj nowszą wersję, aby z nich korzystać.</translation>
     </message>
     <message>
+        <source>The file cannot be read. Check that it still exists and is not open in another program, then choose it again.</source>
+        <translation>Nie można odczytać pliku. Sprawdź, czy nadal istnieje i nie jest otwarty w innym programie, a potem wybierz go ponownie.</translation>
+    </message>
+    <message>
+        <source>The template cannot be saved there. Choose another folder.</source>
+        <translation>Nie można tam zapisać szablonu. Wybierz inny folder.</translation>
+    </message>
+    <message>
         <source>A file cannot be read or written. Check that the disk is not full and that you may write to the folder.</source>
         <translation>Nie można odczytać ani zapisać pliku. Sprawdź, czy dysk nie jest pełny i czy masz prawo zapisu w folderze.</translation>
+    </message>
+    <message>
+        <source>This is an old Excel file (.xls). Open it in Excel, save it as .xlsx and import that file.</source>
+        <translation>To stary plik Excela (.xls). Otwórz go w Excelu, zapisz jako .xlsx i zaimportuj ten plik.</translation>
+    </message>
+    <message>
+        <source>JSON files are not supported for this type of import. Choose a CSV or XLSX file.</source>
+        <translation>Pliki JSON nie są obsługiwane przy tym rodzaju importu. Wybierz plik CSV lub XLSX.</translation>
+    </message>
+    <message>
+        <source>This file is not a valid .xlsx workbook, or it is damaged. Open it in Excel, save it again and import the new file.</source>
+        <translation>Ten plik nie jest poprawnym skoroszytem .xlsx albo jest uszkodzony. Otwórz go w Excelu, zapisz ponownie i zaimportuj nowy plik.</translation>
+    </message>
+    <message>
+        <source>This file type is not supported. Accepted: .csv, .txt, .tsv, .xlsx. Choose another file.</source>
+        <translation>Nieobsługiwany typ pliku. Akceptowane: .csv, .txt, .tsv, .xlsx. Wybierz inny plik.</translation>
+    </message>
+    <message>
+        <source>The file does not look like a table: no column is recognised and the rows have different numbers of columns. Choose the file with the list of players or fill in the template.</source>
+        <translation>Plik nie wygląda na tabelę: żadna kolumna nie została rozpoznana, a wiersze mają różną liczbę kolumn. Wybierz plik z listą zawodników albo wypełnij szablon.</translation>
+    </message>
+    <message>
+        <source>This import cannot be undone here.</source>
+        <translation>Tego importu nie można cofnąć tutaj.</translation>
     </message>
     <message>
         <source>This is not a tactics file of FootballDSS (.tactic.json), or it is damaged. Choose another file.</source>
@@ -4306,6 +4727,34 @@
     <message>
         <source>Something went wrong and the change was not saved. Try again. If this repeats, start the app again.</source>
         <translation>Coś poszło nie tak i zmiana nie została zapisana. Spróbuj ponownie. Jeśli błąd się powtórzy, uruchom aplikację ponownie.</translation>
+    </message>
+    <message>
+        <source>The CSV has a quoted field that is never closed. Close the quote in the file and import it again.</source>
+        <translation>Plik CSV ma niedomknięty cudzysłów. Domknij go w pliku i zaimportuj ponownie.</translation>
+    </message>
+    <message>
+        <source>The file is larger than 20 MB. Remove what is not needed and try again.</source>
+        <translation>Plik jest większy niż 20 MB. Usuń zbędne dane i spróbuj ponownie.</translation>
+    </message>
+    <message>
+        <source>The file is empty. Choose the file with the data, or fill in the template.</source>
+        <translation>Plik jest pusty. Wybierz plik z danymi albo wypełnij szablon.</translation>
+    </message>
+    <message>
+        <source>The file has only a header and no rows. Add the data below the header, or choose another sheet.</source>
+        <translation>Plik ma tylko nagłówek i żadnych wierszy. Dodaj dane pod nagłówkiem albo wybierz inny arkusz.</translation>
+    </message>
+    <message>
+        <source>This sheet no longer exists. Open the file again.</source>
+        <translation>Ten arkusz już nie istnieje. Otwórz plik ponownie.</translation>
+    </message>
+    <message>
+        <source>Some rows have errors. Fix them in the file, or choose to skip them.</source>
+        <translation>Niektóre wiersze mają błędy. Popraw je w pliku albo wybierz ich pominięcie.</translation>
+    </message>
+    <message>
+        <source>There is nothing to import: every row is skipped or has errors.</source>
+        <translation>Nie ma nic do zaimportowania: każdy wiersz jest pominięty albo ma błędy.</translation>
     </message>
     <message>
         <source>A PIN has 4 to 8 digits.</source>
@@ -4500,6 +4949,14 @@
         <translation>Zbyt wiele błędnych PIN-ów. Spróbuj ponownie za %1 s.</translation>
     </message>
     <message>
+        <source>The squad changed since the rows were checked, so nothing was imported. The marked rows show what the import would do now; check them and import again.</source>
+        <translation>Kadra zmieniła się od sprawdzenia wierszy, więc nic nie zaimportowano. Oznaczone wiersze pokazują, co import zrobi teraz; sprawdź je i zaimportuj ponownie.</translation>
+    </message>
+    <message>
+        <source>This import has already been undone.</source>
+        <translation>Ten import został już cofnięty.</translation>
+    </message>
+    <message>
         <source>The club must keep an active coach. Make someone else a coach first.</source>
         <translation>Klub musi mieć aktywnego trenera. Najpierw nadaj rolę trenera innej osobie.</translation>
     </message>
@@ -4630,6 +5087,296 @@
     <message>
         <source>The database could not be opened because of an unexpected error. Start the app again. If this repeats, close the app, replace the file with a copy from the backups folder and delete the files next to it that end in -wal and -shm.</source>
         <translation>Nie udało się otworzyć bazy danych z powodu nieoczekiwanego błędu. Uruchom aplikację ponownie. Jeśli błąd się powtórzy, zamknij aplikację, zastąp plik kopią z folderu backups i usuń leżące obok pliki z końcówką -wal i -shm.</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::ImportTexts</name>
+    <message>
+        <source>the squad changed since the check — check again</source>
+        <translation>dane w kadrze zmieniły się od sprawdzenia — sprawdź ponownie</translation>
+    </message>
+    <message>
+        <source>First name</source>
+        <translation>Imię</translation>
+    </message>
+    <message>
+        <source>Last name</source>
+        <translation>Nazwisko</translation>
+    </message>
+    <message>
+        <source>First and last name</source>
+        <translation>Imię i nazwisko</translation>
+    </message>
+    <message>
+        <source>Shirt number</source>
+        <translation>Numer na koszulce</translation>
+    </message>
+    <message>
+        <source>Birth year</source>
+        <translation>Rok urodzenia</translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation>Pozycja</translation>
+    </message>
+    <message>
+        <source>Secondary positions</source>
+        <translation>Pozycje dodatkowe</translation>
+    </message>
+    <message>
+        <source>Foot</source>
+        <translation>Noga</translation>
+    </message>
+    <message>
+        <source>Ignore column</source>
+        <translation>Pomiń kolumnę</translation>
+    </message>
+    <message>
+        <source>First name Last name</source>
+        <translation>Imię Nazwisko</translation>
+    </message>
+    <message>
+        <source>Last name First name</source>
+        <translation>Nazwisko Imię</translation>
+    </message>
+    <message>
+        <source>UTF-8</source>
+        <translation>UTF-8</translation>
+    </message>
+    <message>
+        <source>UTF-8 with BOM</source>
+        <translation>UTF-8 z BOM</translation>
+    </message>
+    <message>
+        <source>UTF-16 (Unicode text)</source>
+        <translation>UTF-16 (tekst Unicode)</translation>
+    </message>
+    <message>
+        <source>Windows-1250 (Polish Excel)</source>
+        <translation>Windows-1250 (polski Excel)</translation>
+    </message>
+    <message>
+        <source>semicolon</source>
+        <translation>średnik</translation>
+    </message>
+    <message>
+        <source>comma</source>
+        <translation>przecinek</translation>
+    </message>
+    <message>
+        <source>tab</source>
+        <translation>tabulator</translation>
+    </message>
+    <message>
+        <source>Choose the columns with the first and the last name, or one column with both.</source>
+        <translation>Wskaż kolumny z imieniem i nazwiskiem albo jedną kolumnę z obydwoma.</translation>
+    </message>
+    <message>
+        <source>Use either one column with the first and last name, or separate first-name and last-name columns, not both.</source>
+        <translation>Użyj albo jednej kolumny z imieniem i nazwiskiem, albo osobnych kolumn imienia i nazwiska, nie obu naraz.</translation>
+    </message>
+    <message>
+        <source>Two columns have the same meaning. Set one of them to &quot;Ignore column&quot;.</source>
+        <translation>Dwie kolumny mają to samo znaczenie. Ustaw jedną z nich na „Pomiń kolumnę”.</translation>
+    </message>
+    <message>
+        <source>Some players have no position in the file. Choose the default position.</source>
+        <translation>Część zawodników nie ma pozycji w pliku. Wybierz pozycję domyślną.</translation>
+    </message>
+    <message>
+        <source>the first name is empty</source>
+        <translation>imię jest puste</translation>
+    </message>
+    <message>
+        <source>the last name is empty</source>
+        <translation>nazwisko jest puste</translation>
+    </message>
+    <message>
+        <source>the position is empty, choose a default position</source>
+        <translation>pozycja jest pusta, wybierz pozycję domyślną</translation>
+    </message>
+    <message>
+        <source>the name is empty</source>
+        <translation>imię i nazwisko są puste</translation>
+    </message>
+    <message>
+        <source>name &apos;%1&apos; has one word, expected the first and the last name</source>
+        <translation>„%1” to jedno słowo, oczekiwano imienia i nazwiska</translation>
+    </message>
+    <message>
+        <source>name &apos;%1&apos; is longer than 50 characters</source>
+        <translation>„%1” ma więcej niż 50 znaków</translation>
+    </message>
+    <message>
+        <source>shirt number &apos;%1&apos;, expected a number</source>
+        <translation>numer na koszulce „%1”, oczekiwano liczby</translation>
+    </message>
+    <message>
+        <source>birth year &apos;%1&apos;, expected a year such as 2001 or a date</source>
+        <translation>rok urodzenia „%1”, oczekiwano roku, np. 2001, albo daty</translation>
+    </message>
+    <message>
+        <source>shirt number &apos;%1&apos;, expected a number from %2 to %3</source>
+        <translation>numer na koszulce „%1”, oczekiwano liczby od %2 do %3</translation>
+    </message>
+    <message>
+        <source>birth year &apos;%1&apos;, expected a year from %2 to %3</source>
+        <translation>rok urodzenia „%1”, oczekiwano roku od %2 do %3</translation>
+    </message>
+    <message>
+        <source>secondary position &apos;%1&apos; is unknown and was left out</source>
+        <translation>nieznana pozycja dodatkowa „%1” została pominięta</translation>
+    </message>
+    <message>
+        <source>position &apos;%1&apos; is unknown, expected a code such as BR, ŚO, N or GK, CB, ST</source>
+        <translation>nieznana pozycja „%1”, oczekiwano skrótu, np. BR, ŚO, N albo GK, CB, ST</translation>
+    </message>
+    <message>
+        <source>position set by default — correct it in Squad</source>
+        <translation>pozycja ustawiona domyślnie — popraw w Kadrze</translation>
+    </message>
+    <message>
+        <source>foot &apos;%1&apos; is unknown, saved as unknown</source>
+        <translation>nieznana noga „%1”, zapisano jako nieznaną</translation>
+    </message>
+    <message numerus="yes">
+        <source>the same shirt number occurs in %n other row(s), including row %1</source>
+        <translation>
+            <numerusform>ten sam numer na koszulce występuje w %n innym wierszu, w tym w wierszu %1</numerusform>
+            <numerusform>ten sam numer na koszulce występuje w %n innych wierszach, w tym w wierszu %1</numerusform>
+            <numerusform>ten sam numer na koszulce występuje w %n innych wierszach, w tym w wierszu %1</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>the same player occurs in %n other row(s), including row %1</source>
+        <translation>
+            <numerusform>ten sam zawodnik występuje w %n innym wierszu, w tym w wierszu %1</numerusform>
+            <numerusform>ten sam zawodnik występuje w %n innych wierszach, w tym w wierszu %1</numerusform>
+            <numerusform>ten sam zawodnik występuje w %n innych wierszach, w tym w wierszu %1</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>the same shirt number is in row %1</source>
+        <translation>ten sam numer na koszulce jest w wierszu %1</translation>
+    </message>
+    <message>
+        <source>the same player is in row %1</source>
+        <translation>ten sam zawodnik jest w wierszu %1</translation>
+    </message>
+    <message>
+        <source>shirt number &apos;%1&apos; belongs to %2; choose a free number</source>
+        <translation>numer na koszulce „%1” należy do: %2; wybierz wolny numer</translation>
+    </message>
+    <message>
+        <source>skipped the example row of the template</source>
+        <translation>pominięto wiersz przykładowy z szablonu</translation>
+    </message>
+    <message>
+        <source>the shirt number belongs to %1, skipped</source>
+        <translation>numer na koszulce należy do: %1, pominięto</translation>
+    </message>
+    <message>
+        <source>fits several players (%1), skipped</source>
+        <translation>pasuje do kilku zawodników (%1), pominięto</translation>
+    </message>
+    <message>
+        <source>Row %1: %2.</source>
+        <translation>Wiersz %1: %2.</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation>Ostrzeżenie</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Błąd</translation>
+    </message>
+    <message>
+        <source>New player</source>
+        <translation>Nowy zawodnik</translation>
+    </message>
+    <message>
+        <source>Update</source>
+        <translation>Aktualizacja</translation>
+    </message>
+    <message>
+        <source>Skip: already in the squad</source>
+        <translation>Pominięty: już jest w kadrze</translation>
+    </message>
+    <message>
+        <source>Skip: unclear player</source>
+        <translation>Pominięty: niejednoznaczny zawodnik</translation>
+    </message>
+    <message>
+        <source>Skip: example row</source>
+        <translation>Pominięty: wiersz przykładowy</translation>
+    </message>
+    <message>
+        <source>Not imported</source>
+        <translation>Niezaimportowany</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::ImportWizardViewModel</name>
+    <message>
+        <source>The CSV has a quoted field that is never closed, starting on line %1. Close the quote in the file and import it again.</source>
+        <translation>Plik CSV ma niedomknięty cudzysłów zaczynający się w wierszu %1. Domknij go w pliku i zaimportuj ponownie.</translation>
+    </message>
+    <message>
+        <source>Column %1</source>
+        <translation>Kolumna %1</translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation>Kadra</translation>
+    </message>
+    <message>
+        <source>Players with their names, shirt numbers, birth years, positions and foot.</source>
+        <translation>Zawodnicy z imionami i nazwiskami, numerami, rokiem urodzenia, pozycjami i nogą.</translation>
+    </message>
+    <message numerus="yes">
+        <source>XLSX · %n row(s)</source>
+        <translation>
+            <numerusform>XLSX · %n wiersz</numerusform>
+            <numerusform>XLSX · %n wiersze</numerusform>
+            <numerusform>XLSX · %n wierszy</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>CSV · %1 · %2 · %n row(s)</source>
+        <translation>
+            <numerusform>CSV · %1 · %2 · %n wiersz</numerusform>
+            <numerusform>CSV · %1 · %2 · %n wiersze</numerusform>
+            <numerusform>CSV · %1 · %2 · %n wierszy</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Row</source>
+        <translation>Wiersz</translation>
+    </message>
+    <message>
+        <source>No team is selected. Set up the team first.</source>
+        <translation>Nie wybrano drużyny. Najpierw skonfiguruj drużynę.</translation>
+    </message>
+    <message>
+        <source>The import was undone.</source>
+        <translation>Import został cofnięty.</translation>
+    </message>
+    <message>
+        <source>The template was saved. Fill it in and import it here.</source>
+        <translation>Szablon zapisano. Wypełnij go i zaimportuj tutaj.</translation>
+    </message>
+    <message>
+        <source>This file was already imported on %1; that import was undone.</source>
+        <translation>Ten plik zaimportowano już %1; tamten import został cofnięty.</translation>
+    </message>
+    <message>
+        <source>This file was already imported on %1. Check the report: players already in the squad are skipped or updated, not added twice.</source>
+        <translation>Ten plik zaimportowano już %1. Sprawdź raport: zawodnicy, którzy są już w kadrze, zostaną pominięci albo zaktualizowani, a nie dodani drugi raz.</translation>
     </message>
 </context>
 <context>

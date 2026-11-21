@@ -761,6 +761,86 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Import: ImportStepIndicator, ProgressLine, ImportMappingTable, ImportReportTable</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Check</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Checking the rows… %1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reading the file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ignore column</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>position set by default — correct it in Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row 3: position set by default — correct it in Squad.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not imported</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>shirt number &apos;abc&apos;, expected a number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row 14: shirt number &apos;abc&apos;, expected a number.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Coach</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1385,17 +1465,318 @@
     </message>
 </context>
 <context>
+    <name>ImportMappingTable</name>
+    <message>
+        <source>Column in the file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Examples</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Meaning</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Recognised</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Meaning of the column %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ImportReportTable</name>
+    <message>
+        <source>Row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Action</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ImportStepIndicator</name>
+    <message>
+        <source>Step %1 of %2: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>ImportView</name>
     <message>
         <source>Import</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Import squads, matches and training data from CSV or XLSX files.</source>
+        <source>Import is not available for your role</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Back to the dashboard</source>
+        <source>Ask the coach, an assistant or the analyst to import the data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Check</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Done</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>What do you want to import?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training sessions and matches will be imported here too in a later version.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Templates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start from a template if you have no file yet: it has every column the import recognises. Positions may be written as BR, ŚO, N or as GK, CB, ST.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the squad template (XLSX)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the squad template (CSV)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A CSV, TXT, TSV or XLSX file of at most 20 MB, for example the list of players you keep in Excel. The first row with text must hold the column names. Nothing is saved until you confirm the import.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose file (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Reading the file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sheet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The first %1 of %2 rows. Check that the columns are split right and the Polish letters look right.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Check that the columns are split right and the Polish letters look right.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No rows to show</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the sheet with the players.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose another file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose another file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next: columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The columns are set as in your last import of a file with these headers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Order in the name column</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A double last name stays together, e.g. Nowak-Kowalski.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 → first name: %2, last name: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 → cannot be split</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Default position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Some players have no position in the file. They get this one with a warning; correct it later in Squad.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Every player has a position in the file; this one is not used.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose a position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Checking the rows… %1%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Next: check the rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OK: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Warnings: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Errors: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Update players already in the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Skip rows with errors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Nothing will be imported while rows have errors. Fix them in the file, or skip them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>To add: %1. To update: %2. Skipped: %3. With errors: %4.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No rows were checked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Go back to the columns and check the rows again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The import was undone</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The import is done</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Added: %1. Updated: %2. Skipped: %3. Not imported because of errors: %4.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed: %1. Archived, because they already have data such as attendance or a lineup: %2. Updated players were not changed back: %3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo import removes the players this import added. Players it updated are not changed back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import another file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the file to import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tables (*.csv *.txt *.tsv *.xlsx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the squad template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Excel workbooks (*.xlsx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CSV files (*.csv)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo this import?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The players this import added are removed, or archived when they already have data. Players it updated stay as they are.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -4200,7 +4581,39 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The file cannot be read. Check that it still exists and is not open in another program, then choose it again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The template cannot be saved there. Choose another folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>A file cannot be read or written. Check that the disk is not full and that you may write to the folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This is an old Excel file (.xls). Open it in Excel, save it as .xlsx and import that file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>JSON files are not supported for this type of import. Choose a CSV or XLSX file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file is not a valid .xlsx workbook, or it is damaged. Open it in Excel, save it again and import the new file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file type is not supported. Accepted: .csv, .txt, .tsv, .xlsx. Choose another file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file does not look like a table: no column is recognised and the rows have different numbers of columns. Choose the file with the list of players or fill in the template.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This import cannot be undone here.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4217,6 +4630,34 @@
     </message>
     <message>
         <source>Something went wrong and the change was not saved. Try again. If this repeats, start the app again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The CSV has a quoted field that is never closed. Close the quote in the file and import it again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file is larger than 20 MB. Remove what is not needed and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file is empty. Choose the file with the data, or fill in the template.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file has only a header and no rows. Add the data below the header, or choose another sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This sheet no longer exists. Open the file again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Some rows have errors. Fix them in the file, or choose to skip them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>There is nothing to import: every row is skipped or has errors.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4408,6 +4849,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The squad changed since the rows were checked, so nothing was imported. The marked rows show what the import would do now; check them and import again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This import has already been undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The club must keep an active coach. Make someone else a coach first.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4533,6 +4982,292 @@
     </message>
     <message>
         <source>The database could not be opened because of an unexpected error. Start the app again. If this repeats, close the app, replace the file with a copy from the backups folder and delete the files next to it that end in -wal and -shm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::ImportTexts</name>
+    <message>
+        <source>the squad changed since the check — check again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First and last name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shirt number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Birth year</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Secondary positions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Foot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ignore column</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>First name Last name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last name First name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>UTF-8</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>UTF-8 with BOM</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>UTF-16 (Unicode text)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Windows-1250 (Polish Excel)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>semicolon</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>comma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>tab</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the columns with the first and the last name, or one column with both.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use either one column with the first and last name, or separate first-name and last-name columns, not both.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Two columns have the same meaning. Set one of them to &quot;Ignore column&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Some players have no position in the file. Choose the default position.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the first name is empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the last name is empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the position is empty, choose a default position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the name is empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>name &apos;%1&apos; has one word, expected the first and the last name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>name &apos;%1&apos; is longer than 50 characters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>shirt number &apos;%1&apos;, expected a number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>birth year &apos;%1&apos;, expected a year such as 2001 or a date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>shirt number &apos;%1&apos;, expected a number from %2 to %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>birth year &apos;%1&apos;, expected a year from %2 to %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>secondary position &apos;%1&apos; is unknown and was left out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>position &apos;%1&apos; is unknown, expected a code such as BR, ŚO, N or GK, CB, ST</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>position set by default — correct it in Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>foot &apos;%1&apos; is unknown, saved as unknown</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>the same shirt number occurs in %n other row(s), including row %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>the same player occurs in %n other row(s), including row %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>the same shirt number is in row %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the same player is in row %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>shirt number &apos;%1&apos; belongs to %2; choose a free number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>skipped the example row of the template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the shirt number belongs to %1, skipped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>fits several players (%1), skipped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row %1: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Warning</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Update</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Skip: already in the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Skip: unclear player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Skip: example row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not imported</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::ImportWizardViewModel</name>
+    <message>
+        <source>The CSV has a quoted field that is never closed, starting on line %1. Close the quote in the file and import it again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Column %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Players with their names, shirt numbers, birth years, positions and foot.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>XLSX · %n row(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>CSV · %1 · %2 · %n row(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No team is selected. Set up the team first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The import was undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The template was saved. Fill it in and import it here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file was already imported on %1; that import was undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file was already imported on %1. Check the report: players already in the squad are skipped or updated, not added twice.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

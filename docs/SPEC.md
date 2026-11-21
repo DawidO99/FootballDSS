@@ -143,7 +143,9 @@ Enumerations (stored as lowercase text with a `CHECK` constraint; C++ enums in `
 "not empty" is checked): those features are not designed yet, and SQLite changes a `CHECK` only by
 rebuilding the table.
 
-Rules: players are archived (`archived_at`), never deleted; shirt number 1–99 (optional), unique among
+Rules: players are archived (`archived_at`), never deleted, except players created by an import when
+that import is undone and nothing references them (P16).
+Shirt number 1–99 (optional), unique among
 non-archived players of a team; birth year (optional) between 1950 and current year − 4 (`CHECK` holds
 only the lower bound because it cannot use the current date; the core validation holds both); player
 first and last names and staff names 1–50 characters after trimming, club, team and opponent names

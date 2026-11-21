@@ -196,6 +196,14 @@ QtObject {
     // measurement and the laid-out text may round and hint differently.
     readonly property int measuredTextSlack: 4
     readonly property int emptyStateWidth: 480
+    // Import wizard (P16): the longest step title before it elides, the bar of ProgressLine, the
+    // width of the mapping choice and of the sample values beside it.
+    readonly property int importStepMaxWidth: 160
+    readonly property int progressHeight: 4
+    readonly property int progressSweep: 1200
+    readonly property int importFieldWidth: 240
+    readonly property int importHeaderWidth: 200
+    readonly property int importRowColumnWidth: 64
     // Pre-match (P12): the bench column and the panel of the lineup issues.
     readonly property int benchColumnWidth: 228
     // Match Day (P13): the cards are the colours of the real ones in both themes, always with a word.

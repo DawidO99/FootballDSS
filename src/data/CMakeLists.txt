@@ -51,12 +51,16 @@ add_library(fdss_data STATIC
     db/Transaction.cpp
     readers/TacticJson.hpp
     readers/TacticJson.cpp
+    readers/XlsxReader.hpp
+    readers/XlsxReader.cpp
     repositories/AvailabilityRepository.hpp
     repositories/AvailabilityRepository.cpp
     repositories/CapabilityRepository.hpp
     repositories/CapabilityRepository.cpp
     repositories/ClubRepository.hpp
     repositories/ClubRepository.cpp
+    repositories/ImportLogRepository.hpp
+    repositories/ImportLogRepository.cpp
     repositories/LineupRepository.hpp
     repositories/LineupRepository.cpp
     repositories/MatchRepository.hpp
