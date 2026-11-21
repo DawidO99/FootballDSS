@@ -458,12 +458,13 @@ TEST_F(ImportServiceTest, XlsxTemplateRoundTrips) {
         QXlsx::Document document(templateFile("squad.xlsx"));
         ASSERT_TRUE(document.load());
         EXPECT_EQ(document.read(1, 1).toString(), QStringLiteral("Imię"));
-        document.write(2, 1, QStringLiteral("Łukasz"));
-        document.write(2, 2, QStringLiteral("Żółkiewski"));
-        document.write(2, 3, 9);
-        document.write(2, 4, 2001);
-        document.write(2, 5, QStringLiteral("N"));
-        document.write(2, 7, QStringLiteral("L"));
+        // Below the example row, which stays and is skipped.
+        document.write(3, 1, QStringLiteral("Łukasz"));
+        document.write(3, 2, QStringLiteral("Żółkiewski"));
+        document.write(3, 3, 9);
+        document.write(3, 4, 2001);
+        document.write(3, 5, QStringLiteral("N"));
+        document.write(3, 7, QStringLiteral("L"));
         ASSERT_TRUE(document.saveAs(path));
     }
     const ImportSource source = read(path);
@@ -471,7 +472,11 @@ TEST_F(ImportServiceTest, XlsxTemplateRoundTrips) {
     const SquadMapping mapping = suggested(source);
     EXPECT_TRUE(checkMapping(mapping, source.table).empty());
     auto rows = validate(source, mapping);
-    ASSERT_TRUE(m_service->commitSquad(kTeam, source, mapping, rows, {}).has_value());
+    ASSERT_EQ(rows.size(), 2U);
+    EXPECT_TRUE(rows[0].templateExample);
+    const auto summary = m_service->commitSquad(kTeam, source, mapping, rows, {});
+    ASSERT_TRUE(summary.has_value()) << summary.error().detail;
+    EXPECT_EQ(summary->skippedExamples, 1);
     const auto stored = players();
     ASSERT_EQ(stored.size(), 1U);
     EXPECT_EQ(stored[0].shirtNumber, 9);
@@ -608,6 +613,103 @@ TEST(ImportFileTest, OpenQuoteKeepsItsLineOutsideTheField) {
     expectError(source->tableStatus, ErrorCode::InvalidInput, "import_csv_quote");
     EXPECT_EQ(source->errorLine, 2);
     EXPECT_TRUE(source->table.rows.empty());
+}
+
+// P16 manual test: a fresh template imports nobody and says why; the XLSX template opens on its
+// data sheet, never on "Instrukcja", even when the data sheet holds only the header.
+TEST_F(ImportServiceTest, FreshTemplatesImportNobody) {
+    for (const char* name : {"squad.csv", "squad.xlsx"}) {
+        const ImportSource source = read(templateFile(name));
+        ASSERT_TRUE(source.tableStatus.has_value()) << name;
+        if (source.kind == ImportFileKind::Xlsx) {
+            EXPECT_EQ(source.sheets,
+                      (QStringList{QStringLiteral("Kadra"), QStringLiteral("Instrukcja")}));
+            EXPECT_EQ(source.sheet, 0);
+        }
+        const SquadMapping mapping = suggested(source);
+        auto rows = validate(source, mapping);
+        ASSERT_EQ(rows.size(), 1U) << name;
+        EXPECT_TRUE(rows[0].templateExample);
+        EXPECT_TRUE(hasIssue(rows[0], RowIssueKind::TemplateExample));
+        expectError(m_service->commitSquad(kTeam, source, mapping, rows, {}),
+                    ErrorCode::InvalidInput, "import_nothing");
+    }
+    EXPECT_TRUE(players().empty());
+
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("pusty.xlsx"));
+    {
+        QXlsx::Document document(templateFile("squad.xlsx"));
+        ASSERT_TRUE(document.load());
+        ASSERT_TRUE(document.selectSheet(QStringLiteral("Kadra")));
+        for (int column = 1; column <= 7; ++column) {
+            document.write(2, column, QString());
+        }
+        ASSERT_TRUE(document.saveAs(path));
+    }
+    const ImportSource headerOnly = read(path);
+    EXPECT_EQ(headerOnly.sheet, 0);
+    expectError(headerOnly.tableStatus, ErrorCode::InvalidInput, "import_no_rows");
+}
+
+TEST_F(ImportServiceTest, CsvTemplateImportsOnlyTheAddedRows) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("kadra.csv"));
+    ASSERT_TRUE(
+        writeFile(path, readFile(templateFile("squad.csv")) + "Adam;Nowak;9;2001;N;;lewa\r\n"));
+    const auto summary = importFile(path);
+    ASSERT_TRUE(summary.has_value()) << summary.error().detail;
+    EXPECT_EQ(summary->created, 1);
+    EXPECT_EQ(summary->skippedExamples, 1);
+    ASSERT_EQ(players().size(), 1U);
+    EXPECT_EQ(players().front().lastName, "Nowak");
+}
+
+// P16 manual test: only .csv, .txt, .tsv and .xlsx are taken (any case); the content still decides
+// XLS and JSON messages and must match.
+TEST(ImportFileTest, OnlyTheAcceptedExtensions) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const auto copyAs = [&dir](const char* fixtureName, const char* name) {
+        const QString path = dir.filePath(QString::fromLatin1(name));
+        EXPECT_TRUE(QFile::copy(fixture(fixtureName), path));
+        return path;
+    };
+    for (const char* name : {"kadra.md", "kadra.pdf", "kadra", "kadra.csv.bak"}) {
+        expectError(readImportFile(copyAs("utf8-bom.csv", name)), ErrorCode::UnsupportedFormat,
+                    "import_file_type");
+    }
+    expectError(readImportFile(copyAs("multi-sheet.xlsx", "kadra.docx")),
+                ErrorCode::UnsupportedFormat, "import_file_type");
+    EXPECT_TRUE(readImportFile(copyAs("utf8-bom.csv", "KADRA.CSV")).has_value());
+    EXPECT_TRUE(readImportFile(copyAs("utf8-bom.csv", "kadra.txt")).has_value());
+    EXPECT_TRUE(readImportFile(copyAs("multi-sheet.xlsx", "kadra.XLSX")).has_value());
+    const QString tsv = dir.filePath(QStringLiteral("kadra.tsv"));
+    ASSERT_TRUE(writeFile(tsv, "Imię\tNazwisko\tPozycja\nJan\tKowalski\tN\n"));
+    const auto tabs = readImportFile(tsv);
+    ASSERT_TRUE(tabs.has_value()) << tabs.error().detail;
+    EXPECT_EQ(tabs->delimiter, '\t');
+    // The content still decides: XLS and JSON keep their own messages.
+    expectError(readImportFile(copyAs("legacy.xls", "kadra.xls")), ErrorCode::UnsupportedFormat,
+                "import_xls");
+    expectError(readImportFile(copyAs("squad.json", "kadra.txt.json")),
+                ErrorCode::UnsupportedFormat, "import_json");
+}
+
+TEST_F(ImportServiceTest, TextThatIsNoTableIsRefused) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString notes = dir.filePath(QStringLiteral("notatki.txt"));
+    ASSERT_TRUE(writeFile(notes, "# Notatki\nDobry trening, dużo biegania.\n- rozgrzewka\n"
+                                 "- gra na małym polu, 4 na 4\n"));
+    const ImportSource source = read(notes);
+    expectError(source.tableStatus, ErrorCode::UnsupportedFormat, "import_not_table");
+    // A table with unknown headers but steady columns is still a table.
+    const QString table = dir.filePath(QStringLiteral("tabela.txt"));
+    ASSERT_TRUE(writeFile(table, "A;B;C\n1;2;3\n4;5;6\n"));
+    EXPECT_TRUE(read(table).tableStatus.has_value());
 }
 
 } // namespace

@@ -101,3 +101,9 @@ Table of the must-pass cases and their results; screenshot of the validation rep
 14. **Technical**: QXlsx runs on a worker thread (checked by a test); `qml_smoke` never opens a corrupted
     XLSX (QZip warning, ADR-006). XLSX is recognised by the ZIP signature and then by QXlsx, because
     `QMimeDatabase` reports a plain `application/zip` for content only.
+15. **Manual test** (after the review rounds): the templates carry one example row (Jan Przykładowy,
+    10, 1999, ŚP, ŚO, prawa), which the import skips with a note in the report; the XLSX template has
+    an "Instrukcja" sheet that is never chosen by itself. The default position starts as ŚP (CM).
+    Only `.csv`, `.txt`, `.tsv` and `.xlsx` names are accepted, in addition to (not instead of) the
+    detection by content of AGENTS §8, which still decides XLS and JSON first; a text without a squad
+    column and without a steady column count is refused as "not a table".

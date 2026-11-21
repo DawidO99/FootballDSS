@@ -346,6 +346,9 @@ void findDuplicates(std::vector<SquadRow>& rows, const ColumnOf& columns) {
     std::map<std::string, std::vector<std::size_t>> byName;
     for (std::size_t index = 0; index < rows.size(); ++index) {
         const SquadRow& row = rows[index];
+        if (row.templateExample) {
+            continue;
+        }
         if (row.draft.shirtNumber && !hasIssueOn(row, SquadField::ShirtNumber)) {
             byNumber[std::to_string(*row.draft.shirtNumber)].push_back(index);
         }
@@ -566,6 +569,12 @@ std::vector<SquadRow> validateSquad(const SourceTable& table, const SquadMapping
         readPositions(context, row);
         readFoot(context, row);
         checkLimits(context, row, currentYear);
+        if (row.status() == RowStatus::Ok && isTemplateExample(row.draft)) {
+            row.templateExample = true;
+            addIssue(row, RowIssueKind::TemplateExample, IssueSeverity::Warning,
+                     columns[indexOf(SquadField::FullName)] ? SquadField::FullName
+                                                            : SquadField::LastName);
+        }
         rows.push_back(std::move(row));
         if (progress) {
             progress(rows.size());
@@ -575,7 +584,7 @@ std::vector<SquadRow> validateSquad(const SourceTable& table, const SquadMapping
     const SquadField nameField =
         columns[indexOf(SquadField::FullName)] ? SquadField::FullName : SquadField::LastName;
     for (SquadRow& row : rows) {
-        if (row.status() != RowStatus::Error) {
+        if (row.status() != RowStatus::Error && !row.templateExample) {
             matchExisting(row, existing, nameField);
         }
     }
@@ -594,6 +603,9 @@ std::size_t recheckSquadMatches(std::span<SquadRow> rows, const SquadMapping& ma
     };
     std::size_t changed = 0;
     for (SquadRow& row : rows) {
+        if (row.templateExample) {
+            continue;
+        }
         const PlayerMatch oldMatch = row.match;
         const auto oldId = row.existing;
         const bool oldConflict = hasConflict(row);
@@ -628,6 +640,9 @@ RowStatus statusFor(const SquadRow& row, ExistingPolicy policy) noexcept {
 }
 
 RowAction actionFor(const SquadRow& row, ExistingPolicy policy) noexcept {
+    if (row.templateExample) {
+        return RowAction::SkipExample;
+    }
     if (statusFor(row, policy) == RowStatus::Error) {
         return RowAction::Invalid;
     }
@@ -640,6 +655,27 @@ RowAction actionFor(const SquadRow& row, ExistingPolicy policy) noexcept {
         break;
     }
     return RowAction::Create;
+}
+
+bool isTemplateExample(const PlayerDraft& draft) {
+    return draft.firstName == "Jan" && draft.lastName == "Przykładowy" && draft.shirtNumber == 10 &&
+           draft.birthYear == 1999 && draft.primaryPosition == Position::Cm &&
+           draft.secondaryPositions == std::vector<Position>{Position::Cb} &&
+           draft.foot == PreferredFoot::Right;
+}
+
+bool looksLikeSquadTable(const SourceTable& table) {
+    const SquadMapping mapping = autoMapSquad(table.headers);
+    if (std::ranges::any_of(mapping.columns, [](const auto& field) { return field.has_value(); })) {
+        return true;
+    }
+    const std::size_t width = table.headers.size();
+    if (width < 2 || table.rows.empty()) {
+        return false;
+    }
+    const auto consistent = std::ranges::count_if(
+        table.rows, [width](const SourceRow& row) { return row.cells.size() == width; });
+    return static_cast<std::size_t>(consistent) * 2 > table.rows.size();
 }
 
 PlayerDraft mergeUpdate(const Player& existing, const SquadRow& row) {

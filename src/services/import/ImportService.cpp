@@ -76,7 +76,16 @@ ImportService::read(const QString& path, std::optional<int> sheet) const {
     if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
         return std::unexpected(allowed.error());
     }
-    return QtConcurrent::run([path, sheet] { return readImportFile(path, sheet); });
+    return QtConcurrent::run([path, sheet] {
+        auto source = readImportFile(path, sheet);
+        // A text file that is no table (prose, a list, markdown) has nothing to map.
+        if (source && source->kind == ImportFileKind::Csv && source->tableStatus &&
+            !core::looksLikeSquadTable(source->table)) {
+            source->tableStatus = std::unexpected(core::Error{
+                core::ErrorCode::UnsupportedFormat, "the text is not a table", "import_not_table"});
+        }
+        return source;
+    });
 }
 
 core::Result<std::vector<PreviousImport>>
@@ -195,6 +204,9 @@ core::Result<SquadImportSummary> ImportService::commitSquad(core::TeamId team,
         case core::RowAction::SkipAmbiguous:
             ++summary.skippedAmbiguous;
             break;
+        case core::RowAction::SkipExample:
+            ++summary.skippedExamples;
+            break;
         case core::RowAction::Invalid:
             ++summary.invalid;
             break;
@@ -230,7 +242,8 @@ core::Result<SquadImportSummary> ImportService::commitSquad(core::TeamId team,
     log.report.mapping = toRecord(source.table, mapping);
     log.report.created = summary.created;
     log.report.updated = summary.updated;
-    log.report.skipped = summary.skippedExisting + summary.skippedAmbiguous;
+    log.report.skipped =
+        summary.skippedExisting + summary.skippedAmbiguous + summary.skippedExamples;
     auto importId = m_imports.create(log);
     if (!importId) {
         return std::unexpected(importId.error());

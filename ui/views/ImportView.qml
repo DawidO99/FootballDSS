@@ -213,7 +213,7 @@ Item {
 
                     Text {
                         Layout.fillWidth: true
-                        text: qsTr("A CSV, TXT or XLSX file of at most 20 MB, for example the list of players you keep in Excel. The first row with text must hold the column names. Nothing is saved until you confirm the import.")
+                        text: qsTr("A CSV, TXT, TSV or XLSX file of at most 20 MB, for example the list of players you keep in Excel. The first row with text must hold the column names. Nothing is saved until you confirm the import.")
                         color: Theme.text
                         font.pixelSize: Theme.fontSize.body
                         wrapMode: Text.Wrap
@@ -666,7 +666,7 @@ Item {
 
         title: qsTr("Choose the file to import")
         fileMode: FileDialog.OpenFile
-        nameFilters: [qsTr("Spreadsheets (*.csv *.txt *.xlsx *.xls)"), qsTr("All files (*)")]
+        nameFilters: [qsTr("Tables (*.csv *.txt *.tsv *.xlsx)")]
         onAccepted: wizard.openFile(selectedFile)
     }
 

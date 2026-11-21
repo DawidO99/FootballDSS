@@ -53,6 +53,7 @@ struct SquadImportSummary {
     int updated = 0;
     int skippedExisting = 0;
     int skippedAmbiguous = 0;
+    int skippedExamples = 0; // the example row of the template
     int invalid = 0;
 };
 
@@ -71,7 +72,8 @@ public:
     ImportService(data::DatabaseManager& database, data::ImportLogRepository& imports,
                   data::PlayerRepository& players, Session& session, const Clock& clock);
 
-    // The future holds the errors of readImportFile().
+    // The future holds the errors of readImportFile(). A text file without a squad column and
+    // without a steady column count has tableStatus UnsupportedFormat ("import_not_table").
     [[nodiscard]] core::Result<QFuture<core::Result<ImportSource>>>
     read(const QString& path, std::optional<int> sheet = std::nullopt) const;
 

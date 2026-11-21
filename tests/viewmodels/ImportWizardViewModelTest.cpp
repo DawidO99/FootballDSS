@@ -138,16 +138,17 @@ TEST_F(ImportWizardViewModelTest, WholeWizardWithThePolishExcelFile) {
 }
 
 // Packet P16 decision 8: without a position column the default position is asked for.
+// P16 manual test: the default position starts as CM (ŚP), not the first of the list (GK).
 TEST_F(ImportWizardViewModelTest, FileWithoutPositionAsksForTheDefault) {
     ImportWizardViewModel wizard;
     ASSERT_NO_FATAL_FAILURE(open(wizard, "no-position.csv"));
     wizard.goToMapping();
     EXPECT_TRUE(wizard.defaultPositionRequired());
-    EXPECT_EQ(wizard.mappingErrors().size(), 1);
-    wizard.validate(); // refused while the mapping has errors
-    EXPECT_EQ(wizard.step(), QStringLiteral("mapping"));
-    wizard.setDefaultPosition(QStringLiteral("cm"));
+    EXPECT_EQ(wizard.defaultPosition(), QStringLiteral("cm"));
     EXPECT_TRUE(wizard.mappingErrors().isEmpty());
+    wizard.setDefaultPosition(QStringLiteral("st"));
+    EXPECT_EQ(wizard.defaultPosition(), QStringLiteral("st"));
+    wizard.setDefaultPosition(QStringLiteral("cm"));
     ASSERT_NO_FATAL_FAILURE(validate(wizard));
     EXPECT_EQ(wizard.warningCount(), 3);
     EXPECT_EQ(wizard.reportRow(0).value(QStringLiteral("statusKey")).toString(),
@@ -249,6 +250,36 @@ TEST_F(ImportWizardViewModelTest, SameFileAgainWarnsBeforeCommit) {
     again.setUpdateExisting(true);
     EXPECT_EQ(again.updateCount(), 2);
     EXPECT_TRUE(again.canCommit());
+}
+
+// P16 manual test: another extension than csv/txt/tsv/xlsx is refused on the file step, and a text
+// that is no table too.
+TEST_F(ImportWizardViewModelTest, UnsupportedExtensionAndNonTableStayOnTheFileStep) {
+    QTemporaryDir dir;
+    ASSERT_TRUE(dir.isValid());
+    const QString markdown = dir.filePath(QStringLiteral("kadra.md"));
+    ASSERT_TRUE(QFile::copy(fixture("utf8-bom.csv"), markdown));
+    ImportWizardViewModel wizard;
+    wizard.setTeamId(m_team);
+    wizard.chooseType(QStringLiteral("squad"));
+    wizard.openPath(markdown);
+    ASSERT_TRUE(waitIdle(wizard));
+    EXPECT_EQ(wizard.step(), QStringLiteral("file"));
+    EXPECT_EQ(wizard.errorText(), viewmodels::ErrorPresenter::message(core::Error{
+                                      core::ErrorCode::UnsupportedFormat, {}, "import_file_type"}));
+
+    const QString notes = dir.filePath(QStringLiteral("notatki.txt"));
+    QFile file(notes);
+    ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+    file.write(
+        "# Notatki z treningu\nDobra intensywność, trzeba popracować nad stałymi fragmentami.\n"
+        "- rozgrzewka, 15 min\n- gra na małym polu\n");
+    file.close();
+    wizard.openPath(notes);
+    ASSERT_TRUE(waitIdle(wizard));
+    EXPECT_EQ(wizard.step(), QStringLiteral("file"));
+    EXPECT_EQ(wizard.errorText(), viewmodels::ErrorPresenter::message(core::Error{
+                                      core::ErrorCode::UnsupportedFormat, {}, "import_not_table"}));
 }
 
 TEST_F(ImportWizardViewModelTest, RoleWithoutImport) {

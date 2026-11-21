@@ -294,7 +294,8 @@ int ImportWizardViewModel::updateCount() const {
 
 int ImportWizardViewModel::skipCount() const {
     return countActions(m_rows, existingPolicy(),
-                        {core::RowAction::SkipExisting, core::RowAction::SkipAmbiguous});
+                        {core::RowAction::SkipExisting, core::RowAction::SkipAmbiguous,
+                         core::RowAction::SkipExample});
 }
 
 bool ImportWizardViewModel::updateExisting() const { return m_updateExisting; }
@@ -335,8 +336,9 @@ QVariantMap ImportWizardViewModel::summary() const {
     }
     values.insert(QStringLiteral("created"), m_summary->created);
     values.insert(QStringLiteral("updated"), m_summary->updated);
-    values.insert(QStringLiteral("skipped"),
-                  m_summary->skippedExisting + m_summary->skippedAmbiguous);
+    values.insert(QStringLiteral("skipped"), m_summary->skippedExisting +
+                                                 m_summary->skippedAmbiguous +
+                                                 m_summary->skippedExamples);
     values.insert(QStringLiteral("invalid"), m_summary->invalid);
     if (m_undo) {
         values.insert(QStringLiteral("deleted"), m_undo->deleted);
@@ -651,6 +653,11 @@ void ImportWizardViewModel::applySource(services::ImportSource source) {
         } else {
             qWarning("ImportWizardViewModel: %s", suggestion.error().detail.c_str());
             m_squadMapping = core::autoMapSquad(m_source->table.headers);
+        }
+        // A default is always chosen: CM, the most common position, rather than the first of
+        // the list (GK) (P16 manual test). A remembered mapping keeps its own.
+        if (!m_squadMapping.defaultPosition) {
+            m_squadMapping.defaultPosition = core::Position::Cm;
         }
     } else {
         // The file is fine, the sheet is not: the preview offers the other sheets.

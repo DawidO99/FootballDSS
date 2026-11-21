@@ -6471,7 +6471,7 @@ void exerciseImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& 
     }
     expectFlag(find("undoImportButton"), "visible", false, "Undo import is offered twice");
 
-    // Without a position column: the default position is asked for before the check.
+    // Without a position column: the default position starts as CM and can be changed.
     clickPolished(window, find("importAgainButton"));
     clickPolished(window, find("importType_squad"));
     wizard->openPath(importFixture("no-position.csv"));
@@ -6482,12 +6482,11 @@ void exerciseImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& 
     settle();
     expectReachable(window, find("defaultPositionChoice"), true,
                     "the default position cannot be chosen");
-    expectReachable(window, find("validateButton"), false,
-                    "the rows can be checked without a default position");
-    wizard->setDefaultPosition(QStringLiteral("cm"));
-    settle();
+    if (find("defaultPositionChoice")->property("value").toString() != QLatin1StringView("cm")) {
+        fail("the default position does not start as CM");
+    }
     expectReachable(window, find("validateButton"), true,
-                    "the default position did not allow the check");
+                    "the rows cannot be checked with the default position");
     grabOrSave(window, screenshotDirectory, QStringLiteral("import-mapping.png"));
     wizard->reset();
     window->resize(originalSize);

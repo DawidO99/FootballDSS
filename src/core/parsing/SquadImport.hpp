@@ -95,6 +95,7 @@ enum class RowIssueKind {
     NumberConflict,  // warning; an error under ExistingPolicy::Update (statusFor()): the new
                      // number of the matched player belongs to another player
     MatchChanged,    // warning: the squad changed since the check; the commit was refused
+    TemplateExample, // warning: the example row of the template, skipped
 };
 
 // A player of the team that a row could mean.
@@ -137,6 +138,8 @@ struct FilledFields {
 struct SquadRow {
     int sourceRow = 0;
     PlayerDraft draft;
+    // The example row of the squad template (isTemplateExample()): never imported.
+    bool templateExample = false;
     FilledFields filled;
     // Recognised secondary positions before excluding the resulting primary position.
     std::vector<Position> secondaryCandidates;
@@ -164,8 +167,17 @@ enum class ExistingPolicy { Update, Skip };
 // The status of a row under a policy: a NumberConflict is an error only when the row updates the
 // player (the number would change); otherwise status().
 [[nodiscard]] RowStatus statusFor(const SquadRow& row, ExistingPolicy policy) noexcept;
-enum class RowAction { Create, Update, SkipExisting, SkipAmbiguous, Invalid };
+enum class RowAction { Create, Update, SkipExisting, SkipAmbiguous, SkipExample, Invalid };
 [[nodiscard]] RowAction actionFor(const SquadRow& row, ExistingPolicy policy) noexcept;
+
+// The example row of the squad template (ui/import-templates): Jan Przykładowy, 10, 1999, ŚP (CM),
+// ŚO (CB), right foot. A file row with exactly these values is skipped with a note (P16 manual
+// test).
+[[nodiscard]] bool isTemplateExample(const PlayerDraft& draft);
+
+// Whether a text file is a table at all: at least one column is a squad field, or most rows have
+// the column count of the header (at least two columns). Otherwise it is prose, a list or markdown.
+[[nodiscard]] bool looksLikeSquadTable(const SourceTable& table);
 
 // The stored player with the filled values of the row.
 [[nodiscard]] PlayerDraft mergeUpdate(const Player& existing, const SquadRow& row);

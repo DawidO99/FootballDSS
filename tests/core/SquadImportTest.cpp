@@ -460,6 +460,32 @@ TEST(SquadMatchTest, SecondaryPositionsUseTheResultingPrimaryPosition) {
     EXPECT_TRUE(mergeUpdate(stored, redundant.front()).secondaryPositions.empty());
 }
 
+// P16 manual test: the example row of the template is skipped with a note, whatever the policy.
+TEST(SquadRowsTest, TemplateExampleRowIsSkipped) {
+    const std::vector existing = {player(1, "Jan", "Przykładowy", 10)};
+    const auto rows = validate("Imię;Nazwisko;Nr;Rok urodzenia;Pozycja;Pozycje dodatkowe;Noga\n"
+                               "Jan;Przykładowy;10;1999;ŚP;ŚO;prawa\n"
+                               "Jan;Przykładowy;11;1999;ŚP;ŚO;prawa\n",
+                               existing);
+    ASSERT_EQ(rows.size(), 2U);
+    EXPECT_TRUE(rows[0].templateExample);
+    EXPECT_TRUE(hasIssue(rows[0], RowIssueKind::TemplateExample, SquadField::LastName));
+    EXPECT_EQ(actionFor(rows[0], ExistingPolicy::Skip), RowAction::SkipExample);
+    EXPECT_EQ(actionFor(rows[0], ExistingPolicy::Update), RowAction::SkipExample);
+    // Another number is a real player, and not a duplicate of the example.
+    EXPECT_FALSE(rows[1].templateExample);
+    EXPECT_FALSE(hasIssue(rows[1], RowIssueKind::DuplicateInFile, SquadField::LastName));
+}
+
+TEST(SquadRowsTest, LooksLikeASquadTable) {
+    EXPECT_TRUE(looksLikeSquadTable(table("Nazwisko;Imię\nKowalski;Jan\n")));
+    // No known header, but a steady column count.
+    EXPECT_TRUE(looksLikeSquadTable(table("A;B;C\n1;2;3\n4;5;6\n7;8\n")));
+    // One column of prose, or rows of different lengths.
+    EXPECT_FALSE(looksLikeSquadTable(table("# Notatki\nDobry trening\n- rozgrzewka\n")));
+    EXPECT_FALSE(looksLikeSquadTable(table("A;B\n1\n2;3;4\n5\n")));
+}
+
 TEST(SquadMatchTest, ProgressCountsRows) {
     const SourceTable source = table("Imię;Nazwisko;Pozycja\nA;B;N\nC;D;N\nE;F;N\n");
     std::vector<std::size_t> calls;

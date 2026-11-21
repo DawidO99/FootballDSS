@@ -7,7 +7,9 @@
 #include <QString>
 #include <QStringList>
 
+#include <array>
 #include <optional>
+#include <string_view>
 
 // Steps 1 and 2 of an import (SPEC section 8, AGENTS section 8): the type comes from the content
 // (QMimeDatabase and the file signatures), never from the extension; at most 20 MB; CSV/TXT and
@@ -17,6 +19,8 @@
 namespace fdss::services {
 
 inline constexpr qint64 kMaxImportFileBytes = 20LL * 1024 * 1024;
+// The only file name extensions the import takes (P16 manual test), besides the content check.
+inline constexpr std::array<std::string_view, 4> kImportExtensions = {"csv", "txt", "tsv", "xlsx"};
 
 enum class ImportFileKind { Csv, Xlsx };
 
@@ -44,11 +48,13 @@ struct ImportSource {
 // - larger than kMaxImportFileBytes: InvalidInput ("import_file_size");
 // - empty or only blank rows: InvalidInput ("import_empty"); a header only: ("import_no_rows");
 // - XLS: UnsupportedFormat ("import_xls"); JSON: UnsupportedFormat ("import_json");
-// - anything else that is not text or XLSX: UnsupportedFormat ("import_file_type");
+// - another extension than kImportExtensions, or content that is not text or XLSX:
+//   UnsupportedFormat ("import_file_type"); XLS and JSON content are told apart first;
 // - a broken XLSX: UnsupportedFormat ("import_xlsx_corrupt").
 // A CSV with a quoted field left open is read, but has no table: tableStatus is InvalidInput
 // ("import_csv_quote") and errorLine the line the field opens on.
-// `sheet` (XLSX): nullopt takes the first sheet with data rows; a chosen sheet without them keeps
+// `sheet` (XLSX): nullopt takes the first sheet with data rows, never an instruction sheet
+// ("Instrukcja" of the template); a chosen sheet without them keeps
 // the error in tableStatus. Outside the sheets: InvalidInput ("import_sheet").
 [[nodiscard]] core::Result<ImportSource> readImportFile(const QString& path,
                                                         std::optional<int> sheet = std::nullopt);

@@ -1,6 +1,7 @@
 #include "services/import/ImportFile.hpp"
 
 #include "core/parsing/Csv.hpp"
+#include "core/parsing/HeaderMatching.hpp"
 #include "data/readers/XlsxReader.hpp"
 
 #include <QCryptographicHash>
@@ -9,6 +10,7 @@
 #include <QMimeDatabase>
 #include <QMimeType>
 
+#include <algorithm>
 #include <format>
 #include <string_view>
 #include <utility>
@@ -51,10 +53,6 @@ bool isJson(std::string_view text) {
 core::Status readCsv(const QByteArray& bytes, ImportSource& source) {
     core::DecodedText decoded = core::decodeText(
         std::string_view(bytes.constData(), static_cast<std::size_t>(bytes.size())));
-    if (isJson(decoded.utf8)) {
-        return std::unexpected(
-            fileError(core::ErrorCode::UnsupportedFormat, "a JSON file", "import_json"));
-    }
     source.kind = ImportFileKind::Csv;
     source.encoding = decoded.encoding;
     source.delimiter = core::detectDelimiter(decoded.utf8);
@@ -75,6 +73,23 @@ core::Status readCsv(const QByteArray& bytes, ImportSource& source) {
     return {};
 }
 
+// The instruction sheet of the squad template, or one like it: never chosen by itself.
+bool isInstructionSheet(const QString& name) {
+    const std::string folded = core::foldText(name.toStdString());
+    return folded == "instrukcja" || folded == "instructions";
+}
+
+void applyBook(data::XlsxBook book, ImportSource& source) {
+    source.sheet = book.sheet;
+    source.table = {};
+    source.tableStatus = {};
+    if (auto table = core::toSourceTable(std::move(book.rows))) {
+        source.table = std::move(*table);
+    } else {
+        source.tableStatus = std::unexpected(table.error());
+    }
+}
+
 core::Status readXlsxFile(const QByteArray& bytes, std::optional<int> sheet, ImportSource& source) {
     source.kind = ImportFileKind::Xlsx;
     auto book = data::readXlsx(bytes, sheet.value_or(0));
@@ -82,32 +97,50 @@ core::Status readXlsxFile(const QByteArray& bytes, std::optional<int> sheet, Imp
         return std::unexpected(book.error());
     }
     source.sheets = book->sheets;
-    source.sheet = book->sheet;
-    if (auto table = core::toSourceTable(std::move(book->rows))) {
-        source.table = std::move(*table);
-    } else {
-        source.tableStatus = std::unexpected(table.error());
-    }
-    if (sheet || source.tableStatus) {
+    if (sheet) {
+        applyBook(std::move(*book), source);
         return {};
     }
-    // No sheet chosen: the first one with data rows, else the first sheet and its error.
-    const core::Status firstError = source.tableStatus;
-    for (int index = 1; index < source.sheets.size(); ++index) {
-        auto other = data::readXlsx(bytes, index);
-        if (!other) {
-            return std::unexpected(other.error());
+    // No sheet chosen: the first data sheet with rows, never an instruction sheet; without one, the
+    // first data sheet and its error.
+    std::optional<int> fallback;
+    for (int index = 0; index < source.sheets.size(); ++index) {
+        if (isInstructionSheet(source.sheets.at(index))) {
+            continue;
         }
-        auto table = core::toSourceTable(std::move(other->rows));
-        if (table) {
-            source.sheet = index;
-            source.table = std::move(*table);
-            source.tableStatus = {};
+        fallback = fallback.value_or(index);
+        auto candidate = index == book->sheet ? std::move(book) : data::readXlsx(bytes, index);
+        if (!candidate) {
+            return std::unexpected(candidate.error());
+        }
+        applyBook(std::move(*candidate), source);
+        if (source.tableStatus) {
             return {};
         }
     }
-    source.tableStatus = firstError;
+    auto chosen = data::readXlsx(bytes, fallback.value_or(0));
+    if (!chosen) {
+        return std::unexpected(chosen.error());
+    }
+    applyBook(std::move(*chosen), source);
     return {};
+}
+
+bool acceptedExtension(const QFileInfo& info) {
+    const QString suffix = info.suffix().toLower();
+    return std::ranges::any_of(kImportExtensions, [&suffix](std::string_view accepted) {
+        return suffix ==
+               QLatin1StringView(accepted.data(), static_cast<qsizetype>(accepted.size()));
+    });
+}
+
+// A JSON document: '{' or '[' first, after a UTF-8 BOM and whitespace.
+bool looksLikeJson(const QByteArray& bytes) {
+    std::string_view text(bytes.constData(), static_cast<std::size_t>(bytes.size()));
+    if (text.starts_with("\xEF\xBB\xBF")) {
+        text.remove_prefix(3);
+    }
+    return isJson(text);
 }
 
 } // namespace
@@ -132,6 +165,25 @@ core::Result<ImportSource> readImportFile(const QString& path, std::optional<int
         return std::unexpected(
             fileError(core::ErrorCode::InvalidInput, "grew past the limit", "import_file_size"));
     }
+    const QMimeType mime = QMimeDatabase().mimeTypeForData(bytes);
+    // What the content says first: an XLS or a JSON file gets its own message, whatever its name.
+    if (startsWith(bytes, kOleSignature) ||
+        mime.inherits(QStringLiteral("application/x-ole-storage")) ||
+        mime.inherits(QStringLiteral("application/vnd.ms-excel"))) {
+        return std::unexpected(fileError(core::ErrorCode::UnsupportedFormat,
+                                         "an XLS (Excel 97-2003) file", "import_xls"));
+    }
+    if (mime.inherits(QStringLiteral("application/json")) || looksLikeJson(bytes)) {
+        return std::unexpected(
+            fileError(core::ErrorCode::UnsupportedFormat, "a JSON file", "import_json"));
+    }
+    // Then the name: only the types the wizard offers (P16 manual test), and the content must
+    // still be that type.
+    if (!acceptedExtension(info)) {
+        return std::unexpected(fileError(core::ErrorCode::UnsupportedFormat,
+                                         std::format("extension '{}'", info.suffix().toStdString()),
+                                         "import_file_type"));
+    }
     if (bytes.isEmpty()) {
         return std::unexpected(
             fileError(core::ErrorCode::InvalidInput, "an empty file", "import_empty"));
@@ -143,18 +195,9 @@ core::Result<ImportSource> readImportFile(const QString& path, std::optional<int
     source.hash =
         QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex());
 
-    const QMimeType mime = QMimeDatabase().mimeTypeForData(bytes);
     core::Status read;
     if (startsWith(bytes, kZipSignature)) {
         read = readXlsxFile(bytes, sheet, source);
-    } else if (startsWith(bytes, kOleSignature) ||
-               mime.inherits(QStringLiteral("application/x-ole-storage")) ||
-               mime.inherits(QStringLiteral("application/vnd.ms-excel"))) {
-        return std::unexpected(fileError(core::ErrorCode::UnsupportedFormat,
-                                         "an XLS (Excel 97-2003) file", "import_xls"));
-    } else if (mime.inherits(QStringLiteral("application/json"))) {
-        return std::unexpected(
-            fileError(core::ErrorCode::UnsupportedFormat, "a JSON file", "import_json"));
     } else if (startsWith(bytes, "\xFF\xFE") || startsWith(bytes, "\xFE\xFF") ||
                ((mime.inherits(QStringLiteral("text/plain")) || mime.isDefault()) &&
                 looksLikeText(bytes))) {

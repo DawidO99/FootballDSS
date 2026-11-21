@@ -172,6 +172,8 @@ QString ImportTexts::issue(const core::RowIssue& issue, int currentYear) {
     case core::RowIssueKind::NumberConflict:
         return tr("shirt number '%1' belongs to %2; choose a free number")
             .arg(value, playerList(issue.candidates));
+    case core::RowIssueKind::TemplateExample:
+        return tr("skipped the example row of the template");
     case core::RowIssueKind::MatchChanged:
         return tr("the squad changed since the check — check again");
     case core::RowIssueKind::AmbiguousMatch:
@@ -232,6 +234,8 @@ QString ImportTexts::actionName(core::RowAction action) {
         return tr("Skip: already in the squad");
     case core::RowAction::SkipAmbiguous:
         return tr("Skip: unclear player");
+    case core::RowAction::SkipExample:
+        return tr("Skip: example row");
     case core::RowAction::Invalid:
         return tr("Not imported");
     }

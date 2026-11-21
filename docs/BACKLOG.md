@@ -55,6 +55,8 @@
 - Match Day tactics: inserting a change of shape before a later stored one (refused today with
   `tactic_change_later`; it would need the draft based on the shape at its minute and the later changes
   rebased on it) (P13b decision 5)
+- Player primary position optional ("—", nie podano): migration 0005 (primary_position NULL), Squad
+  filter/sort, lineup validator, slot picker, tactics board, import default "—" (P16 manual test) (P19)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,

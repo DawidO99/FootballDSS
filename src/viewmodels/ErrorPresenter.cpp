@@ -55,8 +55,13 @@ QString ErrorPresenter::message(const core::Error& error) {
                       "Excel, save it again and import the new file.");
         }
         if (error.field == "import_file_type") {
-            return tr("This is not a spreadsheet: only CSV, TXT and XLSX files can be imported, "
-                      "whatever their name says. Choose another file.");
+            return tr("This file type is not supported. Accepted: .csv, .txt, .tsv, .xlsx. Choose "
+                      "another file.");
+        }
+        if (error.field == "import_not_table") {
+            return tr("The file does not look like a table: no column is recognised and the rows "
+                      "have different numbers of columns. Choose the file with the list of players "
+                      "or fill in the template.");
         }
         if (error.field == "import_type") {
             return tr("This import cannot be undone here.");
