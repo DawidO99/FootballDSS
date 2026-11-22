@@ -4000,6 +4000,34 @@
         <translation>Edytuj</translation>
     </message>
     <message>
+        <source>Team</source>
+        <translation>Drużyna</translation>
+    </message>
+    <message>
+        <source>Season</source>
+        <translation>Sezon</translation>
+    </message>
+    <message>
+        <source>Edit team</source>
+        <translation>Edytuj drużynę</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>The team was saved.</source>
+        <translation>Drużyna została zapisana.</translation>
+    </message>
+    <message>
+        <source>Team name</source>
+        <translation>Nazwa drużyny</translation>
+    </message>
+    <message>
+        <source>Two consecutive years, for example 2026/27.</source>
+        <translation>Dwa kolejne lata, na przykład 2026/27.</translation>
+    </message>
+    <message>
         <source>Delete</source>
         <translation>Usuń</translation>
     </message>
@@ -5207,7 +5235,7 @@
     </message>
     <message>
         <source>Enter the season in the form 2026/27.</source>
-        <translation>Podaj sezon w postaci 2026/27.</translation>
+        <translation type="vanished">Podaj sezon w postaci 2026/27.</translation>
     </message>
     <message>
         <source>Enter the first name, up to 50 characters.</source>
@@ -5488,6 +5516,10 @@
     <message>
         <source>The shape is the same as before. Move a player or choose another formation.</source>
         <translation>Ustawienie jest takie samo jak wcześniej. Przesuń zawodnika albo wybierz inne ustawienie.</translation>
+    </message>
+    <message>
+        <source>Enter the season as two consecutive years in the form 2026/27.</source>
+        <translation>Podaj sezon jako dwa kolejne lata w postaci 2026/27.</translation>
     </message>
     <message>
         <source>The data in the app changed since the rows were checked, so nothing was imported. The report shows what the import would do now; check it and import again.</source>

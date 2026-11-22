@@ -69,3 +69,31 @@ schema 4 with existing data (positions kept, `must_change_pin` false). CI items 
 - [ ] Section 3 passes; the GC stress job runs once by hand.
 
 ## Decisions (accepted plan)
+1. **Split.** P19a = items 1–3, the team card (decision 2), migration 0005, the migration runner change
+   (decision 3) and SPEC §6; full section 3, commits, report, then stop. P19b = items 4–13, on a new branch
+   from `main` after P19a is merged, started only on the human's signal.
+2. **Team edit** does not exist yet: a "Team" card in Settings (team name + season, `ManageSettings`, checked
+   in C++) with the season validation of item 1.
+3. **Migration runner:** every migration runs with `PRAGMA foreign_keys = OFF` around its transaction and a
+   `PRAGMA foreign_key_check` before the commit (a row = error, rollback); foreign keys are switched back on
+   also after a failure. `DROP TABLE player` is impossible otherwise (its children use `ON DELETE RESTRICT`,
+   which acts immediately even with `defer_foreign_keys`).
+4. **Season** stays `YYYY/YY`: first year 1900–2099, second part = (first + 1) mod 100, so `2099/00` is valid.
+5. **Forced PIN change** is set by `resetPin` and by `addStaff` (both PINs are chosen by the Coach), not when a
+   Coach resets their own PIN. The new PIN must differ from the reset one (`pin_same`). Until it is changed the
+   session allows nothing (`Session::isAllowed` false) and `AppState` is `NeedsPinChange`.
+6. **No primary position:** no OutOfPosition warning; instead an Info issue `PositionNotGiven` whose text is
+   shown in the slot tooltip.
+7. **Import default "—"** in the squad import (P16) and the activity import (P18). "—" gives the row warning
+   "position not given — fill it in in Squad"; a chosen default position keeps "position set by default —
+   correct it in Squad". The mandatory choice of a default position goes away.
+8. **PlayerEditor:** a new player starts with "—"; the primary position is not mandatory.
+9. **Out-of-list files:** `docs/SPEC.md` §6 (P19a), `scripts/package-windows.ps1` (P19b, item 12).
+10. **Migration test:** upgrade from every schema version 1–4 with data (including lineups, appearances and
+    availability that reference players): positions kept, `must_change_pin` = 0, `foreign_key_check` clean,
+    row count of every table unchanged.
+11. **P19b, accepted now:** chart hover test reproduced under xvfb first, then `QCursor::setPos` to the
+    synthetic point; GC stress job `continue-on-error: true` on every `workflow_dispatch`; availability delete
+    without a confirm dialog (undo toast, new id on undo); "Rename…" of the opponent with `EditCalendar` also
+    for played matches; only the four thresholds of SPEC §7.1 are editable.
+12. **Commits:** one one-line commit per item.

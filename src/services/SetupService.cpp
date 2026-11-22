@@ -115,4 +115,21 @@ core::Result<core::StaffUser> SetupService::completeSetup(const core::ClubDraft&
     return user;
 }
 
+core::Status SetupService::updateTeam(std::string_view name, std::string_view season) {
+    if (auto allowed = m_session.require(core::Permission::ManageSettings); !allowed) {
+        return allowed;
+    }
+    const auto context = clubContext();
+    if (!context) {
+        return std::unexpected(context.error());
+    }
+    core::TeamDraft team = context->team;
+    team.name = core::trimmed(name);
+    team.season = core::trimmed(season);
+    if (auto valid = withNameField(firstError(core::validate(team)), "team_name"); !valid) {
+        return valid;
+    }
+    return m_clubs.updateTeam(context->team.id, team);
+}
+
 } // namespace fdss::services

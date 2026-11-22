@@ -6067,6 +6067,61 @@ void exerciseDashboardShortBaseline(const DashboardScreen& screen) {
     }
 }
 
+// P19 decision 2: the Coach changes the season from the keyboard; a season that is not two
+// consecutive years stays in the dialog with its error.
+void exerciseTeamCard(QQmlApplicationEngine& engine, const DashboardScreen& screen) {
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    screen.navigation->activate(QStringLiteral("settings"));
+    settle();
+    QQuickItem* root = screen.window->contentItem();
+    auto* edit = findByObjectName(root, QStringLiteral("editTeamButton"));
+    auto* settingsView = findQmlItem(root, "SettingsView");
+    auto* dialog =
+        settingsView != nullptr ? settingsView->property("teamDialog").value<QObject*>() : nullptr;
+    if (edit == nullptr || dialog == nullptr || !edit->isVisible()) {
+        fail("the Team card has no Edit button for the Coach");
+        return;
+    }
+    const QString teamName = appState->teamName();
+    const auto typeSeason = [&](const QString& season) {
+        clickItem(screen.window, edit);
+        settle();
+        auto* seasonInput = findByObjectName(root, QStringLiteral("teamSeasonInput"));
+        if (seasonInput == nullptr) {
+            return false;
+        }
+        pressKey(screen.window, Qt::Key_Tab);
+        seasonInput->setProperty("text", QString{});
+        typeText(screen.window, season);
+        pressKey(screen.window, Qt::Key_Return);
+        settle();
+        return true;
+    };
+    if (!typeSeason(QStringLiteral("2027/29"))) {
+        fail("the Team dialog has no season field");
+        return;
+    }
+    expectFlag(dialog, "visible", true, "a season of two years apart closed the Team dialog");
+    if (findByObjectName(root, QStringLiteral("teamSeasonInput"))
+            ->property("error")
+            .toString()
+            .isEmpty()) {
+        fail("a season of two years apart shows no error");
+    }
+    QMetaObject::invokeMethod(dialog, "close");
+    settle();
+    if (!typeSeason(QStringLiteral("2027/28"))) {
+        return;
+    }
+    expectFlag(dialog, "visible", false, "Enter did not save the team");
+    const auto* season = findByObjectName(root, QStringLiteral("teamSeasonValue"));
+    if (season == nullptr || season->property("text").toString() != QLatin1StringView("2027/28") ||
+        appState->teamName() != teamName) {
+        fail("the Team card does not show the saved season");
+    }
+}
+
 void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
                                            const DashboardScreen& screen) {
     const auto coach = ServiceRegistry::instance().session().user()->id;
@@ -6089,6 +6144,10 @@ void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
         for (const bool show : {true, false}) {
             screen.navigation->activate(QStringLiteral("settings"));
             settle();
+            if (countVisible(screen.window->contentItem(), QStringLiteral("teamCard")) !=
+                (user == coach ? 1 : 0)) {
+                fail("the Team card in Settings is not shown to the Coach alone");
+            }
             auto* toggle = findByObjectName(screen.window->contentItem(),
                                             QStringLiteral("showAdvancedModules"));
             if (toggle == nullptr || !toggle->isVisible() || !toggle->isEnabled()) {
@@ -6108,7 +6167,9 @@ void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
             }
         }
     }
-    logInAgain(engine, coach);
+    if (logInAgain(engine, coach)) {
+        exerciseTeamCard(engine, screen);
+    }
 }
 
 // Empty club: the dashboard and the locked Pre-match explain what to enter; after eleven players

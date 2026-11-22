@@ -186,3 +186,35 @@ TEST_F(SetupServiceTest, AClubWithoutATeamIsNotSetUp) {
     EXPECT_FALSE(m_setup->isSetupComplete().value_or(true));
     expectError(m_setup->clubContext(), ErrorCode::NotFound);
 }
+
+TEST_F(SetupServiceTest, UpdateTeamChangesNameAndSeasonAndKeepsTheCategory) {
+    ASSERT_TRUE(setup().has_value());
+
+    ASSERT_TRUE(m_setup->updateTeam(" Rezerwy ", "2027/28").has_value());
+
+    const auto context = m_setup->clubContext();
+    ASSERT_TRUE(context.has_value());
+    EXPECT_EQ(context->team.name, "Rezerwy");
+    EXPECT_EQ(context->team.season, "2027/28");
+    EXPECT_EQ(context->team.category, TeamCategory::Senior);
+}
+
+TEST_F(SetupServiceTest, UpdateTeamValidatesAndNamesTheInput) {
+    ASSERT_TRUE(setup().has_value());
+
+    expectError(m_setup->updateTeam(" ", "2027/28"), ErrorCode::InvalidInput, "team_name");
+    expectError(m_setup->updateTeam("Rezerwy", "2027/29"), ErrorCode::InvalidInput, "season");
+
+    EXPECT_EQ(m_setup->clubContext()->team.season, "2026/27");
+}
+
+TEST_F(SetupServiceTest, UpdateTeamNeedsManageSettings) {
+    ASSERT_TRUE(setup().has_value());
+    m_auth->logout();
+    expectError(m_setup->updateTeam("Rezerwy", "2027/28"), ErrorCode::PermissionDenied);
+
+    logIn(addUser("Ewa", Role::Assistant));
+    expectError(m_setup->updateTeam("Rezerwy", "2027/28"), ErrorCode::PermissionDenied);
+
+    EXPECT_EQ(m_setup->clubContext()->team.name, "Seniorzy");
+}

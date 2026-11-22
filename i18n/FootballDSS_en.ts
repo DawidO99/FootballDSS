@@ -3880,6 +3880,34 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Team</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Season</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit team</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The team was saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Team name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Two consecutive years, for example 2026/27.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Delete</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5074,10 +5102,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Enter the season in the form 2026/27.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Enter the first name, up to 50 characters.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5343,6 +5367,10 @@
     </message>
     <message>
         <source>The shape is the same as before. Move a player or choose another formation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter the season as two consecutive years in the form 2026/27.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

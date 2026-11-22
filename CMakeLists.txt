@@ -247,6 +247,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/StaffViewModel.cpp
         src/viewmodels/StartupViewModel.hpp
         src/viewmodels/StartupViewModel.cpp
+        src/viewmodels/TeamSettingsViewModel.hpp
+        src/viewmodels/TeamSettingsViewModel.cpp
         src/viewmodels/TrainingSessionViewModel.hpp
         src/viewmodels/TrainingSessionViewModel.cpp
 )

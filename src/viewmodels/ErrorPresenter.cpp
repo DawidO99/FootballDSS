@@ -155,7 +155,7 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
         return tr("Enter a name, up to 50 characters.");
     }
     if (field == "season") {
-        return tr("Enter the season in the form 2026/27.");
+        return tr("Enter the season as two consecutive years in the form 2026/27.");
     }
     if (field == "first_name") {
         return tr("Enter the first name, up to 50 characters.");

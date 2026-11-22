@@ -58,10 +58,22 @@ void checkEndDate(ValidationErrors& errors, std::string_view field, const std::o
 
 bool isDigit(char character) noexcept { return character >= '0' && character <= '9'; }
 
-// The format the schema checks: "2026/27".
+int digitsValue(std::string_view digits) noexcept {
+    int value = 0;
+    for (const char digit : digits) {
+        value = value * 10 + (digit - '0');
+    }
+    return value;
+}
+
+// "2026/27": the format the schema checks, a first year from 1900 to 2099 and a second part that
+// is the next year, so "2099/00" is the last season.
 bool isSeason(std::string_view season) noexcept {
     constexpr std::size_t kSeasonLength = 7;
     constexpr std::size_t kSeparatorIndex = 4;
+    constexpr int kFirstYear = 1900;
+    constexpr int kLastYear = 2099;
+    constexpr int kCentury = 100;
     if (season.size() != kSeasonLength) {
         return false;
     }
@@ -70,7 +82,9 @@ bool isSeason(std::string_view season) noexcept {
             return false;
         }
     }
-    return true;
+    const int first = digitsValue(season.substr(0, kSeparatorIndex));
+    const int second = digitsValue(season.substr(kSeparatorIndex + 1));
+    return first >= kFirstYear && first <= kLastYear && second == (first + 1) % kCentury;
 }
 
 bool isWhole(double value) noexcept { return std::isfinite(value) && std::trunc(value) == value; }

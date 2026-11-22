@@ -5,7 +5,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FootballDSS
 
-// The match rules and the Staff section, for those who may manage settings and staff; the modules
+// The team, the match rules and the Staff section, for those who may manage settings and staff; the modules
 // preference of this computer and the custom metrics (P17) for every role (P15 decision 4). Other
 // settings arrive with later packets.
 Item {
@@ -17,10 +17,18 @@ Item {
     readonly property bool canManageSettings: AppState.can("ManageSettings")
     // Exposed for tests: null without ManageStaff.
     readonly property Item staffSection: staffLoader.item as Item
+    // Exposed for tests.
+    readonly property alias teamDialog: teamDialog
     // Exposed for tests: the metrics card, in its tab or alone.
     readonly property Item metricsSection: (root.canManageStaff ? metricsTabLoader.item : metricsLoader.item) as Item
 
     signal navigateRequested(string key, var args)
+
+    TeamSettingsViewModel {
+        id: teamSettings
+
+        onErrorOccurred: message => Toasts.error(message)
+    }
 
     Connections {
         target: AppSettings
@@ -45,6 +53,58 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.spacing.l
+
+            // P19 decision 2: the name and the season of the team; edited in a dialog, so the card
+            // stays as short as its neighbours.
+            Card {
+                objectName: "teamCard"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredWidth: 1
+                visible: root.canManageSettings
+                title: qsTr("Team")
+
+                actions: SecondaryButton {
+                    objectName: "editTeamButton"
+                    visible: teamSettings.canEdit
+                    text: qsTr("Edit")
+                    onClicked: teamDialog.openForEditing()
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 2
+                    columnSpacing: Theme.spacing.m
+                    rowSpacing: Theme.spacing.s
+
+                    Label {
+                        text: qsTr("Name")
+                        color: Theme.textMuted
+                    }
+
+                    Label {
+                        objectName: "teamNameValue"
+                        Layout.fillWidth: true
+                        text: teamSettings.teamName
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        color: Theme.text
+                    }
+
+                    Label {
+                        text: qsTr("Season")
+                        color: Theme.textMuted
+                    }
+
+                    Label {
+                        objectName: "teamSeasonValue"
+                        Layout.fillWidth: true
+                        text: teamSettings.season
+                        textFormat: Text.PlainText
+                        color: Theme.text
+                    }
+                }
+            }
 
             // P12 decision 3: one threshold for every competition, kept on this computer.
             Card {
@@ -136,6 +196,72 @@ Item {
             active: !root.canManageStaff
             visible: active
             sourceComponent: metricsComponent
+        }
+    }
+
+    AppDialog {
+        id: teamDialog
+
+        function openForEditing() {
+            teamSettings.reload();
+            teamSettings.clearErrors();
+            teamNameInput.text = teamSettings.teamName;
+            teamSeasonInput.text = teamSettings.season;
+            teamDialog.open();
+            teamNameInput.forceActiveFocus(Qt.TabFocusReason);
+        }
+
+        objectName: "teamDialog"
+        size: AppDialog.Small
+        title: qsTr("Edit team")
+        primaryText: qsTr("Save")
+        onPrimaryClicked: {
+            if (teamSettings.save(teamNameInput.text, teamSeasonInput.text)) {
+                teamDialog.close();
+                AppState.refresh();
+                Toasts.info(qsTr("The team was saved."));
+            } else if (teamSettings.nameError.length > 0) {
+                teamNameInput.forceActiveFocus(Qt.TabFocusReason);
+            } else if (teamSettings.seasonError.length > 0) {
+                teamSeasonInput.forceActiveFocus(Qt.TabFocusReason);
+            }
+        }
+
+        FormField {
+            id: teamNameFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Team name")
+            mandatory: true
+            error: teamNameInput.effectiveError
+
+            TextInputField {
+                id: teamNameInput
+
+                objectName: "teamNameInput"
+                Layout.fillWidth: true
+                error: teamSettings.nameError
+                Accessible.name: teamNameFormField.label
+            }
+        }
+
+        FormField {
+            id: teamSeasonFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Season")
+            mandatory: true
+            helpText: qsTr("Two consecutive years, for example 2026/27.")
+            error: teamSeasonInput.effectiveError
+
+            TextInputField {
+                id: teamSeasonInput
+
+                objectName: "teamSeasonInput"
+                Layout.fillWidth: true
+                error: teamSettings.seasonError
+                Accessible.name: teamSeasonFormField.label
+            }
         }
     }
 

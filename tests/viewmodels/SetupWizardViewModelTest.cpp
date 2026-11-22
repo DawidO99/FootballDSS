@@ -121,7 +121,8 @@ TEST_F(SetupWizardViewModelTest, TheSeasonFormatIsChecked) {
     ASSERT_TRUE(wizard.next());
     fillClubStep(wizard);
 
-    for (const char* season : {"", "2026", "2026-27", "26/27", "2026/2027", "abcd/ef"}) {
+    for (const char* season :
+         {"", "2026", "2026-27", "26/27", "2026/2027", "abcd/ef", "2026/28", "1899/00"}) {
         wizard.setSeason(QString::fromLatin1(season));
         EXPECT_FALSE(wizard.next()) << season;
         EXPECT_FALSE(wizard.seasonError().isEmpty()) << season;
