@@ -2,6 +2,25 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en" sourcelanguage="en">
 <context>
+    <name>AlreadyRunningView</name>
+    <message>
+        <source>FootballDSS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FootballDSS is already running</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to its window, for example from the taskbar. Only one FootballDSS can be open at a time, so that two windows never change the same data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>AppDialog</name>
     <message>
         <source>Save</source>

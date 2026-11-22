@@ -65,6 +65,7 @@ add_executable(fdss_tests
     data/TransactionTest.cpp
     data/XlsxReaderTest.cpp
     data/XlsxSpikeTest.cpp
+    services/AppLogTest.cpp
     services/AuthServiceTest.cpp
     services/CalendarServiceTest.cpp
     services/CapabilityServiceTest.cpp
@@ -81,6 +82,7 @@ add_executable(fdss_tests
     services/ServiceFixture.hpp
     services/SessionTest.cpp
     services/SetupServiceTest.cpp
+    services/SingleInstanceTest.cpp
     services/SquadServiceTest.cpp
     services/TrainingServiceTest.cpp
 )

@@ -119,6 +119,7 @@ qt_add_qml_module(fdss_ui
         ui/views/CalendarView.qml
         ui/views/ComponentGalleryView.qml
         ui/views/DashboardView.qml
+        ui/views/AlreadyRunningView.qml
         ui/views/DatabaseErrorView.qml
         ui/views/ForcedPinChangeView.qml
         ui/views/ImportView.qml

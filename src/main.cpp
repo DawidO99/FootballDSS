@@ -1,12 +1,15 @@
 #include "core/util/Version.hpp"
 #include "data/db/AppPaths.hpp"
 #include "data/db/DatabaseManager.hpp"
+#include "services/AppLog.hpp"
 #include "services/SetupService.hpp"
+#include "services/SingleInstance.hpp"
 #include "viewmodels/JsGarbageCollector.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
 #include "viewmodels/StartupViewModel.hpp"
 
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QtQml/QQmlExtensionPlugin>
@@ -37,6 +40,33 @@ fdss::core::Status installServices(const fdss::core::Result<QString>& path) {
     return {};
 }
 
+// The lock of this instance; null when the lock file cannot be written, which is no reason to
+// refuse the start. Conflict: another FootballDSS runs.
+fdss::core::Result<std::unique_ptr<fdss::services::SingleInstance>>
+lockInstance(const fdss::core::Result<QString>& databasePath) {
+    if (!databasePath) {
+        return nullptr;
+    }
+    auto lock = fdss::services::SingleInstance::acquire(QFileInfo(*databasePath).absolutePath());
+    if (!lock && lock.error().code != fdss::core::ErrorCode::Conflict) {
+        qWarning("Cannot lock the instance: %s", lock.error().detail.c_str());
+        return nullptr;
+    }
+    return lock;
+}
+
+// After the lock: a second instance must not rotate away the file of the running one.
+void installLog() {
+    const auto directory = fdss::data::AppPaths::logDirectory();
+    if (!directory) {
+        qWarning("No log file: %s", directory.error().detail.c_str());
+        return;
+    }
+    if (const auto installed = fdss::services::AppLog::install(*directory); !installed) {
+        qWarning("No log file: %s", installed.error().detail.c_str());
+    }
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -49,6 +79,21 @@ int main(int argc, char* argv[]) {
         QString::fromStdString(fdss::core::toString(fdss::core::currentVersion())));
 
     const auto databasePath = fdss::data::AppPaths::defaultDatabasePath();
+    const auto instance = lockInstance(databasePath);
+    if (!instance) {
+        qWarning("FootballDSS is already running");
+        QQmlApplicationEngine engine;
+        QObject::connect(
+            &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
+            [] { QCoreApplication::exit(EXIT_FAILURE); }, Qt::QueuedConnection);
+        engine.singletonInstance<fdss::viewmodels::LanguageManager*>(
+            QStringLiteral("FootballDSS"), QStringLiteral("LanguageManager"));
+        engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("AlreadyRunningView"));
+        QGuiApplication::exec();
+        return EXIT_FAILURE;
+    }
+    installLog();
+    qInfo("FootballDSS %s started", qUtf8Printable(QGuiApplication::applicationVersion()));
     const auto services = installServices(databasePath);
 
     int exitCode = EXIT_FAILURE;
@@ -78,5 +123,6 @@ int main(int argc, char* argv[]) {
     // After the engine, whose viewmodels use the services. Not left to static destruction: that
     // would close the database after QGuiApplication is gone.
     fdss::viewmodels::ServiceRegistry::reset();
+    fdss::services::AppLog::uninstall();
     return exitCode;
 }
