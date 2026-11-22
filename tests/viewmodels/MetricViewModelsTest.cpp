@@ -159,9 +159,15 @@ TEST_F(MetricViewModelsTest, FormErrorsAreKeyedByField) {
     ASSERT_TRUE(definitions.add(sprintForm()));
     EXPECT_TRUE(definitions.fieldErrors().isEmpty());
     QVariantMap similar = sprintForm();
+    similar.insert(QStringLiteral("namePl"), QStringLiteral("Bieg"));
     similar.insert(QStringLiteral("nameEn"), QStringLiteral("sprint-30-M"));
-    EXPECT_FALSE(definitions.add(similar)) << "the key is taken";
+    EXPECT_FALSE(definitions.add(similar)) << "the English name is taken";
     EXPECT_TRUE(definitions.fieldErrors().contains(QStringLiteral("nameEn")));
+    similar.insert(QStringLiteral("namePl"), QStringLiteral("SPRINT 30M"));
+    similar.insert(QStringLiteral("nameEn"), QStringLiteral("Dash"));
+    EXPECT_FALSE(definitions.add(similar)) << "the Polish name is taken";
+    EXPECT_TRUE(definitions.fieldErrors().contains(QStringLiteral("namePl")));
+    EXPECT_EQ(definitions.definitions()->count(), 1);
 }
 
 TEST_F(MetricViewModelsTest, BooleanFormOffersOnlyItsAggregations) {

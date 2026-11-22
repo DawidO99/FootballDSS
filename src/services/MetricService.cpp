@@ -11,8 +11,10 @@
 #include "services/ServiceSupport.hpp"
 #include "services/Session.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -69,6 +71,9 @@ MetricService::addDefinition(const core::MetricDefinitionDraft& draft) {
     if (auto valid = firstError(core::validate(draft)); !valid) {
         return std::unexpected(valid.error());
     }
+    if (auto free = checkNamesFree(draft, std::nullopt); !free) {
+        return std::unexpected(free.error());
+    }
     const std::string key = core::metricKey(draft);
     const auto taken = m_metrics.keyExists(key);
     if (!taken) {
@@ -95,6 +100,9 @@ core::Status MetricService::updateDefinition(core::MetricDefinitionId id,
     const auto stored = m_metrics.getDefinition(id);
     if (!stored) {
         return std::unexpected(stored.error());
+    }
+    if (auto free = checkNamesFree(draft, id); !free) {
+        return free;
     }
     if (stored->valueType != draft.valueType || stored->scope != draft.scope) {
         const auto count = m_metrics.valueCount(id);
@@ -149,6 +157,10 @@ MetricService::restoreDefinition(const core::MetricDefinition& deleted) {
     }
     if (auto valid = firstError(core::validate(deleted)); !valid) {
         return std::unexpected(valid.error());
+    }
+    // Another metric may have taken the name since the delete.
+    if (auto free = checkNamesFree(deleted, std::nullopt); !free) {
+        return std::unexpected(free.error());
     }
     return m_metrics.createDefinition(deleted, deleted.key);
 }
@@ -296,6 +308,31 @@ MetricService::playerSummary(core::PlayerId player) const {
         result.push_back(std::move(summary));
     }
     return result;
+}
+
+core::Status MetricService::checkNamesFree(const core::MetricDefinitionDraft& draft,
+                                           std::optional<core::MetricDefinitionId> except) const {
+    const auto definitions = m_metrics.listDefinitions();
+    if (!definitions) {
+        return std::unexpected(definitions.error());
+    }
+    const auto taken = [&](const std::string& name) {
+        const std::string key = core::metricNameKey(name);
+        return !key.empty() &&
+               std::ranges::any_of(*definitions, [&](const core::MetricDefinition& other) {
+                   return other.id != except && (core::metricNameKey(other.namePl) == key ||
+                                                 core::metricNameKey(other.nameEn) == key);
+               });
+    };
+    if (taken(draft.namePl)) {
+        return std::unexpected(
+            error(core::ErrorCode::Conflict, "another metric has a similar name", "name_pl"));
+    }
+    if (taken(draft.nameEn)) {
+        return std::unexpected(
+            error(core::ErrorCode::Conflict, "another metric has a similar name", "name_en"));
+    }
+    return {};
 }
 
 core::Status MetricService::requireLogin() const {

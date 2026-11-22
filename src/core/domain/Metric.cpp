@@ -86,6 +86,40 @@ std::string metricKey(std::string_view nameUtf8) {
     return key;
 }
 
+std::string metricNameKey(std::string_view nameUtf8) {
+    // foldName() leaves Latin letters and digits as ASCII, every Latin separator as a space, and
+    // other code points as they are; of those, General Punctuation (dashes, quotes, ellipsis) and
+    // CJK punctuation go too.
+    const std::string folded = foldName(nameUtf8);
+    std::string key;
+    key.reserve(folded.size());
+    for (std::size_t i = 0; i < folded.size();) {
+        const auto lead = static_cast<unsigned char>(folded[i]);
+        if (lead < 0x80) {
+            if ((lead >= 'a' && lead <= 'z') || isDigit(static_cast<char>(lead))) {
+                key.push_back(static_cast<char>(lead));
+            }
+            ++i;
+            continue;
+        }
+        const std::size_t length = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : 2;
+        const std::string_view sequence(folded.data() + i, std::min(length, folded.size() - i));
+        bool punctuation = false;
+        if (sequence.size() == 3) {
+            const char32_t point = ((lead & 0x0FU) << 12U) |
+                                   ((static_cast<unsigned char>(sequence[1]) & 0x3FU) << 6U) |
+                                   (static_cast<unsigned char>(sequence[2]) & 0x3FU);
+            punctuation =
+                (point >= 0x2000 && point <= 0x206F) || (point >= 0x3000 && point <= 0x303F);
+        }
+        if (!punctuation) {
+            key.append(sequence);
+        }
+        i += sequence.size();
+    }
+    return key;
+}
+
 std::string metricKey(const MetricDefinitionDraft& draft) {
     return metricKey(trimmed(draft.nameEn).empty() ? draft.namePl : draft.nameEn);
 }

@@ -57,6 +57,11 @@ This is the "universal from B-klasa to pro" mechanism for data the app does not 
    other characters → `_`). A slug that is taken is refused with `Conflict` (field `key`, "a metric with a
    similar name already exists"); no `_2` suffix. The key never changes when the name is edited (P18 maps
    import columns by key).
+   Names are unique too (manual test): the Polish and the English name, each on its own, may not equal
+   either name of another metric, compared by `core::metricNameKey()` (Latin case and diacritics folded,
+   every space and punctuation mark left out: "Sprint 30m" = "sprint 30 m" = "Sprint-30m"). A clash is
+   `Conflict` with field `name_pl` or `name_en`; checked on add, on edit (the edited metric aside) and
+   on undo of a delete. The key stays unique as before.
 4. Limits: name 1–50 characters after trimming (at least one of PL/EN), unit up to 20, `min ≤ max`;
    integer metrics have whole `min`/`max`; boolean metrics have no `min`/`max`.
 5. A definition with values keeps its value type and scope (`Conflict`, field `metric_locked`); unit,

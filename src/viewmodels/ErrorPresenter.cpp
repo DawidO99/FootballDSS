@@ -382,7 +382,7 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
     if (field == "session_in_use") {
         return tr("This session has metric values attached to it, so it cannot be deleted.");
     }
-    if (field == "key") {
+    if (field == "key" || field == "name_pl" || field == "name_en") {
         return tr("A metric with a similar name already exists. Choose another name.");
     }
     if (field == "metric_in_use") {

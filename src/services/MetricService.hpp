@@ -74,8 +74,11 @@ public:
     [[nodiscard]] core::Result<core::MetricDefinition>
     definition(core::MetricDefinitionId id) const;
 
-    // core::validate() errors as InvalidInput with their field. The key comes from the name
-    // (core::metricKey()); a key that is taken: Conflict with field "key".
+    // core::validate() errors as InvalidInput with their field. A Polish or English name that is
+    // the same as a name of another metric in either language (core::metricNameKey()): Conflict
+    // with field "name_pl" or "name_en". The key comes from the name (core::metricKey()); a key
+    // that is taken: Conflict with field "key". The same name check holds for the update (the
+    // edited metric aside) and the restore.
     [[nodiscard]] core::Result<core::MetricDefinitionId>
     addDefinition(const core::MetricDefinitionDraft& draft);
     // With values, the value type and the scope stay: Conflict with field "metric_locked".
@@ -105,6 +108,8 @@ public:
 
 private:
     [[nodiscard]] core::Status requireLogin() const;
+    [[nodiscard]] core::Status checkNamesFree(const core::MetricDefinitionDraft& draft,
+                                              std::optional<core::MetricDefinitionId> except) const;
     // The date of the entry, after the checks of sheet().
     [[nodiscard]] core::Result<core::Date> targetDate(const core::MetricDefinition& metric,
                                                       core::TeamId team,

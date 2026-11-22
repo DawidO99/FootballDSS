@@ -104,7 +104,8 @@ TEST_F(MetricServiceTest, PermissionPerRole) {
         EXPECT_TRUE(m_service->playerSummary(kPlayer).has_value());
 
         MetricDefinitionDraft draft = sprint();
-        draft.nameEn = "Sprint " + std::string(toDbText(role));
+        draft.namePl = "Sprint " + std::string(toDbText(role));
+        draft.nameEn = draft.namePl;
         const auto added = m_service->addDefinition(draft);
         const bool allowed = isAllowed(role, Permission::ManageMetrics);
         EXPECT_EQ(added.has_value(), allowed);
@@ -144,8 +145,9 @@ TEST_F(MetricServiceTest, KeyIsGeneratedAndUnique) {
     EXPECT_EQ(m_service->definition(id)->key, "sprint_30_m");
 
     MetricDefinitionDraft similar = sprint();
+    similar.namePl = "Bieg";
     similar.nameEn = "SPRINT-30-M";
-    expectError(m_service->addDefinition(similar), ErrorCode::Conflict, "key");
+    expectError(m_service->addDefinition(similar), ErrorCode::Conflict, "name_en");
 
     MetricDefinitionDraft renamed = sprint();
     renamed.nameEn = "Sprint thirty";
@@ -275,6 +277,7 @@ TEST_F(MetricServiceTest, SummaryHasLatestPreviousAndTheWindow) {
     logInAs(Role::Coach);
     const MetricDefinitionId id = add(sprint());
     MetricDefinitionDraft perDay = sprint();
+    perDay.namePl = "Sprint dzień testu";
     perDay.nameEn = "Sprint test day";
     perDay.scope = MetricScope::Player;
     const MetricDefinitionId daily = add(perDay);
@@ -335,6 +338,86 @@ TEST_F(MetricServiceTest, SessionMovedIntoTheFutureLeavesTheSummary) {
     const auto summary = m_service->playerSummary(kPlayer);
     ASSERT_EQ(summary->size(), 1U);
     EXPECT_EQ(summary->front().latestDate, 2026y / November / 9d);
+}
+
+// P17 manual test: names are unique per language and across the languages, whatever the case,
+// the Polish letters, the spaces and the punctuation.
+MetricDefinitionDraft named(const char* namePl, const char* nameEn) {
+    MetricDefinitionDraft draft = sprint();
+    draft.namePl = namePl;
+    draft.nameEn = nameEn;
+    return draft;
+}
+
+TEST_F(MetricServiceTest, PolishNameOfAnotherMetricIsRefused) {
+    logInAs(Role::Coach);
+    add(named("Skok w dał", ""));
+    expectError(m_service->addDefinition(named("SKOK W DAL", "Long jump")), ErrorCode::Conflict,
+                "name_pl");
+    // An English name equal to a Polish one.
+    expectError(m_service->addDefinition(named("Skok", "skok-w-dal")), ErrorCode::Conflict,
+                "name_en");
+    EXPECT_EQ(m_service->listDefinitions()->size(), 1U);
+}
+
+TEST_F(MetricServiceTest, EnglishNameOfAnotherMetricIsRefused) {
+    logInAs(Role::Coach);
+    add(named("", "Long jump"));
+    expectError(m_service->addDefinition(named("Skok", "long JUMP!")), ErrorCode::Conflict,
+                "name_en");
+    expectError(m_service->addDefinition(named("Long-jump", "")), ErrorCode::Conflict, "name_pl");
+}
+
+TEST_F(MetricServiceTest, SpacesDoNotMakeAnotherName) {
+    logInAs(Role::Coach);
+    add(named("Sprint 30m", ""));
+    expectError(m_service->addDefinition(named("Sprint 30 m", "")), ErrorCode::Conflict, "name_pl");
+    expectError(m_service->addDefinition(named("", "sprint-30-M")), ErrorCode::Conflict, "name_en");
+    EXPECT_TRUE(m_service->addDefinition(named("Sprint 40 m", "")).has_value());
+}
+
+TEST_F(MetricServiceTest, EditToTheNameOfAnotherMetricIsRefused) {
+    logInAs(Role::Coach);
+    add(named("Sprint 30 m", "Sprint 30 m"));
+    const MetricDefinitionId jumpId = add(jump());
+    MetricDefinitionDraft renamed = jump();
+    renamed.namePl = "sprint 30m";
+    expectError(m_service->updateDefinition(jumpId, renamed), ErrorCode::Conflict, "name_pl");
+    EXPECT_EQ(m_service->definition(jumpId)->namePl, "Skok w dal");
+}
+
+TEST_F(MetricServiceTest, EditWithoutChangingTheNamePasses) {
+    logInAs(Role::Coach);
+    const MetricDefinitionId id = add(named("Sprint 30 m", "Sprint 30 m"));
+    MetricDefinitionDraft changed = named("Sprint 30 m", "Sprint 30 m");
+    changed.unit = "sek";
+    EXPECT_TRUE(m_service->updateDefinition(id, changed).has_value())
+        << "the edited metric does not collide with itself";
+    changed.nameEn = "SPRINT 30M";
+    EXPECT_TRUE(m_service->updateDefinition(id, changed).has_value());
+}
+
+TEST_F(MetricServiceTest, RenamedMetricStillBlocksItsNewName) {
+    logInAs(Role::Coach);
+    const MetricDefinitionId id = add(named("Bieg", ""));
+    ASSERT_EQ(m_service->definition(id)->key, "bieg");
+    ASSERT_TRUE(m_service->updateDefinition(id, named("Szybkość", "")).has_value());
+
+    // The key of the renamed metric is still bieg; its new name blocks the duplicate.
+    expectError(m_service->addDefinition(named("szybkosc", "")), ErrorCode::Conflict, "name_pl");
+    // The old name is free, but the key it gives is not.
+    expectError(m_service->addDefinition(named("Bieg", "")), ErrorCode::Conflict, "key");
+}
+
+TEST_F(MetricServiceTest, RestoreIsRefusedWhenTheNameWasTaken) {
+    logInAs(Role::Coach);
+    const MetricDefinitionId id = add(named("Sprint 30 m", ""));
+    const auto deleted = m_service->deleteDefinition(id);
+    ASSERT_TRUE(deleted.has_value());
+    MetricDefinitionDraft other = named("Sprint 30m", "");
+    other.nameEn = "Dash";
+    add(other);
+    expectError(m_service->restoreDefinition(*deleted), ErrorCode::Conflict, "name_pl");
 }
 
 } // namespace

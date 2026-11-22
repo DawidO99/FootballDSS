@@ -19,6 +19,18 @@ TEST(MetricTest, KeyIsAnAsciiSlugOfTheName) {
     EXPECT_EQ(metricKey(std::string_view{"Спринт"}), "");
 }
 
+TEST(MetricTest, NameKeyIgnoresCaseDiacriticsSpacesAndPunctuation) {
+    const std::string expected = "sprint30m";
+    for (const char* name : {"Sprint 30m", "sprint 30 m", "Sprint-30M", " SPRINT 30 M. ",
+                             "Sprint\u2013 30m", "Sprint (30 m)"}) {
+        EXPECT_EQ(metricNameKey(name), expected) << name;
+    }
+    EXPECT_EQ(metricNameKey("Skok w dał"), metricNameKey("skok w dal"));
+    EXPECT_NE(metricNameKey("Sprint 30 m"), metricNameKey("Sprint 40 m"));
+    EXPECT_EQ(metricNameKey("Спринт!"), "Спринт") << "other letters are kept as they are";
+    EXPECT_EQ(metricNameKey(" - "), "");
+}
+
 TEST(MetricTest, KeyComesFromTheEnglishNameFirst) {
     MetricDefinitionDraft draft;
     draft.namePl = "Skok w dal";

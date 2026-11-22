@@ -76,6 +76,11 @@ struct MetricValue {
 // The key of the English name, or of the Polish one when the English name is empty.
 [[nodiscard]] std::string metricKey(const MetricDefinitionDraft& draft);
 
+// What makes two metric names "the same" (P17 manual test): Latin case and diacritics folded, every
+// space and punctuation mark left out, other letters kept. "Sprint 30m", "sprint 30 m" and
+// "Sprint-30M" give "sprint30m". Empty for a name without letters or digits.
+[[nodiscard]] std::string metricNameKey(std::string_view nameUtf8);
+
 // What the user typed into a cell. Decimal comma and point both work ("4,35", "4.35", "-1", ",5");
 // no thousands separators, no exponent, at most 15 digits. An integer metric needs a whole value
 // ("12" or "12,0"); a boolean one "0" or "1". Leading and trailing spaces are ignored. nullopt:
