@@ -8,8 +8,9 @@
 
 // CSV of an import (SPEC section 8 step 2, RFC 4180 plus what spreadsheets write): fields in double
 // quotes may hold the delimiter, line breaks and "" for a quote; a quote inside an unquoted field
-// is an ordinary character; CRLF, LF and a lone CR end a record. A quoted field left open at the
-// end of the file is reported with the line it opens on; the reader refuses such a file.
+// is an ordinary character; CRLF, LF and a lone CR end a record, and inside a quoted field each of
+// them becomes '\n'. A quoted field left open at the end of the file is reported with the line it
+// opens on; the reader refuses such a file.
 
 namespace fdss::core {
 

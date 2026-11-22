@@ -1,0 +1,5 @@
+# Import fixtures and templates are compared byte for byte (encodings, BOM, CRLF vs LF):
+# no line-ending conversion on checkout, on any OS.
+tests/data/import/** binary
+tests/fixtures/** binary
+ui/import-templates/** binary

@@ -121,9 +121,16 @@ CsvRecords parseCsv(std::string_view utf8, char delimiter) {
                 ++index;
                 continue;
             }
-            if (character == '\n' ||
-                (character == '\r' && (index + 1 >= utf8.size() || utf8[index + 1] != '\n'))) {
+            // A line break inside the field is kept as '\n' whatever the file uses (Excel on
+            // Windows writes CRLF there).
+            if (character == '\r' || character == '\n') {
+                if (character == '\r' && index + 1 < utf8.size() && utf8[index + 1] == '\n') {
+                    ++index;
+                }
                 ++line;
+                field.push_back('\n');
+                ++index;
+                continue;
             }
             field.push_back(character);
             ++index;
