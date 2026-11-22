@@ -13,7 +13,7 @@ Rectangle {
     // Main.qml passes the one of the session (P15); without it there is no chip.
     property DashboardViewModel dashboard: null
     // Exposed for tests.
-    readonly property alias helpDialog: helpDialog
+    readonly property alias helpDialog: help
 
     // Main.qml logs out, after asking about changes that are not saved.
     signal logoutRequested
@@ -32,7 +32,7 @@ Rectangle {
     }
 
     function openHelp() {
-        helpDialog.open();
+        help.open();
     }
 
     function openChangePinDialog() {
@@ -54,7 +54,7 @@ Rectangle {
         id: helpShortcut
 
         sequence: "F1"
-        enabled: !helpDialog.visible
+        enabled: !help.visible
         onActivated: root.openHelp()
     }
 
@@ -273,7 +273,7 @@ Rectangle {
     }
 
     HelpDialog {
-        id: helpDialog
+        id: help
     }
 
     ChangePinViewModel {
