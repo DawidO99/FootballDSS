@@ -153,17 +153,23 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     }
     // Load signal thresholds (P19).
     if (field == "ratio_low") {
-        return tr("Enter a ratio above 0 and below the elevated ratio, for example 0.8.");
+        return tr(
+            "Enter a ratio above 0 and below the elevated ratio, with at most two decimals, for "
+            "example 0.8.");
     }
     if (field == "ratio_elevated") {
-        return tr("Enter a ratio above the underload ratio and below the high ratio, for example "
-                  "1.3.");
+        return tr(
+            "Enter a ratio above the underload ratio and below the high ratio, with at most two "
+            "decimals, for example 1.3.");
     }
     if (field == "ratio_high") {
-        return tr("Enter a ratio above the elevated ratio, at most 5, for example 1.5.");
+        return tr(
+            "Enter a ratio above the elevated ratio, at most 5, with at most two decimals, for "
+            "example 1.5.");
     }
     if (field == "monotony_high") {
-        return tr("Enter a monotony above 1, at most 10, for example 2.");
+        return tr(
+            "Enter a monotony above 1, at most 10, with at most two decimals, for example 2.");
     }
     if (field == "season") {
         return tr("Enter the season as two consecutive years in the form 2026/27.");

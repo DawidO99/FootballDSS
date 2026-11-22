@@ -5658,6 +5658,22 @@
         <translation type="vanished">Podaj sezon w postaci 2026/27.</translation>
     </message>
     <message>
+        <source>Enter a ratio above 0 and below the elevated ratio, with at most two decimals, for example 0.8.</source>
+        <translation>Wpisz stosunek większy od 0 i mniejszy od podwyższonego, z najwyżej dwoma miejscami po przecinku, na przykład 0,8.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the underload ratio and below the high ratio, with at most two decimals, for example 1.3.</source>
+        <translation>Wpisz stosunek większy od progu niedociążenia i mniejszy od wysokiego, z najwyżej dwoma miejscami po przecinku, na przykład 1,3.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the elevated ratio, at most 5, with at most two decimals, for example 1.5.</source>
+        <translation>Wpisz stosunek większy od podwyższonego, najwyżej 5, z najwyżej dwoma miejscami po przecinku, na przykład 1,5.</translation>
+    </message>
+    <message>
+        <source>Enter a monotony above 1, at most 10, with at most two decimals, for example 2.</source>
+        <translation>Wpisz monotonię większą od 1, najwyżej 10, z najwyżej dwoma miejscami po przecinku, na przykład 2.</translation>
+    </message>
+    <message>
         <source>Enter the first name, up to 50 characters.</source>
         <translation>Wpisz imię, maksymalnie 50 znaków.</translation>
     </message>
@@ -5939,19 +5955,19 @@
     </message>
     <message>
         <source>Enter a ratio above 0 and below the elevated ratio, for example 0.8.</source>
-        <translation>Wpisz stosunek większy od 0 i mniejszy od podwyższonego, na przykład 0,8.</translation>
+        <translation type="vanished">Wpisz stosunek większy od 0 i mniejszy od podwyższonego, na przykład 0,8.</translation>
     </message>
     <message>
         <source>Enter a ratio above the underload ratio and below the high ratio, for example 1.3.</source>
-        <translation>Wpisz stosunek większy od progu niedociążenia i mniejszy od wysokiego, na przykład 1,3.</translation>
+        <translation type="vanished">Wpisz stosunek większy od progu niedociążenia i mniejszy od wysokiego, na przykład 1,3.</translation>
     </message>
     <message>
         <source>Enter a ratio above the elevated ratio, at most 5, for example 1.5.</source>
-        <translation>Wpisz stosunek większy od podwyższonego, najwyżej 5, na przykład 1,5.</translation>
+        <translation type="vanished">Wpisz stosunek większy od podwyższonego, najwyżej 5, na przykład 1,5.</translation>
     </message>
     <message>
         <source>Enter a monotony above 1, at most 10, for example 2.</source>
-        <translation>Wpisz monotonię większą od 1, najwyżej 10, na przykład 2.</translation>
+        <translation type="vanished">Wpisz monotonię większą od 1, najwyżej 10, na przykład 2.</translation>
     </message>
     <message>
         <source>Enter the season as two consecutive years in the form 2026/27.</source>

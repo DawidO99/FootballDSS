@@ -53,13 +53,16 @@ struct LoadThresholds {
 };
 
 // Limits of the editable thresholds (P19): 0 < ratioLow < ratioElevated < ratioHigh <= kMaxRatio,
-// 1 < monotonyHigh <= kMaxMonotony.
+// 1 < monotonyHigh <= kMaxMonotony, each with at most kThresholdDecimals decimals.
+inline constexpr int kThresholdDecimals = 2;
 inline constexpr double kMaxRatio = 5.0;
 inline constexpr double kMaxMonotony = 10.0;
 
 // One error per field that breaks a limit: "ratio_low", "ratio_elevated", "ratio_high",
 // "monotony_high". An order that is wrong is the error of the higher one.
 [[nodiscard]] ValidationErrors validate(const LoadThresholds& thresholds);
+// True for a finite value with at most kThresholdDecimals decimals (1.5, 1.75; not 1.501).
+[[nodiscard]] bool hasThresholdDecimals(double value);
 
 // λ = 2 / (N + 1).
 [[nodiscard]] constexpr double ewmaLambda(int days) noexcept { return 2.0 / (days + 1); }

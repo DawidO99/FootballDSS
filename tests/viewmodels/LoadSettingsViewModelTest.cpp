@@ -157,3 +157,11 @@ TEST_F(LoadSettingsViewModelTest, AFailedWriteIsReportedAndChangesNothing) {
     EXPECT_EQ(registry().load().thresholds(), LoadThresholds{});
     EXPECT_TRUE(load.isDefault());
 }
+
+TEST_F(LoadSettingsViewModelTest, ThreeDecimalsAreRefusedOnTheirField) {
+    LoadSettingsViewModel load;
+    EXPECT_FALSE(load.save(QStringLiteral("1,501"), QStringLiteral("1.3"), QStringLiteral("0.8"),
+                           QStringLiteral("2")));
+    EXPECT_EQ(load.ratioHighError(), ErrorPresenter::invalidInputMessage("ratio_high"));
+    EXPECT_TRUE(load.isDefault());
+}

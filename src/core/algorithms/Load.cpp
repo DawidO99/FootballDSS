@@ -142,22 +142,30 @@ std::optional<double> loadMonotony(std::span<const int> dailyLoads) {
     return mean / deviation;
 }
 
+bool hasThresholdDecimals(double value) {
+    const double hundredths = value * 100.0;
+    return std::isfinite(hundredths) && std::abs(hundredths - std::round(hundredths)) < 1e-6;
+}
+
 ValidationErrors validate(const LoadThresholds& thresholds) {
     ValidationErrors errors;
     const auto invalid = [&](const char* field) { errors.push_back(ValidationError{field}); };
     // NaN fails every comparison, so it is refused too.
-    if (!(thresholds.ratioLow > 0.0) || !(thresholds.ratioLow < kMaxRatio)) {
+    if (!(thresholds.ratioLow > 0.0) || !(thresholds.ratioLow < kMaxRatio) ||
+        !hasThresholdDecimals(thresholds.ratioLow)) {
         invalid("ratio_low");
     }
     if (!(thresholds.ratioElevated > thresholds.ratioLow) ||
-        !(thresholds.ratioElevated < kMaxRatio)) {
+        !(thresholds.ratioElevated < kMaxRatio) ||
+        !hasThresholdDecimals(thresholds.ratioElevated)) {
         invalid("ratio_elevated");
     }
     if (!(thresholds.ratioHigh > thresholds.ratioElevated) ||
-        !(thresholds.ratioHigh <= kMaxRatio)) {
+        !(thresholds.ratioHigh <= kMaxRatio) || !hasThresholdDecimals(thresholds.ratioHigh)) {
         invalid("ratio_high");
     }
-    if (!(thresholds.monotonyHigh > 1.0) || !(thresholds.monotonyHigh <= kMaxMonotony)) {
+    if (!(thresholds.monotonyHigh > 1.0) || !(thresholds.monotonyHigh <= kMaxMonotony) ||
+        !hasThresholdDecimals(thresholds.monotonyHigh)) {
         invalid("monotony_high");
     }
     return errors;

@@ -5430,22 +5430,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Enter a ratio above 0 and below the elevated ratio, for example 0.8.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Enter a ratio above the underload ratio and below the high ratio, for example 1.3.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Enter a ratio above the elevated ratio, at most 5, for example 1.5.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Enter a monotony above 1, at most 10, for example 2.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Enter the first name, up to 50 characters.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5707,6 +5691,22 @@
     </message>
     <message>
         <source>The shape is the same as before. Move a player or choose another formation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a ratio above 0 and below the elevated ratio, with at most two decimals, for example 0.8.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the underload ratio and below the high ratio, with at most two decimals, for example 1.3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the elevated ratio, at most 5, with at most two decimals, for example 1.5.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a monotony above 1, at most 10, with at most two decimals, for example 2.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

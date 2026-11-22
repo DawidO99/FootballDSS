@@ -451,3 +451,19 @@ TEST(LoadTest, ThresholdsOutOfOrderOrRangeNameTheirField) {
     EXPECT_EQ(fields(thresholds),
               (std::vector<std::string>{"ratio_low", "ratio_elevated", "monotony_high"}));
 }
+
+// P19 review: at most two decimals, the precision the screens show.
+TEST(LoadTest, AThresholdWithMoreThanTwoDecimalsIsRefused) {
+    LoadThresholds thresholds;
+    thresholds.ratioHigh = 1.501;
+    ASSERT_EQ(validate(thresholds).size(), 1U);
+    EXPECT_EQ(validate(thresholds).front().field, "ratio_high");
+    thresholds.ratioHigh = 1.75;
+    EXPECT_TRUE(validate(thresholds).empty());
+    thresholds.monotonyHigh = 2.125;
+    ASSERT_EQ(validate(thresholds).size(), 1U);
+    EXPECT_EQ(validate(thresholds).front().field, "monotony_high");
+    EXPECT_TRUE(hasThresholdDecimals(0.07));
+    EXPECT_TRUE(hasThresholdDecimals(1.1));
+    EXPECT_FALSE(hasThresholdDecimals(0.005));
+}
