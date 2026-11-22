@@ -60,6 +60,7 @@
 #include "viewmodels/TrainingSessionViewModel.hpp"
 
 #include <QColor>
+#include <QCursor>
 #include <QDate>
 #include <QDir>
 #include <QDirIterator>
@@ -266,18 +267,28 @@ void expectLoadChartTooltips(QQuickWindow* window, QQuickItem* gallery) {
         fail("the sample load has no day with equal series");
         return;
     }
+    // On a real display the pointer of the machine sends its own moves, which would win over the
+    // synthetic one (P13 report); it is put on the same point first where the platform allows it
+    // (X11, not Wayland). Offscreen this does nothing.
     const auto move = [window](QPointF scene) {
-        QMouseEvent event(QEvent::MouseMove, scene, scene, window->mapToGlobal(scene), Qt::NoButton,
-                          Qt::NoButton, Qt::NoModifier);
+        const QPointF global = window->mapToGlobal(scene);
+        QCursor::setPos(window->screen(), global.toPoint());
+        settle();
+        QMouseEvent event(QEvent::MouseMove, scene, scene, global, Qt::NoButton, Qt::NoButton,
+                          Qt::NoModifier);
         QCoreApplication::sendEvent(window, &event);
         settle();
     };
     renderFrame(window);
     const QRectF area = view->property("plotArea").toRectF();
     const auto days = static_cast<qreal>(labels.size());
+    // In a window smaller than on Xvfb (a real screen) the chart reaches below the bottom edge,
+    // where no pointer gets: the middle of the part of the plot that is in the window.
+    const qreal visibleBottom =
+        std::min(area.bottom(), view->mapFromScene(QPointF(0, window->height() - 1)).y());
+    const qreal y = (area.top() + visibleBottom) / 2;
     for (const int day : {0, static_cast<int>(labels.size()) - 1, equalDay}) {
-        move(view->mapToScene(
-            QPointF(area.x() + ((day + 0.5) * area.width() / days), area.center().y())));
+        move(view->mapToScene(QPointF(area.x() + ((day + 0.5) * area.width() / days), y)));
         if (chart->property("hoveredIndex").toInt() != day || !tooltip->isVisible()) {
             fail("hovering a day of the load chart does not pick that day");
             continue;
@@ -7330,9 +7341,39 @@ void exerciseMetrics(QQmlApplicationEngine& engine, const QString& screenshotDir
     settle();
 }
 
+// Progress on stderr, so a run that hangs or is slow names its scenario (P19); CTest shows the
+// output of a test that times out. Not a Qt message: those are counted as problems.
+class ScenarioTimer {
+public:
+    explicit ScenarioTimer(QString name) : m_name(std::move(name)) {
+        std::fprintf(stderr, "qml_smoke: start %s\n", qUtf8Printable(m_name));
+        std::fflush(stderr);
+        m_timer.start();
+    }
+    ~ScenarioTimer() {
+        std::fprintf(stderr, "qml_smoke: done %s (%lld ms)\n", qUtf8Printable(m_name),
+                     static_cast<long long>(m_timer.elapsed()));
+        std::fflush(stderr);
+    }
+    ScenarioTimer(const ScenarioTimer&) = delete;
+    ScenarioTimer& operator=(const ScenarioTimer&) = delete;
+    ScenarioTimer(ScenarioTimer&&) = delete;
+    ScenarioTimer& operator=(ScenarioTimer&&) = delete;
+
+private:
+    QString m_name;
+    QElapsedTimer m_timer;
+};
+
+template <class Run> void runScenario(const char* name, Run run) {
+    const ScenarioTimer timer(QString::fromLatin1(name));
+    run();
+}
+
 int main(int argc, char* argv[]) {
     // As the app does; without it this run shows the CI failures of P12 under QV4_GC_TIMELIMIT=1.
-    fdss::viewmodels::useNonIncrementalGarbageCollector();
+    // FDSS_INCREMENTAL_GC=1 leaves it out, for the GC stress job of CI.
+    fdss::viewmodels::useNonIncrementalGarbageCollectorUnlessStressed();
     // Deterministic offscreen rendering without a GPU.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
     g_defaultHandler = qInstallMessageHandler(countingMessageHandler);
@@ -7392,22 +7433,28 @@ int main(int argc, char* argv[]) {
             }
             {
                 QQmlApplicationEngine engine;
-                leftBehind = exerciseMainWindow(engine, state, screenshotDirectory);
+                runScenario("main window", [&] {
+                    leftBehind = exerciseMainWindow(engine, state, screenshotDirectory);
+                });
                 if (state == AppState::State::NeedsSetup) {
-                    exerciseStateChanges(engine);
+                    runScenario("state changes", [&] { exerciseStateChanges(engine); });
                 }
                 if (state == AppState::State::NeedsLogin) {
-                    exerciseTileScrolling(engine);
-                    exerciseForcedPinChange(engine, screenshotDirectory);
+                    runScenario("tile scrolling", [&] { exerciseTileScrolling(engine); });
+                    runScenario("forced pin change",
+                                [&] { exerciseForcedPinChange(engine, screenshotDirectory); });
                 }
                 if (state == AppState::State::Ready) {
-                    exerciseSquad(engine, screenshotDirectory);
-                    exerciseCalendar(engine, *database, screenshotDirectory);
-                    exerciseDatabaseErrorView(engine, screenshotDirectory);
-                    viewCount = instantiateEveryView(engine);
-                    exerciseHelp(engine, screenshotDirectory);
-                    exerciseLoginOverSession(engine);
-                    exerciseLogoutOnUnreadableDatabase(engine, *database);
+                    runScenario("squad", [&] { exerciseSquad(engine, screenshotDirectory); });
+                    runScenario("calendar",
+                                [&] { exerciseCalendar(engine, *database, screenshotDirectory); });
+                    runScenario("database error view",
+                                [&] { exerciseDatabaseErrorView(engine, screenshotDirectory); });
+                    runScenario("every view", [&] { viewCount = instantiateEveryView(engine); });
+                    runScenario("help", [&] { exerciseHelp(engine, screenshotDirectory); });
+                    runScenario("login over session", [&] { exerciseLoginOverSession(engine); });
+                    runScenario("logout on unreadable database",
+                                [&] { exerciseLogoutOnUnreadableDatabase(engine, *database); });
                 }
             }
             settle();
@@ -7420,7 +7467,7 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseTraining(engine, screenshotDirectory);
+                runScenario("training", [&] { exerciseTraining(engine, screenshotDirectory); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7433,7 +7480,8 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseUnavailableAtStartup(engine, *database);
+                runScenario("unavailable at startup",
+                            [&] { exerciseUnavailableAtStartup(engine, *database); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7445,7 +7493,7 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exercisePreMatch(engine, screenshotDirectory);
+                runScenario("pre match", [&] { exercisePreMatch(engine, screenshotDirectory); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7458,7 +7506,8 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseMatchDay(engine, *database, screenshotDirectory);
+                runScenario("match day",
+                            [&] { exerciseMatchDay(engine, *database, screenshotDirectory); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7471,7 +7520,8 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseImport(engine, *database, screenshotDirectory);
+                runScenario("import",
+                            [&] { exerciseImport(engine, *database, screenshotDirectory); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7484,7 +7534,9 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseActivityImport(engine, *database, screenshotDirectory);
+                runScenario("activity import", [&] {
+                    exerciseActivityImport(engine, *database, screenshotDirectory);
+                });
             }
             settle();
             ServiceRegistry::reset();
@@ -7496,7 +7548,7 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseMetrics(engine, screenshotDirectory);
+                runScenario("metrics", [&] { exerciseMetrics(engine, screenshotDirectory); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7506,7 +7558,7 @@ int main(int argc, char* argv[]) {
         for (const CloseCase closeCase : {CloseCase::Clean, CloseCase::StayThenDiscard,
                                           CloseCase::Save, CloseCase::FailedSaveThenDiscard}) {
             if (!onlyOne) {
-                exerciseWindowClosing(closeCase);
+                runScenario("window closing", [&] { exerciseWindowClosing(closeCase); });
             }
         }
         QGuiApplication::setQuitOnLastWindowClosed(true);
@@ -7519,7 +7571,7 @@ int main(int argc, char* argv[]) {
                 QQmlApplicationEngine engine;
                 engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
                 settle();
-                exerciseUserMarkup(engine);
+                runScenario("user markup", [&] { exerciseUserMarkup(engine); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7531,7 +7583,7 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseDemoSetup(engine);
+                runScenario("demo setup", [&] { exerciseDemoSetup(engine); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7544,13 +7596,15 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseFailedDemoSetup(engine, *database);
+                runScenario("failed demo setup",
+                            [&] { exerciseFailedDemoSetup(engine, *database); });
             }
             settle();
             ServiceRegistry::reset();
         }
         if (leftBehind) {
-            verifyPreferencesSurviveRestart(*leftBehind);
+            runScenario("verifyPreferencesSurviveRestart",
+                        [&] { verifyPreferencesSurviveRestart(*leftBehind); });
         }
         for (const bool demo : {false, true}) {
             if (onlyLoad || onlyPreMatch || onlyImport || onlyMetrics) {
@@ -7564,9 +7618,12 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 if (demo) {
-                    exerciseDashboardDemo(engine, *database, screenshotDirectory);
+                    runScenario("dashboard demo", [&] {
+                        exerciseDashboardDemo(engine, *database, screenshotDirectory);
+                    });
                 } else {
-                    exerciseDashboardEmptyClub(engine, screenshotDirectory);
+                    runScenario("dashboard empty club",
+                                [&] { exerciseDashboardEmptyClub(engine, screenshotDirectory); });
                 }
             }
             settle();
@@ -7587,9 +7644,13 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 if (demo) {
-                    exerciseLoadDemo(engine, loadLanguage, screenshotDirectory);
+                    runScenario("load demo", [&] {
+                        exerciseLoadDemo(engine, loadLanguage, screenshotDirectory);
+                    });
                 } else {
-                    exerciseLoadNewClub(engine, loadLanguage, screenshotDirectory);
+                    runScenario("load new club", [&] {
+                        exerciseLoadNewClub(engine, loadLanguage, screenshotDirectory);
+                    });
                 }
             }
             settle();

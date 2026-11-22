@@ -156,7 +156,9 @@ target_compile_definitions(qml_smoke PRIVATE
     FDSS_IMPORT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/import"
 )
 add_test(NAME qml_smoke COMMAND qml_smoke)
-set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" LABELS ui)
+# A hang fails within 10 minutes, and the progress output names the scenario (P19).
+set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" LABELS ui
+    TIMEOUT 600)
 
 find_package(Qt6 REQUIRED COMPONENTS QuickTest)
 qt_add_executable(qml_components

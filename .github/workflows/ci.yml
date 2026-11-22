@@ -292,3 +292,94 @@ jobs:
             aqtinstall.log
           if-no-files-found: warn
           retention-days: 7
+
+  gc-stress:
+    # P19: is the incremental JS garbage collector of the next Qt fixed? qml_smoke and
+    # qml_components without useNonIncrementalGarbageCollector() and with the shortest incremental
+    # steps (docs/BACKLOG.md). With Qt 6.12 it is expected to fail, so it never makes a run red.
+    name: GC stress (Linux, manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    env:
+      CC: gcc-14
+      CXX: g++-14
+      SCCACHE_GHA_ENABLED: 'true'
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install GCC 14 and Linux prerequisites
+        run: |
+          mkdir -p build/ci-logs
+          {
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y g++-14 ninja-build libgl1-mesa-dev libvulkan-dev
+            sudo apt-get install --no-install-recommends -y xvfb libgl1-mesa-dri libglx-mesa0 libegl-mesa0 \
+              libx11-xcb1 libxcb1 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+              libxcb-render0 libxcb-render-util0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-util1 \
+              libxcb-xfixes0 libxcb-xkb1 libxkbcommon-x11-0
+            install -d -m 700 "$RUNNER_TEMP/fdss-runtime"
+            echo "XDG_RUNTIME_DIR=$RUNNER_TEMP/fdss-runtime" >> "$GITHUB_ENV"
+          } 2>&1 | tee build/ci-logs/setup-linux.log
+
+      - name: Install Qt 6.12
+        uses: jurplel/install-qt-action@a9c63c7c123f3069cff414e7e482d95dfa9d8125 # v4.4.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: ${{ env.QT_MODULES }}
+          aqtversion: ${{ env.AQT_VERSION }}
+          cache: true
+          cache-key-prefix: fdss-qt-v1-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Verify build tools and Qt version
+        run: |
+          {
+            cmake --version
+            ninja --version
+            installed_qt_version=$(qtpaths --qt-version | tr -d '\r')
+            echo "Qt $installed_qt_version"
+            test "$installed_qt_version" = "$QT_VERSION"
+            echo "CMAKE_PREFIX_PATH=$QT_ROOT_DIR" >> "$GITHUB_ENV"
+          } 2>&1 | tee build/ci-logs/toolchain.log
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+
+      - name: Configure
+        run: cmake --preset dev 2>&1 | tee build/ci-logs/configure.log
+
+      - name: Build the QML tests
+        id: build
+        run: cmake --build --preset dev --target qml_smoke qml_components 2>&1 | tee build/ci-logs/build.log
+
+      - name: Run qml_smoke with the incremental collector
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          xvfb-run -a -s '-screen 0 1920x1080x24' \
+            env QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 QV4_GC_TIMELIMIT=1 FDSS_INCREMENTAL_GC=1 \
+            ./build/dev/tests/qml_smoke 2>&1 | tee build/ci-logs/qml-smoke-gc-stress.log
+
+      - name: Run qml_components with the incremental collector
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          xvfb-run -a -s '-screen 0 1920x1080x24' \
+            env QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 QV4_GC_TIMELIMIT=1 FDSS_INCREMENTAL_GC=1 \
+            ./build/dev/tests/qml_components 2>&1 | tee build/ci-logs/qml-components-gc-stress.log
+
+      - name: Upload logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: logs-gc-stress
+          path: build/ci-logs/
+          if-no-files-found: warn
+          retention-days: 7
