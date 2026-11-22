@@ -239,6 +239,8 @@ CMake targets:
 4. Run section 3. Fix what fails.
 5. Commit locally with a descriptive message. Report per section 10. Do not start the next
    packet on your own.
+6. Commit messages are one line (e.g. "P17: custom metrics", "fix(P17): review findings"), without
+  "Co-Authored-By" or other trailers.
 
 The human pushes, opens PRs and reads CI. Agents do not `git push`, create PRs, poll CI, run
 `sudo`, write credential or authentication helpers, or work around a blocked command. If you need

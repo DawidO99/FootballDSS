@@ -32,9 +32,9 @@ Poczekaj na moją akceptację.
 ```
 Po akceptacji:
 ```
-Akceptuję plan [z poprawkami: ...]. Implementuj małymi krokami, buduj po każdym kroku.
+AAkceptuję plan [z poprawkami: ...]. Implementuj małymi krokami, buduj po każdym kroku.
 Na końcu uruchom wszystkie komendy z sekcji 3 AGENTS.md, zrób lokalny commit i raportuj
-według sekcji 10. Nie pushuj.
+według sekcji 10. Commit jednolinijkowy, bez linii "Co-Authored-By". Nie pushuj.
 ```
 Zanim wkleisz akceptację agentowi, wklej ją też do sekcji `## Decisions (accepted plan)` w pliku
 pakietu. Recenzent przeczyta ją stamtąd.
@@ -82,8 +82,8 @@ Goal: spend the Claude Code limit only where thinking pays off.
 | Plan of a packet | Claude Code | Opus |
 | Implementation of an accepted plan | Claude Code | Opus |
 | Review of the packet | Codex | – |
-| Fix round after the review | Codex (fixes its own findings) | – |
-| Short check of the fix round (diff only) | Claude Code | Opus |
+| Fix round after the review | Codex (fixes its own findings) or Opus | – |
+| Short check of the fix round if Codex was fixing (diff only) | Claude Code | Opus |
 | Fix round after CI or the manual test | Claude Code | Opus |
 
 Session hygiene
