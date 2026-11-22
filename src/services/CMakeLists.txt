@@ -1,6 +1,4 @@
 add_library(fdss_services STATIC
-    AppLog.hpp
-    AppLog.cpp
     AuthService.hpp
     AuthService.cpp
     CalendarService.hpp

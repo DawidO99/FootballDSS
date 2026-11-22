@@ -136,6 +136,8 @@ qt_add_qml_module(fdss_ui
         ui/views/SquadView.qml
         ui/views/TrainingView.qml
     SOURCES
+        src/viewmodels/AppLog.hpp
+        src/viewmodels/AppLog.cpp
         src/viewmodels/AppSettings.hpp
         src/viewmodels/AppSettings.cpp
         src/viewmodels/AppState.hpp

@@ -1,18 +1,26 @@
-#include "services/AppLog.hpp"
+#include "viewmodels/AppLog.hpp"
 
 #include <QDir>
 #include <QFile>
 #include <QTemporaryDir>
 
+#include <memory>
+
 #include <gtest/gtest.h>
 
-using fdss::services::AppLog;
+using fdss::viewmodels::AppLog;
+using LogResult = fdss::core::Result<std::unique_ptr<AppLog>>;
 
 namespace {
 
 class AppLogTest : public ::testing::Test {
 protected:
-    void TearDown() override { AppLog::uninstall(); }
+    // Keeps the log of a test until uninstall() or the end of the test.
+    void install(LogResult installed) {
+        ASSERT_TRUE(installed.has_value()) << installed.error().detail;
+        m_log = std::move(*installed);
+    }
+    void uninstall() { m_log.reset(); }
 
     [[nodiscard]] QString read(const QString& name) const {
         QFile file(m_dir.filePath(name));
@@ -27,14 +35,15 @@ protected:
     }
 
     QTemporaryDir m_dir;
+    std::unique_ptr<AppLog> m_log;
 };
 
 } // namespace
 
 TEST_F(AppLogTest, WritesMessagesWithTheirTypeToTheFile) {
     ASSERT_TRUE(m_dir.isValid());
-    ASSERT_TRUE(AppLog::install(m_dir.path()).has_value());
-    EXPECT_EQ(AppLog::currentFile(), m_dir.filePath(QStringLiteral("FootballDSS.log")));
+    install(AppLog::install(m_dir.path()));
+    EXPECT_EQ(m_log->currentFile(), m_dir.filePath(QStringLiteral("FootballDSS.log")));
 
     qWarning("first message for the log");
     qInfo("second message for the log");
@@ -49,9 +58,9 @@ TEST_F(AppLogTest, WritesMessagesWithTheirTypeToTheFile) {
 TEST_F(AppLogTest, EveryStartBeginsANewFileAndKeepsTheNewestOnes) {
     ASSERT_TRUE(m_dir.isValid());
     for (int start = 1; start <= 4; ++start) {
-        ASSERT_TRUE(AppLog::install(m_dir.path(), 3).has_value());
+        install(AppLog::install(m_dir.path(), 3));
         qInfo("start %d", start);
-        AppLog::uninstall();
+        uninstall();
     }
 
     EXPECT_EQ(logFiles(),
@@ -64,7 +73,7 @@ TEST_F(AppLogTest, EveryStartBeginsANewFileAndKeepsTheNewestOnes) {
 
 TEST_F(AppLogTest, AFullFileRotatesWhileRunning) {
     ASSERT_TRUE(m_dir.isValid());
-    ASSERT_TRUE(AppLog::install(m_dir.path(), 2, 100).has_value());
+    install(AppLog::install(m_dir.path(), 2, 100));
     for (int line = 0; line < 20; ++line) {
         qInfo("a line long enough to fill the small file quickly, number %d", line);
     }
@@ -76,18 +85,17 @@ TEST_F(AppLogTest, AFullFileRotatesWhileRunning) {
 
 TEST_F(AppLogTest, AfterUninstallNothingIsWritten) {
     ASSERT_TRUE(m_dir.isValid());
-    ASSERT_TRUE(AppLog::install(m_dir.path()).has_value());
-    AppLog::uninstall();
+    install(AppLog::install(m_dir.path()));
+    uninstall();
 
     qInfo("after the log is gone");
 
-    EXPECT_TRUE(AppLog::currentFile().isEmpty());
     EXPECT_FALSE(read(QStringLiteral("FootballDSS.log")).contains(QStringLiteral("gone")));
 }
 
 TEST_F(AppLogTest, ASecondInstallIsRefused) {
     ASSERT_TRUE(m_dir.isValid());
-    ASSERT_TRUE(AppLog::install(m_dir.path()).has_value());
+    install(AppLog::install(m_dir.path()));
 
     EXPECT_FALSE(AppLog::install(m_dir.path()).has_value());
 }
@@ -98,19 +106,17 @@ TEST_F(AppLogTest, AFolderThatCannotBeWrittenIsAnIoError) {
 
     ASSERT_FALSE(installed.has_value());
     EXPECT_EQ(installed.error().code, fdss::core::ErrorCode::Io);
-    EXPECT_TRUE(AppLog::currentFile().isEmpty());
 }
 
 // P19 review: a refused start adds to the log of the running instance, without rotating it.
 TEST_F(AppLogTest, AppendKeepsTheFileAndRotatesNothing) {
     ASSERT_TRUE(m_dir.isValid());
-    ASSERT_TRUE(AppLog::install(m_dir.path()).has_value());
+    install(AppLog::install(m_dir.path()));
     qInfo("from the running instance");
-    AppLog::uninstall();
+    uninstall();
 
-    ASSERT_TRUE(
-        AppLog::install(m_dir.path(), AppLog::kKeepFiles, AppLog::kMaxBytes, AppLog::Start::Append)
-            .has_value());
+    install(AppLog::install(m_dir.path(), AppLog::kKeepFiles, AppLog::kMaxBytes,
+                            AppLog::Start::Append));
     qCritical("start refused");
 
     EXPECT_EQ(logFiles(), QStringList{QStringLiteral("FootballDSS.log")});
@@ -122,13 +128,13 @@ TEST_F(AppLogTest, AppendKeepsTheFileAndRotatesNothing) {
 // P19 review: a log that cannot be moved away is continued, never emptied, and says so.
 TEST_F(AppLogTest, AFailedRotationAppendsInsteadOfTruncating) {
     ASSERT_TRUE(m_dir.isValid());
-    ASSERT_TRUE(AppLog::install(m_dir.path(), 2).has_value());
+    install(AppLog::install(m_dir.path(), 2));
     qInfo("written before the rotation");
-    AppLog::uninstall();
+    uninstall();
     // A folder where the rotation wants to put the old file: neither remove() nor rename() works.
     ASSERT_TRUE(QDir(m_dir.path()).mkdir(QStringLiteral("FootballDSS.1.log")));
 
-    ASSERT_TRUE(AppLog::install(m_dir.path(), 2).has_value());
+    install(AppLog::install(m_dir.path(), 2));
     qInfo("written after the failed rotation");
 
     const QString text = read(QStringLiteral("FootballDSS.log"));
@@ -141,7 +147,7 @@ TEST_F(AppLogTest, AFailedRotationAppendsInsteadOfTruncating) {
 TEST_F(AppLogTest, AFailedRotationWhileRunningKeepsEveryLine) {
     ASSERT_TRUE(m_dir.isValid());
     ASSERT_TRUE(QDir(m_dir.path()).mkdir(QStringLiteral("FootballDSS.1.log")));
-    ASSERT_TRUE(AppLog::install(m_dir.path(), 2, 100).has_value());
+    install(AppLog::install(m_dir.path(), 2, 100));
     for (int line = 0; line < 10; ++line) {
         qInfo("a line long enough to fill the small file quickly, number %d", line);
     }

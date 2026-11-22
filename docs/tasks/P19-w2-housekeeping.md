@@ -97,3 +97,9 @@ schema 4 with existing data (positions kept, `must_change_pin` false). CI items 
     without a confirm dialog (undo toast, new id on undo); "Rename…" of the opponent with `EditCalendar` also
     for played matches; only the four thresholds of SPEC §7.1 are editable.
 12. **Commits:** one one-line commit per item.
+13. **Log file: a second global (deviation from AGENTS §5).** `qInstallMessageHandler` takes a plain function,
+    so the open log file and its mutex live in a global of `src/viewmodels/AppLog.cpp` (anonymous namespace),
+    the only global besides `ServiceRegistry`. It holds nothing else than the file (with its rotation and the
+    handler it forwards to) and the mutex. `AppLog` sits with the composition root in `src/viewmodels/`, where
+    no service can include it; `main.cpp` owns the one `AppLog` object, whose destructor puts the previous
+    handler back (P19b review).

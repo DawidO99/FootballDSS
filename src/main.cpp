@@ -1,8 +1,8 @@
 #include "core/util/Version.hpp"
 #include "data/db/AppPaths.hpp"
 #include "data/db/DatabaseManager.hpp"
-#include "services/AppLog.hpp"
 #include "services/SetupService.hpp"
+#include "viewmodels/AppLog.hpp"
 #include "viewmodels/JsGarbageCollector.hpp"
 #include "viewmodels/LanguageManager.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
@@ -38,16 +38,21 @@ fdss::core::Status installServices(const fdss::core::Result<QString>& path) {
     return {};
 }
 
-// After the lock: a second instance must not rotate away the file of the running one.
-void installLog() {
+// The log file of this run; nullptr when there is none (stderr still has every message). After the
+// lock: a second instance must not rotate away the file of the running one.
+std::unique_ptr<fdss::viewmodels::AppLog> installLog(fdss::viewmodels::AppLog::Start start) {
+    using fdss::viewmodels::AppLog;
     const auto directory = fdss::data::AppPaths::logDirectory();
     if (!directory) {
         qWarning("No log file: %s", directory.error().detail.c_str());
-        return;
+        return nullptr;
     }
-    if (const auto installed = fdss::services::AppLog::install(*directory); !installed) {
+    auto installed = AppLog::install(*directory, AppLog::kKeepFiles, AppLog::kMaxBytes, start);
+    if (!installed) {
         qWarning("No log file: %s", installed.error().detail.c_str());
+        return nullptr;
     }
+    return std::move(*installed);
 }
 
 } // namespace
@@ -65,14 +70,7 @@ int main(int argc, char* argv[]) {
     const auto instance = fdss::viewmodels::StartupViewModel::lockInstance(databasePath);
     if (!instance) {
         // Appended, never rotated: the files may belong to the instance that runs.
-        if (const auto logs = fdss::data::AppPaths::logDirectory()) {
-            if (const auto installed = fdss::services::AppLog::install(
-                    *logs, fdss::services::AppLog::kKeepFiles, fdss::services::AppLog::kMaxBytes,
-                    fdss::services::AppLog::Start::Append);
-                !installed) {
-                qWarning("No log file: %s", installed.error().detail.c_str());
-            }
-        }
+        const auto log = installLog(fdss::viewmodels::AppLog::Start::Append);
         qCritical("Start refused: %s", instance.error().detail.c_str());
         QQmlApplicationEngine engine;
         QObject::connect(
@@ -86,10 +84,9 @@ int main(int argc, char* argv[]) {
             ->setInstanceError(instance.error(), databasePath.value_or(QString{}));
         engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("AlreadyRunningView"));
         QGuiApplication::exec();
-        fdss::services::AppLog::uninstall();
         return EXIT_FAILURE;
     }
-    installLog();
+    const auto log = installLog(fdss::viewmodels::AppLog::Start::NewFile);
     qInfo("FootballDSS %s started", qUtf8Printable(QGuiApplication::applicationVersion()));
     const auto services = installServices(databasePath);
 
@@ -120,6 +117,5 @@ int main(int argc, char* argv[]) {
     // After the engine, whose viewmodels use the services. Not left to static destruction: that
     // would close the database after QGuiApplication is gone.
     fdss::viewmodels::ServiceRegistry::reset();
-    fdss::services::AppLog::uninstall();
     return exitCode;
 }

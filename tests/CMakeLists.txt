@@ -65,7 +65,6 @@ add_executable(fdss_tests
     data/TransactionTest.cpp
     data/XlsxReaderTest.cpp
     data/XlsxSpikeTest.cpp
-    services/AppLogTest.cpp
     services/AuthServiceTest.cpp
     services/CalendarServiceTest.cpp
     services/CapabilityServiceTest.cpp
@@ -104,6 +103,7 @@ gtest_discover_tests(fdss_tests DISCOVERY_MODE PRE_TEST DISCOVERY_TIMEOUT 120)
 add_executable(fdss_vm_tests
     test_main.cpp
     services/FakeClock.hpp
+    viewmodels/AppLogTest.cpp
     viewmodels/AppStateTest.cpp
     viewmodels/ImportActivityWizardTest.cpp
     viewmodels/AvailabilityViewModelTest.cpp
