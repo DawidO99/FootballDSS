@@ -4068,8 +4068,72 @@
         <translation>Spróbuj ponownie</translation>
     </message>
     <message>
+        <source>Load signals</source>
+        <translation>Obciążenie</translation>
+    </message>
+    <message>
+        <source>High ratio</source>
+        <translation>Stosunek wysoki</translation>
+    </message>
+    <message>
+        <source>Elevated ratio</source>
+        <translation>Stosunek podwyższony</translation>
+    </message>
+    <message>
+        <source>Underload ratio</source>
+        <translation>Niedociążenie</translation>
+    </message>
+    <message>
+        <source>Monotony</source>
+        <translation>Monotonia</translation>
+    </message>
+    <message>
+        <source>&gt; %1</source>
+        <translation>&gt; %1</translation>
+    </message>
+    <message>
+        <source>&lt; %1</source>
+        <translation>&lt; %1</translation>
+    </message>
+    <message>
         <source>Custom metrics</source>
         <translation>Metryki własne</translation>
+    </message>
+    <message>
+        <source>Edit load signals</source>
+        <translation>Edytuj sygnały obciążenia</translation>
+    </message>
+    <message>
+        <source>The load signals were saved.</source>
+        <translation>Sygnały obciążenia zostały zapisane.</translation>
+    </message>
+    <message>
+        <source>Ratio = acute load (7 days) / chronic load (28 days). A signal is a reason to talk to the player, not an injury prediction.</source>
+        <translation>Stosunek = obciążenie ostre (7 dni) / przewlekłe (28 dni). Sygnał to powód do rozmowy z zawodnikiem, a nie przewidywanie kontuzji.</translation>
+    </message>
+    <message>
+        <source>High: ratio above</source>
+        <translation>Wysokie: stosunek powyżej</translation>
+    </message>
+    <message>
+        <source>Elevated: ratio above</source>
+        <translation>Podwyższone: stosunek powyżej</translation>
+    </message>
+    <message>
+        <source>Underloaded: ratio below</source>
+        <translation>Niedociążenie: stosunek poniżej</translation>
+    </message>
+    <message>
+        <source>Elevated: monotony above</source>
+        <translation>Podwyższone: monotonia powyżej</translation>
+    </message>
+    <message>
+        <source>Restore defaults</source>
+        <translation>Przywróć domyślne</translation>
+    </message>
+    <message>
+        <source>The default load signals are in use again.</source>
+        <translation>Znów obowiązują domyślne sygnały obciążenia.</translation>
     </message>
     <message>
         <source>Add metric</source>
@@ -5660,6 +5724,22 @@
     <message>
         <source>The shape is the same as before. Move a player or choose another formation.</source>
         <translation>Ustawienie jest takie samo jak wcześniej. Przesuń zawodnika albo wybierz inne ustawienie.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above 0 and below the elevated ratio, for example 0.8.</source>
+        <translation>Wpisz stosunek większy od 0 i mniejszy od podwyższonego, na przykład 0,8.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the underload ratio and below the high ratio, for example 1.3.</source>
+        <translation>Wpisz stosunek większy od progu niedociążenia i mniejszy od wysokiego, na przykład 1,3.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the elevated ratio, at most 5, for example 1.5.</source>
+        <translation>Wpisz stosunek większy od podwyższonego, najwyżej 5, na przykład 1,5.</translation>
+    </message>
+    <message>
+        <source>Enter a monotony above 1, at most 10, for example 2.</source>
+        <translation>Wpisz monotonię większą od 1, najwyżej 10, na przykład 2.</translation>
     </message>
     <message>
         <source>Enter the season as two consecutive years in the form 2026/27.</source>

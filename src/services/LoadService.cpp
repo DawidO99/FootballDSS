@@ -5,6 +5,7 @@
 #include "data/repositories/PlayerRepository.hpp"
 #include "data/repositories/TrainingRepository.hpp"
 #include "services/Clock.hpp"
+#include "services/ServiceSupport.hpp"
 #include "services/Session.hpp"
 
 #include <QtConcurrentRun>
@@ -46,6 +47,23 @@ LoadService::LoadService(data::PlayerRepository& players, data::TrainingReposito
       m_clock(clock) {}
 
 const core::LoadThresholds& LoadService::thresholds() const { return m_thresholds; }
+
+core::Status LoadService::setThresholds(const core::LoadThresholds& thresholds) {
+    if (auto allowed = m_session.require(core::Permission::ManageSettings); !allowed) {
+        return allowed;
+    }
+    if (auto valid = firstError(core::validate(thresholds)); !valid) {
+        return valid;
+    }
+    m_thresholds = thresholds;
+    return {};
+}
+
+void LoadService::useStoredThresholds(const core::LoadThresholds& thresholds) {
+    if (core::validate(thresholds).empty()) {
+        m_thresholds = thresholds;
+    }
+}
 
 core::Result<QFuture<TeamLoad>> LoadService::teamLoad(core::TeamId team) const {
     if (auto allowed = m_session.require(core::Permission::ViewAnalysis); !allowed) {

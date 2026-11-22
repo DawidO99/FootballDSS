@@ -410,3 +410,44 @@ TEST(LoadTest, AHighRatioAfterABreakSaysSo) {
     EXPECT_FALSE(later.assessment.indicators.breakDays.has_value());
     EXPECT_EQ(later.assessment.verdict.status, LoadStatus::Normal);
 }
+
+TEST(LoadTest, TheDefaultThresholdsAreValid) { EXPECT_TRUE(validate(LoadThresholds{}).empty()); }
+
+TEST(LoadTest, ThresholdsOutOfOrderOrRangeNameTheirField) {
+    const auto fields = [](const LoadThresholds& thresholds) {
+        std::vector<std::string> names;
+        for (const ValidationError& error : validate(thresholds)) {
+            names.push_back(error.field);
+        }
+        return names;
+    };
+    LoadThresholds thresholds;
+    thresholds.ratioLow = 0.0;
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"ratio_low"});
+
+    thresholds = {};
+    thresholds.ratioElevated = 0.8; // equal to the underload ratio
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"ratio_elevated"});
+
+    thresholds = {};
+    thresholds.ratioHigh = 1.3; // equal to the elevated ratio
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"ratio_high"});
+
+    thresholds = {};
+    thresholds.ratioHigh = kMaxRatio;
+    EXPECT_TRUE(fields(thresholds).empty());
+    thresholds.ratioHigh = kMaxRatio + 0.01;
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"ratio_high"});
+
+    thresholds = {};
+    thresholds.monotonyHigh = 1.0;
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"monotony_high"});
+    thresholds.monotonyHigh = kMaxMonotony;
+    EXPECT_TRUE(fields(thresholds).empty());
+
+    thresholds = {};
+    thresholds.ratioLow = std::nan("");
+    thresholds.monotonyHigh = std::nan("");
+    EXPECT_EQ(fields(thresholds),
+              (std::vector<std::string>{"ratio_low", "ratio_elevated", "monotony_high"}));
+}

@@ -3924,7 +3924,71 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Load signals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elevated ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Underload ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Monotony</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&gt; %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt; %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Custom metrics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit load signals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The load signals were saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio = acute load (7 days) / chronic load (28 days). A signal is a reason to talk to the player, not an injury prediction.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High: ratio above</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elevated: ratio above</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Underloaded: ratio below</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elevated: monotony above</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Restore defaults</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The default load signals are in use again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5215,6 +5279,22 @@
     </message>
     <message>
         <source>Enter a name, up to 50 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a ratio above 0 and below the elevated ratio, for example 0.8.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the underload ratio and below the high ratio, for example 1.3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the elevated ratio, at most 5, for example 1.5.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a monotony above 1, at most 10, for example 2.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

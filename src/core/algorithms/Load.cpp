@@ -142,6 +142,27 @@ std::optional<double> loadMonotony(std::span<const int> dailyLoads) {
     return mean / deviation;
 }
 
+ValidationErrors validate(const LoadThresholds& thresholds) {
+    ValidationErrors errors;
+    const auto invalid = [&](const char* field) { errors.push_back(ValidationError{field}); };
+    // NaN fails every comparison, so it is refused too.
+    if (!(thresholds.ratioLow > 0.0) || !(thresholds.ratioLow < kMaxRatio)) {
+        invalid("ratio_low");
+    }
+    if (!(thresholds.ratioElevated > thresholds.ratioLow) ||
+        !(thresholds.ratioElevated < kMaxRatio)) {
+        invalid("ratio_elevated");
+    }
+    if (!(thresholds.ratioHigh > thresholds.ratioElevated) ||
+        !(thresholds.ratioHigh <= kMaxRatio)) {
+        invalid("ratio_high");
+    }
+    if (!(thresholds.monotonyHigh > 1.0) || !(thresholds.monotonyHigh <= kMaxMonotony)) {
+        invalid("monotony_high");
+    }
+    return errors;
+}
+
 LoadVerdict classifyLoad(const LoadIndicators& indicators, const LoadThresholds& thresholds) {
     LoadVerdict verdict;
     if (!indicators.daysSinceFirstEntry) {

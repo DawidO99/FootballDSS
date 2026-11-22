@@ -183,6 +183,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/LoadTexts.cpp
         src/viewmodels/LoadViewModel.hpp
         src/viewmodels/LoadViewModel.cpp
+        src/viewmodels/LoadSettingsViewModel.hpp
+        src/viewmodels/LoadSettingsViewModel.cpp
         src/viewmodels/LockCountdown.hpp
         src/viewmodels/LockCountdown.cpp
         src/viewmodels/MatchDayModels.hpp

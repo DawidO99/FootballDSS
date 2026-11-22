@@ -6300,6 +6300,86 @@ void exerciseDashboardShortBaseline(const DashboardScreen& screen) {
 
 // P19 decision 2: the Coach changes the season from the keyboard; a season that is not two
 // consecutive years stays in the dialog with its error.
+// P19 item 8: the load signal thresholds in Settings. Every label of the card fits at the minimum
+// window in every language; a decimal comma is stored and shown; the defaults come back.
+void exerciseLoadSignalsCard(QQmlApplicationEngine& engine, const DashboardScreen& screen) {
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    screen.navigation->activate(QStringLiteral("settings"));
+    settle();
+    QQuickItem* root = screen.window->contentItem();
+    auto* settingsView = findQmlItem(root, "SettingsView");
+    if (settingsView == nullptr) {
+        fail("there is no Settings view");
+        return;
+    }
+    auto* card = findByObjectName(settingsView, QStringLiteral("loadThresholdsCard"));
+    auto* edit = findByObjectName(settingsView, QStringLiteral("editLoadSignalsButton"));
+    auto* dialog = settingsView->property("loadDialog").value<QObject*>();
+    if (card == nullptr || edit == nullptr || dialog == nullptr || !card->isVisible() ||
+        !edit->isVisible()) {
+        fail("the Load signals card has no Edit button for the Coach");
+        return;
+    }
+    constexpr int kMinimumWidth = 1280;
+    constexpr int kMinimumHeight = 720;
+    const QSize originalSize = screen.window->size();
+    screen.window->resize(kMinimumWidth, kMinimumHeight);
+    const QString originalLanguage = languages->language();
+    for (const QString& language : languages->availableLanguages()) {
+        languages->setLanguage(language);
+        settle();
+        const std::function<void(QQuickItem*)> labels = [&](QQuickItem* item) {
+            if (item->isVisible() && item->property("truncated").toBool()) {
+                qWarning("qml_smoke: settings (%s): cut text '%s'", qUtf8Printable(language),
+                         qUtf8Printable(item->property("text").toString()));
+                fail("a label of the Load signals card is cut at the minimum window");
+            }
+            for (QQuickItem* child : item->childItems()) {
+                labels(child);
+            }
+        };
+        labels(card);
+    }
+    languages->setLanguage(originalLanguage);
+    screen.window->resize(originalSize);
+    settle();
+
+    auto& load = ServiceRegistry::instance().load();
+    clickItem(screen.window, edit);
+    settle();
+    auto* ratioHigh = findByObjectName(root, QStringLiteral("ratioHighInput"));
+    if (ratioHigh == nullptr) {
+        fail("the Load signals dialog has no high ratio field");
+        return;
+    }
+    ratioHigh->setProperty("text", QStringLiteral("1,8"));
+    pressKey(screen.window, Qt::Key_Return);
+    settle();
+    expectFlag(dialog, "visible", false, "saving the load signals left the dialog open");
+    if (load.thresholds().ratioHigh != 1.8) {
+        fail("the high ratio typed with a decimal comma was not stored");
+    }
+    const auto* shown = findByObjectName(card, QStringLiteral("loadSignalValue0"));
+    if (shown == nullptr || !shown->property("text").toString().contains(QStringLiteral("8"))) {
+        fail("the Load signals card does not show the saved ratio");
+    }
+
+    clickItem(screen.window, edit);
+    settle();
+    auto* restore = findByObjectName(root, QStringLiteral("restoreLoadDefaultsButton"));
+    if (restore == nullptr || !restore->isEnabled()) {
+        fail("the Load signals dialog cannot restore the defaults");
+        return;
+    }
+    clickItem(screen.window, restore);
+    settle();
+    if (load.thresholds() != fdss::core::LoadThresholds{}) {
+        fail("Restore defaults did not bring the default load signals back");
+    }
+    expectFlag(dialog, "visible", false, "restoring the defaults left the dialog open");
+}
+
 void exerciseTeamCard(QQmlApplicationEngine& engine, const DashboardScreen& screen) {
     auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
                                                          QStringLiteral("AppState"));
@@ -6400,6 +6480,7 @@ void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
     }
     if (logInAgain(engine, coach)) {
         exerciseTeamCard(engine, screen);
+        exerciseLoadSignalsCard(engine, screen);
     }
 }
 

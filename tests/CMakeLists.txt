@@ -112,6 +112,7 @@ add_executable(fdss_vm_tests
     viewmodels/DashboardViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
     viewmodels/ImportWizardViewModelTest.cpp
+    viewmodels/LoadSettingsViewModelTest.cpp
     viewmodels/LoadViewModelTest.cpp
     viewmodels/MatchDayViewModelTest.cpp
     viewmodels/MatchEditorViewModelTest.cpp
