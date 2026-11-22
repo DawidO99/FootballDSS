@@ -1168,6 +1168,14 @@
         <translation>Naciśnięto Zakończ</translation>
     </message>
     <message>
+        <source>HelpDialog</source>
+        <translation>HelpDialog</translation>
+    </message>
+    <message>
+        <source>Open help</source>
+        <translation>Otwórz pomoc</translation>
+    </message>
+    <message>
         <source>Dashboard: DashboardCard, DashboardRow, LockedState</source>
         <translation>Pulpit: DashboardCard, DashboardRow, LockedState</translation>
     </message>
@@ -1627,6 +1635,173 @@
     <message>
         <source>required</source>
         <translation>wymagane</translation>
+    </message>
+</context>
+<context>
+    <name>HelpDialog</name>
+    <message>
+        <source>Everywhere</source>
+        <translation>Wszędzie</translation>
+    </message>
+    <message>
+        <source>The sidebar opens the sections; the top bar has the search, the next match, the language, the theme and your account.</source>
+        <translation>Panel boczny otwiera sekcje; na górnym pasku są wyszukiwanie, najbliższy mecz, język, motyw i Twoje konto.</translation>
+    </message>
+    <message>
+        <source>Search for a player</source>
+        <translation>Szukaj zawodnika</translation>
+    </message>
+    <message>
+        <source>This help</source>
+        <translation>Ta pomoc</translation>
+    </message>
+    <message>
+        <source>Dashboard</source>
+        <translation>Pulpit</translation>
+    </message>
+    <message>
+        <source>The next match, unavailable players, load signals and recent form.</source>
+        <translation>Najbliższy mecz, niedostępni zawodnicy, sygnały obciążenia i ostatnia forma.</translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation>Kadra</translation>
+    </message>
+    <message>
+        <source>Players, their positions and availability. Enter or a double click opens the player card.</source>
+        <translation>Zawodnicy, ich pozycje i dostępność. Enter lub dwuklik otwiera kartę zawodnika.</translation>
+    </message>
+    <message>
+        <source>Add player</source>
+        <translation>Dodaj zawodnika</translation>
+    </message>
+    <message>
+        <source>Back from the player card</source>
+        <translation>Powrót z karty zawodnika</translation>
+    </message>
+    <message>
+        <source>Calendar</source>
+        <translation>Kalendarz</translation>
+    </message>
+    <message>
+        <source>Matches and training sessions; a played match opens its report.</source>
+        <translation>Mecze i treningi; rozegrany mecz otwiera swój raport.</translation>
+    </message>
+    <message>
+        <source>Add a match or a session</source>
+        <translation>Dodaj mecz lub trening</translation>
+    </message>
+    <message>
+        <source>Save the match report</source>
+        <translation>Zapisz raport meczowy</translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation>Trening</translation>
+    </message>
+    <message>
+        <source>Attendance, RPE and minutes. In the sheet a digit enters the RPE, Enter moves to the next row and Esc takes a cell back.</source>
+        <translation>Obecność, RPE i minuty. W arkuszu cyfra wpisuje RPE, Enter przechodzi do następnego wiersza, a Esc cofa zmianę komórki.</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>Pre-match</source>
+        <translation>Przed meczem</translation>
+    </message>
+    <message>
+        <source>The lineup on the tactics board, with its warnings and the lineup assistant.</source>
+        <translation>Skład na tablicy taktycznej, z ostrzeżeniami i asystentem składu.</translation>
+    </message>
+    <message>
+        <source>Match Day</source>
+        <translation>Tryb meczowy</translation>
+    </message>
+    <message>
+        <source>The live match: clock, events, substitutions, notes and changes of shape.</source>
+        <translation>Mecz na żywo: zegar, zdarzenia, zmiany, notatki i zmiany ustawienia.</translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation>Gol</translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation>Gol rywala</translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation>Żółta kartka</translation>
+    </message>
+    <message>
+        <source>Red card</source>
+        <translation>Czerwona kartka</translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation>Zmiana</translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation>Notatka</translation>
+    </message>
+    <message>
+        <source>Undo the last event</source>
+        <translation>Cofnij ostatnie zdarzenie</translation>
+    </message>
+    <message>
+        <source>Full screen</source>
+        <translation>Pełny ekran</translation>
+    </message>
+    <message>
+        <source>Cancel the current step</source>
+        <translation>Anuluj bieżący krok</translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation>Obciążenie</translation>
+    </message>
+    <message>
+        <source>Load signals of every player: reasons to talk to the player, not injury predictions.</source>
+        <translation>Sygnały obciążenia każdego zawodnika: powody do rozmowy z zawodnikiem, a nie przewidywanie kontuzji.</translation>
+    </message>
+    <message>
+        <source>Metrics</source>
+        <translation>Metryki</translation>
+    </message>
+    <message>
+        <source>Values of the custom metrics of your club.</source>
+        <translation>Wartości metryk własnych Twojego klubu.</translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation>Import</translation>
+    </message>
+    <message>
+        <source>Players, training sessions and matches from CSV or Excel files; every import can be undone.</source>
+        <translation>Zawodnicy, treningi i mecze z plików CSV lub Excel; każdy import można cofnąć.</translation>
+    </message>
+    <message>
+        <source>Choose file</source>
+        <translation>Wybierz plik</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation>Ustawienia</translation>
+    </message>
+    <message>
+        <source>The team, match rules, load signals, staff and custom metrics.</source>
+        <translation>Drużyna, zasady meczu, sygnały obciążenia, sztab i metryki własne.</translation>
+    </message>
+    <message>
+        <source>Help</source>
+        <translation>Pomoc</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Zamknij</translation>
     </message>
 </context>
 <context>
@@ -4639,7 +4814,7 @@
     <message>
         <source>+%1</source>
         <extracomment>More secondary positions than the squad table shows.</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>+%1</translation>
     </message>
     <message>
         <source>The squad could not be read</source>
@@ -4744,6 +4919,10 @@
     <message>
         <source>Next match: %1, %2</source>
         <translation>Najbliższy mecz: %1, %2</translation>
+    </message>
+    <message>
+        <source>Help (%1)</source>
+        <translation>Pomoc (%1)</translation>
     </message>
     <message>
         <source>%1, %2</source>

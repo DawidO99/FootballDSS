@@ -58,6 +58,7 @@ qt_add_qml_module(fdss_ui
         ui/components/FieldBackground.qml
         ui/components/FocusFlickable.qml
         ui/components/FormField.qml
+        ui/components/HelpDialog.qml
         ui/components/Icon.qml
         ui/components/ImportMappingTable.qml
         ui/components/ImportReportTable.qml

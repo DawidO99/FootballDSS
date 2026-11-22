@@ -1160,6 +1160,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>HelpDialog</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open help</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Dashboard: DashboardCard, DashboardRow, LockedState</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1590,6 +1598,173 @@
     </message>
     <message>
         <source>required</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>HelpDialog</name>
+    <message>
+        <source>Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The sidebar opens the sections; the top bar has the search, the next match, the language, the theme and your account.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search for a player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This help</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dashboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The next match, unavailable players, load signals and recent form.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Players, their positions and availability. Enter or a double click opens the player card.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back from the player card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Matches and training sessions; a played match opens its report.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add a match or a session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the match report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Attendance, RPE and minutes. In the sheet a digit enters the RPE, Enter moves to the next row and Esc takes a cell back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The lineup on the tactics board, with its warnings and the lineup assistant.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The live match: clock, events, substitutions, notes and changes of shape.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo the last event</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Full screen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel the current step</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load signals of every player: reasons to talk to the player, not injury predictions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metrics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Values of the custom metrics of your club.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Players, training sessions and matches from CSV or Excel files; every import can be undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The team, match rules, load signals, staff and custom metrics.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Help</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -4591,6 +4766,10 @@
     </message>
     <message>
         <source>Next match: %1, %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Help (%1)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -2276,6 +2276,48 @@ void exerciseUnavailableAtStartup(QQmlApplicationEngine& engine,
     }
 }
 
+// P19 item 10: F1 and the "?" button open the help; its tooltip names the key, and no text of the
+// help is cut.
+void exerciseHelp(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    QQuickItem* topBar = findQmlItem(window->contentItem(), "TopBar");
+    auto* button =
+        topBar != nullptr ? findByObjectName(topBar, QStringLiteral("helpButton")) : nullptr;
+    auto* dialog = topBar != nullptr ? topBar->property("helpDialog").value<QObject*>() : nullptr;
+    if (button == nullptr || dialog == nullptr || !button->isVisible()) {
+        fail("the top bar has no help button");
+        return;
+    }
+    if (!button->property("text").toString().contains(QStringLiteral("F1"))) {
+        fail("the tooltip of the help button does not name F1");
+    }
+    pressKey(window, Qt::Key_F1);
+    settle();
+    expectFlag(dialog, "visible", true, "F1 does not open the help");
+    const std::function<void(QQuickItem*)> labels = [&](QQuickItem* item) {
+        if (item->isVisible() && item->property("truncated").toBool()) {
+            qWarning("qml_smoke: help: cut text '%s'",
+                     qUtf8Printable(item->property("text").toString()));
+            fail("a text of the help is cut");
+        }
+        for (QQuickItem* child : item->childItems()) {
+            labels(child);
+        }
+    };
+    if (auto* content = dialog->property("contentItem").value<QQuickItem*>()) {
+        labels(content);
+    }
+    grabOrSave(window, screenshotDirectory, QStringLiteral("help.png"));
+    pressKey(window, Qt::Key_Escape);
+    settle();
+    expectFlag(dialog, "visible", false, "Esc does not close the help");
+    clickItem(window, button);
+    settle();
+    expectFlag(dialog, "visible", true, "the help button does not open the help");
+    QMetaObject::invokeMethod(dialog, "close");
+    settle();
+}
+
 // A fresh engine creates fresh singletons, which must read the preferences back from QSettings.
 void verifyPreferencesSurviveRestart(const UiPreferences& expected) {
     QQmlEngine engine;
@@ -7374,6 +7416,7 @@ int main(int argc, char* argv[]) {
                     exerciseCalendar(engine, *database, screenshotDirectory);
                     exerciseDatabaseErrorView(engine, screenshotDirectory);
                     viewCount = instantiateEveryView(engine);
+                    exerciseHelp(engine, screenshotDirectory);
                     exerciseLoginOverSession(engine);
                     exerciseLogoutOnUnreadableDatabase(engine, *database);
                 }

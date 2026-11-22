@@ -1695,6 +1695,21 @@ Item {
                     }
                 }
 
+                // P19: the help of F1 and the "?" button of the top bar.
+                Card {
+                    Layout.fillWidth: true
+                    title: qsTr("HelpDialog")
+
+                    SecondaryButton {
+                        text: qsTr("Open help")
+                        onClicked: galleryHelp.open()
+                    }
+
+                    HelpDialog {
+                        id: galleryHelp
+                    }
+                }
+
                 // Dashboard (P15): a card in its three states and the locked state of a section.
                 Card {
                     objectName: "galleryDashboard"
