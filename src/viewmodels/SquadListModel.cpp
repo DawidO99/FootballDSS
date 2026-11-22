@@ -40,6 +40,8 @@ QVariant SquadListModel::data(const QModelIndex& index, int role) const {
         return SquadTexts::positionCode(player.primaryPosition);
     case SecondaryPositionsRole:
         return SquadTexts::secondaryPositionCodes(player, std::nullopt);
+    case SecondaryMoreRole:
+        return SquadTexts::hiddenSecondaryCount(player);
     case PositionTooltipRole:
         return SquadTexts::positionTooltip(player, std::nullopt);
     case AgeRole:
@@ -61,6 +63,7 @@ QHash<int, QByteArray> SquadListModel::roleNames() const {
             {NameRole, "name"},
             {PositionRole, "position"},
             {SecondaryPositionsRole, "secondaryPositions"},
+            {SecondaryMoreRole, "secondaryMore"},
             {PositionTooltipRole, "positionTooltip"},
             {AgeRole, "age"},
             {StatusRole, "status"},

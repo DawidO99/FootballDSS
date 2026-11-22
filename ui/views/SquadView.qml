@@ -267,7 +267,7 @@ Item {
                 DataTableCell {
                     id: cell
 
-                    // Many secondary positions end at the edge of the column; the tooltip has them all.
+                    // A long code row still ends at the edge of the column; the tooltip has them all.
                     clip: true
 
                     HoverHandler {
@@ -321,6 +321,18 @@ Item {
                                     }
                                 }
                             }
+                        }
+
+                        // P19: at most three codes; the tooltip names them all.
+                        Label {
+                            objectName: "secondaryMore"
+                            height: parent.height
+                            visible: (cell.rowData?.secondaryMore ?? 0) > 0
+                            //: More secondary positions than the squad table shows.
+                            text: qsTr("+%1").arg(cell.rowData?.secondaryMore ?? 0)
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontSize.caption
+                            verticalAlignment: Text.AlignVCenter
                         }
                     }
 

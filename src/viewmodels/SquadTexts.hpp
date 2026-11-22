@@ -25,10 +25,15 @@ public:
     // A primary position that is not given (P19): "—" in every language, and "Position not given".
     [[nodiscard]] static QString positionCode(const std::optional<core::Position>& position);
     [[nodiscard]] static QString positionName(const std::optional<core::Position>& position);
-    // [{ code, highlighted }] of the secondary positions; highlighted: in the active group.
+    // The squad table shows this many secondary codes at most, then "+N" (P19).
+    static constexpr int kShownSecondaryCodes = 3;
+    // [{ code, highlighted }] of at most kShownSecondaryCodes secondary positions; highlighted: in
+    // the active group. The highlighted ones come first, otherwise the stored order stays.
     [[nodiscard]] static QVariantList
     secondaryPositionCodes(const core::Player& player,
                            std::optional<core::PositionGroup> activeGroup);
+    // How many secondary positions secondaryPositionCodes() leaves out.
+    [[nodiscard]] static int hiddenSecondaryCount(const core::Player& player);
     // Why the player is in the active group when only a secondary position puts them there;
     // otherwise the full names of the primary and the secondary positions.
     [[nodiscard]] static QString positionTooltip(const core::Player& player,

@@ -4637,6 +4637,11 @@
         <translation>·</translation>
     </message>
     <message>
+        <source>+%1</source>
+        <extracomment>More secondary positions than the squad table shows.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The squad could not be read</source>
         <translation>Nie udało się odczytać kadry</translation>
     </message>
