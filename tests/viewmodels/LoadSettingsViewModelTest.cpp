@@ -6,6 +6,7 @@
 #include "viewmodels/ErrorPresenter.hpp"
 
 #include <QFile>
+#include <QFileInfo>
 #include <QSettings>
 #include <QTemporaryDir>
 
@@ -156,6 +157,50 @@ TEST_F(LoadSettingsViewModelTest, AFailedWriteIsReportedAndChangesNothing) {
     EXPECT_EQ(changed.count(), 0);
     EXPECT_EQ(registry().load().thresholds(), LoadThresholds{});
     EXPECT_TRUE(load.isDefault());
+}
+
+// P19 review: after a failed write this session uses the old thresholds everywhere, also where
+// the settings are read again (a registry made now), so Load classifies by them.
+TEST_F(LoadSettingsViewModelTest, AfterAFailedWriteLoadClassifiesByTheOldThresholds) {
+    LoadSettingsViewModel load;
+    ASSERT_TRUE(load.save(QStringLiteral("1.7"), QStringLiteral("1.3"), QStringLiteral("0.8"),
+                          QStringLiteral("2")));
+    const LoadThresholds old = registry().load().thresholds();
+    const QString file = QSettings().fileName();
+    const auto writable = QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner;
+    ASSERT_TRUE(QFile::setPermissions(file, QFile::ReadOwner));
+    ASSERT_TRUE(
+        QFile::setPermissions(QFileInfo(file).absolutePath(), QFile::ReadOwner | QFile::ExeOwner));
+    QFile probe(file);
+    if (probe.open(QIODevice::WriteOnly | QIODevice::Append)) {
+        probe.close();
+        QFile::setPermissions(QFileInfo(file).absolutePath(), writable);
+        QFile::setPermissions(file, QFile::ReadOwner | QFile::WriteOwner);
+        GTEST_SKIP() << "this user writes into read-only files (root?)";
+    }
+
+    const bool saved = load.save(QStringLiteral("1.6"), QStringLiteral("1.3"),
+                                 QStringLiteral("0.8"), QStringLiteral("2"));
+    const LoadThresholds inSettings = LoadSettingsViewModel::storedThresholds();
+    auto opened = fdss::data::DatabaseManager::openInMemory();
+    ASSERT_TRUE(opened.has_value());
+    const auto next = fdss::viewmodels::ServiceRegistry::create(std::move(*opened));
+    QFile::setPermissions(QFileInfo(file).absolutePath(), writable);
+    QFile::setPermissions(file, QFile::ReadOwner | QFile::WriteOwner);
+
+    ASSERT_FALSE(saved);
+    EXPECT_EQ(inSettings, old);
+    EXPECT_EQ(registry().load().thresholds(), old);
+    EXPECT_EQ(next->load().thresholds(), old);
+    // 1.65 is High above the refused 1.6, Elevated below the kept 1.7.
+    LoadIndicators indicators;
+    indicators.rpeDays = 14;
+    indicators.daysSinceFirstEntry = 28;
+    indicators.acute = 165.0;
+    indicators.chronic = 100.0;
+    indicators.ratio = 1.65;
+    EXPECT_EQ(classifyLoad(indicators, next->load().thresholds()).status, LoadStatus::Elevated);
+    EXPECT_EQ(load.ratioHigh(), QStringLiteral("1.70"));
 }
 
 TEST_F(LoadSettingsViewModelTest, ThreeDecimalsAreRefusedOnTheirField) {

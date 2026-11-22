@@ -156,10 +156,14 @@ bool LoadSettingsViewModel::apply(const core::LoadThresholds& thresholds) {
         return false;
     }
     if (const auto written = store(thresholds); !written) {
-        // In use only what is stored, so the next start agrees with the screen.
+        // In use only what is stored, so the next start agrees with the screen. QSettings keeps
+        // what was set in memory even when the file is not written, so the old values go back
+        // there too: whatever reads the settings in this session gets the old thresholds. Its
+        // sync() is likely to fail as well and is not reported twice.
         if (const auto restored = m_load.setThresholds(previous); !restored) {
             qCritical("LoadSettingsViewModel: %s", restored.error().detail.c_str());
         }
+        static_cast<void>(store(previous));
         qCritical("LoadSettingsViewModel: %s", written.error().detail.c_str());
         emit errorOccurred(ErrorPresenter::message(written.error()));
         return false;
