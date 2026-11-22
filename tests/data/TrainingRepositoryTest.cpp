@@ -364,3 +364,25 @@ TEST_F(TrainingRepositoryTest, AttendanceByPlayerIsLimitedToTheRangeAndSortedByD
     EXPECT_EQ(repository().listAttendanceByPlayer(kPlayer, {})->size(), 4U);
     EXPECT_TRUE(repository().listAttendanceByPlayer(kOtherPlayer, {})->empty());
 }
+
+// Packet P18 decision 11: saving the sheet keeps the import_id of an imported row, and the undo of
+// the import finds its rows and sessions.
+TEST_F(TrainingRepositoryTest, ImportedRowsKeepTheirImportAcrossTheSheet) {
+    ASSERT_TRUE(sql("INSERT INTO import_log (id, timestamp, file, hash, type) "
+                    "VALUES (7, '2026-11-01T10:00:00Z', 'f.csv', 'h', 'training')"));
+    const auto session = repository().create(kTeam, draft(), ImportId{7});
+    ASSERT_TRUE(session.has_value());
+    ASSERT_TRUE(repository().insertAttendance(*session, present(kPlayer, 6), ImportId{7}));
+    // Corrected on the sheet, with a row added by hand.
+    const std::vector rows = {present(kPlayer, 8), present(kOtherPlayer, 5)};
+    ASSERT_TRUE(repository().saveAttendance(*session, rows).has_value());
+    EXPECT_EQ(count("SELECT count(*) FROM attendance WHERE import_id = 7"), 1);
+    EXPECT_EQ(repository().findAttendance(*session, kPlayer)->value().rpe, 8);
+    EXPECT_EQ(*repository().countAttendanceAddedLater(ImportId{7}), 1);
+    ASSERT_TRUE(repository().updateAttendance(*session, present(kPlayer, 3)).has_value());
+    EXPECT_EQ(count("SELECT count(*) FROM attendance WHERE import_id = 7 AND rpe = 3"), 1);
+    EXPECT_EQ(repository().listByImport(ImportId{7})->size(), 1U);
+    EXPECT_EQ(*repository().removeAttendanceByImport(ImportId{7}), 1);
+    EXPECT_EQ(*repository().removeByImport(ImportId{7}), 1);
+    EXPECT_EQ(count("SELECT count(*) FROM attendance"), 0);
+}

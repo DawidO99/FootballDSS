@@ -119,8 +119,11 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
       m_dashboard(std::make_unique<services::DashboardService>(*m_matches, *m_opponents, *m_players,
                                                                *m_availability, *m_training,
                                                                *m_lineup, *m_session, *m_clock)),
-      m_imports(std::make_unique<services::ImportService>(*m_database, *m_importLog, *m_players,
-                                                          *m_session, *m_clock)),
+      m_imports(std::make_unique<services::ImportService>(
+          *m_database,
+          services::ImportRepositories{*m_importLog, *m_players, *m_training, *m_matches,
+                                       *m_matchLive, *m_metricStore, *m_opponents},
+          *m_session, *m_clock)),
       m_metrics(std::make_unique<services::MetricService>(
           *m_database, *m_metricStore, *m_players, *m_training, *m_matches, *m_session, *m_clock)) {
 }

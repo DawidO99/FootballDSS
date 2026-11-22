@@ -648,3 +648,24 @@ TEST_F(MatchRepositoryTest, DeleteOfAnEventOfAnotherMatchIsNotFound) {
     EXPECT_EQ(repository().deleteEvent(kMatch, *id).error().code, ErrorCode::NotFound);
     EXPECT_EQ(repository().listEvents(other)->size(), 1U);
 }
+
+// Packet P18 decision 11: recomputing the appearances keeps the import_id of an imported row.
+TEST_F(MatchRepositoryTest, ImportedAppearancesKeepTheirImport) {
+    ASSERT_TRUE(sql("INSERT INTO import_log (id, timestamp, file, hash, type) "
+                    "VALUES (7, '2026-11-01T10:00:00Z', 'f.csv', 'h', 'matches')"));
+    MatchRepository matches(*m_db);
+    AppearanceDraft imported;
+    imported.playerId = kPlayer;
+    imported.started = true;
+    imported.minuteOn = 0;
+    imported.minuteOff = 90;
+    ASSERT_TRUE(matches.insertAppearance(kMatch, imported, ImportId{7}).has_value());
+    AppearanceDraft other = imported;
+    other.playerId = kOtherPlayer;
+    imported.rating = 8;
+    ASSERT_TRUE(matches.replaceAppearances(kMatch, std::vector{imported, other}).has_value());
+    EXPECT_EQ(count("SELECT count(*) FROM appearance WHERE import_id = 7 AND rating = 8"), 1);
+    EXPECT_EQ(matches.countAddedLater(ImportId{7})->appearances, 0); // the match is not imported
+    EXPECT_EQ(*matches.removeAppearancesByImport(ImportId{7}), 1);
+    EXPECT_EQ(count("SELECT count(*) FROM appearance"), 1);
+}

@@ -19,6 +19,9 @@ public:
     [[nodiscard]] core::Result<core::Opponent> get(core::OpponentId id) const;
     [[nodiscard]] core::Result<core::OpponentId> create(const core::OpponentDraft& draft);
     [[nodiscard]] core::Status update(core::OpponentId id, const core::OpponentDraft& draft);
+    // Only an opponent no match refers to (the undo of an import, packet P18 decision 10);
+    // otherwise Conflict. Missing: NotFound.
+    [[nodiscard]] core::Status remove(core::OpponentId id);
 
 private:
     DatabaseManager& m_db;

@@ -6500,6 +6500,140 @@ void exerciseImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& 
     settle();
 }
 
+// --- Import of training and matches (P18) ---
+
+int countRows(fdss::data::DatabaseManager& database, const char* sql) {
+    QSqlQuery query(database.database());
+    query.exec(QString::fromLatin1(sql));
+    return query.next() ? query.value(0).toInt() : -1;
+}
+
+// Training and matches at the minimum window: the Polish Excel files of the packet, the options
+// of the report, the commit, the summary with the notice about goals and cards, the undo without
+// a question and, after a note was added, the undo that asks first; "Create metric…" opens the
+// metric dialog.
+void exerciseActivityImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& database,
+                            const QString& screenshotDirectory) {
+    auto& registry = ServiceRegistry::instance();
+    for (const auto& [first, last, number] :
+         {std::tuple{"Jan", "Kowalski", 9}, std::tuple{"Piotr", "Nowak", 4},
+          std::tuple{"Adam", "Nowak", 5}, std::tuple{"Łukasz", "Wiśniewski", 7}}) {
+        fdss::core::PlayerDraft draft;
+        draft.firstName = first;
+        draft.lastName = last;
+        draft.shirtNumber = number;
+        if (!registry.squad().addPlayer(smokeTeam(), draft)) {
+            fail("the import test cannot add a player");
+            return;
+        }
+    }
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    settle();
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    constexpr int kMinimumWidth = 1280;
+    constexpr int kMinimumHeight = 720;
+    const QSize originalSize = window->size();
+    window->resize(kMinimumWidth, kMinimumHeight);
+    navigation->activate(QStringLiteral("import"));
+    settle();
+    auto* view = findQmlItem(window->contentItem(), "ImportView");
+    auto* wizard =
+        view != nullptr ? view->property("viewModel").value<ImportWizardViewModel*>() : nullptr;
+    if (wizard == nullptr) {
+        fail("the import view or its viewmodel is not there");
+        return;
+    }
+    const auto find = [view](const char* name) {
+        return findByObjectName(view, QString::fromLatin1(name));
+    };
+    const auto atStep = [wizard](const char* step) {
+        return !wizard->busy() && wizard->step() == QLatin1StringView(step);
+    };
+    expectReachable(window, find("save_training_xlsx"), true, "the training template is missing");
+    expectReachable(window, find("save_matches_csv"), true, "the match template is missing");
+
+    // Training: to the report.
+    clickPolished(window, find("importType_training"));
+    wizard->openPath(importFixture("training-cp1250.csv"));
+    if (!waitUntil([&] { return atStep("preview"); }, "the training file did not open")) {
+        return;
+    }
+    clickPolished(window, find("toMappingButton"));
+    if (!atStep("mapping")) {
+        fail("the training file did not reach the mapping");
+        return;
+    }
+    // "Create metric…" on the metric column opens the P17 dialog, prefilled.
+    wizard->setColumnField(7, QStringLiteral("create_metric"));
+    settle();
+    auto* metricDialog = view->property("createMetricDialog").value<QObject*>();
+    expectFlag(metricDialog, "visible", true, "Create metric did not open the metric dialog");
+    QMetaObject::invokeMethod(metricDialog, "close");
+    settle();
+    expectReachable(window, find("validateButton"), true, "Check the rows is not usable");
+    clickPolished(window, find("validateButton"));
+    if (!waitUntil([&] { return atStep("report"); }, "the training validation did not finish")) {
+        return;
+    }
+    settle();
+    expectReachable(window, find("unknownPlayersChoice"), true,
+                    "the choice for unknown players is not usable");
+    expectReachable(window, find("commitButton"), true, "Import is not usable on the report");
+    grabOrSave(window, screenshotDirectory, QStringLiteral("import-training-report.png"));
+    clickPolished(window, find("commitButton"));
+    if (!atStep("summary") || countRows(database, "SELECT count(*) FROM training_session") != 12) {
+        fail("the training import did not write the 12 sessions");
+        return;
+    }
+    expectReachable(window, find("openLoadButton"), true, "Open Load is not usable");
+    // Nothing was added after the import: the undo asks nothing.
+    clickPolished(window, find("undoImportButton"));
+    settle();
+    if (countRows(database, "SELECT count(*) FROM training_session") != 0 || !wizard->undone()) {
+        fail("undo of the training import did not remove the sessions");
+    }
+
+    // Matches: the notice about goals and cards, then the undo after a note.
+    clickPolished(window, find("importAgainButton"));
+    clickPolished(window, find("importType_matches"));
+    wizard->openPath(importFixture("matches-cp1250.csv"));
+    if (!waitUntil([&] { return atStep("preview"); }, "the match file did not open")) {
+        return;
+    }
+    clickPolished(window, find("toMappingButton"));
+    clickPolished(window, find("validateButton"));
+    if (!waitUntil([&] { return atStep("report"); }, "the match validation did not finish")) {
+        return;
+    }
+    settle();
+    expectFlag(find("notImportedLine"), "visible", true,
+               "the report does not say that goals and cards are not imported");
+    clickPolished(window, find("commitButton"));
+    if (!atStep("summary") ||
+        countRows(database, "SELECT count(*) FROM match WHERE status = 'finished'") != 3) {
+        fail("the match import did not write the 3 matches");
+        return;
+    }
+    grabOrSave(window, screenshotDirectory, QStringLiteral("import-matches-summary.png"));
+    QSqlQuery note(database.database());
+    note.exec(QStringLiteral("INSERT INTO match_note (match_id, minute, text) "
+                             "SELECT id, 10, 'Notatka' FROM match LIMIT 1"));
+    clickPolished(window, find("undoImportButton"));
+    settle();
+    auto* question = view->property("activityUndoImportDialog").value<QObject*>();
+    expectFlag(question, "visible", true, "the undo did not name the note added later");
+    QMetaObject::invokeMethod(question, "triggerPrimary");
+    settle();
+    if (countRows(database, "SELECT count(*) FROM match") != 0 ||
+        countRows(database, "SELECT count(*) FROM match_note") != 0) {
+        fail("undo of the match import did not remove the matches and the note");
+    }
+    wizard->reset();
+    window->resize(originalSize);
+    settle();
+}
+
 // --- Custom metrics (P17) ---
 
 // The item lies inside the other one, both laid out on screen.
@@ -6917,6 +7051,19 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 exerciseImport(engine, *database, screenshotDirectory);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (onlyLoad || onlyPreMatch || onlyDashboard || onlyMetrics) {
+            // Not this one.
+        } else if (fdss::data::DatabaseManager* database = installRegistry(AppState::State::Ready);
+                   database == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                exerciseActivityImport(engine, *database, screenshotDirectory);
             }
             settle();
             ServiceRegistry::reset();

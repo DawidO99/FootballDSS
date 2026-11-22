@@ -1613,7 +1613,7 @@
     </message>
     <message>
         <source>Training sessions and matches will be imported here too in a later version.</source>
-        <translation>Treningi i mecze będzie można importować tutaj w kolejnej wersji.</translation>
+        <translation type="vanished">Treningi i mecze będzie można importować tutaj w kolejnej wersji.</translation>
     </message>
     <message>
         <source>Templates</source>
@@ -1621,15 +1621,15 @@
     </message>
     <message>
         <source>Start from a template if you have no file yet: it has every column the import recognises. Positions may be written as BR, ŚO, N or as GK, CB, ST.</source>
-        <translation>Jeśli nie masz jeszcze pliku, zacznij od szablonu: ma wszystkie kolumny, które import rozpoznaje. Pozycje można wpisać jako BR, ŚO, N albo GK, CB, ST.</translation>
+        <translation type="vanished">Jeśli nie masz jeszcze pliku, zacznij od szablonu: ma wszystkie kolumny, które import rozpoznaje. Pozycje można wpisać jako BR, ŚO, N albo GK, CB, ST.</translation>
     </message>
     <message>
         <source>Save the squad template (XLSX)</source>
-        <translation>Zapisz szablon kadry (XLSX)</translation>
+        <translation type="vanished">Zapisz szablon kadry (XLSX)</translation>
     </message>
     <message>
         <source>Save the squad template (CSV)</source>
-        <translation>Zapisz szablon kadry (CSV)</translation>
+        <translation type="vanished">Zapisz szablon kadry (CSV)</translation>
     </message>
     <message>
         <source>Choose the file</source>
@@ -1673,11 +1673,47 @@
     </message>
     <message>
         <source>Choose the sheet with the players.</source>
-        <translation>Wybierz arkusz z zawodnikami.</translation>
+        <translation type="vanished">Wybierz arkusz z zawodnikami.</translation>
+    </message>
+    <message>
+        <source>XLSX template</source>
+        <translation>Szablon XLSX</translation>
+    </message>
+    <message>
+        <source>CSV template</source>
+        <translation>Szablon CSV</translation>
+    </message>
+    <message>
+        <source>Save the %1 template (XLSX)</source>
+        <translation>Zapisz szablon: %1 (XLSX)</translation>
+    </message>
+    <message>
+        <source>Save the %1 template (CSV)</source>
+        <translation>Zapisz szablon: %1 (CSV)</translation>
+    </message>
+    <message>
+        <source>Start from a template if you have no file yet: it has every column the import recognises and a sheet with instructions. Positions may be written as BR, ŚO, N or as GK, CB, ST.</source>
+        <translation>Jeśli nie masz jeszcze pliku, zacznij od szablonu: ma wszystkie kolumny, które import rozpoznaje, i arkusz z instrukcją. Pozycje można wpisać jako BR, ŚO, N albo GK, CB, ST.</translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation>Kadra</translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation>Trening</translation>
+    </message>
+    <message>
+        <source>Matches</source>
+        <translation>Mecze</translation>
     </message>
     <message>
         <source>Choose another file.</source>
         <translation>Wybierz inny plik.</translation>
+    </message>
+    <message>
+        <source>Choose the sheet with the data.</source>
+        <translation>Wybierz arkusz z danymi.</translation>
     </message>
     <message>
         <source>Choose another file</source>
@@ -1690,6 +1726,10 @@
     <message>
         <source>The columns are set as in your last import of a file with these headers.</source>
         <translation>Kolumny ustawiono tak jak przy ostatnim imporcie pliku z tymi nagłówkami.</translation>
+    </message>
+    <message>
+        <source>Columns not recognised can go to a custom metric of the club, or to a new one: choose &quot;Create metric…&quot;.</source>
+        <translation>Nierozpoznane kolumny można przypisać do metryki własnej klubu albo do nowej: wybierz „Utwórz metrykę…”.</translation>
     </message>
     <message>
         <source>Order in the name column</source>
@@ -1744,8 +1784,32 @@
         <translation>Błędy: %1</translation>
     </message>
     <message>
+        <source>Players not in the squad</source>
+        <translation>Zawodnicy spoza kadry</translation>
+    </message>
+    <message>
+        <source>Skip their rows</source>
+        <translation>Pomiń ich wiersze</translation>
+    </message>
+    <message>
+        <source>Add them to the squad</source>
+        <translation>Dodaj ich do kadry</translation>
+    </message>
+    <message>
+        <source>Position of new players</source>
+        <translation>Pozycja nowych zawodników</translation>
+    </message>
+    <message>
+        <source>New players: %1. Correct their positions later in Squad.</source>
+        <translation>Nowi zawodnicy: %1. Popraw później ich pozycje w Kadrze.</translation>
+    </message>
+    <message>
         <source>Update players already in the squad</source>
         <translation>Aktualizuj zawodników, którzy już są w kadrze</translation>
+    </message>
+    <message>
+        <source>Overwrite values already in the app</source>
+        <translation>Nadpisz wartości zapisane już w aplikacji</translation>
     </message>
     <message>
         <source>Skip rows with errors</source>
@@ -1796,6 +1860,10 @@
         <translation>Otwórz Kadrę</translation>
     </message>
     <message>
+        <source>Open Load</source>
+        <translation>Otwórz Obciążenie</translation>
+    </message>
+    <message>
         <source>Import another file</source>
         <translation>Importuj inny plik</translation>
     </message>
@@ -1808,8 +1876,12 @@
         <translation>Tabele (*.csv *.txt *.tsv *.xlsx)</translation>
     </message>
     <message>
+        <source>Save the template</source>
+        <translation>Zapisz szablon</translation>
+    </message>
+    <message>
         <source>Save the squad template</source>
-        <translation>Zapisz szablon kadry</translation>
+        <translation type="vanished">Zapisz szablon kadry</translation>
     </message>
     <message>
         <source>Excel workbooks (*.xlsx)</source>
@@ -5055,7 +5127,7 @@
     </message>
     <message>
         <source>The file does not look like a table: no column is recognised and the rows have different numbers of columns. Choose the file with the list of players or fill in the template.</source>
-        <translation>Plik nie wygląda na tabelę: żadna kolumna nie została rozpoznana, a wiersze mają różną liczbę kolumn. Wybierz plik z listą zawodników albo wypełnij szablon.</translation>
+        <translation type="vanished">Plik nie wygląda na tabelę: żadna kolumna nie została rozpoznana, a wiersze mają różną liczbę kolumn. Wybierz plik z listą zawodników albo wypełnij szablon.</translation>
     </message>
     <message>
         <source>This import cannot be undone here.</source>
@@ -5103,7 +5175,7 @@
     </message>
     <message>
         <source>There is nothing to import: every row is skipped or has errors.</source>
-        <translation>Nie ma nic do zaimportowania: każdy wiersz jest pominięty albo ma błędy.</translation>
+        <translation type="vanished">Nie ma nic do zaimportowania: każdy wiersz jest pominięty albo ma błędy.</translation>
     </message>
     <message>
         <source>A PIN has 4 to 8 digits.</source>
@@ -5327,7 +5399,7 @@
     </message>
     <message>
         <source>The squad changed since the rows were checked, so nothing was imported. The marked rows show what the import would do now; check them and import again.</source>
-        <translation>Kadra zmieniła się od sprawdzenia wierszy, więc nic nie zaimportowano. Oznaczone wiersze pokazują, co import zrobi teraz; sprawdź je i zaimportuj ponownie.</translation>
+        <translation type="vanished">Kadra zmieniła się od sprawdzenia wierszy, więc nic nie zaimportowano. Oznaczone wiersze pokazują, co import zrobi teraz; sprawdź je i zaimportuj ponownie.</translation>
     </message>
     <message>
         <source>This import has already been undone.</source>
@@ -5394,8 +5466,28 @@
         <translation>Tego ustawienia nie można użyć: potrzebuje 11 miejsc na boisku i co najwyżej jednego bramkarza.</translation>
     </message>
     <message>
+        <source>The file does not look like a table: no column is recognised and the rows have different numbers of columns. Choose the file with the data or fill in the template.</source>
+        <translation>Plik nie wygląda na tabelę: żadna kolumna nie została rozpoznana, a wiersze mają różną liczbę kolumn. Wybierz plik z danymi albo wypełnij szablon.</translation>
+    </message>
+    <message>
+        <source>The file has one column per date. The import needs one row per player and session: save the training template, copy the data into it and import that file.</source>
+        <translation>Plik ma osobną kolumnę dla każdej daty. Import potrzebuje jednego wiersza na zawodnika i trening: zapisz szablon treningów, przenieś do niego dane i zaimportuj ten plik.</translation>
+    </message>
+    <message>
+        <source>There is nothing to import: every row is skipped, already in the app or has errors.</source>
+        <translation>Nie ma czego importować: każdy wiersz jest pominięty, jest już w aplikacji albo ma błędy.</translation>
+    </message>
+    <message>
+        <source>Choose the position of the new players.</source>
+        <translation>Wybierz pozycję nowych zawodników.</translation>
+    </message>
+    <message>
         <source>The shape is the same as before. Move a player or choose another formation.</source>
         <translation>Ustawienie jest takie samo jak wcześniej. Przesuń zawodnika albo wybierz inne ustawienie.</translation>
+    </message>
+    <message>
+        <source>The data in the app changed since the rows were checked, so nothing was imported. The report shows what the import would do now; check it and import again.</source>
+        <translation>Dane w aplikacji zmieniły się od sprawdzenia wierszy, więc nic nie zaimportowano. Raport pokazuje, co import zrobiłby teraz; sprawdź go i zaimportuj ponownie.</translation>
     </message>
     <message>
         <source>A later change of shape is already recorded. A change can be entered only at or after the minute of the last one.</source>
@@ -5476,6 +5568,385 @@
     <message>
         <source>The database could not be opened because of an unexpected error. Start the app again. If this repeats, close the app, replace the file with a copy from the backups folder and delete the files next to it that end in -wal and -shm.</source>
         <translation>Nie udało się otworzyć bazy danych z powodu nieoczekiwanego błędu. Uruchom aplikację ponownie. Jeśli błąd się powtórzy, zamknij aplikację, zastąp plik kopią z folderu backups i usuń leżące obok pliki z końcówką -wal i -shm.</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::ImportActivityTexts</name>
+    <message>
+        <source>session %1 (in the app)</source>
+        <translation>trening %1 (w aplikacji)</translation>
+    </message>
+    <message>
+        <source>session %1 (new)</source>
+        <translation>trening %1 (nowy)</translation>
+    </message>
+    <message>
+        <source>match %1 against %2 (in the app)</source>
+        <translation>mecz %1 z %2 (w aplikacji)</translation>
+    </message>
+    <message>
+        <source>match %1 against %2 (new)</source>
+        <translation>mecz %1 z %2 (nowy)</translation>
+    </message>
+    <message>
+        <source>Row %1: %2.</source>
+        <translation>Wiersz %1: %2.</translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation>Data</translation>
+    </message>
+    <message>
+        <source>Opponent</source>
+        <translation>Przeciwnik</translation>
+    </message>
+    <message>
+        <source>Venue</source>
+        <translation>Miejsce</translation>
+    </message>
+    <message>
+        <source>Competition</source>
+        <translation>Rozgrywki</translation>
+    </message>
+    <message>
+        <source>Score</source>
+        <translation>Wynik</translation>
+    </message>
+    <message>
+        <source>Goals for</source>
+        <translation>Bramki zdobyte</translation>
+    </message>
+    <message>
+        <source>Goals against</source>
+        <translation>Bramki stracone</translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation>Zawodnik</translation>
+    </message>
+    <message>
+        <source>Shirt number</source>
+        <translation>Numer</translation>
+    </message>
+    <message>
+        <source>Started</source>
+        <translation>Podstawowy</translation>
+    </message>
+    <message>
+        <source>Minutes</source>
+        <translation>Minuty</translation>
+    </message>
+    <message>
+        <source>Goals (not imported)</source>
+        <translation>Gole (nie importowane)</translation>
+    </message>
+    <message>
+        <source>Assists (not imported)</source>
+        <translation>Asysty (nie importowane)</translation>
+    </message>
+    <message>
+        <source>Yellow cards (not imported)</source>
+        <translation>Żółte kartki (nie importowane)</translation>
+    </message>
+    <message>
+        <source>Red cards (not imported)</source>
+        <translation>Czerwone kartki (nie importowane)</translation>
+    </message>
+    <message>
+        <source>Rating</source>
+        <translation>Ocena</translation>
+    </message>
+    <message>
+        <source>RPE</source>
+        <translation>RPE</translation>
+    </message>
+    <message>
+        <source>Start time</source>
+        <translation>Godzina</translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation>Czas trwania</translation>
+    </message>
+    <message>
+        <source>Session type</source>
+        <translation>Typ zajęć</translation>
+    </message>
+    <message>
+        <source>Attendance</source>
+        <translation>Obecność</translation>
+    </message>
+    <message>
+        <source>Ignore column</source>
+        <translation>Pomiń kolumnę</translation>
+    </message>
+    <message>
+        <source>Metric: %1</source>
+        <translation>Metryka: %1</translation>
+    </message>
+    <message>
+        <source>Create metric…</source>
+        <translation>Utwórz metrykę…</translation>
+    </message>
+    <message>
+        <source>Choose the column with the date.</source>
+        <translation>Wybierz kolumnę z datą.</translation>
+    </message>
+    <message>
+        <source>Choose the column with the player (a name or a shirt number).</source>
+        <translation>Wybierz kolumnę z zawodnikiem (nazwisko albo numer).</translation>
+    </message>
+    <message>
+        <source>Choose the column with the opponent.</source>
+        <translation>Wybierz kolumnę z przeciwnikiem.</translation>
+    </message>
+    <message>
+        <source>Choose at least one column to import, such as attendance, RPE, minutes or a metric.</source>
+        <translation>Wybierz co najmniej jedną kolumnę do importu, np. obecność, RPE, minuty albo metrykę.</translation>
+    </message>
+    <message>
+        <source>Two columns have the same meaning. Set one of them to &quot;Ignore column&quot;.</source>
+        <translation>Dwie kolumny mają to samo znaczenie. Ustaw jedną z nich na „Pomiń kolumnę”.</translation>
+    </message>
+    <message>
+        <source>Two columns go to the same metric. Set one of them to &quot;Ignore column&quot;.</source>
+        <translation>Dwie kolumny trafiają do tej samej metryki. Ustaw jedną z nich na „Pomiń kolumnę”.</translation>
+    </message>
+    <message>
+        <source>the player is empty, expected a name or a shirt number</source>
+        <translation>brak zawodnika, oczekiwano nazwiska albo numeru</translation>
+    </message>
+    <message>
+        <source>%1 is empty</source>
+        <translation>%1: brak wartości</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a date such as 05.01.2026, 2026-01-05 or 05/01/2026</source>
+        <translation>%1 „%2”, oczekiwano daty, np. 05.01.2026, 2026-01-05 lub 05/01/2026</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a time such as 18:00</source>
+        <translation>%1 „%2”, oczekiwano godziny, np. 18:00</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a value of the metric</source>
+        <translation>%1 „%2”, oczekiwano wartości metryki</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected goals for and against such as 2:1</source>
+        <translation>%1 „%2”, oczekiwano bramek zdobytych i straconych, np. 2:1</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos; is not a number and was left out</source>
+        <translation>%1 „%2” to nie liczba, pominięto</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a number</source>
+        <translation>%1 „%2”, oczekiwano liczby</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a whole number from %3 to %4</source>
+        <translation>%1 „%2”, oczekiwano liczby całkowitej od %3 do %4</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos; is outside the limits of the metric</source>
+        <translation>%1 „%2” jest poza zakresem metryki</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a number from %3 to %4</source>
+        <translation>%1 „%2”, oczekiwano liczby od %3 do %4</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected present, absent, excused or injured</source>
+        <translation>%1 „%2”, oczekiwano: obecny, nieobecny, usprawiedliwiony lub kontuzja</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected home, away or neutral</source>
+        <translation>%1 „%2”, oczekiwano: dom, wyjazd lub neutralny</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected yes or no</source>
+        <translation>%1 „%2”, oczekiwano: tak lub nie</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos; is unknown, saved as training</source>
+        <translation>%1 „%2” nieznany, zapisano jako trening</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos; is longer than 100 characters</source>
+        <translation>%1 „%2” ma więcej niż 100 znaków</translation>
+    </message>
+    <message>
+        <source>the same player is in row %1 of this match</source>
+        <translation>ten sam zawodnik jest w wierszu %1 tego meczu</translation>
+    </message>
+    <message>
+        <source>the same player is in row %1 of this session</source>
+        <translation>ten sam zawodnik jest w wierszu %1 tego treningu</translation>
+    </message>
+    <message>
+        <source>%1 differs from row %2 of the same match</source>
+        <translation>%1 różni się od wiersza %2 tego samego meczu</translation>
+    </message>
+    <message>
+        <source>%1 differs from row %2 of the same session</source>
+        <translation>%1 różni się od wiersza %2 tego samego treningu</translation>
+    </message>
+    <message>
+        <source>rating and RPE left out: the player did not play</source>
+        <translation>pominięto ocenę i RPE: zawodnik nie grał</translation>
+    </message>
+    <message>
+        <source>RPE and minutes left out: the player was not present</source>
+        <translation>pominięto RPE i minuty: zawodnik nie był obecny</translation>
+    </message>
+    <message>
+        <source>no attendance, RPE, minutes or metric value, skipped</source>
+        <translation>brak obecności, RPE, minut i wartości metryk, pominięto</translation>
+    </message>
+    <message>
+        <source>skipped the example row of the template</source>
+        <translation>pominięto przykładowy wiersz szablonu</translation>
+    </message>
+    <message>
+        <source>started without minutes, expected the minutes played</source>
+        <translation>w podstawie bez minut, oczekiwano rozegranych minut</translation>
+    </message>
+    <message>
+        <source>not imported: %1 goal(s), %2 assist(s), %3 card(s) — no minute; enter them in the match report</source>
+        <translation>nie zaimportowano: gole – %1, asysty – %2, kartki – %3 — brak minuty; wpisz je w raporcie meczu</translation>
+    </message>
+    <message>
+        <source>no venue for the match, saved as home</source>
+        <translation>brak miejsca meczu, zapisano jako dom</translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; is not in the squad, skipped</source>
+        <translation>„%1” nie ma w kadrze, pominięto</translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; is not in the squad and is added to it</source>
+        <translation>„%1” nie ma w kadrze i zostanie dodany</translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; is not in the squad; a new player needs the first and the last name</source>
+        <translation>„%1” nie ma w kadrze; nowy zawodnik wymaga imienia i nazwiska</translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; does not fit %2, skipped</source>
+        <translation>„%1” nie pasuje do: %2, pominięto</translation>
+    </message>
+    <message>
+        <source>fits several players (%1), skipped</source>
+        <translation>pasuje do kilku zawodników (%1), pominięto</translation>
+    </message>
+    <message numerus="yes">
+        <source>the app has %n session(s) on this day; add a start time column</source>
+        <translation>
+            <numerusform>w aplikacji jest %n trening tego dnia; dodaj kolumnę z godziną</numerusform>
+            <numerusform>w aplikacji są %n treningi tego dnia; dodaj kolumnę z godziną</numerusform>
+            <numerusform>w aplikacji jest %n treningów tego dnia; dodaj kolumnę z godziną</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>the app has %n match(es) against %1 on this day</source>
+        <translation>
+            <numerusform>w aplikacji jest %n mecz z %1 tego dnia</numerusform>
+            <numerusform>w aplikacji są %n mecze z %1 tego dnia</numerusform>
+            <numerusform>w aplikacji jest %n meczów z %1 tego dnia</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>the match against %1 was entered in Match Day; it is not changed</source>
+        <translation>mecz z %1 prowadzono w Trybie meczowym; nie zostanie zmieniony</translation>
+    </message>
+    <message>
+        <source>the match against %1 is still planned; finish it in Match Day without the clock or delete it</source>
+        <translation>mecz z %1 jest wciąż zaplanowany; zakończ go w Trybie meczowym bez zegara albo usuń</translation>
+    </message>
+    <message>
+        <source>the match in the app has no score; it stays so</source>
+        <translation>mecz w aplikacji nie ma wyniku; tak zostaje</translation>
+    </message>
+    <message>
+        <source>the score in the app (%1) stays</source>
+        <translation>wynik w aplikacji (%1) zostaje</translation>
+    </message>
+    <message>
+        <source>the app holds other values; kept (turn on updating to overwrite them)</source>
+        <translation>aplikacja ma inne wartości; zostają (włącz nadpisywanie, aby je zmienić)</translation>
+    </message>
+    <message>
+        <source>the data changed since the check — check again</source>
+        <translation>dane zmieniły się od sprawdzenia — sprawdź ponownie</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Dodaj</translation>
+    </message>
+    <message>
+        <source>Update</source>
+        <translation>Aktualizuj</translation>
+    </message>
+    <message>
+        <source>No change</source>
+        <translation>Bez zmian</translation>
+    </message>
+    <message>
+        <source>Keep the app&apos;s values</source>
+        <translation>Zostaw wartości aplikacji</translation>
+    </message>
+    <message>
+        <source>Skip</source>
+        <translation>Pomiń</translation>
+    </message>
+    <message>
+        <source>Not imported</source>
+        <translation>Nie importowany</translation>
+    </message>
+    <message>
+        <source>Not imported: %1 goal(s), %2 assist(s), %3 card(s) — no minute; enter them in the match report.</source>
+        <translation>Nie zaimportowano: gole – %1, asysty – %2, kartki – %3 — brak minuty; wpisz je w raporcie meczu.</translation>
+    </message>
+    <message>
+        <source>Yellow cards from the import do not count toward a suspension.</source>
+        <translation>Żółte kartki z importu nie liczą się do pauzy za kartki.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n note(s)</source>
+        <translation>
+            <numerusform>%n notatka</numerusform>
+            <numerusform>%n notatki</numerusform>
+            <numerusform>%n notatek</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n match event(s)</source>
+        <translation>
+            <numerusform>%n zdarzenie meczu</numerusform>
+            <numerusform>%n zdarzenia meczu</numerusform>
+            <numerusform>%n zdarzeń meczu</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n metric value(s)</source>
+        <translation>
+            <numerusform>%n wartość metryki</numerusform>
+            <numerusform>%n wartości metryk</numerusform>
+            <numerusform>%n wartości metryk</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n other entry(ies)</source>
+        <translation>
+            <numerusform>%n inny wpis</numerusform>
+            <numerusform>%n inne wpisy</numerusform>
+            <numerusform>%n innych wpisów</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Undo also deletes %1 added or changed after the import. Continue?</source>
+        <translation>Cofnięcie usunie też dane dodane lub zmienione po imporcie: %1. Kontynuować?</translation>
     </message>
 </context>
 <context>
@@ -5727,6 +6198,22 @@
         <source>Players with their names, shirt numbers, birth years, positions and foot.</source>
         <translation>Zawodnicy z imionami i nazwiskami, numerami, rokiem urodzenia, pozycjami i nogą.</translation>
     </message>
+    <message>
+        <source>Training</source>
+        <translation>Trening</translation>
+    </message>
+    <message>
+        <source>Attendance, RPE and minutes of every player per session, and custom metrics: the history for load monitoring.</source>
+        <translation>Obecność, RPE i minuty każdego zawodnika na każdym treningu oraz metryki własne: historia do monitorowania obciążenia.</translation>
+    </message>
+    <message>
+        <source>Matches</source>
+        <translation>Mecze</translation>
+    </message>
+    <message>
+        <source>Results with the minutes, ratings and RPE of every player per match, and custom metrics.</source>
+        <translation>Wyniki z minutami, ocenami i RPE każdego zawodnika w każdym meczu oraz metryki własne.</translation>
+    </message>
     <message numerus="yes">
         <source>XLSX · %n row(s)</source>
         <translation>
@@ -5748,6 +6235,34 @@
         <translation>Wiersz</translation>
     </message>
     <message>
+        <source>Matches added: %1. Opponents added: %2.</source>
+        <translation>Dodane mecze: %1. Dodani przeciwnicy: %2.</translation>
+    </message>
+    <message>
+        <source>Sessions added: %1.</source>
+        <translation>Dodane treningi: %1.</translation>
+    </message>
+    <message>
+        <source>Rows added: %1. Updated: %2. Skipped or already in the app: %3. Not imported because of errors: %4.</source>
+        <translation>Dodane wiersze: %1. Zaktualizowane: %2. Pominięte lub już w aplikacji: %3. Niezaimportowane z powodu błędów: %4.</translation>
+    </message>
+    <message>
+        <source>Players added to the squad: %1. Metric values saved: %2.</source>
+        <translation>Zawodnicy dodani do kadry: %1. Zapisane wartości metryk: %2.</translation>
+    </message>
+    <message>
+        <source>Undo import removes the matches, appearances, opponents, players and metric values this import added, and puts values it overwrote back.</source>
+        <translation>Cofnięcie importu usuwa mecze, występy, przeciwników, zawodników i wartości metryk dodane przez ten import oraz przywraca nadpisane wartości.</translation>
+    </message>
+    <message>
+        <source>Undo import removes the sessions, attendance, players and metric values this import added, and puts values it overwrote back.</source>
+        <translation>Cofnięcie importu usuwa treningi, obecności, zawodników i wartości metryk dodane przez ten import oraz przywraca nadpisane wartości.</translation>
+    </message>
+    <message>
+        <source>Removed: %1 session(s), %2 match(es), %3 row(s) in sessions or matches that stay, %4 player(s). Values put back: %5. Not changed back, because they were edited after the import: %6.</source>
+        <translation>Usunięto: treningi – %1, mecze – %2, wiersze w pozostających treningach lub meczach – %3, zawodnicy – %4. Przywrócone wartości: %5. Nieprzywrócone, bo zmieniono je po imporcie: %6.</translation>
+    </message>
+    <message>
         <source>No team is selected. Set up the team first.</source>
         <translation>Nie wybrano drużyny. Najpierw skonfiguruj drużynę.</translation>
     </message>
@@ -5762,6 +6277,10 @@
     <message>
         <source>This file was already imported on %1; that import was undone.</source>
         <translation>Ten plik zaimportowano już %1; tamten import został cofnięty.</translation>
+    </message>
+    <message>
+        <source>This file was already imported on %1. Check the report: rows already in the app show &quot;No change&quot; and are not added twice.</source>
+        <translation>Ten plik zaimportowano już %1. Sprawdź raport: wiersze, które są już w aplikacji, mają „Bez zmian” i nie zostaną dodane drugi raz.</translation>
     </message>
     <message>
         <source>This file was already imported on %1. Check the report: players already in the squad are skipped or updated, not added twice.</source>

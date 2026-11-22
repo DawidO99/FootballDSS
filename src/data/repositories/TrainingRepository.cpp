@@ -3,7 +3,9 @@
 #include "data/db/Transaction.hpp"
 #include "data/repositories/RepositorySupport.hpp"
 
+#include <algorithm>
 #include <string_view>
+#include <utility>
 
 namespace fdss::data {
 
@@ -62,13 +64,16 @@ core::Result<core::TrainingSession> TrainingRepository::get(core::TrainingSessio
 }
 
 core::Result<core::TrainingSessionId>
-TrainingRepository::create(core::TeamId team, const core::TrainingSessionDraft& draft) {
+TrainingRepository::create(core::TeamId team, const core::TrainingSessionDraft& draft,
+                           std::optional<core::ImportId> importId) {
     const auto id =
         insertRow(m_db,
                   QStringLiteral("INSERT INTO training_session (team_id, date, start_time, "
-                                 "duration_min, type, note) VALUES (?, ?, ?, ?, ?, ?)"),
+                                 "duration_min, type, note, import_id) "
+                                 "VALUES (?, ?, ?, ?, ?, ?, ?)"),
                   {idValue(team), dateValue(draft.date), optionalTimeValue(draft.startTime),
-                   draft.durationMin, enumValue(draft.type), optionalTextValue(draft.note)},
+                   draft.durationMin, enumValue(draft.type), optionalTextValue(draft.note),
+                   optionalIdValue(importId)},
                   "create session");
     if (!id) {
         return std::unexpected(id.error());
@@ -105,6 +110,18 @@ core::Status TrainingRepository::saveAttendance(core::TrainingSessionId session,
         !exists) {
         return exists;
     }
+    // The rows an import created keep their import_id (packet P18 decision 11).
+    const auto imported =
+        selectAll(m_db,
+                  QStringLiteral("SELECT player_id, import_id FROM attendance "
+                                 "WHERE session_id = ? AND import_id IS NOT NULL"),
+                  {idValue(session)}, kContext, [](RowReader& row) {
+                      const auto player = row.id<core::PlayerId>();
+                      return std::pair{player, row.id<core::ImportId>()};
+                  });
+    if (!imported) {
+        return std::unexpected(imported.error());
+    }
     if (const auto deleted =
             runSql(m_db, QStringLiteral("DELETE FROM attendance WHERE session_id = ?"),
                    {idValue(session)}, kContext);
@@ -112,13 +129,19 @@ core::Status TrainingRepository::saveAttendance(core::TrainingSessionId session,
         return std::unexpected(deleted.error());
     }
     for (const core::AttendanceDraft& row : attendance) {
-        const auto inserted =
-            insertRow(m_db,
-                      QStringLiteral("INSERT INTO attendance (session_id, player_id, status, rpe, "
-                                     "minutes_override) VALUES (?, ?, ?, ?, ?)"),
-                      {idValue(session), idValue(row.playerId), enumValue(row.status),
-                       optionalValue(row.rpe), optionalValue(row.minutesOverride)},
-                      kContext);
+        std::optional<core::ImportId> importId;
+        if (const auto it = std::ranges::find(*imported, row.playerId,
+                                              &std::pair<core::PlayerId, core::ImportId>::first);
+            it != imported->end()) {
+            importId = it->second;
+        }
+        const auto inserted = insertRow(
+            m_db,
+            QStringLiteral("INSERT INTO attendance (session_id, player_id, status, rpe, "
+                           "minutes_override, import_id) VALUES (?, ?, ?, ?, ?, ?)"),
+            {idValue(session), idValue(row.playerId), enumValue(row.status), optionalValue(row.rpe),
+             optionalValue(row.minutesOverride), optionalIdValue(importId)},
+            kContext);
         if (!inserted) {
             return std::unexpected(inserted.error());
         }
@@ -148,6 +171,84 @@ TrainingRepository::listAttendanceByPlayer(core::PlayerId player, core::DateRang
                                     "ORDER BY s.date, s.start_time, a.id"),
                      {idValue(player), optionalDateValue(range.from), optionalDateValue(range.to)},
                      "list attendance of a player", readPlayerAttendance);
+}
+
+core::Result<std::optional<core::Attendance>>
+TrainingRepository::findAttendance(core::TrainingSessionId session, core::PlayerId player) const {
+    auto rows = selectAll(m_db,
+                          QStringLiteral("SELECT id, session_id, player_id, status, rpe, "
+                                         "minutes_override FROM attendance "
+                                         "WHERE session_id = ? AND player_id = ?"),
+                          {idValue(session), idValue(player)}, "find attendance", readAttendance);
+    if (!rows) {
+        return std::unexpected(rows.error());
+    }
+    if (rows->empty()) {
+        return std::optional<core::Attendance>{};
+    }
+    return std::optional(rows->front());
+}
+
+core::Status TrainingRepository::insertAttendance(core::TrainingSessionId session,
+                                                  const core::AttendanceDraft& draft,
+                                                  std::optional<core::ImportId> importId) {
+    const auto inserted = insertRow(
+        m_db,
+        QStringLiteral("INSERT INTO attendance (session_id, player_id, status, rpe, "
+                       "minutes_override, import_id) VALUES (?, ?, ?, ?, ?, ?)"),
+        {idValue(session), idValue(draft.playerId), enumValue(draft.status),
+         optionalValue(draft.rpe), optionalValue(draft.minutesOverride), optionalIdValue(importId)},
+        "insert attendance");
+    if (!inserted) {
+        return std::unexpected(inserted.error());
+    }
+    return {};
+}
+
+core::Status TrainingRepository::updateAttendance(core::TrainingSessionId session,
+                                                  const core::AttendanceDraft& draft) {
+    return changeRow(m_db,
+                     QStringLiteral("UPDATE attendance SET status = ?, rpe = ?, "
+                                    "minutes_override = ? WHERE session_id = ? AND player_id = ?"),
+                     {enumValue(draft.status), optionalValue(draft.rpe),
+                      optionalValue(draft.minutesOverride), idValue(session),
+                      idValue(draft.playerId)},
+                     "update attendance");
+}
+
+core::Result<std::vector<core::TrainingSession>>
+TrainingRepository::listByImport(core::ImportId importId) const {
+    return selectAll(m_db, kSelectSession + QStringLiteral("WHERE import_id = ? ORDER BY id"),
+                     {idValue(importId)}, "list sessions of an import", readSession);
+}
+
+core::Result<int> TrainingRepository::countAttendanceAddedLater(core::ImportId importId) const {
+    return selectOne(m_db,
+                     QStringLiteral("SELECT COUNT(*) FROM attendance AS a "
+                                    "JOIN training_session AS s ON s.id = a.session_id "
+                                    "WHERE s.import_id = ? "
+                                    "AND (a.import_id IS NULL OR a.import_id <> ?)"),
+                     {idValue(importId), idValue(importId)}, "count attendance added later",
+                     [](RowReader& row) { return row.integer(); });
+}
+
+core::Result<int> TrainingRepository::removeAttendanceByImport(core::ImportId importId) {
+    auto query = runSql(m_db, QStringLiteral("DELETE FROM attendance WHERE import_id = ?"),
+                        {idValue(importId)}, "delete attendance of an import");
+    if (!query) {
+        return std::unexpected(query.error());
+    }
+    return query->numRowsAffected();
+}
+
+core::Result<int> TrainingRepository::removeByImport(core::ImportId importId) {
+    auto query =
+        runSql(m_db, QStringLiteral("DELETE FROM training_session WHERE import_id = ?"),
+               {idValue(importId)}, "delete sessions of an import", ForeignKeyFailure::RowInUse);
+    if (!query) {
+        return std::unexpected(query.error());
+    }
+    return query->numRowsAffected();
 }
 
 } // namespace fdss::data

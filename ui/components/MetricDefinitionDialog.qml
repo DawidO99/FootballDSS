@@ -7,7 +7,8 @@ import FootballDSS
 // values keeps its type and what it is entered for, so those fields are disabled with a hint.
 // API:
 //   viewModel: MetricDefinitionsViewModel   required; does the add and the update
-//   openForAdding(name)     an empty form; `name` prefills both names (an import column, P18)
+//   openForAdding(name, scope)  an empty form; `name` prefills both names and `scope` ("training"
+//                           by default) what it is entered for (an import column, P18)
 //   openForEditing(row)     a row of MetricDefinitionListModel.rowAt()
 //   editedId: double        read-only, 0 while adding
 //   saved()
@@ -41,10 +42,10 @@ AppDialog {
         namePlInput.forceActiveFocus(Qt.TabFocusReason);
     }
 
-    function openForAdding(name) {
+    function openForAdding(name, scope) {
         root.editedId = 0;
         root.locked = false;
-        root.show(name ?? "", name ?? "", "decimal", "", "", "", "avg", "training", true);
+        root.show(name ?? "", name ?? "", "decimal", "", "", "", "avg", scope ?? "training", true);
     }
 
     function openForEditing(row) {

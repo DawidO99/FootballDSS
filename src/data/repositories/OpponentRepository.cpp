@@ -63,4 +63,9 @@ core::Status OpponentRepository::update(core::OpponentId id, const core::Opponen
     return status;
 }
 
+core::Status OpponentRepository::remove(core::OpponentId id) {
+    return changeRow(m_db, QStringLiteral("DELETE FROM opponent WHERE id = ?"), {idValue(id)},
+                     "delete opponent", ForeignKeyFailure::RowInUse);
+}
+
 } // namespace fdss::data

@@ -3,8 +3,10 @@
 #include "data/db/Transaction.hpp"
 #include "data/repositories/RepositorySupport.hpp"
 
+#include <algorithm>
 #include <format>
 #include <string_view>
+#include <utility>
 
 namespace fdss::data {
 
@@ -90,14 +92,15 @@ core::Result<core::Match> MatchRepository::get(core::MatchId id) const {
 }
 
 core::Result<core::MatchId> MatchRepository::create(core::TeamId team,
-                                                    const core::MatchDraft& draft) {
+                                                    const core::MatchDraft& draft,
+                                                    std::optional<core::ImportId> importId) {
     const auto id = insertRow(
         m_db,
         QStringLiteral("INSERT INTO match (team_id, opponent_id, date, kickoff_time, venue, "
-                       "competition) VALUES (?, ?, ?, ?, ?, ?)"),
+                       "competition, import_id) VALUES (?, ?, ?, ?, ?, ?, ?)"),
         {idValue(team), idValue(draft.opponentId), dateValue(draft.date),
          optionalTimeValue(draft.kickoffTime), enumValue(draft.venue),
-         optionalTextValue(draft.competition)},
+         optionalTextValue(draft.competition), optionalIdValue(importId)},
         "create match");
     if (!id) {
         return std::unexpected(id.error());
@@ -183,6 +186,17 @@ MatchRepository::replaceAppearances(core::MatchId match,
     if (auto exists = requireRow(m_db, kMatchExists, {idValue(match)}, kContext); !exists) {
         return exists;
     }
+    // The rows an import created keep their import_id (packet P18 decision 11).
+    const auto imported = selectAll(m_db,
+                                    QStringLiteral("SELECT player_id, import_id FROM appearance "
+                                                   "WHERE match_id = ? AND import_id IS NOT NULL"),
+                                    {idValue(match)}, kContext, [](RowReader& row) {
+                                        const auto player = row.id<core::PlayerId>();
+                                        return std::pair{player, row.id<core::ImportId>()};
+                                    });
+    if (!imported) {
+        return std::unexpected(imported.error());
+    }
     if (const auto deleted =
             runSql(m_db, QStringLiteral("DELETE FROM appearance WHERE match_id = ?"),
                    {idValue(match)}, kContext);
@@ -190,17 +204,14 @@ MatchRepository::replaceAppearances(core::MatchId match,
         return std::unexpected(deleted.error());
     }
     for (const core::AppearanceDraft& appearance : appearances) {
-        const auto inserted = insertRow(
-            m_db,
-            QStringLiteral("INSERT INTO appearance (match_id, player_id, started, minute_on, "
-                           "minute_off, position, rating, rpe) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
-            {idValue(match), idValue(appearance.playerId), appearance.started ? 1 : 0,
-             optionalValue(appearance.minuteOn), optionalValue(appearance.minuteOff),
-             optionalEnumValue(appearance.position), optionalValue(appearance.rating),
-             optionalValue(appearance.rpe)},
-            kContext);
-        if (!inserted) {
-            return std::unexpected(inserted.error());
+        std::optional<core::ImportId> importId;
+        if (const auto it = std::ranges::find(*imported, appearance.playerId,
+                                              &std::pair<core::PlayerId, core::ImportId>::first);
+            it != imported->end()) {
+            importId = it->second;
+        }
+        if (auto inserted = insertAppearance(match, appearance, importId); !inserted) {
+            return inserted;
         }
     }
     return transaction->commit();
@@ -331,6 +342,114 @@ MatchRepository::deleteEventsWithSeq(core::MatchId match, int seq) {
                                     "RETURNING id, match_id, minute, type, player_id, "
                                     "related_player_id, added_time, seq"),
                      {idValue(match), seq}, "delete match events of an action", readEvent);
+}
+
+core::Status MatchRepository::insertAppearance(core::MatchId match,
+                                               const core::AppearanceDraft& draft,
+                                               std::optional<core::ImportId> importId) {
+    const auto inserted =
+        insertRow(m_db,
+                  QStringLiteral("INSERT INTO appearance (match_id, player_id, started, minute_on, "
+                                 "minute_off, position, rating, rpe, import_id) "
+                                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+                  {idValue(match), idValue(draft.playerId), draft.started ? 1 : 0,
+                   optionalValue(draft.minuteOn), optionalValue(draft.minuteOff),
+                   optionalEnumValue(draft.position), optionalValue(draft.rating),
+                   optionalValue(draft.rpe), optionalIdValue(importId)},
+                  "insert appearance");
+    if (!inserted) {
+        return std::unexpected(inserted.error());
+    }
+    return {};
+}
+
+core::Status MatchRepository::updateAppearance(core::MatchId match,
+                                               const core::AppearanceDraft& draft) {
+    return changeRow(m_db,
+                     QStringLiteral("UPDATE appearance SET started = ?, minute_on = ?, "
+                                    "minute_off = ?, position = ?, rating = ?, rpe = ? "
+                                    "WHERE match_id = ? AND player_id = ?"),
+                     {draft.started ? 1 : 0, optionalValue(draft.minuteOn),
+                      optionalValue(draft.minuteOff), optionalEnumValue(draft.position),
+                      optionalValue(draft.rating), optionalValue(draft.rpe), idValue(match),
+                      idValue(draft.playerId)},
+                     "update appearance");
+}
+
+core::Result<std::optional<core::Appearance>>
+MatchRepository::findAppearance(core::MatchId match, core::PlayerId player) const {
+    auto rows = selectAll(m_db,
+                          QStringLiteral("SELECT id, match_id, player_id, started, minute_on, "
+                                         "minute_off, position, rating, rpe FROM appearance "
+                                         "WHERE match_id = ? AND player_id = ?"),
+                          {idValue(match), idValue(player)}, "find appearance", readAppearance);
+    if (!rows) {
+        return std::unexpected(rows.error());
+    }
+    if (rows->empty()) {
+        return std::optional<core::Appearance>{};
+    }
+    return std::optional(rows->front());
+}
+
+core::Result<std::vector<core::Match>>
+MatchRepository::listByImport(core::ImportId importId) const {
+    return selectAll(m_db, kSelectMatch + QStringLiteral("WHERE import_id = ? ORDER BY id"),
+                     {idValue(importId)}, "list matches of an import", readMatch);
+}
+
+core::Result<MatchAdditions> MatchRepository::countAddedLater(core::ImportId importId) const {
+    return selectOne(
+        m_db,
+        QStringLiteral(
+            "SELECT "
+            "(SELECT COUNT(*) FROM match_event AS e JOIN match AS m ON m.id = e.match_id "
+            " WHERE m.import_id = ?), "
+            "(SELECT COUNT(*) FROM match_note AS n JOIN match AS m ON m.id = n.match_id "
+            " WHERE m.import_id = ?), "
+            "(SELECT COUNT(*) FROM appearance AS a JOIN match AS m ON m.id = a.match_id "
+            " WHERE m.import_id = ? AND (a.import_id IS NULL OR a.import_id <> ?)), "
+            "(SELECT COUNT(*) FROM lineup AS l JOIN match AS m ON m.id = l.match_id "
+            " WHERE m.import_id = ?), "
+            "(SELECT COUNT(*) FROM match_tactic_change AS t JOIN match AS m ON m.id = t.match_id "
+            " WHERE m.import_id = ?)"),
+        {idValue(importId), idValue(importId), idValue(importId), idValue(importId),
+         idValue(importId), idValue(importId)},
+        "count additions to imported matches", [](RowReader& row) {
+            MatchAdditions additions;
+            additions.events = row.integer();
+            additions.notes = row.integer();
+            additions.appearances = row.integer();
+            additions.lineups = row.integer();
+            additions.tacticChanges = row.integer();
+            return additions;
+        });
+}
+
+core::Result<int> MatchRepository::removeAppearancesByImport(core::ImportId importId) {
+    auto query = runSql(m_db, QStringLiteral("DELETE FROM appearance WHERE import_id = ?"),
+                        {idValue(importId)}, "delete appearances of an import");
+    if (!query) {
+        return std::unexpected(query.error());
+    }
+    return query->numRowsAffected();
+}
+
+core::Result<int> MatchRepository::removeByImport(core::ImportId importId) {
+    constexpr std::string_view kContext = "delete matches of an import";
+    if (auto lineups = runSql(m_db,
+                              QStringLiteral("DELETE FROM lineup WHERE match_id IN "
+                                             "(SELECT id FROM match WHERE import_id = ?)"),
+                              {idValue(importId)}, kContext);
+        !lineups) {
+        return std::unexpected(lineups.error());
+    }
+    auto query = runSql(m_db, QStringLiteral("DELETE FROM match WHERE import_id = ?"),
+                        {idValue(importId)}, kContext, ForeignKeyFailure::RowInUse);
+    if (!query) {
+        return std::unexpected(query.error());
+    }
+    return query->numRowsAffected();
 }
 
 } // namespace fdss::data

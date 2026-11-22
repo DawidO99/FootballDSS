@@ -3,13 +3,21 @@
 #include "core/domain/Permissions.hpp"
 #include "core/domain/Validation.hpp"
 #include "core/parsing/HeaderMatching.hpp"
+#include "core/parsing/ImportValues.hpp"
 #include "data/db/DatabaseManager.hpp"
 #include "data/db/Transaction.hpp"
 #include "data/repositories/ImportLogRepository.hpp"
+#include "data/repositories/MatchRepository.hpp"
+#include "data/repositories/MetricRepository.hpp"
+#include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
+#include "data/repositories/TrainingRepository.hpp"
 #include "services/Clock.hpp"
 #include "services/ServiceSupport.hpp"
 #include "services/Session.hpp"
+#include "services/import/ActivityUndo.hpp"
+#include "services/import/MatchImportWriter.hpp"
+#include "services/import/TrainingImportWriter.hpp"
 
 #include <QPromise>
 #include <QtConcurrentRun>
@@ -64,23 +72,164 @@ std::optional<core::SquadMapping> fromRecord(const data::ImportMappingRecord& re
     return mapping;
 }
 
+constexpr std::string_view kMetricPrefix = "metric:";
+
+core::MetricScope scopeOf(ImportKind kind) {
+    return kind == ImportKind::Matches ? core::MetricScope::Match : core::MetricScope::Training;
+}
+
+std::string fieldKey(ImportKind kind, int field) {
+    if (kind == ImportKind::Matches) {
+        return std::string(core::toKey(static_cast<core::MatchField>(field)));
+    }
+    return std::string(core::toKey(static_cast<core::TrainingField>(field)));
+}
+
+std::optional<int> fieldFromKey(ImportKind kind, std::string_view key) {
+    if (kind == ImportKind::Matches) {
+        const auto field = core::matchFieldFromKey(key);
+        return field ? std::optional(static_cast<int>(*field)) : std::nullopt;
+    }
+    const auto field = core::trainingFieldFromKey(key);
+    return field ? std::optional(static_cast<int>(*field)) : std::nullopt;
+}
+
+data::ImportMappingRecord toRecord(ImportKind kind, const core::SourceTable& table,
+                                   const core::ActivityMapping& mapping,
+                                   std::span<const core::MetricDefinition> metrics) {
+    data::ImportMappingRecord record;
+    record.headerKey = core::headerKey(table.headers);
+    for (const core::ColumnTarget& target : mapping.columns) {
+        std::string key;
+        if (target.field) {
+            key = fieldKey(kind, *target.field);
+        } else if (target.metric) {
+            const auto metric =
+                std::ranges::find(metrics, *target.metric, &core::MetricDefinition::id);
+            if (metric != metrics.end()) {
+                key = std::string(kMetricPrefix) + metric->key;
+            }
+        }
+        record.columns.push_back(std::move(key));
+    }
+    return record;
+}
+
+// A record that does not fit the table is not used; a metric that is gone leaves its column empty.
+std::optional<core::ActivityMapping> fromRecord(ImportKind kind,
+                                                const data::ImportMappingRecord& record,
+                                                const core::SourceTable& table,
+                                                std::span<const core::MetricDefinition> metrics) {
+    if (record.columns.size() != table.headers.size()) {
+        return std::nullopt;
+    }
+    core::ActivityMapping mapping;
+    for (const std::string& key : record.columns) {
+        core::ColumnTarget target;
+        if (key.starts_with(kMetricPrefix)) {
+            const std::string metricKey = key.substr(kMetricPrefix.size());
+            const auto metric = std::ranges::find(metrics, metricKey, &core::MetricDefinition::key);
+            if (metric != metrics.end()) {
+                target.metric = metric->id;
+            }
+        } else {
+            target.field = fieldFromKey(kind, key);
+        }
+        mapping.columns.push_back(target);
+    }
+    return mapping;
+}
+
+// Whether a text file is a table of the kind at all (P16 manual test, for every kind).
+bool looksLikeTable(ImportKind kind, const core::SourceTable& table) {
+    if (kind == ImportKind::Squad) {
+        return core::looksLikeSquadTable(table);
+    }
+    const core::ActivityMapping mapping = kind == ImportKind::Training
+                                              ? core::autoMapTraining(table.headers, {})
+                                              : core::autoMapMatches(table.headers, {});
+    if (std::ranges::any_of(mapping.columns, [](const core::ColumnTarget& target) {
+            return target.field.has_value();
+        })) {
+        return true;
+    }
+    const std::size_t width = table.headers.size();
+    if (width < 2 || table.rows.empty()) {
+        return false;
+    }
+    const auto consistent = std::ranges::count_if(
+        table.rows, [width](const core::SourceRow& row) { return row.cells.size() == width; });
+    return static_cast<std::size_t>(consistent) * 2 > table.rows.size();
+}
+
+core::Error changedError() {
+    return core::Error{core::ErrorCode::Conflict, "the database changed since the check",
+                       "import_matches_changed"};
+}
+
+template <class Plan> void countActions(const Plan& plan, ActivityImportSummary& summary) {
+    for (const auto& row : plan.rows) {
+        switch (row.action) {
+        case core::ActivityAction::Create:
+            ++summary.created;
+            break;
+        case core::ActivityAction::Update:
+            ++summary.updated;
+            break;
+        case core::ActivityAction::Unchanged:
+            ++summary.unchanged;
+            break;
+        case core::ActivityAction::KeepExisting:
+            ++summary.kept;
+            break;
+        case core::ActivityAction::Skip:
+            ++summary.skipped;
+            break;
+        case core::ActivityAction::Invalid:
+            ++summary.invalid;
+            break;
+        }
+    }
+}
+
 } // namespace
 
-ImportService::ImportService(data::DatabaseManager& database, data::ImportLogRepository& imports,
-                             data::PlayerRepository& players, Session& session, const Clock& clock)
-    : m_database(database), m_imports(imports), m_players(players), m_session(session),
-      m_clock(clock) {}
+std::string_view importTypeOf(ImportKind kind) noexcept {
+    switch (kind) {
+    case ImportKind::Squad:
+        return kSquadImportType;
+    case ImportKind::Training:
+        return kTrainingImportType;
+    case ImportKind::Matches:
+        return kMatchImportType;
+    }
+    return kSquadImportType;
+}
+
+ImportService::ImportService(data::DatabaseManager& database, ImportRepositories repositories,
+                             Session& session, const Clock& clock)
+    : m_database(database), m_imports(repositories.imports), m_players(repositories.players),
+      m_repositories(repositories), m_session(session), m_clock(clock) {}
 
 core::Result<QFuture<core::Result<ImportSource>>>
-ImportService::read(const QString& path, std::optional<int> sheet) const {
+ImportService::read(const QString& path, std::optional<int> sheet, ImportKind kind) const {
     if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
         return std::unexpected(allowed.error());
     }
-    return QtConcurrent::run([path, sheet] {
+    return QtConcurrent::run([path, sheet, kind] {
         auto source = readImportFile(path, sheet);
+        if (!source || !source->tableStatus) {
+            return source;
+        }
+        // One column per date: the long format of the template is needed (P18 decision 7).
+        if (kind != ImportKind::Squad && core::looksLikeWideFormat(source->table)) {
+            source->tableStatus =
+                std::unexpected(core::Error{core::ErrorCode::UnsupportedFormat,
+                                            "dates as column headers", "import_wide_format"});
+            return source;
+        }
         // A text file that is no table (prose, a list, markdown) has nothing to map.
-        if (source && source->kind == ImportFileKind::Csv && source->tableStatus &&
-            !core::looksLikeSquadTable(source->table)) {
+        if (source->kind == ImportFileKind::Csv && !looksLikeTable(kind, source->table)) {
             source->tableStatus = std::unexpected(core::Error{
                 core::ErrorCode::UnsupportedFormat, "the text is not a table", "import_not_table"});
         }
@@ -88,12 +237,12 @@ ImportService::read(const QString& path, std::optional<int> sheet) const {
     });
 }
 
-core::Result<std::vector<PreviousImport>>
-ImportService::previousImports(const ImportSource& source) const {
+core::Result<std::vector<PreviousImport>> ImportService::previousImports(const ImportSource& source,
+                                                                         ImportKind kind) const {
     if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
         return std::unexpected(allowed.error());
     }
-    auto entries = m_imports.listByHash(source.hash.toStdString(), kSquadImportType);
+    auto entries = m_imports.listByHash(source.hash.toStdString(), importTypeOf(kind));
     if (!entries) {
         return std::unexpected(entries.error());
     }
@@ -279,35 +428,11 @@ core::Result<SquadImportSummary> ImportService::commitSquad(core::TeamId team,
     return summary;
 }
 
-core::Result<ImportUndoSummary> ImportService::undo(core::ImportId id) {
-    if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
-        return std::unexpected(allowed.error());
-    }
-    auto entry = m_imports.get(id);
-    if (!entry) {
-        return std::unexpected(entry.error());
-    }
-    if (entry->type != kSquadImportType) {
-        return std::unexpected(
-            core::Error{core::ErrorCode::UnsupportedFormat, "not a squad import", "import_type"});
-    }
-    if (entry->report.undoneAt) {
-        return std::unexpected(
-            core::Error{core::ErrorCode::Conflict, "undone already", "import_undone"});
-    }
-    if (auto saved = backup("import_undo"); !saved) {
-        return std::unexpected(saved.error());
-    }
-    auto transaction = data::Transaction::begin(m_database);
-    if (!transaction) {
-        return std::unexpected(transaction.error());
-    }
+core::Status ImportService::undoPlayers(core::ImportId id, ImportUndoSummary& summary) {
     auto players = m_players.listByImport(id);
     if (!players) {
         return std::unexpected(players.error());
     }
-    ImportUndoSummary summary;
-    summary.notReverted = entry->report.updated;
     const core::Date today = m_clock.today();
     for (const core::Player& player : *players) {
         auto inLineup = m_players.isInLineup(player.id);
@@ -325,14 +450,456 @@ core::Result<ImportUndoSummary> ImportService::undo(core::ImportId id) {
                 return std::unexpected(removed.error());
             }
         }
+        // Archived already (the squad screen), it stays as it is.
+        if (player.archivedAt) {
+            ++summary.archived;
+            continue;
+        }
         if (auto archived = m_players.archive(player.id, today); !archived) {
             return std::unexpected(archived.error());
         }
         ++summary.archived;
     }
+    return {};
+}
+
+core::Result<ImportUndoPreview> ImportService::undoPreview(core::ImportId id) const {
+    if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto entry = m_imports.get(id);
+    if (!entry) {
+        return std::unexpected(entry.error());
+    }
+    ImportUndoPreview preview;
+    if (entry->type == kSquadImportType || entry->report.undoneAt) {
+        return preview;
+    }
+    auto values = m_repositories.metrics.countAddedLater(id);
+    if (!values) {
+        return std::unexpected(values.error());
+    }
+    preview.values = *values;
+    if (entry->type == kTrainingImportType) {
+        auto attendance = m_repositories.training.countAttendanceAddedLater(id);
+        if (!attendance) {
+            return std::unexpected(attendance.error());
+        }
+        preview.entries += *attendance;
+    } else if (entry->type == kMatchImportType) {
+        auto additions = m_repositories.matches.countAddedLater(id);
+        if (!additions) {
+            return std::unexpected(additions.error());
+        }
+        preview.notes = additions->notes;
+        preview.events = additions->events;
+        preview.entries += additions->appearances + additions->lineups + additions->tacticChanges;
+    }
+    const ActivityRowStores stores{m_repositories.training, m_repositories.matches,
+                                   m_repositories.metrics};
+    if (auto changed = countChangedRows(entry->report, stores, preview); !changed) {
+        return std::unexpected(changed.error());
+    }
+    return preview;
+}
+
+core::Result<ImportUndoSummary> ImportService::undo(core::ImportId id) {
+    if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto entry = m_imports.get(id);
+    if (!entry) {
+        return std::unexpected(entry.error());
+    }
+    const bool squad = entry->type == kSquadImportType;
+    const bool training = entry->type == kTrainingImportType;
+    const bool matches = entry->type == kMatchImportType;
+    if (!squad && !training && !matches) {
+        return std::unexpected(core::Error{core::ErrorCode::UnsupportedFormat,
+                                           "an unknown import type", "import_type"});
+    }
+    if (entry->report.undoneAt) {
+        return std::unexpected(
+            core::Error{core::ErrorCode::Conflict, "undone already", "import_undone"});
+    }
+    if (auto saved = backup("import_undo"); !saved) {
+        return std::unexpected(saved.error());
+    }
+    auto transaction = data::Transaction::begin(m_database);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    ImportUndoSummary summary;
+    if (squad) {
+        summary.notReverted = entry->report.updated;
+    } else {
+        const ActivityRowStores stores{m_repositories.training, m_repositories.matches,
+                                       m_repositories.metrics};
+        if (auto restored = restoreOverwrittenRows(entry->report, stores, summary); !restored) {
+            return std::unexpected(restored.error());
+        }
+        if (auto values = m_repositories.metrics.removeByImport(id); !values) {
+            return std::unexpected(values.error());
+        }
+        if (training) {
+            auto rows = m_repositories.training.removeAttendanceByImport(id);
+            if (!rows) {
+                return std::unexpected(rows.error());
+            }
+            auto sessions = m_repositories.training.removeByImport(id);
+            if (!sessions) {
+                return std::unexpected(sessions.error());
+            }
+            summary.rowsDeleted = *rows;
+            summary.sessionsDeleted = *sessions;
+        } else {
+            auto rows = m_repositories.matches.removeAppearancesByImport(id);
+            if (!rows) {
+                return std::unexpected(rows.error());
+            }
+            auto removed = m_repositories.matches.removeByImport(id);
+            if (!removed) {
+                return std::unexpected(removed.error());
+            }
+            summary.rowsDeleted = *rows;
+            summary.matchesDeleted = *removed;
+            for (const core::OpponentId opponent : entry->report.createdOpponents) {
+                auto gone = m_repositories.opponents.remove(opponent);
+                if (gone) {
+                    ++summary.opponentsDeleted;
+                } else if (gone.error().code != core::ErrorCode::Conflict &&
+                           gone.error().code != core::ErrorCode::NotFound) {
+                    return std::unexpected(gone.error());
+                }
+            }
+        }
+    }
+    if (auto players = undoPlayers(id, summary); !players) {
+        return std::unexpected(players.error());
+    }
     data::ImportReport report = entry->report;
     report.undoneAt = m_clock.now();
     if (auto stored = m_imports.setReport(id, report); !stored) {
+        return std::unexpected(stored.error());
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(committed.error());
+    }
+    return summary;
+}
+
+// --- Training and matches (packet P18) ---
+
+core::Result<std::vector<core::MetricDefinition>> ImportService::metricsFor(ImportKind kind) const {
+    if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto definitions = m_repositories.metrics.listDefinitions();
+    if (!definitions) {
+        return std::unexpected(definitions.error());
+    }
+    std::erase_if(*definitions, [scope = scopeOf(kind)](const core::MetricDefinition& metric) {
+        return metric.scope != scope;
+    });
+    return definitions;
+}
+
+core::Result<ActivityMappingSuggestion>
+ImportService::suggestActivityMapping(ImportKind kind, const ImportSource& source) const {
+    auto metrics = metricsFor(kind);
+    if (!metrics) {
+        return std::unexpected(metrics.error());
+    }
+    auto record =
+        m_imports.latestMapping(importTypeOf(kind), core::headerKey(source.table.headers));
+    if (!record) {
+        return std::unexpected(record.error());
+    }
+    if (*record) {
+        if (auto mapping = fromRecord(kind, **record, source.table, *metrics)) {
+            return ActivityMappingSuggestion{std::move(*mapping), true};
+        }
+    }
+    return ActivityMappingSuggestion{kind == ImportKind::Matches
+                                         ? core::autoMapMatches(source.table.headers, *metrics)
+                                         : core::autoMapTraining(source.table.headers, *metrics),
+                                     false};
+}
+
+core::Result<QFuture<core::TrainingImport>>
+ImportService::validateTraining(core::TeamId team, const ImportSource& source,
+                                const core::ActivityMapping& mapping) const {
+    if (!source.tableStatus) {
+        return std::unexpected(source.tableStatus.error());
+    }
+    auto metrics = metricsFor(ImportKind::Training);
+    if (!metrics) {
+        return std::unexpected(metrics.error());
+    }
+    auto players = m_players.list(team, data::ArchivedPlayers::Exclude);
+    if (!players) {
+        return std::unexpected(players.error());
+    }
+    const bool excelSerial = source.kind == ImportFileKind::Xlsx;
+    return QtConcurrent::run([table = source.table, mapping, players = std::move(*players),
+                              metrics = std::move(*metrics),
+                              excelSerial](QPromise<core::TrainingImport>& promise) {
+        promise.setProgressRange(0, static_cast<int>(table.rows.size()));
+        promise.addResult(core::validateTraining(
+            table, mapping, players, metrics, excelSerial,
+            [&promise](std::size_t done) { promise.setProgressValue(static_cast<int>(done)); }));
+    });
+}
+
+core::Result<QFuture<core::MatchImport>>
+ImportService::validateMatches(core::TeamId team, const ImportSource& source,
+                               const core::ActivityMapping& mapping) const {
+    if (!source.tableStatus) {
+        return std::unexpected(source.tableStatus.error());
+    }
+    auto metrics = metricsFor(ImportKind::Matches);
+    if (!metrics) {
+        return std::unexpected(metrics.error());
+    }
+    auto players = m_players.list(team, data::ArchivedPlayers::Exclude);
+    if (!players) {
+        return std::unexpected(players.error());
+    }
+    const bool excelSerial = source.kind == ImportFileKind::Xlsx;
+    return QtConcurrent::run([table = source.table, mapping, players = std::move(*players),
+                              metrics = std::move(*metrics),
+                              excelSerial](QPromise<core::MatchImport>& promise) {
+        promise.setProgressRange(0, static_cast<int>(table.rows.size()));
+        promise.addResult(core::validateMatches(
+            table, mapping, players, metrics, excelSerial,
+            [&promise](std::size_t done) { promise.setProgressValue(static_cast<int>(done)); }));
+    });
+}
+
+core::Result<core::TrainingPlan>
+ImportService::planTraining(core::TeamId team, const core::TrainingImport& import,
+                            const core::ActivityMapping& mapping,
+                            const core::ActivityOptions& options) const {
+    if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto players = m_players.list(team, data::ArchivedPlayers::Exclude);
+    if (!players) {
+        return std::unexpected(players.error());
+    }
+    const TrainingImportWriter writer(m_repositories.training, m_repositories.metrics);
+    auto existing = writer.snapshot(team, import, mapping);
+    if (!existing) {
+        return std::unexpected(existing.error());
+    }
+    return core::planTraining(import, *existing, *players, options);
+}
+
+core::Result<core::MatchPlan>
+ImportService::planMatches(core::TeamId team, const core::MatchImport& import,
+                           const core::ActivityMapping& mapping,
+                           const core::ActivityOptions& options) const {
+    if (auto allowed = m_session.require(core::Permission::Import); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto players = m_players.list(team, data::ArchivedPlayers::Exclude);
+    if (!players) {
+        return std::unexpected(players.error());
+    }
+    const MatchImportWriter writer(m_repositories.matches, m_repositories.matchLive,
+                                   m_repositories.metrics, m_repositories.opponents);
+    auto snapshot = writer.snapshot(team, import, mapping);
+    if (!snapshot) {
+        return std::unexpected(snapshot.error());
+    }
+    return core::planMatches(import, snapshot->opponents, snapshot->matches, *players, options);
+}
+
+core::Status ImportService::checkActivityCommit(const ActivityImportSummary& summary,
+                                                const core::ActivityOptions& options,
+                                                bool createsPlayers) const {
+    if (summary.invalid > 0 && !options.skipInvalid) {
+        return std::unexpected(inputError("rows with errors", "import_has_errors"));
+    }
+    if (summary.created + summary.updated == 0) {
+        return std::unexpected(inputError("no row to write", "import_nothing"));
+    }
+    if (createsPlayers && !options.defaultPosition) {
+        return std::unexpected(inputError("new players need a position", "default_position"));
+    }
+    return {};
+}
+
+core::Result<std::vector<core::PlayerId>>
+ImportService::createPlayers(core::TeamId team, std::span<const core::NewPlayer> players,
+                             core::ImportId importId) {
+    const int currentYear = static_cast<int>(m_clock.today().year());
+    std::vector<core::PlayerId> ids;
+    ids.reserve(players.size());
+    for (const core::NewPlayer& player : players) {
+        if (auto valid = firstError(core::validate(player.draft, currentYear)); !valid) {
+            return std::unexpected(valid.error());
+        }
+        auto created = m_players.create(team, player.draft, importId);
+        if (!created) {
+            return std::unexpected(created.error());
+        }
+        ids.push_back(*created);
+    }
+    return ids;
+}
+
+core::Result<core::ImportId> ImportService::createLog(const ImportSource& source, ImportKind kind,
+                                                      const core::ActivityMapping& mapping,
+                                                      const ActivityImportSummary& summary) {
+    auto metrics = m_repositories.metrics.listDefinitions();
+    if (!metrics) {
+        return std::unexpected(metrics.error());
+    }
+    data::ImportLogDraft log;
+    log.timestamp = m_clock.now();
+    log.file = source.fileName.toStdString();
+    log.hash = source.hash.toStdString();
+    log.type = std::string(importTypeOf(kind));
+    log.rowsOk = summary.created + summary.updated;
+    log.rowsFailed = summary.invalid;
+    log.report.mapping = toRecord(kind, source.table, mapping, *metrics);
+    log.report.created = summary.created;
+    log.report.updated = summary.updated;
+    log.report.skipped = summary.skipped + summary.unchanged + summary.kept;
+    return m_imports.create(log);
+}
+
+namespace {
+
+// The counts of an activity import in report_json, for the summary of the import list.
+void storeCounts(data::ImportReport& report, const ActivityImportSummary& summary) {
+    report.counts["sessions_created"] = summary.sessionsCreated;
+    report.counts["matches_created"] = summary.matchesCreated;
+    report.counts["players_created"] = summary.playersCreated;
+    report.counts["opponents_created"] = summary.opponentsCreated;
+    report.counts["metric_values"] = summary.metricValues;
+    report.counts["goals_not_imported"] = summary.notImported.goals;
+    report.counts["assists_not_imported"] = summary.notImported.assists;
+    report.counts["cards_not_imported"] = summary.notImported.cards;
+    std::erase_if(report.counts, [](const auto& count) { return count.second == 0; });
+}
+
+} // namespace
+
+core::Result<ActivityImportSummary>
+ImportService::commitTraining(core::TeamId team, const ImportSource& source,
+                              const core::ActivityMapping& mapping,
+                              const core::TrainingImport& import, const core::TrainingPlan& plan,
+                              const core::ActivityOptions& options) {
+    if (!source.tableStatus) {
+        return std::unexpected(source.tableStatus.error());
+    }
+    // The database may have changed since the check: the user then sees the new plan first.
+    auto fresh = planTraining(team, import, mapping, options);
+    if (!fresh) {
+        return std::unexpected(fresh.error());
+    }
+    if (*fresh != plan) {
+        return std::unexpected(changedError());
+    }
+    ActivityImportSummary summary;
+    countActions(plan, summary);
+    summary.playersCreated = static_cast<int>(plan.newPlayers.size());
+    if (auto allowed = checkActivityCommit(summary, options, !plan.newPlayers.empty()); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    if (auto saved = backup("import"); !saved) {
+        return std::unexpected(saved.error());
+    }
+    auto transaction = data::Transaction::begin(m_database);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    // Again inside the transaction, so nothing can change before the write.
+    if (auto again = planTraining(team, import, mapping, options); !again || *again != plan) {
+        return std::unexpected(again ? changedError() : again.error());
+    }
+    auto importId = createLog(source, ImportKind::Training, mapping, summary);
+    if (!importId) {
+        return std::unexpected(importId.error());
+    }
+    summary.importId = *importId;
+    auto players = createPlayers(team, plan.newPlayers, *importId);
+    if (!players) {
+        return std::unexpected(players.error());
+    }
+    auto entry = m_imports.get(*importId);
+    if (!entry) {
+        return std::unexpected(entry.error());
+    }
+    data::ImportReport report = entry->report;
+    TrainingImportWriter writer(m_repositories.training, m_repositories.metrics);
+    if (auto written = writer.write(team, plan, *players, *importId, report, summary); !written) {
+        return std::unexpected(written.error());
+    }
+    storeCounts(report, summary);
+    if (auto stored = m_imports.setReport(*importId, report); !stored) {
+        return std::unexpected(stored.error());
+    }
+    if (auto committed = transaction->commit(); !committed) {
+        return std::unexpected(committed.error());
+    }
+    return summary;
+}
+
+core::Result<ActivityImportSummary>
+ImportService::commitMatches(core::TeamId team, const ImportSource& source,
+                             const core::ActivityMapping& mapping, const core::MatchImport& import,
+                             const core::MatchPlan& plan, const core::ActivityOptions& options) {
+    if (!source.tableStatus) {
+        return std::unexpected(source.tableStatus.error());
+    }
+    auto fresh = planMatches(team, import, mapping, options);
+    if (!fresh) {
+        return std::unexpected(fresh.error());
+    }
+    if (*fresh != plan) {
+        return std::unexpected(changedError());
+    }
+    ActivityImportSummary summary;
+    countActions(plan, summary);
+    summary.playersCreated = static_cast<int>(plan.newPlayers.size());
+    summary.notImported = core::notImportedEvents(import, plan);
+    if (auto allowed = checkActivityCommit(summary, options, !plan.newPlayers.empty()); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    if (auto saved = backup("import"); !saved) {
+        return std::unexpected(saved.error());
+    }
+    auto transaction = data::Transaction::begin(m_database);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    if (auto again = planMatches(team, import, mapping, options); !again || *again != plan) {
+        return std::unexpected(again ? changedError() : again.error());
+    }
+    auto importId = createLog(source, ImportKind::Matches, mapping, summary);
+    if (!importId) {
+        return std::unexpected(importId.error());
+    }
+    summary.importId = *importId;
+    auto players = createPlayers(team, plan.newPlayers, *importId);
+    if (!players) {
+        return std::unexpected(players.error());
+    }
+    auto entry = m_imports.get(*importId);
+    if (!entry) {
+        return std::unexpected(entry.error());
+    }
+    data::ImportReport report = entry->report;
+    MatchImportWriter writer(m_repositories.matches, m_repositories.matchLive,
+                             m_repositories.metrics, m_repositories.opponents);
+    if (auto written = writer.write(team, plan, *players, *importId, report, summary); !written) {
+        return std::unexpected(written.error());
+    }
+    storeCounts(report, summary);
+    if (auto stored = m_imports.setReport(*importId, report); !stored) {
         return std::unexpected(stored.error());
     }
     if (auto committed = transaction->commit(); !committed) {

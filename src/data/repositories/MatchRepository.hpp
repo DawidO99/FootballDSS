@@ -30,6 +30,17 @@ struct AppearanceRating {
     std::optional<int> rpe;
 };
 
+// What was added to the matches of an import after it (packet P18 decision 10).
+struct MatchAdditions {
+    int events = 0;
+    int notes = 0;
+    int appearances = 0; // not written by the import
+    int lineups = 0;
+    int tacticChanges = 0;
+
+    friend bool operator==(const MatchAdditions&, const MatchAdditions&) = default;
+};
+
 class MatchRepository {
 public:
     explicit MatchRepository(DatabaseManager& db) : m_db(db) {}
@@ -37,8 +48,10 @@ public:
     [[nodiscard]] core::Result<std::vector<core::Match>> list(core::TeamId team,
                                                               core::DateRange range) const;
     [[nodiscard]] core::Result<core::Match> get(core::MatchId id) const;
-    [[nodiscard]] core::Result<core::MatchId> create(core::TeamId team,
-                                                     const core::MatchDraft& draft);
+    // `importId`: the import that creates the match (packet P18).
+    [[nodiscard]] core::Result<core::MatchId>
+    create(core::TeamId team, const core::MatchDraft& draft,
+           std::optional<core::ImportId> importId = std::nullopt);
     // A match that is not planned: Conflict.
     [[nodiscard]] core::Status updatePlanned(core::MatchId id, const core::MatchDraft& draft);
     // A match that is not planned, or that other rows still refer to: Conflict. Appearances and
@@ -54,6 +67,7 @@ public:
     [[nodiscard]] core::Result<std::vector<std::string>> listCompetitions(core::TeamId team) const;
 
     // Replaces all appearances of the match in one transaction: on any error the old rows stay.
+    // A player whose appearance an import created keeps its import_id (packet P18 decision 11).
     [[nodiscard]] core::Status
     replaceAppearances(core::MatchId match, std::span<const core::AppearanceDraft> appearances);
     [[nodiscard]] core::Result<std::vector<core::Appearance>>
@@ -89,6 +103,25 @@ public:
     // Removes the events of one Match Day action (one seq) and returns them; none: empty.
     [[nodiscard]] core::Result<std::vector<core::MatchEvent>>
     deleteEventsWithSeq(core::MatchId match, int seq);
+
+    // --- Import (packet P18). Each joins the transaction of the caller. ---
+    [[nodiscard]] core::Status insertAppearance(core::MatchId match,
+                                                const core::AppearanceDraft& draft,
+                                                std::optional<core::ImportId> importId);
+    // The appearance of draft.playerId; its id and import_id stay. None: NotFound.
+    [[nodiscard]] core::Status updateAppearance(core::MatchId match,
+                                                const core::AppearanceDraft& draft);
+    [[nodiscard]] core::Result<std::optional<core::Appearance>>
+    findAppearance(core::MatchId match, core::PlayerId player) const;
+    // The matches the import created.
+    [[nodiscard]] core::Result<std::vector<core::Match>>
+    listByImport(core::ImportId importId) const;
+    [[nodiscard]] core::Result<MatchAdditions> countAddedLater(core::ImportId importId) const;
+    // Deletes the appearances the import created, in any match; returns how many.
+    [[nodiscard]] core::Result<int> removeAppearancesByImport(core::ImportId importId);
+    // Deletes the matches the import created with every child row and their lineups (metric
+    // values must be gone).
+    [[nodiscard]] core::Result<int> removeByImport(core::ImportId importId);
 
 private:
     DatabaseManager& m_db;

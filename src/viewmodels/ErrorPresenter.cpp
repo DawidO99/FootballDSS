@@ -60,8 +60,13 @@ QString ErrorPresenter::message(const core::Error& error) {
         }
         if (error.field == "import_not_table") {
             return tr("The file does not look like a table: no column is recognised and the rows "
-                      "have different numbers of columns. Choose the file with the list of players "
-                      "or fill in the template.");
+                      "have different numbers of columns. Choose the file with the data or fill in "
+                      "the template.");
+        }
+        if (error.field == "import_wide_format") {
+            return tr("The file has one column per date. The import needs one row per player and "
+                      "session: save the training template, copy the data into it and import "
+                      "that file.");
         }
         if (error.field == "import_type") {
             return tr("This import cannot be undone here.");
@@ -109,7 +114,11 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
         return tr("Some rows have errors. Fix them in the file, or choose to skip them.");
     }
     if (field == "import_nothing") {
-        return tr("There is nothing to import: every row is skipped or has errors.");
+        return tr("There is nothing to import: every row is skipped, already in the app or has "
+                  "errors.");
+    }
+    if (field == "default_position") {
+        return tr("Choose the position of the new players.");
     }
     // Live tactics (P13b): MatchDayService::recordTacticChange().
     if (field == "tactic_shape") {
@@ -301,8 +310,9 @@ QString ErrorPresenter::pinCheckMessage(const services::PinCheck& check) {
 
 QString ErrorPresenter::conflictMessage(const std::string& field) {
     if (field == "import_matches_changed") {
-        return tr("The squad changed since the rows were checked, so nothing was imported. The "
-                  "marked rows show what the import would do now; check them and import again.");
+        return tr("The data in the app changed since the rows were checked, so nothing was "
+                  "imported. The report shows what the import would do now; check it and import "
+                  "again.");
     }
     if (field == "import_undone") {
         return tr("This import has already been undone.");

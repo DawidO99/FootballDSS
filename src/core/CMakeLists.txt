@@ -36,10 +36,18 @@ add_library(fdss_core STATIC
     domain/TrainingSession.hpp
     domain/Validation.hpp
     domain/Validation.cpp
+    parsing/ActivityImport.hpp
+    parsing/ActivityImport.cpp
     parsing/Csv.hpp
     parsing/Csv.cpp
     parsing/HeaderMatching.hpp
     parsing/HeaderMatching.cpp
+    parsing/ImportValues.hpp
+    parsing/ImportValues.cpp
+    parsing/MatchImport.hpp
+    parsing/MatchImport.cpp
+    parsing/PlayerMatching.hpp
+    parsing/PlayerMatching.cpp
     parsing/PositionSynonyms.hpp
     parsing/PositionSynonyms.cpp
     parsing/SourceTable.hpp
@@ -48,6 +56,8 @@ add_library(fdss_core STATIC
     parsing/SquadImport.cpp
     parsing/TextEncoding.hpp
     parsing/TextEncoding.cpp
+    parsing/TrainingImport.hpp
+    parsing/TrainingImport.cpp
     util/Error.hpp
     util/Error.cpp
     util/Version.hpp

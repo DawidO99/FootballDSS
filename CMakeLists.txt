@@ -157,6 +157,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/DashboardViewModel.cpp
         src/viewmodels/ErrorPresenter.hpp
         src/viewmodels/ErrorPresenter.cpp
+        src/viewmodels/ImportActivityRows.hpp
+        src/viewmodels/ImportActivityRows.cpp
         src/viewmodels/ImportTexts.hpp
         src/viewmodels/ImportTexts.cpp
         src/viewmodels/ImportWizardViewModel.hpp
@@ -254,8 +256,12 @@ qt_add_resources(fdss_ui "fdss_import_templates"
     PREFIX "/fdss/import-templates"
     BASE ui/import-templates
     FILES
+        ui/import-templates/matches.csv
+        ui/import-templates/matches.xlsx
         ui/import-templates/squad.csv
         ui/import-templates/squad.xlsx
+        ui/import-templates/training.csv
+        ui/import-templates/training.xlsx
 )
 
 target_link_libraries(fdss_ui PUBLIC fdss_services Qt6::Quick Qt6::QuickControls2 Qt6::Graphs)

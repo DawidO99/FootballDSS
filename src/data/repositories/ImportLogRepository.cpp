@@ -37,6 +37,196 @@ RawEntry readRaw(RowReader& row) {
 
 QString fromStd(const std::string& text) { return QString::fromStdString(text); }
 
+QJsonValue jsonOf(const std::optional<int>& value) {
+    return value ? QJsonValue(*value) : QJsonValue(QJsonValue::Null);
+}
+
+std::optional<int> intOf(const QJsonValue& value) {
+    return value.isDouble() ? std::optional(value.toInt()) : std::nullopt;
+}
+
+QJsonObject toJson(const core::AttendanceDraft& draft) {
+    QJsonObject object;
+    object.insert(QStringLiteral("p"), static_cast<qint64>(draft.playerId.value));
+    object.insert(QStringLiteral("st"), fromStd(std::string(core::toDbText(draft.status))));
+    object.insert(QStringLiteral("rpe"), jsonOf(draft.rpe));
+    object.insert(QStringLiteral("min"), jsonOf(draft.minutesOverride));
+    return object;
+}
+
+core::Result<core::AttendanceDraft> attendanceOf(const QJsonObject& object) {
+    core::AttendanceDraft draft;
+    draft.playerId = core::PlayerId{object.value(QStringLiteral("p")).toInteger()};
+    auto status = core::fromDbText<core::AttendanceStatus>(
+        object.value(QStringLiteral("st")).toString().toStdString());
+    if (!status) {
+        return std::unexpected(status.error());
+    }
+    draft.status = *status;
+    draft.rpe = intOf(object.value(QStringLiteral("rpe")));
+    draft.minutesOverride = intOf(object.value(QStringLiteral("min")));
+    return draft;
+}
+
+QJsonObject toJson(const core::AppearanceDraft& draft) {
+    QJsonObject object;
+    object.insert(QStringLiteral("p"), static_cast<qint64>(draft.playerId.value));
+    object.insert(QStringLiteral("st"), draft.started);
+    object.insert(QStringLiteral("on"), jsonOf(draft.minuteOn));
+    object.insert(QStringLiteral("off"), jsonOf(draft.minuteOff));
+    object.insert(QStringLiteral("pos"),
+                  draft.position ? QJsonValue(fromStd(std::string(core::toDbText(*draft.position))))
+                                 : QJsonValue(QJsonValue::Null));
+    object.insert(QStringLiteral("rt"), jsonOf(draft.rating));
+    object.insert(QStringLiteral("rpe"), jsonOf(draft.rpe));
+    return object;
+}
+
+core::Result<core::AppearanceDraft> appearanceOf(const QJsonObject& object) {
+    core::AppearanceDraft draft;
+    draft.playerId = core::PlayerId{object.value(QStringLiteral("p")).toInteger()};
+    draft.started = object.value(QStringLiteral("st")).toBool();
+    draft.minuteOn = intOf(object.value(QStringLiteral("on")));
+    draft.minuteOff = intOf(object.value(QStringLiteral("off")));
+    if (const QJsonValue position = object.value(QStringLiteral("pos")); position.isString()) {
+        auto parsed = core::fromDbText<core::Position>(position.toString().toStdString());
+        if (!parsed) {
+            return std::unexpected(parsed.error());
+        }
+        draft.position = *parsed;
+    }
+    draft.rating = intOf(object.value(QStringLiteral("rt")));
+    draft.rpe = intOf(object.value(QStringLiteral("rpe")));
+    return draft;
+}
+
+void writeRows(QJsonObject& object, const ImportReport& report) {
+    QJsonArray attendance;
+    for (const ImportedAttendance& row : report.attendance) {
+        QJsonObject item;
+        item.insert(QStringLiteral("s"), static_cast<qint64>(row.session.value));
+        item.insert(QStringLiteral("w"), toJson(row.written));
+        if (row.previous) {
+            item.insert(QStringLiteral("b"), toJson(*row.previous));
+        }
+        attendance.append(item);
+    }
+    QJsonArray appearances;
+    for (const ImportedAppearance& row : report.appearances) {
+        QJsonObject item;
+        item.insert(QStringLiteral("m"), static_cast<qint64>(row.match.value));
+        item.insert(QStringLiteral("w"), toJson(row.written));
+        if (row.previous) {
+            item.insert(QStringLiteral("b"), toJson(*row.previous));
+        }
+        appearances.append(item);
+    }
+    QJsonArray values;
+    for (const ImportedMetricValue& row : report.metricValues) {
+        QJsonObject item;
+        item.insert(QStringLiteral("d"), static_cast<qint64>(row.metric.value));
+        if (row.session) {
+            item.insert(QStringLiteral("s"), static_cast<qint64>(row.session->value));
+        }
+        if (row.match) {
+            item.insert(QStringLiteral("m"), static_cast<qint64>(row.match->value));
+        }
+        item.insert(QStringLiteral("p"), static_cast<qint64>(row.player.value));
+        item.insert(QStringLiteral("w"), row.written);
+        if (row.previous) {
+            item.insert(QStringLiteral("b"), *row.previous);
+        }
+        values.append(item);
+    }
+    QJsonArray opponents;
+    for (const core::OpponentId id : report.createdOpponents) {
+        opponents.append(static_cast<qint64>(id.value));
+    }
+    QJsonObject counts;
+    for (const auto& [key, value] : report.counts) {
+        counts.insert(fromStd(key), value);
+    }
+    if (!attendance.isEmpty()) {
+        object.insert(QStringLiteral("attendance"), attendance);
+    }
+    if (!appearances.isEmpty()) {
+        object.insert(QStringLiteral("appearances"), appearances);
+    }
+    if (!values.isEmpty()) {
+        object.insert(QStringLiteral("metricValues"), values);
+    }
+    if (!opponents.isEmpty()) {
+        object.insert(QStringLiteral("createdOpponents"), opponents);
+    }
+    if (!counts.isEmpty()) {
+        object.insert(QStringLiteral("counts"), counts);
+    }
+}
+
+core::Status readRows(const QJsonObject& object, ImportReport& report) {
+    for (const QJsonValue value : object.value(QStringLiteral("attendance")).toArray()) {
+        const QJsonObject item = value.toObject();
+        ImportedAttendance row;
+        row.session = core::TrainingSessionId{item.value(QStringLiteral("s")).toInteger()};
+        auto written = attendanceOf(item.value(QStringLiteral("w")).toObject());
+        if (!written) {
+            return std::unexpected(written.error());
+        }
+        row.written = *written;
+        if (item.contains(QStringLiteral("b"))) {
+            auto previous = attendanceOf(item.value(QStringLiteral("b")).toObject());
+            if (!previous) {
+                return std::unexpected(previous.error());
+            }
+            row.previous = *previous;
+        }
+        report.attendance.push_back(row);
+    }
+    for (const QJsonValue value : object.value(QStringLiteral("appearances")).toArray()) {
+        const QJsonObject item = value.toObject();
+        ImportedAppearance row;
+        row.match = core::MatchId{item.value(QStringLiteral("m")).toInteger()};
+        auto written = appearanceOf(item.value(QStringLiteral("w")).toObject());
+        if (!written) {
+            return std::unexpected(written.error());
+        }
+        row.written = *written;
+        if (item.contains(QStringLiteral("b"))) {
+            auto previous = appearanceOf(item.value(QStringLiteral("b")).toObject());
+            if (!previous) {
+                return std::unexpected(previous.error());
+            }
+            row.previous = *previous;
+        }
+        report.appearances.push_back(row);
+    }
+    for (const QJsonValue value : object.value(QStringLiteral("metricValues")).toArray()) {
+        const QJsonObject item = value.toObject();
+        ImportedMetricValue row;
+        row.metric = core::MetricDefinitionId{item.value(QStringLiteral("d")).toInteger()};
+        if (item.contains(QStringLiteral("s"))) {
+            row.session = core::TrainingSessionId{item.value(QStringLiteral("s")).toInteger()};
+        }
+        if (item.contains(QStringLiteral("m"))) {
+            row.match = core::MatchId{item.value(QStringLiteral("m")).toInteger()};
+        }
+        row.player = core::PlayerId{item.value(QStringLiteral("p")).toInteger()};
+        row.written = item.value(QStringLiteral("w")).toDouble();
+        if (item.contains(QStringLiteral("b"))) {
+            row.previous = item.value(QStringLiteral("b")).toDouble();
+        }
+        report.metricValues.push_back(row);
+    }
+    for (const QJsonValue value : object.value(QStringLiteral("createdOpponents")).toArray()) {
+        report.createdOpponents.push_back(core::OpponentId{value.toInteger()});
+    }
+    const QJsonObject counts = object.value(QStringLiteral("counts")).toObject();
+    for (auto count = counts.begin(); count != counts.end(); ++count) {
+        report.counts.emplace(count.key().toStdString(), count.value().toInt());
+    }
+    return {};
+}
+
 QByteArray toJson(const ImportReport& report) {
     QJsonObject object;
     object.insert(QStringLiteral("created"), report.created);
@@ -60,6 +250,7 @@ QByteArray toJson(const ImportReport& report) {
         mapping.insert(QStringLiteral("options"), options);
         object.insert(QStringLiteral("mapping"), mapping);
     }
+    writeRows(object, report);
     return QJsonDocument(object).toJson(QJsonDocument::Compact);
 }
 
@@ -103,6 +294,9 @@ core::Result<ImportReport> fromJson(const std::optional<std::string>& json) {
                                    option.value().toString().toStdString());
         }
         report.mapping = std::move(record);
+    }
+    if (!readRows(object, report)) {
+        return std::unexpected(damaged("import_log.report_json has bad imported rows"));
     }
     return report;
 }

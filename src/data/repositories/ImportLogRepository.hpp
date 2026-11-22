@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/domain/Appearance.hpp"
+#include "core/domain/Attendance.hpp"
 #include "core/domain/DateTypes.hpp"
 #include "core/domain/Ids.hpp"
 #include "core/util/Error.hpp"
@@ -26,12 +28,48 @@ struct ImportMappingRecord {
     friend bool operator==(const ImportMappingRecord&, const ImportMappingRecord&) = default;
 };
 
+// The rows a training or match import wrote (packet P18 decisions 3 and 10): the values written
+// and, for a row it overwrote, the values before. The undo restores an overwritten row while it
+// still holds the written values, and counts a created row that was changed after the import.
+struct ImportedAttendance {
+    core::TrainingSessionId session;
+    core::AttendanceDraft written;
+    std::optional<core::AttendanceDraft> previous;
+
+    friend bool operator==(const ImportedAttendance&, const ImportedAttendance&) = default;
+};
+
+struct ImportedAppearance {
+    core::MatchId match;
+    core::AppearanceDraft written;
+    std::optional<core::AppearanceDraft> previous;
+
+    friend bool operator==(const ImportedAppearance&, const ImportedAppearance&) = default;
+};
+
+struct ImportedMetricValue {
+    core::MetricDefinitionId metric;
+    std::optional<core::TrainingSessionId> session;
+    std::optional<core::MatchId> match;
+    core::PlayerId player;
+    double written = 0;
+    std::optional<double> previous;
+
+    friend bool operator==(const ImportedMetricValue&, const ImportedMetricValue&) = default;
+};
+
 struct ImportReport {
     std::optional<ImportMappingRecord> mapping;
     int created = 0;
     int updated = 0;
     int skipped = 0;
     std::optional<core::Timestamp> undoneAt;
+    // Training and match imports (packet P18).
+    std::vector<ImportedAttendance> attendance;
+    std::vector<ImportedAppearance> appearances;
+    std::vector<ImportedMetricValue> metricValues;
+    std::vector<core::OpponentId> createdOpponents; // opponent has no import_id
+    std::map<std::string, int> counts;              // for the summary, e.g. "goals_not_imported"
 
     friend bool operator==(const ImportReport&, const ImportReport&) = default;
 };
@@ -40,7 +78,7 @@ struct ImportLogDraft {
     core::Timestamp timestamp{};
     std::string file; // the file name the user chose, without the folder
     std::string hash; // SHA-256, lower-case hex
-    std::string type; // "squad"; P18 adds more
+    std::string type; // "squad", "training", "matches"
     int rowsOk = 0;
     int rowsFailed = 0;
     ImportReport report;

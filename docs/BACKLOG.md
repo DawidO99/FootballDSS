@@ -18,8 +18,8 @@
 - CI: compiler cache (sccache/ccache) for Windows and Linux builds; Windows build is ~14 min (P09a)
 - qml_smoke: CTest TIMEOUT (600 s) and per-scenario progress output, so a hang fails fast with a name
 - Squad position column: show at most 3 secondary codes + "+N"; codes matching the active filter first (P08 manual test)
-- Saving attendance rewrites the rows and loses their `import_id`: the repository `saveAttendance()` cannot set
-  it, so a corrected imported row no longer goes with the undo of its import. Matters once imports write it (P09b)
+- Import: per-player goals/assists/cards counters in appearance (migration) so imported matches keep scorers and
+  cards count toward suspensions (P18 decision 2)
 - A player has no date of joining: an old session counts someone who came later as not saved, and saving it writes
   a `present` row for them. Needs a column; the sheet cannot tell them apart (P09b)
 - RPE can be saved in a session that is still in the future: nothing forbids it yet. Decide after coach
