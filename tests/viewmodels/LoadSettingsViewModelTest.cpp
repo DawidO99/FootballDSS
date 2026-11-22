@@ -5,6 +5,7 @@
 #include "services/LoadService.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
 
+#include <QFile>
 #include <QSettings>
 #include <QTemporaryDir>
 
@@ -128,5 +129,31 @@ TEST_F(LoadSettingsViewModelTest, OnlyARoleThatManagesSettingsMayChangeThem) {
     EXPECT_FALSE(load.restoreDefaults());
 
     EXPECT_EQ(refused.count(), 2);
+    EXPECT_TRUE(load.isDefault());
+}
+
+// P19 review: a settings file that cannot be written is reported, and nothing is confirmed or used.
+TEST_F(LoadSettingsViewModelTest, AFailedWriteIsReportedAndChangesNothing) {
+    LoadSettingsViewModel load;
+    ASSERT_TRUE(QFile::setPermissions(m_settingsDir.path(), QFile::ReadOwner | QFile::ExeOwner));
+    QFile probe(m_settingsDir.filePath(QStringLiteral("probe")));
+    if (probe.open(QIODevice::WriteOnly)) {
+        probe.close();
+        QFile::setPermissions(m_settingsDir.path(),
+                              QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+        GTEST_SKIP() << "this user writes into read-only folders (root?)";
+    }
+    const SignalCount refused(&load, &LoadSettingsViewModel::errorOccurred);
+    const SignalCount changed(&load, &LoadSettingsViewModel::thresholdsChanged);
+
+    const bool saved = load.save(QStringLiteral("1.6"), QStringLiteral("1.2"),
+                                 QStringLiteral("0.9"), QStringLiteral("3"));
+    QFile::setPermissions(m_settingsDir.path(),
+                          QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+
+    EXPECT_FALSE(saved);
+    EXPECT_EQ(refused.count(), 1);
+    EXPECT_EQ(changed.count(), 0);
+    EXPECT_EQ(registry().load().thresholds(), LoadThresholds{});
     EXPECT_TRUE(load.isDefault());
 }

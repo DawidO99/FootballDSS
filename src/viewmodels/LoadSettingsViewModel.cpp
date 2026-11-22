@@ -11,6 +11,7 @@
 #include <QEvent>
 #include <QSettings>
 
+#include <format>
 #include <optional>
 
 namespace fdss::viewmodels {
@@ -148,6 +149,7 @@ bool LoadSettingsViewModel::apply(const core::LoadThresholds& thresholds) {
         emit errorOccurred(ErrorPresenter::message(allowed.error()));
         return false;
     }
+    const core::LoadThresholds previous = m_load.thresholds();
     if (const auto stored = m_load.setThresholds(thresholds); !stored) {
         const core::Error& error = stored.error();
         if (error.code == core::ErrorCode::InvalidInput && !error.field.empty()) {
@@ -162,6 +164,20 @@ bool LoadSettingsViewModel::apply(const core::LoadThresholds& thresholds) {
         }
         return false;
     }
+    if (const auto written = store(thresholds); !written) {
+        // In use only what is stored, so the next start agrees with the screen.
+        if (const auto restored = m_load.setThresholds(previous); !restored) {
+            qCritical("LoadSettingsViewModel: %s", restored.error().detail.c_str());
+        }
+        qCritical("LoadSettingsViewModel: %s", written.error().detail.c_str());
+        emit errorOccurred(ErrorPresenter::message(written.error()));
+        return false;
+    }
+    emit thresholdsChanged();
+    return true;
+}
+
+core::Status LoadSettingsViewModel::store(const core::LoadThresholds& thresholds) {
     QSettings settings;
     if (thresholds == core::LoadThresholds{}) {
         settings.remove(kGroup);
@@ -171,8 +187,15 @@ bool LoadSettingsViewModel::apply(const core::LoadThresholds& thresholds) {
         settings.setValue(kRatioLowKey, thresholds.ratioLow);
         settings.setValue(kMonotonyHighKey, thresholds.monotonyHigh);
     }
-    emit thresholdsChanged();
-    return true;
+    settings.sync();
+    if (settings.status() != QSettings::NoError) {
+        return std::unexpected(core::Error{
+            core::ErrorCode::Io,
+            std::format("cannot write the load thresholds to {} (QSettings status {})",
+                        settings.fileName().toStdString(), static_cast<int>(settings.status())),
+            {}});
+    }
+    return {};
 }
 
 QString LoadSettingsViewModel::errorText(const std::string& field) const {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/algorithms/Load.hpp"
+#include "core/util/Error.hpp"
 
 #include <QObject>
 #include <QString>
@@ -69,7 +70,11 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    // The thresholds are in use only once they are stored; a failed write puts the previous ones
+    // back, reports and confirms nothing.
     [[nodiscard]] bool apply(const core::LoadThresholds& thresholds);
+    // Writes and syncs QSettings; Io when the file cannot be written.
+    [[nodiscard]] static core::Status store(const core::LoadThresholds& thresholds);
     [[nodiscard]] QString errorText(const std::string& field) const;
 
     services::LoadService& m_load;
