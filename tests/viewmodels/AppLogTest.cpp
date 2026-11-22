@@ -27,7 +27,9 @@ protected:
         if (!file.open(QIODevice::ReadOnly)) {
             return {};
         }
-        return QString::fromUtf8(file.readAll());
+        // QIODevice::Text writes \r\n on Windows; the assertions look for \n.
+        return QString::fromUtf8(file.readAll())
+            .replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
     }
 
     [[nodiscard]] QStringList logFiles() const {
