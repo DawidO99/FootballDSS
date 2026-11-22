@@ -98,9 +98,10 @@ public:
     // errorOccurred says why.
     Q_INVOKABLE bool addOpponent(const QString& name);
     Q_INVOKABLE void clearNewOpponentError();
-    // Renames the chosen opponent, in every match against them. True when renamed; otherwise
+    // Renames the opponent `opponentId`, in every match against them: the dialog passes the one
+    // chosen when the correction was opened, whatever is chosen now. True when renamed; otherwise
     // renameOpponentError or errorOccurred says why.
-    Q_INVOKABLE bool renameOpponent(const QString& name);
+    Q_INVOKABLE bool renameOpponent(qint64 opponentId, const QString& name);
     Q_INVOKABLE void clearRenameOpponentError();
     // True when saved. Otherwise the error properties or errorOccurred say why.
     Q_INVOKABLE bool save();

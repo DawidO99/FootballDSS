@@ -222,7 +222,7 @@ bool MatchEditorViewModel::addOpponent(const QString& name) {
 
 void MatchEditorViewModel::clearNewOpponentError() { clearError(std::string(kNewOpponent)); }
 
-bool MatchEditorViewModel::renameOpponent(const QString& name) {
+bool MatchEditorViewModel::renameOpponent(qint64 opponentId, const QString& name) {
     if (!m_session.isAllowed(core::Permission::EditCalendar)) {
         report(core::Error{core::ErrorCode::PermissionDenied,
                            "refused by the viewmodel: EditCalendar is needed",
@@ -230,7 +230,7 @@ bool MatchEditorViewModel::renameOpponent(const QString& name) {
         return false;
     }
     const auto renamed =
-        m_calendar.renameOpponent(core::OpponentId{m_opponentId}, name.toStdString());
+        m_calendar.renameOpponent(core::OpponentId{opponentId}, name.toStdString());
     if (!renamed) {
         if (renamed.error().field == kNewOpponent) {
             m_errors.insert_or_assign(std::string(kRenameOpponent), renamed.error());

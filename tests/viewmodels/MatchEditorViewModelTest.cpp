@@ -289,17 +289,33 @@ TEST_F(MatchEditorViewModelTest, TheOpponentOfAPlayedMatchCanBeRenamed) {
     SignalCount renamed(&editor, &MatchEditorViewModel::opponentRenamed);
     SignalCount errors(&editor, &MatchEditorViewModel::errorOccurred);
 
-    EXPECT_FALSE(editor.renameOpponent(QStringLiteral("łódź")));
+    EXPECT_FALSE(editor.renameOpponent(opponent.value, QStringLiteral("łódź")));
     EXPECT_EQ(editor.renameOpponentError(),
               ErrorPresenter::message(Error{ErrorCode::Conflict, {}, "opponent_name"}));
     EXPECT_TRUE(editor.newOpponentError().isEmpty());
     EXPECT_EQ(errors.count(), 0);
 
-    ASSERT_TRUE(editor.renameOpponent(QStringLiteral("Wisła")));
+    ASSERT_TRUE(editor.renameOpponent(opponent.value, QStringLiteral("Wisła")));
     EXPECT_TRUE(editor.renameOpponentError().isEmpty());
     EXPECT_EQ(editor.opponentName(), QStringLiteral("Wisła"));
     EXPECT_EQ(editor.opponentId(), opponent.value);
     EXPECT_EQ(renamed.count(), 1);
+}
+
+// P19 review: the correction renames the opponent it was opened for, not the one chosen since.
+TEST_F(MatchEditorViewModelTest, ARenameNamesItsOpponentWhateverIsChosenNow) {
+    const OpponentId first = addOpponent("Wisla");
+    const OpponentId second = addOpponent("Legia");
+    MatchEditorViewModel editor;
+    editor.startAdding(QString::fromUtf8(kDay));
+    editor.setOpponentId(second.value);
+
+    ASSERT_TRUE(editor.renameOpponent(first.value, QStringLiteral("Wisła")));
+
+    EXPECT_EQ(editor.opponentId(), second.value);
+    EXPECT_EQ(editor.opponentName(), QStringLiteral("Legia"));
+    EXPECT_EQ(registry().calendar().listOpponents()->size(), 2U);
+    EXPECT_EQ(opponentNames(editor), (std::vector<std::string>{"Legia", "Wisła"}));
 }
 
 TEST_F(MatchEditorViewModelTest, ARoleWithoutEditCalendarSeesAndCannotChange) {
@@ -316,7 +332,7 @@ TEST_F(MatchEditorViewModelTest, ARoleWithoutEditCalendarSeesAndCannotChange) {
     EXPECT_FALSE(editor.save());
     EXPECT_FALSE(editor.addOpponent(QStringLiteral("Nowy")));
     EXPECT_FALSE(editor.canRenameOpponent());
-    EXPECT_FALSE(editor.renameOpponent(QStringLiteral("Nowy")));
+    EXPECT_FALSE(editor.renameOpponent(opponent.value, QStringLiteral("Nowy")));
     EXPECT_EQ(errors.count(), 3);
     EXPECT_TRUE(registry().calendar().listOpponents()->size() == 1);
 }

@@ -21,6 +21,8 @@ AppDialog {
     readonly property alias viewModel: editor
     property bool newOpponentShown: false
     property bool renameShown: false
+    // The opponent the correction was opened for (P19 review); 0 while it is closed.
+    property double renameOpponentId: 0
 
     signal saved(double matchId, string date)
     signal deleteRequested(double matchId, string opponentName)
@@ -36,6 +38,8 @@ AppDialog {
         newOpponentInput.clear();
         editor.clearNewOpponentError();
         root.renameShown = false;
+        root.renameOpponentId = 0;
+        renameInput.clear();
         editor.clearRenameOpponentError();
         root.newOpponentShown = !editor.readOnly && editor.opponents.rowCount() === 0;
         root.open();
@@ -81,6 +85,7 @@ AppDialog {
     }
 
     function showRename() {
+        root.renameOpponentId = editor.opponentId;
         root.renameShown = true;
         renameInput.text = editor.opponentName;
         renameInput.forceActiveFocus(Qt.TabFocusReason);
@@ -89,12 +94,14 @@ AppDialog {
 
     function hideRename() {
         root.renameShown = false;
+        root.renameOpponentId = 0;
+        renameInput.clear();
         editor.clearRenameOpponentError();
         opponentInput.forceActiveFocus(Qt.TabFocusReason);
     }
 
     function renameOpponent() {
-        if (editor.renameOpponent(renameInput.text)) {
+        if (editor.renameOpponent(root.renameOpponentId, renameInput.text)) {
             root.hideRename();
             root.opponentRenamed();
         } else {
@@ -154,7 +161,12 @@ AppDialog {
                 value: editor.opponentId > 0 ? editor.opponentId : null
                 placeholderText: qsTr("Choose the opponent")
                 Accessible.name: opponentField.label
-                onValueActivated: value => editor.opponentId = value
+                onValueActivated: value => {
+                    // Another opponent: the correction belonged to the one chosen before.
+                    if (root.renameShown && value !== root.renameOpponentId)
+                        root.hideRename();
+                    editor.opponentId = value;
+                }
             }
 
             SecondaryButton {

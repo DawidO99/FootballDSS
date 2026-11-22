@@ -124,6 +124,7 @@ using fdss::viewmodels::MatchReportViewModel;
 using fdss::viewmodels::MetricDefinitionsViewModel;
 using fdss::viewmodels::MetricEntryViewModel;
 using fdss::viewmodels::NavigationModel;
+using fdss::viewmodels::OpponentListModel;
 using fdss::viewmodels::PlayerCardViewModel;
 using fdss::viewmodels::PlayerEditorViewModel;
 using fdss::viewmodels::PlayerLoadViewModel;
@@ -1283,6 +1284,36 @@ void exerciseCalendar(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     pressKey(window, Qt::Key_Escape);
     expectFlag(matchDialog, "newOpponentShown", false, "Esc did not leave the new opponent field");
     expectFlag(matchDialog, "visible", true, "Esc in the new opponent field closed the form");
+    // P19 review: choosing another opponent while correcting a name closes the correction and
+    // empties its field, so the typed name never goes to the newly chosen opponent.
+    {
+        const OpponentListModel* opponents = matchEditor->opponents();
+        if (opponents->rowCount() < 2 && !matchEditor->addOpponent(QStringLiteral("Smoke Rywal"))) {
+            fail("the calendar test cannot add a second opponent");
+        }
+        const QVariant first = opponents->index(0).data(OpponentListModel::ValueRole);
+        const QVariant second = opponents->index(1).data(OpponentListModel::ValueRole);
+        const QString firstName = opponents->index(0).data(OpponentListModel::TextRole).toString();
+        auto* opponentInput = find("opponentInput");
+        QMetaObject::invokeMethod(opponentInput, "valueActivated", Q_ARG(QVariant, first));
+        settle();
+        QMetaObject::invokeMethod(find("renameOpponentButton"), "click");
+        settle();
+        expectFlag(matchDialog, "renameShown", true, "Rename… did not open the correction");
+        auto* renameInput = find("renameOpponentInput");
+        renameInput->setProperty("text", QStringLiteral("Nazwa w toku"));
+        QMetaObject::invokeMethod(opponentInput, "valueActivated", Q_ARG(QVariant, second));
+        settle();
+        expectFlag(matchDialog, "renameShown", false,
+                   "choosing another opponent left the name correction open");
+        if (!renameInput->property("text").toString().isEmpty() ||
+            matchDialog->property("renameOpponentId").toLongLong() != 0) {
+            fail("choosing another opponent kept the name being corrected");
+        }
+        if (opponents->index(0).data(OpponentListModel::TextRole).toString() != firstName) {
+            fail("choosing another opponent renamed the first one");
+        }
+    }
     find("competitionInput")->forceActiveFocus(Qt::TabFocusReason);
     pressKey(window, Qt::Key_Down);
     pressKey(window, Qt::Key_Down);
