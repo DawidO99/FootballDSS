@@ -78,7 +78,7 @@ Item {
                     rowSpacing: Theme.spacing.s
 
                     Label {
-                        text: qsTr("Name")
+                        text: qsTr("Team name")
                         color: Theme.textMuted
                     }
 
