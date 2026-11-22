@@ -84,3 +84,7 @@ This is the "universal from B-klasa to pro" mechanism for data the app does not 
 13. Values and limits are shown in the shortest text that reads back as the same number
     (`QLocale::FloatingPointShortest`), with the decimal separator of the app language: reading and
     saving again never changes a value.
+14. **import_id of a corrected value (review of P18)**: `saveValues()` keeps the `import_id` of the
+    value it replaces, so a value an import wrote and the user corrected later still goes with the
+    undo of that import (counted as changed after the import, P18 decision 10). Replaces the
+    earlier behaviour (the corrected value lost its `import_id`).

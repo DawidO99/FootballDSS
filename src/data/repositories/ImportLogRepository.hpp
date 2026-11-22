@@ -4,6 +4,8 @@
 #include "core/domain/Attendance.hpp"
 #include "core/domain/DateTypes.hpp"
 #include "core/domain/Ids.hpp"
+#include "core/domain/Match.hpp"
+#include "core/domain/TrainingSession.hpp"
 #include "core/util/Error.hpp"
 
 #include <map>
@@ -58,6 +60,24 @@ struct ImportedMetricValue {
     friend bool operator==(const ImportedMetricValue&, const ImportedMetricValue&) = default;
 };
 
+// A session or match the import created, as written: the undo counts one changed after the import
+// (a note, another date) before it deletes it (review of P18).
+struct ImportedSession {
+    core::TrainingSessionId id;
+    core::TrainingSessionDraft written;
+
+    friend bool operator==(const ImportedSession&, const ImportedSession&) = default;
+};
+
+struct ImportedMatch {
+    core::MatchId id;
+    core::MatchDraft written;
+    std::optional<int> goalsFor;
+    std::optional<int> goalsAgainst;
+
+    friend bool operator==(const ImportedMatch&, const ImportedMatch&) = default;
+};
+
 struct ImportReport {
     std::optional<ImportMappingRecord> mapping;
     int created = 0;
@@ -65,6 +85,8 @@ struct ImportReport {
     int skipped = 0;
     std::optional<core::Timestamp> undoneAt;
     // Training and match imports (packet P18).
+    std::vector<ImportedSession> sessions;
+    std::vector<ImportedMatch> matches;
     std::vector<ImportedAttendance> attendance;
     std::vector<ImportedAppearance> appearances;
     std::vector<ImportedMetricValue> metricValues;

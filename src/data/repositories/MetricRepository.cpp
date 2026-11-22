@@ -169,18 +169,27 @@ core::Status MetricRepository::saveValues(core::MetricDefinitionId id,
     }
     const TargetFilter filter = filterOf(target);
     for (const core::MetricValueDraft& draft : values) {
-        const auto stored =
-            selectAll(m_db,
-                      QStringLiteral("SELECT v.value FROM metric_value AS v "
-                                     "WHERE v.metric_id = ? AND v.player_id = ? AND ") +
-                          filter.condition,
-                      {idValue(id), idValue(draft.playerId), filter.value}, kContext,
-                      [](RowReader& row) { return row.real(); });
+        const auto stored = selectAll(
+            m_db,
+            QStringLiteral("SELECT v.value, v.import_id FROM metric_value AS v "
+                           "WHERE v.metric_id = ? AND v.player_id = ? AND ") +
+                filter.condition,
+            {idValue(id), idValue(draft.playerId), filter.value}, kContext, [](RowReader& row) {
+                const double value = row.real();
+                return std::pair{value, row.optionalId<core::ImportId>()};
+            });
         if (!stored) {
             return std::unexpected(stored.error());
         }
-        if (draft.value && stored->size() == 1 && stored->front() == *draft.value) {
+        if (draft.value && stored->size() == 1 && stored->front().first == *draft.value) {
             continue;
+        }
+        // A corrected imported value still goes with the undo of its import (P17 decision 14).
+        std::optional<core::ImportId> importId;
+        for (const auto& row : *stored) {
+            if (!importId) {
+                importId = row.second;
+            }
         }
         if (!draft.value && stored->empty()) {
             continue;
@@ -197,8 +206,7 @@ core::Status MetricRepository::saveValues(core::MetricDefinitionId id,
         if (!draft.value) {
             continue;
         }
-        if (auto inserted =
-                insertValue(id, target, date, draft.playerId, *draft.value, std::nullopt);
+        if (auto inserted = insertValue(id, target, date, draft.playerId, *draft.value, importId);
             !inserted) {
             return inserted;
         }

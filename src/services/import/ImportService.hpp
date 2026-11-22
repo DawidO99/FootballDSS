@@ -233,6 +233,8 @@ private:
     // The created players of an import: deleted, or archived when referenced.
     [[nodiscard]] core::Status undoPlayers(core::ImportId id, ImportUndoSummary& summary);
     [[nodiscard]] core::Status backup(std::string_view reason);
+    // The database file still exists (SPEC section 8); otherwise Io ("database_missing").
+    [[nodiscard]] core::Status checkDatabaseFile() const;
     // recheckSquadMatches() against the current squad; a changed row: Conflict
     // ("import_matches_changed").
     [[nodiscard]] core::Status recheck(core::TeamId team, const core::SquadMapping& mapping,

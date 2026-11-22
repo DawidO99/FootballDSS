@@ -99,7 +99,26 @@ Before/after screenshots of the Load screen: the value of import for a club with
     here); the `import_id` lost by undoing a calendar delete stays in the backlog.
 12. **Scope extensions**: `src/viewmodels/ServiceRegistry.cpp`, `OpponentRepository`,
     `ImportLogRepository` (`report_json` fields), `ui/components/MetricDefinitionDialog.qml`,
-    `src/viewmodels/ErrorPresenter.cpp`, refactor of `SquadImport.cpp` (player matching extracted),
-    `docs/BACKLOG.md`. No migration.
+    `src/viewmodels/ErrorPresenter.cpp`, `docs/BACKLOG.md`. Player matching of the activity imports
+    is a separate `core::matchPlayer()` (`PlayerMatching`), not extracted from `SquadImport.cpp`,
+    which stays as it was. No migration.
 13. **Rating** is a whole number 1–10; "6,5" is a row error ("expected a whole number 1–10"), never
     rounded silently.
+14. **Review (Codex)**:
+    - *Undo question*: the sessions and matches the import created are stored as written in
+      `report_json`; a note added later (`training_session.note`, the match report note) counts as a
+      note, any other change of them (moved, another score) as an entry, before the undo deletes
+      them.
+    - *The plan of now*: every plan matches the players again against the squad (`matchPlayer()`,
+      not the match of the validation; a changed row is marked "the player is another one") and
+      reads the metric values again against the definitions of now (deleted, another scope, type
+      or limits: a row error "check again"). The commit compares that plan with the one the user
+      saw: a difference writes nothing and returns to the report. Two rows that become one player
+      in a session or match are an error.
+    - *Corrected metric values* keep their `import_id` (P17 decision 14); the undo counts them as
+      changed after the import and removes them.
+    - *Inconsistent group*: when the rows of a session or match disagree on a value (duration, type,
+      venue, competition, score), every row of the group is an error, so nothing of it is written.
+    - *Database file deleted* while the app runs (SPEC section 8, P16 decision 12): every commit
+      and undo of an import checks that the file exists before the backup and before the
+      transaction commits; otherwise `Io` (`database_missing`) and nothing is written.

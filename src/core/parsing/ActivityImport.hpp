@@ -96,7 +96,10 @@ enum class ActivityIssueKind {
     MatchPlanned,       // error: the match is still planned
     ScoreDiffers,       // warning: the stored score stays (value = the stored score "2:1")
     ExistingKept,       // warning: the database holds other values; kept (update is off)
-    PlanChanged,        // warning: the database changed since the check; see the new plan
+    PlanChanged,        // warning: the player of the row is another one since the check (the
+                        // squad changed); the plan shows the new match
+    MetricChanged,      // error: the metric of the column was deleted or changed its scope,
+                        // type or limits since the check, so the value does not fit
 };
 
 struct ActivityIssue {
@@ -219,6 +222,37 @@ struct PlayerResolution {
                                              std::span<const Player> existing,
                                              std::vector<NewPlayer>& newPlayers);
 
+// The player of a row against the squad now (review of P18): matchPlayer() again, so a squad
+// changed after the check (numbers swapped, a player added) gives the plan of now. A match other
+// than the one of the validation adds PlanChanged to `issues`.
+[[nodiscard]] RowPlayer currentPlayer(const RowPlayer& validated, std::span<const Player> players,
+                                      std::vector<ActivityIssue>& issues);
+
+// The metric cells of a row against the definitions now (review of P18): each text is read again
+// with its metric; a metric that is gone (or has another scope, so it is not in `metrics`) or no
+// longer takes the value adds MetricChanged to `issues` and leaves the cell out.
+[[nodiscard]] std::vector<MetricCell> currentMetrics(std::span<const MetricCell> cells,
+                                                     std::span<const MetricDefinition> metrics,
+                                                     std::vector<ActivityIssue>& issues);
+
+// The definitions the cells of `rows` name, as they are now: part of a plan, so a definition
+// changed after the check changes the plan.
+template <class Row>
+[[nodiscard]] std::vector<MetricDefinition>
+metricsOfRows(const std::vector<Row>& rows, std::span<const MetricDefinition> metrics) {
+    std::vector<MetricDefinition> used;
+    for (const MetricDefinition& metric : metrics) {
+        const bool named = std::ranges::any_of(rows, [&](const Row& row) {
+            return std::ranges::any_of(
+                row.metrics, [&](const MetricCell& cell) { return cell.metric == metric.id; });
+        });
+        if (named) {
+            used.push_back(metric);
+        }
+    }
+    return used;
+}
+
 // The action of a row from what happens with its values (the most significant one).
 [[nodiscard]] ActivityAction combineWrites(std::span<const WriteKind> writes) noexcept;
 
@@ -232,15 +266,15 @@ struct WholeNumberCell {
 // An error of the row on that field.
 [[nodiscard]] bool hasErrorOn(std::span<const ActivityIssue> issues, std::string_view field);
 
-// Rows of one session or match that disagree on a value (packet P18 decision 6): every row with a
-// value other than the first one gets an Inconsistent error naming that first row, and the first
-// one names the first such row. `agreed` is the value when they agree, otherwise empty.
+// Rows of one session or match that disagree on a value (packet P18 decision 6, review): every
+// row of the group gets an Inconsistent error naming a row with another value, so no row of the
+// group is written. `agreed` is the value when they agree, otherwise empty.
 template <class Row, class Value>
 void markInconsistent(std::vector<Row>& rows, std::span<const std::size_t> group,
                       std::optional<Value> Row::*member, std::string_view field,
                       std::optional<Value>& agreed) {
     std::optional<std::size_t> first;
-    bool disagree = false;
+    std::optional<std::size_t> other; // the first row with a value other than `first`
     for (const std::size_t index : group) {
         const auto& value = rows[index].*member;
         if (!value) {
@@ -249,23 +283,21 @@ void markInconsistent(std::vector<Row>& rows, std::span<const std::size_t> group
         if (!first) {
             first = index;
             agreed = value;
-            continue;
-        }
-        if (*value == *(rows[*first].*member)) {
-            continue;
-        }
-        disagree = true;
-        rows[index].issues.push_back(makeIssue(ActivityIssueKind::Inconsistent,
-                                               IssueSeverity::Error, std::string(field), {},
-                                               {rows[*first].sourceRow}));
-        if (!hasErrorOn(rows[*first].issues, field)) {
-            rows[*first].issues.push_back(makeIssue(ActivityIssueKind::Inconsistent,
-                                                    IssueSeverity::Error, std::string(field), {},
-                                                    {rows[index].sourceRow}));
+        } else if (!other && *value != *(rows[*first].*member)) {
+            other = index;
         }
     }
-    if (disagree) {
-        agreed.reset();
+    if (!other) {
+        return;
+    }
+    agreed.reset();
+    for (const std::size_t index : group) {
+        const auto& value = rows[index].*member;
+        // A row names a row with another value; a row without a value names the first one.
+        const std::size_t named = value && *value == *(rows[*first].*member) ? *other : *first;
+        rows[index].issues.push_back(makeIssue(ActivityIssueKind::Inconsistent,
+                                               IssueSeverity::Error, std::string(field), {},
+                                               {rows[named].sourceRow}));
     }
 }
 

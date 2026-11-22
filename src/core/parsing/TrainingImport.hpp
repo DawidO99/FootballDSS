@@ -135,6 +135,7 @@ struct PlannedTrainingRow {
 };
 
 struct TrainingPlan {
+    std::vector<MetricDefinition> metrics; // the definitions the cells name, as they are now
     std::vector<PlannedSession> sessions;
     std::vector<NewPlayer> newPlayers;
     std::vector<PlannedTrainingRow> rows; // one per row of the import
@@ -145,10 +146,13 @@ struct TrainingPlan {
 // Sessions: the same date and start time; without a start time the only session of that day
 // (several: SeveralSessions). Attendance and metric values per decision 3: Create, Unchanged, or
 // Update/Keep by options.updateExisting. `existing`: the sessions of the team on the dates of the
-// file; `players`: the players of the team who are not archived.
+// file; `players`: the players of the team who are not archived; `metrics`: the definitions of
+// the training scope now. The player and the metric values of every row are read again against
+// them (currentPlayer(), currentMetrics()), so the plan is always the one of now.
 [[nodiscard]] TrainingPlan planTraining(const TrainingImport& import,
                                         std::span<const ExistingSession> existing,
                                         std::span<const Player> players,
+                                        std::span<const MetricDefinition> metrics,
                                         const ActivityOptions& options);
 
 } // namespace fdss::core

@@ -5466,6 +5466,10 @@
         <translation>Tego ustawienia nie można użyć: potrzebuje 11 miejsc na boisku i co najwyżej jednego bramkarza.</translation>
     </message>
     <message>
+        <source>The database file is gone: it was deleted or moved while the app was running. Nothing was saved. Close the app and open it again; restore a backup if the data is missing.</source>
+        <translation>Plik bazy danych zniknął: został usunięty lub przeniesiony podczas pracy aplikacji. Nic nie zapisano. Zamknij aplikację i otwórz ją ponownie; jeśli brakuje danych, przywróć kopię zapasową.</translation>
+    </message>
+    <message>
         <source>The file does not look like a table: no column is recognised and the rows have different numbers of columns. Choose the file with the data or fill in the template.</source>
         <translation>Plik nie wygląda na tabelę: żadna kolumna nie została rozpoznana, a wiersze mają różną liczbę kolumn. Wybierz plik z danymi albo wypełnij szablon.</translation>
     </message>
@@ -5877,8 +5881,20 @@
         <translation>aplikacja ma inne wartości; zostają (włącz nadpisywanie, aby je zmienić)</translation>
     </message>
     <message>
+        <source>&apos;%1&apos; fits another player than at the check (the squad changed)</source>
+        <translation>„%1” pasuje teraz do innego zawodnika niż przy sprawdzeniu (kadra się zmieniła)</translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;: the metric was changed or deleted since the check — check the rows again</source>
+        <translation>%1 „%2”: metrykę zmieniono lub usunięto od sprawdzenia — sprawdź wiersze ponownie</translation>
+    </message>
+    <message>
+        <source>Metric</source>
+        <translation>Metryka</translation>
+    </message>
+    <message>
         <source>the data changed since the check — check again</source>
-        <translation>dane zmieniły się od sprawdzenia — sprawdź ponownie</translation>
+        <translation type="vanished">dane zmieniły się od sprawdzenia — sprawdź ponownie</translation>
     </message>
     <message>
         <source>Add</source>

@@ -19,6 +19,7 @@
 #include "services/import/MatchImportWriter.hpp"
 #include "services/import/TrainingImportWriter.hpp"
 
+#include <QFileInfo>
 #include <QPromise>
 #include <QtConcurrentRun>
 
@@ -297,7 +298,21 @@ ImportService::validateSquad(core::TeamId team, const ImportSource& source,
     });
 }
 
+core::Status ImportService::checkDatabaseFile() const {
+    // SPEC section 8: a database file deleted (or moved) while the app runs. The open connection
+    // would go on writing into the deleted file, so the import refuses instead.
+    const QString path = m_database.filePath();
+    if (!path.isEmpty() && !QFileInfo::exists(path)) {
+        return std::unexpected(
+            core::Error{core::ErrorCode::Io, "the database file is gone", "database_missing"});
+    }
+    return {};
+}
+
 core::Status ImportService::backup(std::string_view reason) {
+    if (auto present = checkDatabaseFile(); !present) {
+        return present;
+    }
     // An in-memory database (tests, qml_smoke) has no file to copy.
     if (m_database.filePath().isEmpty()) {
         return {};
@@ -421,6 +436,9 @@ core::Result<SquadImportSummary> ImportService::commitSquad(core::TeamId team,
                 return std::unexpected(updated.error());
             }
         }
+    }
+    if (auto present = checkDatabaseFile(); !present) {
+        return std::unexpected(present.error());
     }
     if (auto committed = transaction->commit(); !committed) {
         return std::unexpected(committed.error());
@@ -582,6 +600,9 @@ core::Result<ImportUndoSummary> ImportService::undo(core::ImportId id) {
     if (auto stored = m_imports.setReport(id, report); !stored) {
         return std::unexpected(stored.error());
     }
+    if (auto present = checkDatabaseFile(); !present) {
+        return std::unexpected(present.error());
+    }
     if (auto committed = transaction->commit(); !committed) {
         return std::unexpected(committed.error());
     }
@@ -687,12 +708,16 @@ ImportService::planTraining(core::TeamId team, const core::TrainingImport& impor
     if (!players) {
         return std::unexpected(players.error());
     }
+    auto metrics = metricsFor(ImportKind::Training);
+    if (!metrics) {
+        return std::unexpected(metrics.error());
+    }
     const TrainingImportWriter writer(m_repositories.training, m_repositories.metrics);
     auto existing = writer.snapshot(team, import, mapping);
     if (!existing) {
         return std::unexpected(existing.error());
     }
-    return core::planTraining(import, *existing, *players, options);
+    return core::planTraining(import, *existing, *players, *metrics, options);
 }
 
 core::Result<core::MatchPlan>
@@ -712,7 +737,12 @@ ImportService::planMatches(core::TeamId team, const core::MatchImport& import,
     if (!snapshot) {
         return std::unexpected(snapshot.error());
     }
-    return core::planMatches(import, snapshot->opponents, snapshot->matches, *players, options);
+    auto metrics = metricsFor(ImportKind::Matches);
+    if (!metrics) {
+        return std::unexpected(metrics.error());
+    }
+    return core::planMatches(import, snapshot->opponents, snapshot->matches, *players, *metrics,
+                             options);
 }
 
 core::Status ImportService::checkActivityCommit(const ActivityImportSummary& summary,
@@ -842,6 +872,9 @@ ImportService::commitTraining(core::TeamId team, const ImportSource& source,
     if (auto stored = m_imports.setReport(*importId, report); !stored) {
         return std::unexpected(stored.error());
     }
+    if (auto present = checkDatabaseFile(); !present) {
+        return std::unexpected(present.error());
+    }
     if (auto committed = transaction->commit(); !committed) {
         return std::unexpected(committed.error());
     }
@@ -901,6 +934,9 @@ ImportService::commitMatches(core::TeamId team, const ImportSource& source,
     storeCounts(report, summary);
     if (auto stored = m_imports.setReport(*importId, report); !stored) {
         return std::unexpected(stored.error());
+    }
+    if (auto present = checkDatabaseFile(); !present) {
+        return std::unexpected(present.error());
     }
     if (auto committed = transaction->commit(); !committed) {
         return std::unexpected(committed.error());

@@ -383,7 +383,11 @@ QString ImportActivityTexts::issue(services::ImportKind kind, const core::Activi
     case core::ActivityIssueKind::ExistingKept:
         return tr("the app holds other values; kept (turn on updating to overwrite them)");
     case core::ActivityIssueKind::PlanChanged:
-        return tr("the data changed since the check — check again");
+        return tr("'%1' fits another player than at the check (the squad changed)").arg(value);
+    case core::ActivityIssueKind::MetricChanged:
+        return tr("%1 '%2': the metric was changed or deleted since the check — check the rows "
+                  "again")
+            .arg(metric != nullptr ? column : tr("Metric"), value);
     }
     return {};
 }

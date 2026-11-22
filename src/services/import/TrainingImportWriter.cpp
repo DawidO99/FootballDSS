@@ -87,6 +87,7 @@ core::Status TrainingImportWriter::write(core::TeamId team, const core::Training
             return std::unexpected(created.error());
         }
         ids[index] = *created;
+        report.sessions.push_back(data::ImportedSession{*created, session.draft});
         ++summary.sessionsCreated;
     }
 

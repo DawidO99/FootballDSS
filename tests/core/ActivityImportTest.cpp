@@ -254,7 +254,7 @@ TEST(TrainingImportTest, PlanCreatesSessionsAndOverridesOtherMinutes) {
     const auto players = squad();
     const TrainingImport import =
         validateTraining(file, autoMapTraining(file.headers, {}), players, {}, false);
-    const TrainingPlan plan = planTraining(import, {}, players, ActivityOptions{});
+    const TrainingPlan plan = planTraining(import, {}, players, {}, ActivityOptions{});
     ASSERT_EQ(plan.sessions.size(), 1U);
     EXPECT_FALSE(plan.sessions[0].existing.has_value());
     EXPECT_EQ(plan.sessions[0].draft.durationMin, 75);
@@ -270,7 +270,7 @@ TEST(TrainingImportTest, PlanCreatesSessionsAndOverridesOtherMinutes) {
     ActivityOptions create;
     create.unknownPlayers = UnknownPlayerPolicy::Create;
     create.defaultPosition = Position::Cm;
-    const TrainingPlan created = planTraining(import, {}, players, create);
+    const TrainingPlan created = planTraining(import, {}, players, {}, create);
     ASSERT_EQ(created.newPlayers.size(), 1U);
     EXPECT_EQ(created.newPlayers[0].draft.lastName, "Zieliński");
     EXPECT_EQ(created.rows[2].action, ActivityAction::Create);
@@ -302,7 +302,7 @@ TEST(TrainingImportTest, PlanAgainstExistingSession) {
     stored.attendance = {same, other};
     const std::vector<ExistingSession> existing = {stored};
 
-    const TrainingPlan kept = planTraining(import, existing, players, ActivityOptions{});
+    const TrainingPlan kept = planTraining(import, existing, players, {}, ActivityOptions{});
     EXPECT_EQ(kept.sessions[0].existing, TrainingSessionId{50});
     EXPECT_EQ(kept.rows[0].action, ActivityAction::Unchanged);
     EXPECT_EQ(kept.rows[1].action, ActivityAction::KeepExisting);
@@ -311,7 +311,7 @@ TEST(TrainingImportTest, PlanAgainstExistingSession) {
 
     ActivityOptions update;
     update.updateExisting = true;
-    const TrainingPlan updated = planTraining(import, existing, players, update);
+    const TrainingPlan updated = planTraining(import, existing, players, {}, update);
     EXPECT_EQ(updated.rows[1].action, ActivityAction::Update);
     EXPECT_EQ(updated.rows[1].previousAttendance->rpe, 4);
 
@@ -321,7 +321,7 @@ TEST(TrainingImportTest, PlanAgainstExistingSession) {
     second.session.startTime = TimeOfDay{9 * 60};
     second.attendance.clear();
     const std::vector<ExistingSession> two = {stored, second};
-    const TrainingPlan several = planTraining(import, two, players, ActivityOptions{});
+    const TrainingPlan several = planTraining(import, two, players, {}, ActivityOptions{});
     EXPECT_EQ(several.rows[0].action, ActivityAction::Invalid);
     EXPECT_TRUE(hasIssue(several.rows[0].issues, ActivityIssueKind::SeveralSessions));
 }
@@ -419,7 +419,7 @@ TEST(MatchImportTest, PlanCreatesTheMatchAndAppearances) {
     const auto players = squad();
     const MatchImport import =
         validateMatches(file, autoMapMatches(file.headers, {}), players, {}, false);
-    const MatchPlan plan = planMatches(import, {}, {}, players, ActivityOptions{});
+    const MatchPlan plan = planMatches(import, {}, {}, players, {}, ActivityOptions{});
     ASSERT_EQ(plan.matches.size(), 1U);
     EXPECT_EQ(plan.newOpponents, std::vector<std::string>{"Wisła"});
     EXPECT_EQ(plan.matches[0].draft.venue, Venue::Away);
@@ -456,19 +456,91 @@ TEST(MatchImportTest, PlanAgainstExistingMatches) {
     stored.match.goalsFor = 2;
     stored.match.goalsAgainst = 1;
 
-    const MatchPlan finished = planMatches(import, opponents, std::vector{stored}, players, {});
+    const MatchPlan finished = planMatches(import, opponents, std::vector{stored}, players, {}, {});
     EXPECT_EQ(finished.matches[0].existing, MatchId{20});
     EXPECT_TRUE(finished.newOpponents.empty());
     EXPECT_EQ(finished.rows[0].action, ActivityAction::Create);
     EXPECT_TRUE(hasIssue(finished.rows[0].issues, ActivityIssueKind::ScoreDiffers));
 
     stored.recorded = true;
-    const MatchPlan recorded = planMatches(import, opponents, std::vector{stored}, players, {});
+    const MatchPlan recorded = planMatches(import, opponents, std::vector{stored}, players, {}, {});
     EXPECT_EQ(recorded.rows[0].action, ActivityAction::Invalid);
     EXPECT_TRUE(hasIssue(recorded.rows[0].issues, ActivityIssueKind::MatchRecorded));
 
     stored.recorded = false;
     stored.match.status = MatchStatus::Planned;
-    const MatchPlan planned = planMatches(import, opponents, std::vector{stored}, players, {});
+    const MatchPlan planned = planMatches(import, opponents, std::vector{stored}, players, {}, {});
     EXPECT_TRUE(hasIssue(planned.rows[0].issues, ActivityIssueKind::MatchPlanned));
+}
+
+// Review of P18: a group that disagrees is wholly an error, so it writes no session.
+TEST(TrainingImportTest, DisagreeingDurationsMakeEveryRowOfTheSessionAnError) {
+    const SourceTable file = table(
+        kTrainingHeaders, {
+                              {"02.03.2026", "", "60", "", "Kowalski", "obecny", "6", "60"},
+                              {"02.03.2026", "", "120", "", "Piotr Nowak", "obecny", "6", "60"},
+                              {"02.03.2026", "", "60", "", "Adam Nowak", "obecny", "6", "60"},
+                              {"02.03.2026", "", "", "", "Wiśniewski", "obecny", "6", "60"},
+                          });
+    const auto players = squad();
+    const TrainingImport import =
+        validateTraining(file, autoMapTraining(file.headers, {}), players, {}, false);
+    for (const TrainingRow& row : import.rows) {
+        EXPECT_TRUE(hasIssue(row.issues, ActivityIssueKind::Inconsistent)) << row.sourceRow;
+    }
+    // Rows 2 and 4 name row 3 (another value); row 3 and row 5 (no value) name row 2.
+    const auto named = [&](std::size_t index) {
+        return std::ranges::find(import.rows[index].issues, ActivityIssueKind::Inconsistent,
+                                 &ActivityIssue::kind)
+            ->otherRows;
+    };
+    EXPECT_EQ(named(0), std::vector<int>{3});
+    EXPECT_EQ(named(1), std::vector<int>{2});
+    EXPECT_EQ(named(2), std::vector<int>{3});
+    EXPECT_EQ(named(3), std::vector<int>{2});
+    const TrainingPlan plan = planTraining(import, {}, players, {}, ActivityOptions{});
+    EXPECT_FALSE(plan.sessions[0].written);
+    EXPECT_TRUE(std::ranges::all_of(plan.rows, [](const PlannedTrainingRow& row) {
+        return row.action == ActivityAction::Invalid;
+    }));
+}
+
+// Review of P18: the plan matches the players again against the squad of now.
+TEST(TrainingImportTest, ThePlanUsesTheSquadOfNow) {
+    const SourceTable file =
+        table({"Data", "Nr", "RPE"}, {{"02.03.2026", "9", "6"}, {"02.03.2026", "4", "5"}});
+    auto players = squad();
+    const TrainingImport import =
+        validateTraining(file, autoMapTraining(file.headers, {}), players, {}, false);
+    ASSERT_EQ(import.rows[0].player.lookup.id, PlayerId{1});
+    // Jan Kowalski and Piotr Nowak swap their numbers after the check.
+    players[0].shirtNumber = 4;
+    players[1].shirtNumber = 9;
+    const TrainingPlan plan = planTraining(import, {}, players, {}, ActivityOptions{});
+    EXPECT_EQ(plan.rows[0].player.existing, PlayerId{2});
+    EXPECT_EQ(plan.rows[1].player.existing, PlayerId{1});
+    EXPECT_TRUE(hasIssue(plan.rows[0].issues, ActivityIssueKind::PlanChanged));
+}
+
+// Review of P18: a metric that is gone or no longer takes the value makes the row an error.
+TEST(TrainingImportTest, ThePlanUsesTheMetricsOfNow) {
+    const std::vector<MetricDefinition> metrics = {
+        metric(7, "Sprint 30 m", "sprint_30_m", MetricScope::Training)};
+    std::vector<std::string> headers = {"Data", "Zawodnik", "Sprint 30 m"};
+    const SourceTable file = table(headers, {{"02.03.2026", "Kowalski", "4,35"}});
+    const auto players = squad();
+    const TrainingImport import =
+        validateTraining(file, autoMapTraining(file.headers, metrics), players, metrics, false);
+    EXPECT_EQ(planTraining(import, {}, players, metrics, {}).rows[0].action,
+              ActivityAction::Create);
+    // Moved to the match scope: not among the training metrics any more.
+    const TrainingPlan gone = planTraining(import, {}, players, {}, {});
+    EXPECT_EQ(gone.rows[0].action, ActivityAction::Invalid);
+    EXPECT_TRUE(hasIssue(gone.rows[0].issues, ActivityIssueKind::MetricChanged));
+    // A new limit below the value.
+    std::vector<MetricDefinition> narrower = metrics;
+    narrower[0].max = 4.0;
+    const TrainingPlan limited = planTraining(import, {}, players, narrower, {});
+    EXPECT_TRUE(hasIssue(limited.rows[0].issues, ActivityIssueKind::MetricChanged));
+    EXPECT_EQ(limited.metrics, narrower);
 }

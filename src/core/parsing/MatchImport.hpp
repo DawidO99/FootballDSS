@@ -163,6 +163,7 @@ struct PlannedMatchRow {
 };
 
 struct MatchPlan {
+    std::vector<MetricDefinition> metrics; // the definitions the cells name, as they are now
     std::vector<PlannedMatch> matches;
     std::vector<std::string> newOpponents; // names, as in the file
     std::vector<NewPlayer> newPlayers;
@@ -173,10 +174,12 @@ struct MatchPlan {
 
 // Opponents by foldName() of the name; matches by date and opponent (decision 4: a recorded or
 // live match and a planned one are errors, a finished one gets the missing appearances).
-// `existing`: the matches of the team on the dates of the file.
+// `existing`: the matches of the team on the dates of the file; `metrics`: the definitions of the
+// match scope now. As planTraining(), the players and metric values are read again against them.
 [[nodiscard]] MatchPlan planMatches(const MatchImport& import, std::span<const Opponent> opponents,
                                     std::span<const ExistingMatch> existing,
                                     std::span<const Player> players,
+                                    std::span<const MetricDefinition> metrics,
                                     const ActivityOptions& options);
 
 // Totals of the goals, assists and cards of the rows that are written (decision 2).

@@ -363,8 +363,12 @@ int sessionDuration(const TrainingSessionGroup& group) noexcept {
 }
 
 TrainingPlan planTraining(const TrainingImport& import, std::span<const ExistingSession> existing,
-                          std::span<const Player> players, const ActivityOptions& options) {
+                          std::span<const Player> players,
+                          std::span<const MetricDefinition> metrics,
+                          const ActivityOptions& options) {
     TrainingPlan plan;
+    plan.metrics = metricsOfRows(import.rows, metrics);
+    std::vector<std::vector<std::pair<PlayerId, int>>> playersOf(import.sessions.size());
     std::vector<std::optional<ActivityIssue>> groupIssues(import.sessions.size());
     std::vector<const ExistingSession*> stored(import.sessions.size(), nullptr);
     for (std::size_t index = 0; index < import.sessions.size(); ++index) {
@@ -413,8 +417,17 @@ TrainingPlan planTraining(const TrainingImport& import, std::span<const Existing
             out.action = ActivityAction::Invalid;
             continue;
         }
+        // The squad and the metrics of now, not those of the validation (review of P18).
+        std::vector<ActivityIssue> checks;
+        const RowPlayer player = currentPlayer(row.player, players, checks);
+        const std::vector<MetricCell> cells = currentMetrics(row.metrics, metrics, checks);
+        out.issues.insert(out.issues.end(), checks.begin(), checks.end());
+        if (hasErrors(checks)) {
+            out.action = ActivityAction::Invalid;
+            continue;
+        }
         PlayerResolution resolution =
-            resolvePlayer(row.player, row.sourceRow, options, players, plan.newPlayers);
+            resolvePlayer(player, row.sourceRow, options, players, plan.newPlayers);
         if (resolution.issue) {
             out.issues.push_back(*resolution.issue);
         }
@@ -423,6 +436,20 @@ TrainingPlan planTraining(const TrainingImport& import, std::span<const Existing
             continue;
         }
         out.player = *resolution.player;
+        // Two rows that are one player now (numbers swapped after the check).
+        if (out.player.existing) {
+            auto& taken = playersOf[*row.session];
+            const auto same =
+                std::ranges::find(taken, *out.player.existing, &std::pair<PlayerId, int>::first);
+            if (same != taken.end()) {
+                out.issues.push_back(makeIssue(ActivityIssueKind::DuplicateInFile,
+                                               IssueSeverity::Error, "player", player.text,
+                                               {same->second}));
+                out.action = ActivityAction::Invalid;
+                continue;
+            }
+            taken.emplace_back(*out.player.existing, row.sourceRow);
+        }
         const ExistingSession* session = out.player.existing ? stored[*row.session] : nullptr;
         PlannedSession& target = plan.sessions[*row.session];
         std::vector<WriteKind> writes;
@@ -450,7 +477,7 @@ TrainingPlan planTraining(const TrainingImport& import, std::span<const Existing
             out.attendance = draft;
             writes.push_back(out.attendanceWrite);
         }
-        for (const MetricCell& cell : row.metrics) {
+        for (const MetricCell& cell : cells) {
             PlannedValue value{cell.metric, cell.value, WriteKind::Create, std::nullopt};
             if (session != nullptr) {
                 const auto previous =

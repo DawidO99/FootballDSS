@@ -171,6 +171,38 @@ PlayerResolution resolvePlayer(const RowPlayer& player, int sourceRow,
     return resolution;
 }
 
+RowPlayer currentPlayer(const RowPlayer& validated, std::span<const Player> players,
+                        std::vector<ActivityIssue>& issues) {
+    RowPlayer current = validated;
+    current.lookup = matchPlayer(validated.text, validated.shirtNumber, players);
+    if (current.lookup != validated.lookup) {
+        issues.push_back(makeIssue(ActivityIssueKind::PlanChanged, IssueSeverity::Warning, "player",
+                                   validated.text));
+    }
+    return current;
+}
+
+std::vector<MetricCell> currentMetrics(std::span<const MetricCell> cells,
+                                       std::span<const MetricDefinition> metrics,
+                                       std::vector<ActivityIssue>& issues) {
+    std::vector<MetricCell> current;
+    for (const MetricCell& cell : cells) {
+        const auto metric = std::ranges::find(metrics, cell.metric, &MetricDefinition::id);
+        std::optional<double> value;
+        if (metric != metrics.end()) {
+            value = parseMetricValue(cell.text, metric->valueType);
+        }
+        if (!value || !validateValue(*metric, *value).empty()) {
+            issues.push_back(makeIssue(
+                ActivityIssueKind::MetricChanged, IssueSeverity::Error,
+                metric != metrics.end() ? "metric:" + metric->key : std::string{}, cell.text));
+            continue;
+        }
+        current.push_back(MetricCell{cell.metric, cell.text, *value});
+    }
+    return current;
+}
+
 ActivityAction combineWrites(std::span<const WriteKind> writes) noexcept {
     const auto has = [&](WriteKind kind) {
         return std::ranges::find(writes, kind) != writes.end();

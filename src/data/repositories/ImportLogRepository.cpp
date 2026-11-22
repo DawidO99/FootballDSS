@@ -100,7 +100,110 @@ core::Result<core::AppearanceDraft> appearanceOf(const QJsonObject& object) {
     return draft;
 }
 
+QJsonValue jsonOf(const std::optional<core::TimeOfDay>& time) {
+    return time ? QJsonValue(toIsoTime(*time)) : QJsonValue(QJsonValue::Null);
+}
+
+QJsonValue jsonOf(const std::optional<std::string>& text) {
+    return text ? QJsonValue(fromStd(*text)) : QJsonValue(QJsonValue::Null);
+}
+
+core::Result<std::optional<core::TimeOfDay>> timeOf(const QJsonValue& value) {
+    if (!value.isString()) {
+        return std::optional<core::TimeOfDay>{};
+    }
+    auto time = parseIsoTime(value.toString());
+    if (!time) {
+        return std::unexpected(time.error());
+    }
+    return std::optional(*time);
+}
+
+std::optional<std::string> textOf(const QJsonValue& value) {
+    return value.isString() ? std::optional(value.toString().toStdString()) : std::nullopt;
+}
+
+void writeCreated(QJsonObject& object, const ImportReport& report) {
+    QJsonArray sessions;
+    for (const ImportedSession& session : report.sessions) {
+        QJsonObject item;
+        item.insert(QStringLiteral("id"), static_cast<qint64>(session.id.value));
+        item.insert(QStringLiteral("date"), toIsoDate(session.written.date));
+        item.insert(QStringLiteral("start"), jsonOf(session.written.startTime));
+        item.insert(QStringLiteral("min"), session.written.durationMin);
+        item.insert(QStringLiteral("type"),
+                    fromStd(std::string(core::toDbText(session.written.type))));
+        item.insert(QStringLiteral("note"), jsonOf(session.written.note));
+        sessions.append(item);
+    }
+    QJsonArray matches;
+    for (const ImportedMatch& match : report.matches) {
+        QJsonObject item;
+        item.insert(QStringLiteral("id"), static_cast<qint64>(match.id.value));
+        item.insert(QStringLiteral("opp"), static_cast<qint64>(match.written.opponentId.value));
+        item.insert(QStringLiteral("date"), toIsoDate(match.written.date));
+        item.insert(QStringLiteral("kick"), jsonOf(match.written.kickoffTime));
+        item.insert(QStringLiteral("venue"),
+                    fromStd(std::string(core::toDbText(match.written.venue))));
+        item.insert(QStringLiteral("comp"), jsonOf(match.written.competition));
+        item.insert(QStringLiteral("gf"), jsonOf(match.goalsFor));
+        item.insert(QStringLiteral("ga"), jsonOf(match.goalsAgainst));
+        matches.append(item);
+    }
+    if (!sessions.isEmpty()) {
+        object.insert(QStringLiteral("sessions"), sessions);
+    }
+    if (!matches.isEmpty()) {
+        object.insert(QStringLiteral("matches"), matches);
+    }
+}
+
+core::Status readCreated(const QJsonObject& object, ImportReport& report) {
+    for (const QJsonValue value : object.value(QStringLiteral("sessions")).toArray()) {
+        const QJsonObject item = value.toObject();
+        ImportedSession session;
+        session.id = core::TrainingSessionId{item.value(QStringLiteral("id")).toInteger()};
+        auto date = parseIsoDate(item.value(QStringLiteral("date")).toString());
+        auto start = timeOf(item.value(QStringLiteral("start")));
+        auto type = core::fromDbText<core::SessionType>(
+            item.value(QStringLiteral("type")).toString().toStdString());
+        if (!date || !start || !type) {
+            return std::unexpected(
+                core::Error{core::ErrorCode::Database, "a bad imported session", {}});
+        }
+        session.written.date = *date;
+        session.written.startTime = *start;
+        session.written.durationMin = item.value(QStringLiteral("min")).toInt();
+        session.written.type = *type;
+        session.written.note = textOf(item.value(QStringLiteral("note")));
+        report.sessions.push_back(std::move(session));
+    }
+    for (const QJsonValue value : object.value(QStringLiteral("matches")).toArray()) {
+        const QJsonObject item = value.toObject();
+        ImportedMatch match;
+        match.id = core::MatchId{item.value(QStringLiteral("id")).toInteger()};
+        match.written.opponentId = core::OpponentId{item.value(QStringLiteral("opp")).toInteger()};
+        auto date = parseIsoDate(item.value(QStringLiteral("date")).toString());
+        auto kickoff = timeOf(item.value(QStringLiteral("kick")));
+        auto venue = core::fromDbText<core::Venue>(
+            item.value(QStringLiteral("venue")).toString().toStdString());
+        if (!date || !kickoff || !venue) {
+            return std::unexpected(
+                core::Error{core::ErrorCode::Database, "a bad imported match", {}});
+        }
+        match.written.date = *date;
+        match.written.kickoffTime = *kickoff;
+        match.written.venue = *venue;
+        match.written.competition = textOf(item.value(QStringLiteral("comp")));
+        match.goalsFor = intOf(item.value(QStringLiteral("gf")));
+        match.goalsAgainst = intOf(item.value(QStringLiteral("ga")));
+        report.matches.push_back(std::move(match));
+    }
+    return {};
+}
+
 void writeRows(QJsonObject& object, const ImportReport& report) {
+    writeCreated(object, report);
     QJsonArray attendance;
     for (const ImportedAttendance& row : report.attendance) {
         QJsonObject item;
@@ -164,6 +267,9 @@ void writeRows(QJsonObject& object, const ImportReport& report) {
 }
 
 core::Status readRows(const QJsonObject& object, ImportReport& report) {
+    if (auto created = readCreated(object, report); !created) {
+        return created;
+    }
     for (const QJsonValue value : object.value(QStringLiteral("attendance")).toArray()) {
         const QJsonObject item = value.toObject();
         ImportedAttendance row;

@@ -16,6 +16,7 @@
 #include "services/LoadService.hpp"
 #include "services/Session.hpp"
 
+#include <QFile>
 #include <QSqlQuery>
 #include <QSqlRecord>
 #include <QStringList>
@@ -552,6 +553,153 @@ TEST_F(ActivityImportServiceTest, AMatchOfMatchDayIsNotTouched) {
     expectError(m_service->commitMatches(kTeam, checked.source, checked.mapping, checked.import,
                                          checked.plan, {}),
                 ErrorCode::InvalidInput, "import_nothing");
+}
+
+// --- Review of P18 ---
+
+TEST_F(ActivityImportServiceTest, SwappedShirtNumbersAfterTheCheckWriteNothing) {
+    const QString file = m_dir.filePath(QStringLiteral("numbers.csv"));
+    {
+        QFile out(file);
+        ASSERT_TRUE(out.open(QIODevice::WriteOnly));
+        out.write("Data;Nr;RPE;Minuty\n05.10.2026;9;6;90\n05.10.2026;4;3;90\n");
+    }
+    const Training checked = checkTraining(file, {});
+    ASSERT_EQ(checked.plan.rows[0].player.existing, m_kowalski);
+    ASSERT_TRUE(run(m_db->database(),
+                    QStringLiteral("UPDATE player SET shirt_number = NULL WHERE id = 1")));
+    ASSERT_TRUE(
+        run(m_db->database(), QStringLiteral("UPDATE player SET shirt_number = 9 WHERE id = 2")));
+    ASSERT_TRUE(
+        run(m_db->database(), QStringLiteral("UPDATE player SET shirt_number = 4 WHERE id = 1")));
+    expectError(m_service->commitTraining(kTeam, checked.source, checked.mapping, checked.import,
+                                          checked.plan, {}),
+                ErrorCode::Conflict, "import_matches_changed");
+    EXPECT_EQ(count("SELECT count(*) FROM attendance"), 0);
+    // The report of now marks the rows and writes the swapped players.
+    auto plan = m_service->planTraining(kTeam, checked.import, checked.mapping, {});
+    ASSERT_TRUE(plan.has_value());
+    EXPECT_EQ(plan->rows[0].player.existing, m_piotr);
+    EXPECT_TRUE(std::ranges::any_of(plan->rows[0].issues, [](const ActivityIssue& issue) {
+        return issue.kind == ActivityIssueKind::PlanChanged;
+    }));
+    ASSERT_TRUE(m_service->commitTraining(kTeam, checked.source, checked.mapping, checked.import,
+                                          *plan, {}));
+    EXPECT_EQ(count("SELECT rpe FROM attendance WHERE player_id = 2"), 6);
+}
+
+TEST_F(ActivityImportServiceTest, AMetricChangedAfterTheCheckWritesNothing) {
+    addSprintMetric();
+    const Training checked = checkTraining(fixture("training-cp1250.csv"), {});
+    ASSERT_TRUE(run(m_db->database(), QStringLiteral("UPDATE metric_definition SET scope = "
+                                                     "'match'")));
+    expectError(m_service->commitTraining(kTeam, checked.source, checked.mapping, checked.import,
+                                          checked.plan, {}),
+                ErrorCode::Conflict, "import_matches_changed");
+    EXPECT_EQ(count("SELECT count(*) FROM training_session"), 0);
+    // The plan of now makes the rows with a sprint value errors; the rest goes in.
+    auto plan = m_service->planTraining(kTeam, checked.import, checked.mapping, {});
+    ASSERT_TRUE(plan.has_value());
+    EXPECT_EQ(std::ranges::count_if(
+                  plan->rows,
+                  [](const PlannedTrainingRow& row) {
+                      return std::ranges::any_of(row.issues, [](const ActivityIssue& issue) {
+                          return issue.kind == ActivityIssueKind::MetricChanged;
+                      });
+                  }),
+              4);
+    ASSERT_TRUE(m_service->commitTraining(kTeam, checked.source, checked.mapping, checked.import,
+                                          *plan, {}));
+    EXPECT_EQ(count("SELECT count(*) FROM metric_value"), 0);
+}
+
+TEST_F(ActivityImportServiceTest, ASessionNoteAddedLaterIsNamedBeforeTheUndo) {
+    auto summary = importTraining(fixture("training-cp1250.csv"));
+    ASSERT_TRUE(summary.has_value());
+    ASSERT_TRUE(run(m_db->database(), QStringLiteral("UPDATE training_session SET note = "
+                                                     "'Boisko B' WHERE date = '2026-10-05'")));
+    ASSERT_TRUE(run(m_db->database(), QStringLiteral("UPDATE training_session SET duration_min = "
+                                                     "100 WHERE date = '2026-10-07'")));
+    auto preview = m_service->undoPreview(summary->importId);
+    ASSERT_TRUE(preview.has_value());
+    EXPECT_EQ(preview->notes, 1);
+    EXPECT_EQ(preview->entries, 1);
+}
+
+TEST_F(ActivityImportServiceTest, ACorrectedImportedValueGoesWithTheUndo) {
+    const MetricDefinitionId sprint = addSprintMetric();
+    TrainingSessionDraft session;
+    session.date = october(9);
+    session.startTime = TimeOfDay{18 * 60};
+    const auto id = m_training->create(kTeam, session);
+    ASSERT_TRUE(id.has_value());
+    const QString before = dump();
+    auto summary = importTraining(fixture("training-cp1250.csv"));
+    ASSERT_TRUE(summary.has_value());
+    // The imported 4,35 in the session that existed, corrected on the entry grid.
+    const std::vector values = {MetricValueDraft{m_kowalski, 4.2}};
+    ASSERT_TRUE(m_metrics->saveValues(sprint, *id, october(9), values).has_value());
+    EXPECT_EQ(count("SELECT count(*) FROM metric_value WHERE value = 4.2 AND import_id IS NOT "
+                    "NULL"),
+              1);
+    auto preview = m_service->undoPreview(summary->importId);
+    ASSERT_TRUE(preview.has_value());
+    EXPECT_EQ(preview->values, 1);
+    ASSERT_TRUE(m_service->undo(summary->importId).has_value());
+    EXPECT_EQ(dump(), before);
+}
+
+// Atomicity: an SQL failure in the middle of the commit or the undo leaves the database as before.
+TEST_F(ActivityImportServiceTest, AFailedWriteChangesNothing) {
+    const QString before = dump();
+    ASSERT_TRUE(
+        run(m_db->database(),
+            QStringLiteral("CREATE TEMP TRIGGER fail_attendance BEFORE INSERT ON attendance "
+                           "WHEN (SELECT count(*) FROM attendance) >= 20 "
+                           "BEGIN SELECT RAISE(ABORT, 'forced'); END")));
+    EXPECT_FALSE(importTraining(fixture("training-cp1250.csv")).has_value());
+    ASSERT_TRUE(
+        run(m_db->database(),
+            QStringLiteral("CREATE TEMP TRIGGER fail_appearance BEFORE INSERT ON appearance "
+                           "WHEN (SELECT count(*) FROM appearance) >= 4 "
+                           "BEGIN SELECT RAISE(ABORT, 'forced'); END")));
+    EXPECT_FALSE(importMatches(fixture("matches-cp1250.csv")).has_value());
+    EXPECT_EQ(dump(), before);
+    EXPECT_EQ(count("SELECT count(*) FROM import_log"), 0);
+}
+
+TEST_F(ActivityImportServiceTest, AFailedUndoChangesNothing) {
+    auto training = importTraining(fixture("training-cp1250.csv"));
+    ASSERT_TRUE(training.has_value());
+    auto matches = importMatches(fixture("matches-cp1250.csv"));
+    ASSERT_TRUE(matches.has_value());
+    const QString before = dump();
+    ASSERT_TRUE(run(m_db->database(),
+                    QStringLiteral("CREATE TEMP TRIGGER fail_session BEFORE DELETE ON "
+                                   "training_session BEGIN SELECT RAISE(ABORT, 'forced'); END")));
+    ASSERT_TRUE(run(m_db->database(),
+                    QStringLiteral("CREATE TEMP TRIGGER fail_match BEFORE DELETE ON match "
+                                   "BEGIN SELECT RAISE(ABORT, 'forced'); END")));
+    EXPECT_FALSE(m_service->undo(training->importId).has_value());
+    EXPECT_FALSE(m_service->undo(matches->importId).has_value());
+    EXPECT_EQ(dump(), before);
+    EXPECT_FALSE(m_log->get(training->importId)->report.undoneAt.has_value());
+    EXPECT_FALSE(m_log->get(matches->importId)->report.undoneAt.has_value());
+}
+
+// SPEC section 8: the database file deleted while the app runs.
+TEST_F(ActivityImportServiceTest, ADeletedDatabaseFileStopsTheImport) {
+    auto imported = importTraining(fixture("training.xlsx"));
+    ASSERT_TRUE(imported.has_value());
+    const Training checked = checkTraining(fixture("training-cp1250.csv"), {});
+    ASSERT_TRUE(QFile::remove(m_dir.filePath(QStringLiteral("club.sqlite"))));
+    expectError(m_service->commitTraining(kTeam, checked.source, checked.mapping, checked.import,
+                                          checked.plan, {}),
+                ErrorCode::Io, "database_missing");
+    expectError(m_service->undo(imported->importId), ErrorCode::Io, "database_missing");
+    // The open connection still sees the old file: nothing was written into it.
+    EXPECT_EQ(count("SELECT count(*) FROM training_session"), 2);
+    EXPECT_EQ(count("SELECT count(*) FROM import_log"), 1);
 }
 
 } // namespace

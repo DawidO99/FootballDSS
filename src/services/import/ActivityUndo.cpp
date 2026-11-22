@@ -61,6 +61,47 @@ currentAppearance(const ActivityRowStores& stores, const data::ImportedAppearanc
 
 core::Status countChangedRows(const data::ImportReport& report, const ActivityRowStores& stores,
                               ImportUndoPreview& preview) {
+    // Sessions and matches the import created: a note added later is a note, any other change
+    // (moved in the calendar, another score) an entry.
+    for (const data::ImportedSession& created : report.sessions) {
+        auto session = stores.training.get(created.id);
+        if (!session) {
+            if (session.error().code == core::ErrorCode::NotFound) {
+                continue;
+            }
+            return std::unexpected(session.error());
+        }
+        if (session->note) {
+            ++preview.notes;
+        }
+        core::TrainingSessionDraft now = *session;
+        now.note = created.written.note;
+        if (now != created.written) {
+            ++preview.entries;
+        }
+    }
+    for (const data::ImportedMatch& created : report.matches) {
+        auto match = stores.matches.get(created.id);
+        if (!match) {
+            if (match.error().code == core::ErrorCode::NotFound) {
+                continue;
+            }
+            return std::unexpected(match.error());
+        }
+        auto note = stores.matches.reportNote(created.id);
+        if (!note) {
+            return std::unexpected(note.error());
+        }
+        if (*note) {
+            ++preview.notes;
+        }
+        const core::MatchDraft& now = *match;
+        if (now != created.written || match->goalsFor != created.goalsFor ||
+            match->goalsAgainst != created.goalsAgainst ||
+            match->status != core::MatchStatus::Finished) {
+            ++preview.entries;
+        }
+    }
     for (const data::ImportedAttendance& row : report.attendance) {
         if (row.previous) {
             continue;

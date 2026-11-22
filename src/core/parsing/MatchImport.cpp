@@ -539,8 +539,10 @@ AppearanceDraft appearanceFor(bool started, std::optional<int> minutes, int fina
 
 MatchPlan planMatches(const MatchImport& import, std::span<const Opponent> opponents,
                       std::span<const ExistingMatch> existing, std::span<const Player> players,
-                      const ActivityOptions& options) {
+                      std::span<const MetricDefinition> metrics, const ActivityOptions& options) {
     MatchPlan plan;
+    plan.metrics = metricsOfRows(import.rows, metrics);
+    std::vector<std::vector<std::pair<PlayerId, int>>> playersOf(import.matches.size());
     std::vector<GroupResolution> groups;
     groups.reserve(import.matches.size());
     for (const MatchGroup& group : import.matches) {
@@ -572,8 +574,17 @@ MatchPlan planMatches(const MatchImport& import, std::span<const Opponent> oppon
             out.issues.push_back(*group.warning);
             warned[*row.match] = true;
         }
+        // The squad and the metrics of now, not those of the validation (review of P18).
+        std::vector<ActivityIssue> checks;
+        const RowPlayer player = currentPlayer(row.player, players, checks);
+        const std::vector<MetricCell> cells = currentMetrics(row.metrics, metrics, checks);
+        out.issues.insert(out.issues.end(), checks.begin(), checks.end());
+        if (hasErrors(checks)) {
+            out.action = ActivityAction::Invalid;
+            continue;
+        }
         PlayerResolution resolution =
-            resolvePlayer(row.player, row.sourceRow, options, players, plan.newPlayers);
+            resolvePlayer(player, row.sourceRow, options, players, plan.newPlayers);
         if (resolution.issue) {
             out.issues.push_back(*resolution.issue);
         }
@@ -582,6 +593,20 @@ MatchPlan planMatches(const MatchImport& import, std::span<const Opponent> oppon
             continue;
         }
         out.player = *resolution.player;
+        // Two rows that are one player now (numbers swapped after the check).
+        if (out.player.existing) {
+            auto& taken = playersOf[*row.match];
+            const auto same =
+                std::ranges::find(taken, *out.player.existing, &std::pair<PlayerId, int>::first);
+            if (same != taken.end()) {
+                out.issues.push_back(makeIssue(ActivityIssueKind::DuplicateInFile,
+                                               IssueSeverity::Error, "player", player.text,
+                                               {same->second}));
+                out.action = ActivityAction::Invalid;
+                continue;
+            }
+            taken.emplace_back(*out.player.existing, row.sourceRow);
+        }
         PlannedMatch& target = plan.matches[*row.match];
         const ExistingMatch* stored = out.player.existing ? group.stored : nullptr;
         std::vector<WriteKind> writes;
@@ -604,7 +629,7 @@ MatchPlan planMatches(const MatchImport& import, std::span<const Opponent> oppon
         }
         out.appearance = appearance;
         writes.push_back(out.appearanceWrite);
-        for (const MetricCell& cell : row.metrics) {
+        for (const MetricCell& cell : cells) {
             PlannedValue value{cell.metric, cell.value, WriteKind::Create, std::nullopt};
             if (stored != nullptr) {
                 const auto previous =

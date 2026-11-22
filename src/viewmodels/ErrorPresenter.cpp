@@ -36,6 +36,11 @@ QString ErrorPresenter::message(const core::Error& error) {
             return tr("The file cannot be read. Check that it still exists and is not open in "
                       "another program, then choose it again.");
         }
+        if (error.field == "database_missing") {
+            return tr("The database file is gone: it was deleted or moved while the app was "
+                      "running. Nothing was saved. Close the app and open it again; restore a "
+                      "backup if the data is missing.");
+        }
         if (error.field == "import_template") {
             return tr("The template cannot be saved there. Choose another folder.");
         }

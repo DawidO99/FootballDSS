@@ -115,6 +115,8 @@ core::Status MatchImportWriter::write(core::TeamId team, const core::MatchPlan& 
             return result;
         }
         ids[index] = *created;
+        report.matches.push_back(
+            data::ImportedMatch{*created, draft, planned.goalsFor, planned.goalsAgainst});
         ++summary.matchesCreated;
     }
 

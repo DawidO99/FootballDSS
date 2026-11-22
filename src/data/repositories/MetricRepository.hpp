@@ -38,8 +38,8 @@ public:
     listValues(core::MetricDefinitionId id, const core::MetricTarget& target) const;
     // One transaction; on any error nothing changes. Per player of `values`: a row with the same
     // single stored value stays as it is (its import_id too); otherwise the stored rows of the
-    // player for this entry go and the value, if any, is inserted with `date`. Players not in
-    // `values` keep their rows.
+    // player for this entry go and the value, if any, is inserted with `date`, keeping the
+    // import_id of the replaced row (P17 decision 14). Players not in `values` keep their rows.
     [[nodiscard]] core::Status saveValues(core::MetricDefinitionId id,
                                           const core::MetricTarget& target, core::Date date,
                                           std::span<const core::MetricValueDraft> values);

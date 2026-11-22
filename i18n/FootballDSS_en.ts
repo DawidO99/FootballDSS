@@ -4974,6 +4974,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The database file is gone: it was deleted or moved while the app was running. Nothing was saved. Close the app and open it again; restore a backup if the data is missing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The template cannot be saved there. Choose another folder.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5727,7 +5731,15 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>the data changed since the check — check again</source>
+        <source>&apos;%1&apos; fits another player than at the check (the squad changed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;: the metric was changed or deleted since the check — check the rows again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metric</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
