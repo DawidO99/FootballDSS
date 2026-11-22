@@ -588,6 +588,9 @@ MatchPlan planMatches(const MatchImport& import, std::span<const Opponent> oppon
         if (resolution.issue) {
             out.issues.push_back(*resolution.issue);
         }
+        if (resolution.positionIssue) {
+            out.issues.push_back(*resolution.positionIssue);
+        }
         if (!resolution.player) {
             out.action = hasErrors(out.issues) ? ActivityAction::Invalid : ActivityAction::Skip;
             continue;

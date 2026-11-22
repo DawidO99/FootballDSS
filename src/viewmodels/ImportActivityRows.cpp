@@ -357,6 +357,10 @@ QString ImportActivityTexts::issue(services::ImportKind kind, const core::Activi
         return tr("'%1' is not in the squad, skipped").arg(value);
     case core::ActivityIssueKind::NewPlayer:
         return tr("'%1' is not in the squad and is added to it").arg(value);
+    case core::ActivityIssueKind::DefaultPosition:
+        return ImportTexts::positionWarning(true);
+    case core::ActivityIssueKind::PositionNotGiven:
+        return ImportTexts::positionWarning(false);
     case core::ActivityIssueKind::CannotCreatePlayer:
         return tr("'%1' is not in the squad; a new player needs the first and the last name")
             .arg(value);

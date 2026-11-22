@@ -3,6 +3,7 @@
 #include "ViewModelFixture.hpp"
 #include "data/repositories/MetricRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
+#include "viewmodels/ImportTexts.hpp"
 #include "viewmodels/RowsModel.hpp"
 
 #include <QCoreApplication>
@@ -18,6 +19,7 @@
 
 using namespace fdss;
 using namespace fdss::tests;
+using fdss::viewmodels::ImportTexts;
 using fdss::viewmodels::ImportWizardViewModel;
 
 namespace {
@@ -119,8 +121,21 @@ TEST_F(ImportActivityWizardTest, TrainingWithUnknownPlayersAndUndo) {
     EXPECT_TRUE(wizard.defaultPosition().isEmpty());
     EXPECT_EQ(wizard.createCount(), 37);
     EXPECT_TRUE(wizard.canCommit());
+    // The row of the new player warns about its position as the squad import does.
+    const auto messagesContain = [&wizard](const QString& text) {
+        for (int row = 0; row < wizard.rowCount(); ++row) {
+            if (wizard.reportRow(row).value(QStringLiteral("message")).toString().contains(text)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    EXPECT_TRUE(messagesContain(ImportTexts::positionWarning(false)));
+    EXPECT_FALSE(messagesContain(ImportTexts::positionWarning(true)));
     wizard.setDefaultPosition(QStringLiteral("st"));
     EXPECT_TRUE(wizard.canCommit());
+    EXPECT_TRUE(messagesContain(ImportTexts::positionWarning(true)));
+    EXPECT_FALSE(messagesContain(ImportTexts::positionWarning(false)));
 
     wizard.commit();
     ASSERT_EQ(wizard.step(), QStringLiteral("summary"));

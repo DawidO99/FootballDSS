@@ -86,8 +86,11 @@ enum class ActivityIssueKind {
                            // decision 2); `count` = goals, `count2` = assists, `count3` = cards
     VenueDefault,          // warning: no venue for the match, stored as home
     // The plan against the database (planTraining(), planMatches()):
-    UnknownPlayer,      // warning: not in the team, skipped (UnknownPlayerPolicy::Skip)
-    NewPlayer,          // warning: not in the team, created (UnknownPlayerPolicy::Create)
+    UnknownPlayer, // warning: not in the team, skipped (UnknownPlayerPolicy::Skip)
+    NewPlayer,     // warning: not in the team, created (UnknownPlayerPolicy::Create)
+    // With NewPlayer, as in the squad import (P19 decision 7):
+    DefaultPosition,    // warning: the new player gets the default position
+    PositionNotGiven,   // warning: the new player gets no position ("—" as the default)
     CannotCreatePlayer, // error: an unknown player given by a number or one word only
     AmbiguousPlayer,    // warning: several players fit (candidates); skipped
     SeveralSessions,    // error: several sessions that day and no start time in the file
@@ -216,6 +219,8 @@ struct PlannedPlayer {
 struct PlayerResolution {
     std::optional<PlannedPlayer> player;
     std::optional<ActivityIssue> issue;
+    // A created player: DefaultPosition or PositionNotGiven.
+    std::optional<ActivityIssue> positionIssue;
 };
 [[nodiscard]] PlayerResolution resolvePlayer(const RowPlayer& player, int sourceRow,
                                              const ActivityOptions& options,

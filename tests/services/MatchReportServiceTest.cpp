@@ -495,6 +495,32 @@ TEST_F(MatchReportServiceTest, AMatchWithoutMatchDayIsCorrectedOnItsRebuiltSheet
     EXPECT_TRUE(read(kOutside).correctable);
 }
 
+// P19 review: a player without a position, in an appearance without one, gets no stand-in position
+// from a correction; nor does a substitute who comes on for him. A stored position stays.
+TEST_F(MatchReportServiceTest, ACorrectionGivesNoPositionToAPlayerWithoutOne) {
+    logInAs(Role::Coach);
+    fillOutsideMatch();
+    for (const std::int64_t player : {4, 15}) {
+        ASSERT_TRUE(sql("UPDATE player SET primary_position = NULL WHERE id = ?",
+                        {QVariant::fromValue<qint64>(pid(player).value)}));
+    }
+    ASSERT_TRUE(sql("UPDATE appearance SET position = NULL WHERE match_id = 5 AND player_id = ?",
+                    {QVariant::fromValue<qint64>(pid(4).value)}));
+    ASSERT_TRUE(read(kOutside).correctable);
+
+    const auto yellow = m_service->addEvent(kOutside, eventOf(MatchEventType::Yellow, 4, 30));
+    ASSERT_TRUE(yellow.has_value()) << yellow.error().detail;
+    EXPECT_EQ(appearance(4, kOutside).position, std::nullopt);
+
+    const auto sub = m_service->addEvent(kOutside, eventOf(MatchEventType::Sub, 15, 75, 4));
+    ASSERT_TRUE(sub.has_value()) << sub.error().detail;
+    EXPECT_EQ(appearance(4, kOutside).position, std::nullopt);
+    EXPECT_EQ(appearance(15, kOutside).position, std::nullopt);
+    EXPECT_EQ(appearance(12, kOutside).position, Position::St);
+    EXPECT_EQ(appearance(5, kOutside).position, Position::Cb);
+    EXPECT_EQ(count("SELECT count(*) FROM appearance WHERE match_id = 5 AND position IS NULL"), 2);
+}
+
 TEST_F(MatchReportServiceTest, AnInconsistentMatchHasRatingsButNoCorrections) {
     logInAs(Role::Coach);
     fillOutsideMatch(false); // 12 stored until 80', the events say 90'

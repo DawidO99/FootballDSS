@@ -275,6 +275,20 @@ TEST(TrainingImportTest, PlanCreatesSessionsAndOverridesOtherMinutes) {
     EXPECT_EQ(created.newPlayers[0].draft.lastName, "Zieliński");
     EXPECT_EQ(created.rows[2].action, ActivityAction::Create);
     EXPECT_EQ(created.rows[2].player.newPlayer, 0U);
+    // P19 decision 7: a chosen default position warns as in the squad import…
+    EXPECT_EQ(created.newPlayers[0].draft.primaryPosition, Position::Cm);
+    EXPECT_TRUE(hasIssue(created.rows[2].issues, ActivityIssueKind::DefaultPosition));
+    EXPECT_FALSE(hasIssue(created.rows[2].issues, ActivityIssueKind::PositionNotGiven));
+    EXPECT_FALSE(hasIssue(created.rows[1].issues, ActivityIssueKind::DefaultPosition));
+
+    // …and "—" leaves the new player without a position, with its own warning.
+    create.defaultPosition = std::nullopt;
+    const TrainingPlan withoutPosition = planTraining(import, {}, players, {}, create);
+    ASSERT_EQ(withoutPosition.newPlayers.size(), 1U);
+    EXPECT_FALSE(withoutPosition.newPlayers[0].draft.primaryPosition.has_value());
+    EXPECT_TRUE(hasIssue(withoutPosition.rows[2].issues, ActivityIssueKind::PositionNotGiven));
+    EXPECT_FALSE(hasIssue(withoutPosition.rows[2].issues, ActivityIssueKind::DefaultPosition));
+    EXPECT_EQ(withoutPosition.rows[2].action, ActivityAction::Create);
 }
 
 TEST(TrainingImportTest, PlanAgainstExistingSession) {

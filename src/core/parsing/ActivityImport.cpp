@@ -168,6 +168,10 @@ PlayerResolution resolvePlayer(const RowPlayer& player, int sourceRow,
         std::nullopt, static_cast<std::size_t>(std::distance(newPlayers.begin(), same))};
     resolution.issue = makeIssue(ActivityIssueKind::NewPlayer, IssueSeverity::Warning, "player",
                                  same->draft.firstName + ' ' + same->draft.lastName);
+    resolution.positionIssue =
+        makeIssue(same->draft.primaryPosition ? ActivityIssueKind::DefaultPosition
+                                              : ActivityIssueKind::PositionNotGiven,
+                  IssueSeverity::Warning, "player");
     return resolution;
 }
 

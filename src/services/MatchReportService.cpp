@@ -17,6 +17,7 @@
 #include <map>
 #include <ranges>
 #include <set>
+#include <span>
 #include <string>
 #include <utility>
 
@@ -52,19 +53,26 @@ template <class T, class U> std::vector<T> draftsOf(const std::vector<U>& rows) 
 // The sheet of a match that Match Day did not run (P14 decision 2): the starters (on from minute 0;
 // the `started` flag is not needed, P14 review) with their position, the players who came on in
 // that order, then the rest of the squad, who may come on in a correction.
+//
+// A starter whose appearance and player both have no position (P19) needs one for the sheet only:
+// CM, and the player goes into `placeholders`, so that no stored appearance gets it.
 core::MatchSheet rebuiltSheet(const std::vector<core::Appearance>& appearances,
-                              const std::vector<core::Player>& squad) {
+                              const std::vector<core::Player>& squad,
+                              std::set<core::PlayerId>& placeholders) {
     core::MatchSheet sheet;
     std::vector<const core::Appearance*> cameOn;
     std::set<core::PlayerId> listed;
     for (const core::Appearance& appearance : appearances) {
         const auto player = std::ranges::find(squad, appearance.playerId, &core::Player::id);
-        // A sheet needs a position for every starter; CM when the player has none either.
-        const core::Position fallback = player != squad.end()
-                                            ? player->primaryPosition.value_or(core::Position::Cm)
-                                            : core::Position::Cm;
+        std::optional<core::Position> position = appearance.position;
+        if (!position && player != squad.end()) {
+            position = player->primaryPosition;
+        }
         if (appearance.minuteOn == 0) {
-            sheet.starters.push_back({appearance.playerId, appearance.position.value_or(fallback)});
+            if (!position) {
+                placeholders.insert(appearance.playerId);
+            }
+            sheet.starters.push_back({appearance.playerId, position.value_or(core::Position::Cm)});
         } else {
             cameOn.push_back(&appearance);
         }
@@ -86,6 +94,28 @@ core::MatchSheet rebuiltSheet(const std::vector<core::Appearance>& appearances,
 
 // The minutes and the score the events give are those stored. The `started` flag is not compared:
 // a starter is the one on from minute 0 (P14 review).
+// The computed appearances keep no stand-in position of rebuiltSheet(): neither the starter's nor
+// that of a substitute who took the starter's place, and so on down the chain.
+void dropPlaceholderPositions(core::MatchMinutes& minutes,
+                              std::span<const core::MatchEventDraft> events,
+                              std::set<core::PlayerId> placeholders) {
+    for (bool grew = true; grew;) {
+        grew = false;
+        for (const core::MatchEventDraft& event : events) {
+            if (event.type == core::MatchEventType::Sub && event.playerId &&
+                event.relatedPlayerId && placeholders.contains(*event.relatedPlayerId) &&
+                placeholders.insert(*event.playerId).second) {
+                grew = true;
+            }
+        }
+    }
+    for (core::AppearanceDraft& appearance : minutes.appearances) {
+        if (placeholders.contains(appearance.playerId)) {
+            appearance.position = std::nullopt;
+        }
+    }
+}
+
 bool sameAsStored(const core::MatchMinutes& minutes, const std::vector<core::Appearance>& stored,
                   const core::Match& match) {
     if (minutes.appearances.size() != stored.size() ||
@@ -116,6 +146,8 @@ bool isSameTime(const core::MatchEvent& left, const core::MatchEvent& right) {
 struct MatchReportService::Basis {
     MatchReport report;
     std::optional<core::Lineup> lineup;
+    // Starters of a rebuilt sheet whose position is only a stand-in (rebuiltSheet()).
+    std::set<core::PlayerId> placeholderPositions;
 };
 
 MatchReportService::MatchReportService(data::DatabaseManager& db, data::MatchRepository& matches,
@@ -204,7 +236,7 @@ core::Result<MatchReportService::Basis> MatchReportService::readBasis(core::Matc
             last = std::max(last, appearance.minuteOff.value_or(0));
         }
         report.finalMinute = last > 0 ? last : kDefaultFinalMinute;
-        report.sheet = rebuiltSheet(*appearances, *squad);
+        report.sheet = rebuiltSheet(*appearances, *squad, basis.placeholderPositions);
         minutes = core::computeMatchMinutes(report.sheet, events, report.finalMinute);
     }
     report.correctable = match->status == core::MatchStatus::Finished && minutes.has_value() &&
@@ -453,6 +485,7 @@ core::Status MatchReportService::recompute(const Basis& basis) {
         if (!computed) {
             return std::unexpected(matchHistoryError(computed.error(), "match report minutes"));
         }
+        dropPlaceholderPositions(*computed, drafts, basis.placeholderPositions);
         minutes = storeMinutes(m_matches, match, std::move(*computed), true);
     }
     if (!minutes) {
