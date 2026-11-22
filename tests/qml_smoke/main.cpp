@@ -6373,6 +6373,9 @@ void exerciseDashboardShortBaseline(const DashboardScreen& screen) {
 
 // P19 decision 2: the Coach changes the season from the keyboard; a season that is not two
 // consecutive years stays in the dialog with its error.
+// Defined with the metrics tests: `inner` lies wholly in `outer`, in scene coordinates.
+bool liesInside(QQuickItem* inner, QQuickItem* outer);
+
 // P19 item 8: the load signal thresholds in Settings. Every label of the card fits at the minimum
 // window in every language; a decimal comma is stored and shown; the defaults come back.
 void exerciseLoadSignalsCard(QQmlApplicationEngine& engine, const DashboardScreen& screen) {
@@ -6398,22 +6401,42 @@ void exerciseLoadSignalsCard(QQmlApplicationEngine& engine, const DashboardScree
     constexpr int kMinimumHeight = 720;
     const QSize originalSize = screen.window->size();
     screen.window->resize(kMinimumWidth, kMinimumHeight);
+    auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                            QStringLiteral("AppSettings"));
     const QString originalLanguage = languages->language();
+    const bool originalTheme = settings->darkTheme();
+    // The whole row of cards: the one that needs room takes it from the others (P19b CI: the wider
+    // fonts of the runner cut "Stosunek podwyższony").
+    QQuickItem* row = card->parentItem();
     for (const QString& language : languages->availableLanguages()) {
-        languages->setLanguage(language);
-        settle();
-        const std::function<void(QQuickItem*)> labels = [&](QQuickItem* item) {
-            if (item->isVisible() && item->property("truncated").toBool()) {
-                qWarning("qml_smoke: settings (%s): cut text '%s'", qUtf8Printable(language),
-                         qUtf8Printable(item->property("text").toString()));
-                fail("a label of the Load signals card is cut at the minimum window");
+        for (const bool dark : {true, false}) {
+            languages->setLanguage(language);
+            settings->setDarkTheme(dark);
+            settle();
+            const char* theme = dark ? "dark" : "light";
+            const std::function<void(QQuickItem*)> labels = [&](QQuickItem* item) {
+                // Cut by an elide, or wider than its box (a word that does not wrap).
+                const QVariant contentWidth = item->property("contentWidth");
+                const bool overflows = item->property("text").isValid() && contentWidth.isValid() &&
+                                       item->metaObject()->indexOfProperty("wrapMode") >= 0 &&
+                                       contentWidth.toReal() > item->width() + 0.5;
+                if (item->isVisible() && (item->property("truncated").toBool() || overflows)) {
+                    qWarning("qml_smoke: settings (%s, %s): cut text '%s'",
+                             qUtf8Printable(language), theme,
+                             qUtf8Printable(item->property("text").toString()));
+                    fail("a label of the Settings cards is cut at the minimum window");
+                }
+                for (QQuickItem* child : item->childItems()) {
+                    labels(child);
+                }
+            };
+            labels(row);
+            if (!liesInside(row, root)) {
+                fail("the Settings cards do not fit the minimum window");
             }
-            for (QQuickItem* child : item->childItems()) {
-                labels(child);
-            }
-        };
-        labels(card);
+        }
     }
+    settings->setDarkTheme(originalTheme);
     languages->setLanguage(originalLanguage);
     screen.window->resize(originalSize);
     settle();

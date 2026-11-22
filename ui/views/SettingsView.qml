@@ -148,6 +148,10 @@ Item {
 
             // P19: the thresholds of the load signals (SPEC section 7.1), kept on this computer.
             Card {
+                id: loadThresholdsCard
+
+                readonly property var labels: [qsTr("High ratio"), qsTr("Elevated ratio"), qsTr("Underload ratio"), qsTr("Monotony")]
+
                 objectName: "loadThresholdsCard"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -169,7 +173,7 @@ Item {
                     rowSpacing: Theme.spacing.s
 
                     Repeater {
-                        model: [qsTr("High ratio"), qsTr("Elevated ratio"), qsTr("Underload ratio"), qsTr("Monotony")]
+                        model: loadThresholdsCard.labels
 
                         delegate: Label {
                             required property string modelData
@@ -178,9 +182,11 @@ Item {
                             Layout.row: index
                             Layout.column: 0
                             Layout.fillWidth: true
+                            // Wrapped, never cut: the fonts of another machine may be wider (P19b
+                            // CI), and the four cards keep equal widths.
                             text: modelData
                             color: Theme.textMuted
-                            elide: Text.ElideRight
+                            wrapMode: Text.WordWrap
                         }
                     }
 
@@ -194,6 +200,7 @@ Item {
                             objectName: "loadSignalValue" + index
                             Layout.row: index
                             Layout.column: 1
+                            Layout.minimumWidth: implicitWidth
                             text: modelData
                             color: Theme.text
                         }
