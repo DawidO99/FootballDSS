@@ -16,4 +16,13 @@ namespace fdss::viewmodels {
 // faulty collector. Remove when qml_smoke under QV4_GC_TIMELIMIT=1 without this call is clean.
 inline void useNonIncrementalGarbageCollector() { qputenv("QV4_GC_TIMELIMIT", "0"); }
 
+// For the test programs only (P19): FDSS_INCREMENTAL_GC=1 keeps the faulty collector, so the manual
+// GC stress job of CI can check whether a newer Qt has fixed it. The app always calls the one
+// above.
+inline void useNonIncrementalGarbageCollectorUnlessStressed() {
+    if (qEnvironmentVariableIntValue("FDSS_INCREMENTAL_GC") != 1) {
+        useNonIncrementalGarbageCollector();
+    }
+}
+
 } // namespace fdss::viewmodels

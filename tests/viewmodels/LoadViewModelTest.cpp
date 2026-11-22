@@ -22,6 +22,8 @@
 #include <QThread>
 #include <QThreadPool>
 
+#include "viewmodels/LoadTexts.hpp"
+
 #include <gtest/gtest.h>
 
 #include <chrono>
@@ -395,7 +397,7 @@ TEST_F(LoadViewModelTest, PlayerLoadOfTheDemoSpikeExplainsTheChart) {
     EXPECT_GE(load.ratioAxisMax(), 2.0);
     const QVariantMap thresholds = load.thresholds();
     EXPECT_EQ(thresholds.value(QStringLiteral("high")).toDouble(), 1.5);
-    EXPECT_EQ(thresholds.value(QStringLiteral("highText")), QStringLiteral("1.5"));
+    EXPECT_EQ(thresholds.value(QStringLiteral("highText")), QStringLiteral("1.50"));
 
     const QVariantList rows = load.dayAt(54).value(QStringLiteral("rows")).toList();
     QStringList keys;
@@ -651,4 +653,23 @@ TEST_F(LoadViewModelTest, ReactsOnlyToTheLanguageChangeOfTheApplication) {
     QCoreApplication::sendEvent(QCoreApplication::instance(), &own);
     EXPECT_EQ(options.count(), 1);
     EXPECT_EQ(chart.count(), 1);
+}
+
+// P19 review: the thresholds in the explanations have the two decimals of the ratio.
+TEST(LoadTextsTest, AThresholdOf175IsShownWithTwoDecimals) {
+    fdss::core::LoadThresholds thresholds;
+    thresholds.ratioHigh = 1.75;
+    fdss::core::LoadAssessment assessment;
+    assessment.indicators.rpeDays = 14;
+    assessment.indicators.daysSinceFirstEntry = 28;
+    assessment.indicators.acute = 180.0;
+    assessment.indicators.chronic = 100.0;
+    assessment.indicators.ratio = 1.8;
+    assessment.verdict = fdss::core::classifyLoad(assessment.indicators, thresholds);
+    ASSERT_EQ(assessment.verdict.status, fdss::core::LoadStatus::High);
+
+    const QString text = fdss::viewmodels::LoadTexts::explanation(assessment, thresholds);
+
+    EXPECT_TRUE(text.contains(QStringLiteral("1.75"))) << text.toStdString();
+    EXPECT_TRUE(text.contains(QStringLiteral("1.80"))) << text.toStdString();
 }

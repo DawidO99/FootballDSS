@@ -53,6 +53,9 @@ class MatchEditorViewModel : public QObject {
     Q_PROPERTY(QVariantList venueOptions READ venueOptions NOTIFY optionsChanged FINAL)
     Q_PROPERTY(QString opponentError READ opponentError NOTIFY errorsChanged FINAL)
     Q_PROPERTY(QString newOpponentError READ newOpponentError NOTIFY errorsChanged FINAL)
+    // EditCalendar and a chosen opponent, also for a match that is played (P19 decision 11).
+    Q_PROPERTY(bool canRenameOpponent READ canRenameOpponent NOTIFY fieldsChanged FINAL)
+    Q_PROPERTY(QString renameOpponentError READ renameOpponentError NOTIFY errorsChanged FINAL)
     Q_PROPERTY(QString dateError READ dateError NOTIFY errorsChanged FINAL)
     Q_PROPERTY(QString kickoffTimeError READ kickoffTimeError NOTIFY errorsChanged FINAL)
 
@@ -82,6 +85,8 @@ public:
     [[nodiscard]] QVariantList venueOptions() const;
     [[nodiscard]] QString opponentError() const;
     [[nodiscard]] QString newOpponentError() const;
+    [[nodiscard]] bool canRenameOpponent() const;
+    [[nodiscard]] QString renameOpponentError() const;
     [[nodiscard]] QString dateError() const;
     [[nodiscard]] QString kickoffTimeError() const;
 
@@ -93,10 +98,17 @@ public:
     // errorOccurred says why.
     Q_INVOKABLE bool addOpponent(const QString& name);
     Q_INVOKABLE void clearNewOpponentError();
+    // Renames the opponent `opponentId`, in every match against them: the dialog passes the one
+    // chosen when the correction was opened, whatever is chosen now. True when renamed; otherwise
+    // renameOpponentError or errorOccurred says why.
+    Q_INVOKABLE bool renameOpponent(qint64 opponentId, const QString& name);
+    Q_INVOKABLE void clearRenameOpponentError();
     // True when saved. Otherwise the error properties or errorOccurred say why.
     Q_INVOKABLE bool save();
 
 signals:
+    // The name changed in every match; the calendar reads its list again.
+    void opponentRenamed();
     void teamIdChanged();
     void fieldsChanged();
     void statusTextChanged();

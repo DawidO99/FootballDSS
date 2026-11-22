@@ -247,3 +247,69 @@ TEST(IsoDatesTest, RefusesWhatIsNotARealDate) {
 }
 
 } // namespace
+
+TEST_F(AvailabilityViewModelTest, AnOpenInjuryPastItsExpectedReturnGetsAHint) {
+    AvailabilityViewModel availability;
+    availability.setPlayerId(m_player.value);
+    EXPECT_TRUE(availability.overdueHint().isEmpty());
+
+    // An absence lasts through its expected end, so a past one is no reason to ask.
+    ASSERT_TRUE(availability.add(kAbsence, kLastMonth, QStringLiteral("2026-10-10"), {}));
+    EXPECT_FALSE(firstRow(availability).value(QStringLiteral("returnOverdue")).toBool());
+    // Expected back today: not passed yet.
+    ASSERT_TRUE(availability.add(QStringLiteral("illness"), kLastMonth, kToday, {}));
+    EXPECT_FALSE(firstRow(availability).value(QStringLiteral("returnOverdue")).toBool());
+    EXPECT_TRUE(availability.overdueHint().isEmpty());
+
+    SignalCount hintChanged(&availability, &AvailabilityViewModel::overdueHintChanged);
+    ASSERT_TRUE(availability.add(kInjury, kLastMonth, QStringLiteral("2026-10-20"), kSecret));
+    const qint64 injury = firstRow(availability).value(QStringLiteral("entryId")).toLongLong();
+    EXPECT_TRUE(firstRow(availability).value(QStringLiteral("returnOverdue")).toBool());
+    EXPECT_GE(hintChanged.count(), 1);
+    const QString hint = availability.overdueHint();
+    EXPECT_TRUE(hint.contains(QStringLiteral("20/10/2026"))) << hint.toStdString();
+    EXPECT_TRUE(hint.contains(firstRow(availability).value(QStringLiteral("typeName")).toString()));
+    EXPECT_FALSE(hint.contains(kSecret));
+
+    ASSERT_TRUE(availability.markReturned(injury, kToday));
+    EXPECT_FALSE(availability.entries()
+                     ->rowAt(availability.entries()->rowOf(injury))
+                     .value(QStringLiteral("returnOverdue"))
+                     .toBool());
+    EXPECT_TRUE(availability.overdueHint().isEmpty());
+}
+
+TEST_F(AvailabilityViewModelTest, AnAssistantDeletesAnEntryAndUndoKeepsTheDescription) {
+    AvailabilityViewModel coachView;
+    const qint64 entry = addSecretInjury(coachView);
+    logInAs(m_assistant);
+    AvailabilityViewModel availability;
+    availability.setPlayerId(m_player.value);
+    SignalCount changed(&availability, &AvailabilityViewModel::availabilityChanged);
+    EXPECT_FALSE(availability.undoRemove());
+
+    ASSERT_TRUE(availability.remove(entry));
+    EXPECT_EQ(availability.entries()->rowCount(), 0);
+    ASSERT_TRUE(availability.undoRemove());
+    EXPECT_EQ(availability.entries()->rowCount(), 1);
+    EXPECT_FALSE(availability.undoRemove());
+    EXPECT_EQ(changed.count(), 2);
+
+    logInAs(m_physio);
+    AvailabilityViewModel physioView;
+    physioView.setPlayerId(m_player.value);
+    EXPECT_EQ(firstRow(physioView).value(QStringLiteral("description")).toString(), kSecret);
+}
+
+TEST_F(AvailabilityViewModelTest, AnAnalystCannotDelete) {
+    AvailabilityViewModel coachView;
+    const qint64 entry = addSecretInjury(coachView);
+    logInAs(m_analyst);
+    AvailabilityViewModel availability;
+    availability.setPlayerId(m_player.value);
+    SignalCount errors(&availability, &AvailabilityViewModel::errorOccurred);
+
+    EXPECT_FALSE(availability.remove(entry));
+    EXPECT_EQ(errors.count(), 1);
+    EXPECT_EQ(availability.entries()->rowCount(), 1);
+}

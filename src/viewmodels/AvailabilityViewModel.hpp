@@ -12,10 +12,11 @@
 #include <optional>
 #include <string>
 
+#include "services/SquadService.hpp"
+
 namespace fdss::services {
 class Clock;
 class Session;
-class SquadService;
 } // namespace fdss::services
 
 namespace fdss::viewmodels {
@@ -33,6 +34,9 @@ class AvailabilityViewModel : public QObject {
     Q_PROPERTY(bool canEdit READ canEdit CONSTANT FINAL)
     Q_PROPERTY(bool canViewDetails READ canViewDetails CONSTANT FINAL)
     Q_PROPERTY(QString today READ today NOTIFY entriesChanged FINAL)
+    // For the newest open injury or illness whose expected return has passed: what to do about
+    // it. Empty when there is none (P19).
+    Q_PROPERTY(QString overdueHint READ overdueHint NOTIFY overdueHintChanged FINAL)
     // Why the list could not be read. Empty: the list is fine.
     Q_PROPERTY(QString loadError READ loadError NOTIFY loadErrorChanged FINAL)
     Q_PROPERTY(QString fromDateError READ fromDateError NOTIFY errorsChanged FINAL)
@@ -49,6 +53,7 @@ public:
     [[nodiscard]] bool canEdit() const;
     [[nodiscard]] bool canViewDetails() const;
     [[nodiscard]] QString today() const;
+    [[nodiscard]] QString overdueHint() const;
     [[nodiscard]] QString loadError() const;
     [[nodiscard]] QString fromDateError() const;
     [[nodiscard]] QString expectedToError() const;
@@ -65,6 +70,11 @@ public:
                             const QString& description);
     // actualTo is the first available day.
     Q_INVOKABLE bool markReturned(qint64 entryId, const QString& actualTo);
+    // Deletes an entry made by mistake; undoRemove() brings the last one back, with the
+    // description also when this role cannot read it (P19).
+    Q_INVOKABLE bool remove(qint64 entryId);
+    // False when nothing was deleted since the last undo.
+    Q_INVOKABLE bool undoRemove();
     // What "Mark as returned" offers: today, but not before the start of the entry.
     Q_INVOKABLE QString defaultReturnDate(qint64 entryId) const;
     Q_INVOKABLE void clearErrors();
@@ -73,6 +83,7 @@ signals:
     void playerIdChanged();
     void optionsChanged();
     void entriesChanged();
+    void overdueHintChanged();
     void loadErrorChanged();
     void errorsChanged();
     // After every change. The view reads the card and the squad list anew.
@@ -103,6 +114,7 @@ private:
     AvailabilityListModel* m_entries;
 
     qint64 m_playerId = 0;
+    std::optional<services::DeletedAvailability> m_deleted;
     std::optional<core::Error> m_loadFailure;
     // By column name. Kept as errors, not as text, so the messages follow the language.
     std::map<std::string, core::Error> m_errors;

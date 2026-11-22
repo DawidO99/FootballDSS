@@ -3,6 +3,7 @@
 #include "core/domain/Appearance.hpp"
 #include "core/domain/Attendance.hpp"
 #include "core/domain/DateTypes.hpp"
+#include "core/domain/Validation.hpp"
 
 #include <optional>
 #include <span>
@@ -35,7 +36,8 @@ struct LoadEntry {
 [[nodiscard]] std::optional<LoadEntry> matchLoadEntry(const Appearance& appearance,
                                                       Date matchDate) noexcept;
 
-// The defaults of SPEC section 7.1. Passed in everywhere; P19 makes them editable.
+// The defaults of SPEC section 7.1. Passed in everywhere; the four ratios and monotony are
+// editable in Settings (P19), the windows of days are not.
 struct LoadThresholds {
     double ratioHigh = 1.5;     // above: High (red)
     double ratioElevated = 1.3; // above: Elevated (yellow)
@@ -49,6 +51,21 @@ struct LoadThresholds {
 
     friend bool operator==(const LoadThresholds&, const LoadThresholds&) = default;
 };
+
+// Limits of the editable thresholds (P19): 0 < ratioLow < ratioElevated < ratioHigh <= kMaxRatio,
+// 1 < monotonyHigh <= kMaxMonotony, each with at most kThresholdDecimals decimals.
+inline constexpr int kThresholdDecimals = 2;
+inline constexpr double kMaxRatio = 5.0;
+inline constexpr double kMaxMonotony = 10.0;
+
+// One error per field that breaks a limit: "ratio_low", "ratio_elevated", "ratio_high",
+// "monotony_high". An order that is wrong is the error of the higher one.
+[[nodiscard]] ValidationErrors validate(const LoadThresholds& thresholds);
+// True for a finite value with at most kThresholdDecimals decimals (1.5, 1.75; not 1.501).
+[[nodiscard]] bool hasThresholdDecimals(double value);
+// The value as the screens show it, with kThresholdDecimals decimals (1.504 → 1.5). classifyLoad()
+// compares this, so what is seen decides (P19 review).
+[[nodiscard]] double shownPrecision(double value);
 
 // λ = 2 / (N + 1).
 [[nodiscard]] constexpr double ewmaLambda(int days) noexcept { return 2.0 / (days + 1); }

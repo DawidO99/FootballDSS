@@ -12,8 +12,8 @@
 Q_IMPORT_QML_PLUGIN(FootballDSSPlugin)
 
 int main(int argc, char* argv[]) {
-    // As the app does.
-    fdss::viewmodels::useNonIncrementalGarbageCollector();
+    // As the app does, unless FDSS_INCREMENTAL_GC=1 (the GC stress job of CI).
+    fdss::viewmodels::useNonIncrementalGarbageCollectorUnlessStressed();
     // Deterministic offscreen rendering without a GPU.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
 

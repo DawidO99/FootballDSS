@@ -81,6 +81,7 @@ add_executable(fdss_tests
     services/ServiceFixture.hpp
     services/SessionTest.cpp
     services/SetupServiceTest.cpp
+    services/SingleInstanceTest.cpp
     services/SquadServiceTest.cpp
     services/TrainingServiceTest.cpp
 )
@@ -102,6 +103,7 @@ gtest_discover_tests(fdss_tests DISCOVERY_MODE PRE_TEST DISCOVERY_TIMEOUT 120)
 add_executable(fdss_vm_tests
     test_main.cpp
     services/FakeClock.hpp
+    viewmodels/AppLogTest.cpp
     viewmodels/AppStateTest.cpp
     viewmodels/ImportActivityWizardTest.cpp
     viewmodels/AvailabilityViewModelTest.cpp
@@ -110,6 +112,7 @@ add_executable(fdss_vm_tests
     viewmodels/DashboardViewModelTest.cpp
     viewmodels/ErrorPresenterTest.cpp
     viewmodels/ImportWizardViewModelTest.cpp
+    viewmodels/LoadSettingsViewModelTest.cpp
     viewmodels/LoadViewModelTest.cpp
     viewmodels/MatchDayViewModelTest.cpp
     viewmodels/MatchEditorViewModelTest.cpp
@@ -125,6 +128,7 @@ add_executable(fdss_vm_tests
     viewmodels/SetupWizardViewModelTest.cpp
     viewmodels/SquadViewModelTest.cpp
     viewmodels/StaffListModelTest.cpp
+    viewmodels/StartupViewModelTest.cpp
     viewmodels/StaffViewModelTest.cpp
     viewmodels/TeamSettingsViewModelTest.cpp
     viewmodels/TrainingSessionViewModelTest.cpp
@@ -153,7 +157,9 @@ target_compile_definitions(qml_smoke PRIVATE
     FDSS_IMPORT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data/import"
 )
 add_test(NAME qml_smoke COMMAND qml_smoke)
-set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" LABELS ui)
+# A hang fails within 10 minutes, and the progress output names the scenario (P19).
+set_tests_properties(qml_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" LABELS ui
+    TIMEOUT 600)
 
 find_package(Qt6 REQUIRED COMPONENTS QuickTest)
 qt_add_executable(qml_components

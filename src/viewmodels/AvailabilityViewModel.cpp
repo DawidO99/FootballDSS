@@ -74,6 +74,16 @@ bool AvailabilityViewModel::canViewDetails() const {
 
 QString AvailabilityViewModel::today() const { return IsoDates::toIso(m_clock.today()); }
 
+QString AvailabilityViewModel::overdueHint() const {
+    const core::Availability* entry = m_entries->firstOverdue();
+    if (entry == nullptr) {
+        return {};
+    }
+    return tr("%1: the expected return (%2) has passed. Mark the return or change the date.")
+        .arg(SquadTexts::availabilityTypeName(entry->type),
+             IsoDates::displayText(entry->expectedTo));
+}
+
 QString AvailabilityViewModel::loadError() const {
     return m_loadFailure ? ErrorPresenter::message(*m_loadFailure) : QString{};
 }
@@ -88,16 +98,18 @@ QString AvailabilityViewModel::actualToError() const { return errorText(std::str
 
 void AvailabilityViewModel::reload() {
     m_loadFailure.reset();
+    const core::Date today = m_clock.today();
     if (m_playerId == 0 || !m_session.user()) {
-        m_entries->setEntries({});
+        m_entries->setEntries({}, today);
     } else if (auto entries = m_squad.listAvailability(core::PlayerId{m_playerId})) {
-        m_entries->setEntries(std::move(*entries));
+        m_entries->setEntries(std::move(*entries), today);
     } else {
         qCritical("AvailabilityViewModel: %s", entries.error().detail.c_str());
-        m_entries->setEntries({});
+        m_entries->setEntries({}, today);
         m_loadFailure = entries.error();
     }
     emit entriesChanged();
+    emit overdueHintChanged();
     emit loadErrorChanged();
 }
 
@@ -137,6 +149,33 @@ bool AvailabilityViewModel::markReturned(qint64 entryId, const QString& actualTo
         m_squad.markReturned(core::PlayerId{m_playerId}, core::AvailabilityId{entryId}, *date));
 }
 
+bool AvailabilityViewModel::remove(qint64 entryId) {
+    clearErrors();
+    if (!checkAllowed()) {
+        return false;
+    }
+    auto deleted = m_squad.deleteAvailability(core::AvailabilityId{entryId});
+    if (!deleted) {
+        report(deleted.error());
+        return false;
+    }
+    m_deleted = std::move(*deleted);
+    return finish({});
+}
+
+bool AvailabilityViewModel::undoRemove() {
+    if (!m_deleted || !checkAllowed()) {
+        return false;
+    }
+    const auto restored = m_squad.restoreAvailability(*m_deleted);
+    if (!restored) {
+        report(restored.error());
+        return false;
+    }
+    m_deleted.reset();
+    return finish({});
+}
+
 QString AvailabilityViewModel::defaultReturnDate(qint64 entryId) const {
     const core::Date today = m_clock.today();
     const core::Availability* entry = m_entries->find(entryId);
@@ -151,6 +190,7 @@ void AvailabilityViewModel::clearErrors() {
 bool AvailabilityViewModel::eventFilter(QObject* watched, QEvent* event) {
     if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit optionsChanged();
+        emit overdueHintChanged();
         emit loadErrorChanged();
         emit errorsChanged();
     }

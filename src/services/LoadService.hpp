@@ -55,8 +55,14 @@ public:
     LoadService(data::PlayerRepository& players, data::TrainingRepository& training,
                 data::MatchRepository& matches, Session& session, const Clock& clock);
 
-    // The defaults of SPEC section 7.1 until P19 reads them from the settings.
+    // The defaults of SPEC section 7.1 unless Settings changed them (P19).
     [[nodiscard]] const core::LoadThresholds& thresholds() const;
+    // Needs ManageSettings. Breaking a limit of core::validate(): InvalidInput with its field, and
+    // the thresholds stay. The caller stores them for the next start.
+    [[nodiscard]] core::Status setThresholds(const core::LoadThresholds& thresholds);
+    // The thresholds stored at the last start, for the composition root: nobody is logged in yet.
+    // Values that break a limit are ignored, and the defaults stay.
+    void useStoredThresholds(const core::LoadThresholds& thresholds);
 
     [[nodiscard]] core::Result<QFuture<TeamLoad>> teamLoad(core::TeamId team) const;
     // Also for an archived player: the card shows the history.

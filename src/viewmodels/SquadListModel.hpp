@@ -25,6 +25,8 @@ public:
         PositionRole,
         // [{ code, highlighted }]; SquadFilterModel highlights the codes of the active group.
         SecondaryPositionsRole,
+        // How many secondary positions the table leaves out ("+N"); 0: none (P19).
+        SecondaryMoreRole,
         PositionTooltipRole,
         AgeRole,
         StatusRole,

@@ -9,6 +9,7 @@ import FootballDSS
 //   viewModel: AvailabilityViewModel
 //   openForAdding()
 //   openForEditing(entry)   a row of AvailabilityListModel
+//   removed()               the entry being edited was deleted; the caller offers the undo
 AppDialog {
     id: root
 
@@ -20,6 +21,8 @@ AppDialog {
     property string expectedTo
     property string actualTo
     readonly property bool adding: entryId === 0
+
+    signal removed
 
     function showForm() {
         root.viewModel.clearErrors();
@@ -52,6 +55,14 @@ AppDialog {
     }
 
     title: adding ? qsTr("Add availability") : qsTr("Edit availability")
+    // P19: an entry made by mistake; the undo toast brings it back.
+    dangerText: adding ? "" : qsTr("Delete")
+    onDangerClicked: {
+        if (root.viewModel.remove(root.entryId)) {
+            root.close();
+            root.removed();
+        }
+    }
     primaryEnabled: fromInput.validationError.length === 0 && expectedInput.validationError.length === 0 && actualInput.validationError.length === 0
     onPrimaryClicked: {
         const done = root.adding ? root.viewModel.add(root.typeKey, fromInput.currentDate, expectedInput.currentDate, descriptionInput.text) : root.viewModel.update(root.entryId, root.typeKey, fromInput.currentDate, expectedInput.currentDate, actualInput.currentDate, descriptionInput.text);

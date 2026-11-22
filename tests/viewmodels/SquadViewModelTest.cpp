@@ -311,11 +311,41 @@ TEST_F(SquadViewModelTest, TheActiveGroupHighlightsItsSecondaryCodes) {
     EXPECT_EQ(codes(), names({"CB+", "ST-"}));
     EXPECT_GE(changed.count(), 1);
 
+    // The codes of the active group come first (P19).
     squad.setPositionGroup(QStringLiteral("forward"));
-    EXPECT_EQ(codes(), names({"CB-", "ST+"}));
+    EXPECT_EQ(codes(), names({"ST+", "CB-"}));
 
     squad.setPositionGroup(QStringLiteral("all"));
     EXPECT_EQ(codes(), names({"CB-", "ST-"}));
+}
+
+TEST_F(SquadViewModelTest, AtMostThreeSecondaryCodesThenTheCountOfTheRest) {
+    const PlayerId id =
+        addPlayer("Ewa", "Zając", 2, Position::Cm, std::nullopt,
+                  {Position::Cb, Position::Lb, Position::Rb, Position::Lw, Position::St});
+    const PlayerId few = addPlayer("Jan", "Cis", 9, Position::Lb, std::nullopt, {Position::Cb});
+    SquadViewModel squad;
+    open(squad);
+    const auto row = [&](PlayerId player) { return squad.rowAt(squad.rowOf(player.value)); };
+    const auto codes = [&] {
+        QStringList result;
+        for (const QVariant& code : row(id).value(QStringLiteral("secondaryPositions")).toList()) {
+            result.append(code.toMap().value(QStringLiteral("code")).toString());
+        }
+        return result;
+    };
+    const QString tooltip = row(id).value(QStringLiteral("positionTooltip")).toString();
+    EXPECT_EQ(codes(), names({"CB", "LB", "RB"}));
+    EXPECT_EQ(row(id).value(QStringLiteral("secondaryMore")).toInt(), 2);
+    EXPECT_EQ(row(few).value(QStringLiteral("secondaryMore")).toInt(), 0);
+
+    // The codes of the active group first, so a filter never hides the code that matches it.
+    squad.setPositionGroup(QStringLiteral("forward"));
+    EXPECT_EQ(codes(), names({"LW", "ST", "CB"}));
+    EXPECT_EQ(row(id).value(QStringLiteral("secondaryMore")).toInt(), 2);
+
+    squad.setPositionGroup(QStringLiteral("all"));
+    EXPECT_EQ(row(id).value(QStringLiteral("positionTooltip")).toString(), tooltip);
 }
 
 TEST_F(SquadViewModelTest, TheTooltipSaysWhyTheRowIsInTheGroup) {

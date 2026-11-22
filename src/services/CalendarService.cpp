@@ -146,6 +146,22 @@ core::Result<core::OpponentId> CalendarService::addOpponent(const core::Opponent
     return withOpponentField(m_opponents.create(draft));
 }
 
+core::Status CalendarService::renameOpponent(core::OpponentId id, std::string_view name) {
+    if (auto allowed = m_session.require(core::Permission::EditCalendar); !allowed) {
+        return allowed;
+    }
+    auto opponent = m_opponents.get(id);
+    if (!opponent) {
+        return std::unexpected(opponent.error());
+    }
+    core::OpponentDraft draft = *opponent;
+    draft.name = std::string(name);
+    if (auto valid = withOpponentField(firstError(core::validate(draft))); !valid) {
+        return valid;
+    }
+    return withOpponentField(m_opponents.update(id, draft));
+}
+
 core::Result<core::MatchId> CalendarService::addMatch(core::TeamId team,
                                                       const core::MatchDraft& draft) {
     if (auto allowed = m_session.require(core::Permission::EditCalendar); !allowed) {

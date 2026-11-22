@@ -5,12 +5,14 @@ import FootballDSS
 
 // Adds or edits a match, and adds an opponent from inside the form. Enter saves from any field; in
 // the new opponent field it adds the opponent, and Esc there leaves that field only. A match that is
-// not planned, or a role without EditCalendar, gets the same form read-only.
+// not planned, or a role without EditCalendar, gets the same form read-only; "Rename…" corrects the
+// name of the chosen opponent also then, with EditCalendar (P19).
 // API:
 //   openForAdding(date), openForEditing(matchId)
 //   saved(double matchId, string date)
 //   deleteRequested(double matchId, string opponentName)
 //   matchStatusKey: string  planned, live or finished; the caller sets it before openForEditing()
+//   opponentRenamed()       the name changed in every match
 //   matchDayRequested(double matchId)   a planned or live match: open it in Match Day (P13); a
 //                           planned one before today is filled in there after the match (P14)
 AppDialog {
@@ -18,10 +20,14 @@ AppDialog {
 
     readonly property alias viewModel: editor
     property bool newOpponentShown: false
+    property bool renameShown: false
+    // The opponent the correction was opened for (P19 review); 0 while it is closed.
+    property double renameOpponentId: 0
 
     signal saved(double matchId, string date)
     signal deleteRequested(double matchId, string opponentName)
     signal matchDayRequested(double matchId)
+    signal opponentRenamed
 
     property string matchStatusKey
 
@@ -31,6 +37,10 @@ AppDialog {
         kickoffInput.showTime();
         newOpponentInput.clear();
         editor.clearNewOpponentError();
+        root.renameShown = false;
+        root.renameOpponentId = 0;
+        renameInput.clear();
+        editor.clearRenameOpponentError();
         root.newOpponentShown = !editor.readOnly && editor.opponents.rowCount() === 0;
         root.open();
         root.focusFirst();
@@ -72,6 +82,31 @@ AppDialog {
         newOpponentInput.clear();
         editor.clearNewOpponentError();
         opponentInput.forceActiveFocus(Qt.TabFocusReason);
+    }
+
+    function showRename() {
+        root.renameOpponentId = editor.opponentId;
+        root.renameShown = true;
+        renameInput.text = editor.opponentName;
+        renameInput.forceActiveFocus(Qt.TabFocusReason);
+        renameInput.selectAll();
+    }
+
+    function hideRename() {
+        root.renameShown = false;
+        root.renameOpponentId = 0;
+        renameInput.clear();
+        editor.clearRenameOpponentError();
+        opponentInput.forceActiveFocus(Qt.TabFocusReason);
+    }
+
+    function renameOpponent() {
+        if (editor.renameOpponent(root.renameOpponentId, renameInput.text)) {
+            root.hideRename();
+            root.opponentRenamed();
+        } else {
+            renameInput.forceActiveFocus(Qt.TabFocusReason);
+        }
     }
 
     function addNewOpponent() {
@@ -126,7 +161,12 @@ AppDialog {
                 value: editor.opponentId > 0 ? editor.opponentId : null
                 placeholderText: qsTr("Choose the opponent")
                 Accessible.name: opponentField.label
-                onValueActivated: value => editor.opponentId = value
+                onValueActivated: value => {
+                    // Another opponent: the correction belonged to the one chosen before.
+                    if (root.renameShown && value !== root.renameOpponentId)
+                        root.hideRename();
+                    editor.opponentId = value;
+                }
             }
 
             SecondaryButton {
@@ -134,6 +174,47 @@ AppDialog {
                 visible: !editor.readOnly && !root.newOpponentShown
                 text: qsTr("Add new opponent…")
                 onClicked: root.showNewOpponent()
+            }
+
+            SecondaryButton {
+                objectName: "renameOpponentButton"
+                visible: editor.canRenameOpponent && !root.renameShown && !root.newOpponentShown
+                text: qsTr("Rename…")
+                onClicked: root.showRename()
+            }
+        }
+    }
+
+    FormField {
+        id: renameField
+
+        Layout.fillWidth: true
+        visible: root.renameShown
+        label: qsTr("New name of the opponent")
+        helpText: qsTr("The name changes in every match against this opponent.")
+        error: renameInput.effectiveError
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacing.s
+
+            TextInputField {
+                id: renameInput
+
+                objectName: "renameOpponentInput"
+                Layout.fillWidth: true
+                error: editor.renameOpponentError
+                Accessible.name: renameField.label
+                onTextEdited: editor.clearRenameOpponentError()
+                Keys.onReturnPressed: root.renameOpponent()
+                Keys.onEnterPressed: root.renameOpponent()
+                Keys.onEscapePressed: root.hideRename()
+            }
+
+            SecondaryButton {
+                objectName: "confirmRenameOpponentButton"
+                text: qsTr("Rename")
+                onClicked: root.renameOpponent()
             }
         }
     }

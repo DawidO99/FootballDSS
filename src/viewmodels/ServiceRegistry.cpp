@@ -29,6 +29,7 @@
 #include "services/SquadService.hpp"
 #include "services/TrainingService.hpp"
 #include "services/import/ImportService.hpp"
+#include "viewmodels/LoadSettingsViewModel.hpp"
 
 #include <QtGlobal>
 
@@ -126,6 +127,8 @@ ServiceRegistry::ServiceRegistry(PassKey, std::unique_ptr<data::DatabaseManager>
           *m_session, *m_clock)),
       m_metrics(std::make_unique<services::MetricService>(
           *m_database, *m_metricStore, *m_players, *m_training, *m_matches, *m_session, *m_clock)) {
+    // Kept on this computer, changed in Settings (P19).
+    m_load->useStoredThresholds(LoadSettingsViewModel::storedThresholds());
 }
 
 ServiceRegistry::~ServiceRegistry() = default;

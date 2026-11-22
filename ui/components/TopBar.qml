@@ -5,13 +5,15 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FootballDSS
 
-// Team name, global search (Ctrl+K), days to the next match, language and theme toggles, current
-// user.
+// Team name, global search (Ctrl+K), days to the next match, language and theme toggles, help (F1)
+// and the current user.
 Rectangle {
     id: root
 
     // Main.qml passes the one of the session (P15); without it there is no chip.
     property DashboardViewModel dashboard: null
+    // Exposed for tests.
+    readonly property alias helpDialog: help
 
     // Main.qml logs out, after asking about changes that are not saved.
     signal logoutRequested
@@ -29,6 +31,10 @@ Rectangle {
         userMenu.open();
     }
 
+    function openHelp() {
+        help.open();
+    }
+
     function openChangePinDialog() {
         changePinDialog.openEmpty();
     }
@@ -41,6 +47,15 @@ Rectangle {
 
         sequence: "Ctrl+K"
         onActivated: root.focusSearch()
+    }
+
+    // P19: the accelerator of the "?" button.
+    Shortcut {
+        id: helpShortcut
+
+        sequence: "F1"
+        enabled: !help.visible
+        onActivated: root.openHelp()
     }
 
     Rectangle {
@@ -172,6 +187,14 @@ Rectangle {
 
         LanguageThemeSwitch {}
 
+        IconButton {
+            objectName: "helpButton"
+            iconName: "help"
+            iconColor: Theme.textMuted
+            text: qsTr("Help (%1)").arg(helpShortcut.nativeText)
+            onClicked: root.openHelp()
+        }
+
         AbstractButton {
             id: userChip
 
@@ -247,6 +270,10 @@ Rectangle {
                 }
             }
         }
+    }
+
+    HelpDialog {
+        id: help
     }
 
     ChangePinViewModel {

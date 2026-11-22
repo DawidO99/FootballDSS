@@ -162,6 +162,29 @@ core::Status SquadService::markReturned(core::PlayerId player, core::Availabilit
     return m_availability.close(id, actualTo);
 }
 
+core::Result<DeletedAvailability> SquadService::deleteAvailability(core::AvailabilityId id) {
+    if (auto allowed = m_session.require(core::Permission::EditAvailability); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    auto entry = m_availability.get(id);
+    if (!entry) {
+        return std::unexpected(entry.error());
+    }
+    if (auto removed = m_availability.remove(id); !removed) {
+        return std::unexpected(removed.error());
+    }
+    return DeletedAvailability(std::move(*entry));
+}
+
+core::Result<core::AvailabilityId>
+SquadService::restoreAvailability(const DeletedAvailability& deleted) {
+    if (auto allowed = m_session.require(core::Permission::EditAvailability); !allowed) {
+        return std::unexpected(allowed.error());
+    }
+    // Not checkDescription(): the text comes back as it was, not from the user.
+    return m_availability.create(deleted.m_entry.playerId, deleted.m_entry);
+}
+
 core::Status SquadService::requireLogin() const {
     if (m_session.user()) {
         return {};

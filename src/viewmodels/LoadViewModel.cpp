@@ -252,7 +252,7 @@ void LoadViewModel::apply(services::TeamLoad result) {
 }
 
 void LoadViewModel::clearRows(std::optional<core::Error> failure) {
-    m_source->setRows({}, core::LoadThresholds{}, std::nullopt);
+    m_source->setRows({}, m_load.thresholds(), std::nullopt);
     m_asOf.reset();
     m_loadFailure = std::move(failure);
     setBusy(false);

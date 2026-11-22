@@ -60,6 +60,7 @@
 #include "viewmodels/TrainingSessionViewModel.hpp"
 
 #include <QColor>
+#include <QCursor>
 #include <QDate>
 #include <QDir>
 #include <QDirIterator>
@@ -123,6 +124,7 @@ using fdss::viewmodels::MatchReportViewModel;
 using fdss::viewmodels::MetricDefinitionsViewModel;
 using fdss::viewmodels::MetricEntryViewModel;
 using fdss::viewmodels::NavigationModel;
+using fdss::viewmodels::OpponentListModel;
 using fdss::viewmodels::PlayerCardViewModel;
 using fdss::viewmodels::PlayerEditorViewModel;
 using fdss::viewmodels::PlayerLoadViewModel;
@@ -266,18 +268,28 @@ void expectLoadChartTooltips(QQuickWindow* window, QQuickItem* gallery) {
         fail("the sample load has no day with equal series");
         return;
     }
+    // On a real display the pointer of the machine sends its own moves, which would win over the
+    // synthetic one (P13 report); it is put on the same point first where the platform allows it
+    // (X11, not Wayland). Offscreen this does nothing.
     const auto move = [window](QPointF scene) {
-        QMouseEvent event(QEvent::MouseMove, scene, scene, window->mapToGlobal(scene), Qt::NoButton,
-                          Qt::NoButton, Qt::NoModifier);
+        const QPointF global = window->mapToGlobal(scene);
+        QCursor::setPos(window->screen(), global.toPoint());
+        settle();
+        QMouseEvent event(QEvent::MouseMove, scene, scene, global, Qt::NoButton, Qt::NoButton,
+                          Qt::NoModifier);
         QCoreApplication::sendEvent(window, &event);
         settle();
     };
     renderFrame(window);
     const QRectF area = view->property("plotArea").toRectF();
     const auto days = static_cast<qreal>(labels.size());
+    // In a window smaller than on Xvfb (a real screen) the chart reaches below the bottom edge,
+    // where no pointer gets: the middle of the part of the plot that is in the window.
+    const qreal visibleBottom =
+        std::min(area.bottom(), view->mapFromScene(QPointF(0, window->height() - 1)).y());
+    const qreal y = (area.top() + visibleBottom) / 2;
     for (const int day : {0, static_cast<int>(labels.size()) - 1, equalDay}) {
-        move(view->mapToScene(
-            QPointF(area.x() + ((day + 0.5) * area.width() / days), area.center().y())));
+        move(view->mapToScene(QPointF(area.x() + ((day + 0.5) * area.width() / days), y)));
         if (chart->property("hoveredIndex").toInt() != day || !tooltip->isVisible()) {
             fail("hovering a day of the load chart does not pick that day");
             continue;
@@ -1272,6 +1284,36 @@ void exerciseCalendar(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     pressKey(window, Qt::Key_Escape);
     expectFlag(matchDialog, "newOpponentShown", false, "Esc did not leave the new opponent field");
     expectFlag(matchDialog, "visible", true, "Esc in the new opponent field closed the form");
+    // P19 review: choosing another opponent while correcting a name closes the correction and
+    // empties its field, so the typed name never goes to the newly chosen opponent.
+    {
+        const OpponentListModel* opponents = matchEditor->opponents();
+        if (opponents->rowCount() < 2 && !matchEditor->addOpponent(QStringLiteral("Smoke Rywal"))) {
+            fail("the calendar test cannot add a second opponent");
+        }
+        const QVariant first = opponents->index(0).data(OpponentListModel::ValueRole);
+        const QVariant second = opponents->index(1).data(OpponentListModel::ValueRole);
+        const QString firstName = opponents->index(0).data(OpponentListModel::TextRole).toString();
+        auto* opponentInput = find("opponentInput");
+        QMetaObject::invokeMethod(opponentInput, "valueActivated", Q_ARG(QVariant, first));
+        settle();
+        QMetaObject::invokeMethod(find("renameOpponentButton"), "click");
+        settle();
+        expectFlag(matchDialog, "renameShown", true, "Rename… did not open the correction");
+        auto* renameInput = find("renameOpponentInput");
+        renameInput->setProperty("text", QStringLiteral("Nazwa w toku"));
+        QMetaObject::invokeMethod(opponentInput, "valueActivated", Q_ARG(QVariant, second));
+        settle();
+        expectFlag(matchDialog, "renameShown", false,
+                   "choosing another opponent left the name correction open");
+        if (!renameInput->property("text").toString().isEmpty() ||
+            matchDialog->property("renameOpponentId").toLongLong() != 0) {
+            fail("choosing another opponent kept the name being corrected");
+        }
+        if (opponents->index(0).data(OpponentListModel::TextRole).toString() != firstName) {
+            fail("choosing another opponent renamed the first one");
+        }
+    }
     find("competitionInput")->forceActiveFocus(Qt::TabFocusReason);
     pressKey(window, Qt::Key_Down);
     pressKey(window, Qt::Key_Down);
@@ -1661,17 +1703,6 @@ std::optional<UiPreferences> exerciseMainWindow(QQmlApplicationEngine& engine,
                 saveScreenshot(window, screenshotDirectory,
                                QStringLiteral("settings-staff-%1-%2.png").arg(language, theme));
             }
-            // P03 spike: the Qt Graphs view is reachable only through Ctrl+Shift+G. Grab it
-            // even without a screenshot directory, so the charts are actually rendered.
-            window->setProperty("spikeChartsOpen", true);
-            settle();
-            if (screenshotDirectory.isEmpty()) {
-                window->grabWindow();
-            } else {
-                saveScreenshot(window, screenshotDirectory,
-                               QStringLiteral("spike-charts-%1-%2.png").arg(language, theme));
-            }
-            window->setProperty("spikeChartsOpen", false);
             exerciseComponentGallery(engine, window, language, theme, screenshotDirectory);
         }
     }
@@ -2214,6 +2245,108 @@ void exerciseLogoutOnUnreadableDatabase(QQmlApplicationEngine& engine,
     if (!toasts->property("active").toBool()) {
         fail("a logout with a failed read did not show the error");
     }
+}
+
+// P19 item 4: a database that opens but cannot be read at startup shows the error panel, not the
+// wizard; "Try again" goes on once it can be read.
+void exerciseUnavailableAtStartup(QQmlApplicationEngine& engine,
+                                  fdss::data::DatabaseManager& database) {
+    if (const auto broken = database.execSql(QStringLiteral("ALTER TABLE team RENAME TO team_gone"),
+                                             "break the database");
+        !broken) {
+        fail("cannot break the database");
+        return;
+    }
+    {
+        const std::lock_guard lock(g_messagesMutex);
+        g_expectedCritical = "no such table: team";
+        g_expectedCriticalCount = 0;
+    }
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    settle();
+    {
+        const std::lock_guard lock(g_messagesMutex);
+        g_expectedCritical = nullptr;
+        if (g_expectedCriticalCount == 0) {
+            fail("the failed first read was not logged");
+        }
+    }
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    if (appState->state() != AppState::State::Unavailable) {
+        fail("a failed first read is not the state Unavailable");
+    }
+    if (window->property("setupWizard").value<QQuickItem*>() != nullptr) {
+        fail("a failed first read shows the setup wizard");
+    }
+    QQuickItem* panel = findQmlItem(window->contentItem(), "DatabaseErrorPanel");
+    if (panel == nullptr || !panel->isVisible()) {
+        fail("a failed first read does not show the error panel");
+        return;
+    }
+    if (panel->property("message").toString().isEmpty()) {
+        fail("the error panel has no message");
+    }
+
+    if (const auto mended = database.execSql(QStringLiteral("ALTER TABLE team_gone RENAME TO team"),
+                                             "mend the database");
+        !mended) {
+        fail("cannot mend the database");
+        return;
+    }
+    QMetaObject::invokeMethod(panel, "retryRequested");
+    settle();
+    if (appState->state() != AppState::State::Ready ||
+        window->property("shell").value<QQuickItem*>() == nullptr) {
+        fail("Try again after the database was mended does not open the app");
+    }
+}
+
+// P19 item 10: F1 and the "?" button open the help; its tooltip names the key, and no text of the
+// help is cut.
+void exerciseHelp(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    QQuickItem* topBar = findQmlItem(window->contentItem(), "TopBar");
+    auto* button =
+        topBar != nullptr ? findByObjectName(topBar, QStringLiteral("helpButton")) : nullptr;
+    auto* dialog = topBar != nullptr ? topBar->property("helpDialog").value<QObject*>() : nullptr;
+    if (button == nullptr || dialog == nullptr || !button->isVisible()) {
+        fail("the top bar has no help button");
+        return;
+    }
+    if (!button->property("text").toString().contains(QStringLiteral("F1"))) {
+        fail("the tooltip of the help button does not name F1");
+    }
+    pressKey(window, Qt::Key_F1);
+    settle();
+    expectFlag(dialog, "visible", true, "F1 does not open the help");
+    const std::function<void(QQuickItem*)> labels = [&](QQuickItem* item) {
+        if (item->isVisible() && item->property("truncated").toBool()) {
+            qWarning("qml_smoke: help: cut text '%s'",
+                     qUtf8Printable(item->property("text").toString()));
+            fail("a text of the help is cut");
+        }
+        for (QQuickItem* child : item->childItems()) {
+            labels(child);
+        }
+    };
+    if (auto* content = dialog->property("contentItem").value<QQuickItem*>()) {
+        labels(content);
+    }
+    grabOrSave(window, screenshotDirectory, QStringLiteral("help.png"));
+    pressKey(window, Qt::Key_Escape);
+    settle();
+    expectFlag(dialog, "visible", false, "Esc does not close the help");
+    clickItem(window, button);
+    settle();
+    expectFlag(dialog, "visible", true, "the help button does not open the help");
+    QMetaObject::invokeMethod(dialog, "close");
+    settle();
 }
 
 // A fresh engine creates fresh singletons, which must read the preferences back from QSettings.
@@ -6240,6 +6373,109 @@ void exerciseDashboardShortBaseline(const DashboardScreen& screen) {
 
 // P19 decision 2: the Coach changes the season from the keyboard; a season that is not two
 // consecutive years stays in the dialog with its error.
+// Defined with the metrics tests: `inner` lies wholly in `outer`, in scene coordinates.
+bool liesInside(QQuickItem* inner, QQuickItem* outer);
+
+// P19 item 8: the load signal thresholds in Settings. Every label of the card fits at the minimum
+// window in every language; a decimal comma is stored and shown; the defaults come back.
+void exerciseLoadSignalsCard(QQmlApplicationEngine& engine, const DashboardScreen& screen) {
+    auto* languages = engine.singletonInstance<LanguageManager*>(QStringLiteral("FootballDSS"),
+                                                                 QStringLiteral("LanguageManager"));
+    screen.navigation->activate(QStringLiteral("settings"));
+    settle();
+    QQuickItem* root = screen.window->contentItem();
+    auto* settingsView = findQmlItem(root, "SettingsView");
+    if (settingsView == nullptr) {
+        fail("there is no Settings view");
+        return;
+    }
+    auto* card = findByObjectName(settingsView, QStringLiteral("loadThresholdsCard"));
+    auto* edit = findByObjectName(settingsView, QStringLiteral("editLoadSignalsButton"));
+    auto* dialog = settingsView->property("loadDialog").value<QObject*>();
+    if (card == nullptr || edit == nullptr || dialog == nullptr || !card->isVisible() ||
+        !edit->isVisible()) {
+        fail("the Load signals card has no Edit button for the Coach");
+        return;
+    }
+    constexpr int kMinimumWidth = 1280;
+    constexpr int kMinimumHeight = 720;
+    const QSize originalSize = screen.window->size();
+    screen.window->resize(kMinimumWidth, kMinimumHeight);
+    auto* settings = engine.singletonInstance<AppSettings*>(QStringLiteral("FootballDSS"),
+                                                            QStringLiteral("AppSettings"));
+    const QString originalLanguage = languages->language();
+    const bool originalTheme = settings->darkTheme();
+    // The whole row of cards: the one that needs room takes it from the others (P19b CI: the wider
+    // fonts of the runner cut "Stosunek podwyższony").
+    QQuickItem* row = card->parentItem();
+    for (const QString& language : languages->availableLanguages()) {
+        for (const bool dark : {true, false}) {
+            languages->setLanguage(language);
+            settings->setDarkTheme(dark);
+            settle();
+            const char* theme = dark ? "dark" : "light";
+            const std::function<void(QQuickItem*)> labels = [&](QQuickItem* item) {
+                // Cut by an elide, or wider than its box (a word that does not wrap).
+                const QVariant contentWidth = item->property("contentWidth");
+                const bool overflows = item->property("text").isValid() && contentWidth.isValid() &&
+                                       item->metaObject()->indexOfProperty("wrapMode") >= 0 &&
+                                       contentWidth.toReal() > item->width() + 0.5;
+                if (item->isVisible() && (item->property("truncated").toBool() || overflows)) {
+                    qWarning("qml_smoke: settings (%s, %s): cut text '%s'",
+                             qUtf8Printable(language), theme,
+                             qUtf8Printable(item->property("text").toString()));
+                    fail("a label of the Settings cards is cut at the minimum window");
+                }
+                for (QQuickItem* child : item->childItems()) {
+                    labels(child);
+                }
+            };
+            labels(row);
+            if (!liesInside(row, root)) {
+                fail("the Settings cards do not fit the minimum window");
+            }
+        }
+    }
+    settings->setDarkTheme(originalTheme);
+    languages->setLanguage(originalLanguage);
+    screen.window->resize(originalSize);
+    settle();
+
+    auto& load = ServiceRegistry::instance().load();
+    clickItem(screen.window, edit);
+    settle();
+    auto* ratioHigh = findByObjectName(root, QStringLiteral("ratioHighInput"));
+    if (ratioHigh == nullptr) {
+        fail("the Load signals dialog has no high ratio field");
+        return;
+    }
+    ratioHigh->setProperty("text", QStringLiteral("1,8"));
+    pressKey(screen.window, Qt::Key_Return);
+    settle();
+    expectFlag(dialog, "visible", false, "saving the load signals left the dialog open");
+    if (load.thresholds().ratioHigh != 1.8) {
+        fail("the high ratio typed with a decimal comma was not stored");
+    }
+    const auto* shown = findByObjectName(card, QStringLiteral("loadSignalValue0"));
+    if (shown == nullptr || !shown->property("text").toString().contains(QStringLiteral("8"))) {
+        fail("the Load signals card does not show the saved ratio");
+    }
+
+    clickItem(screen.window, edit);
+    settle();
+    auto* restore = findByObjectName(root, QStringLiteral("restoreLoadDefaultsButton"));
+    if (restore == nullptr || !restore->isEnabled()) {
+        fail("the Load signals dialog cannot restore the defaults");
+        return;
+    }
+    clickItem(screen.window, restore);
+    settle();
+    if (load.thresholds() != fdss::core::LoadThresholds{}) {
+        fail("Restore defaults did not bring the default load signals back");
+    }
+    expectFlag(dialog, "visible", false, "restoring the defaults left the dialog open");
+}
+
 void exerciseTeamCard(QQmlApplicationEngine& engine, const DashboardScreen& screen) {
     auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
                                                          QStringLiteral("AppState"));
@@ -6340,6 +6576,7 @@ void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
     }
     if (logInAgain(engine, coach)) {
         exerciseTeamCard(engine, screen);
+        exerciseLoadSignalsCard(engine, screen);
     }
 }
 
@@ -7158,9 +7395,39 @@ void exerciseMetrics(QQmlApplicationEngine& engine, const QString& screenshotDir
     settle();
 }
 
+// Progress on stderr, so a run that hangs or is slow names its scenario (P19); CTest shows the
+// output of a test that times out. Not a Qt message: those are counted as problems.
+class ScenarioTimer {
+public:
+    explicit ScenarioTimer(QString name) : m_name(std::move(name)) {
+        std::fprintf(stderr, "qml_smoke: start %s\n", qUtf8Printable(m_name));
+        std::fflush(stderr);
+        m_timer.start();
+    }
+    ~ScenarioTimer() {
+        std::fprintf(stderr, "qml_smoke: done %s (%lld ms)\n", qUtf8Printable(m_name),
+                     static_cast<long long>(m_timer.elapsed()));
+        std::fflush(stderr);
+    }
+    ScenarioTimer(const ScenarioTimer&) = delete;
+    ScenarioTimer& operator=(const ScenarioTimer&) = delete;
+    ScenarioTimer(ScenarioTimer&&) = delete;
+    ScenarioTimer& operator=(ScenarioTimer&&) = delete;
+
+private:
+    QString m_name;
+    QElapsedTimer m_timer;
+};
+
+template <class Run> void runScenario(const char* name, Run run) {
+    const ScenarioTimer timer(QString::fromLatin1(name));
+    run();
+}
+
 int main(int argc, char* argv[]) {
     // As the app does; without it this run shows the CI failures of P12 under QV4_GC_TIMELIMIT=1.
-    fdss::viewmodels::useNonIncrementalGarbageCollector();
+    // FDSS_INCREMENTAL_GC=1 leaves it out, for the GC stress job of CI.
+    fdss::viewmodels::useNonIncrementalGarbageCollectorUnlessStressed();
     // Deterministic offscreen rendering without a GPU.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
     g_defaultHandler = qInstallMessageHandler(countingMessageHandler);
@@ -7220,21 +7487,28 @@ int main(int argc, char* argv[]) {
             }
             {
                 QQmlApplicationEngine engine;
-                leftBehind = exerciseMainWindow(engine, state, screenshotDirectory);
+                runScenario("main window", [&] {
+                    leftBehind = exerciseMainWindow(engine, state, screenshotDirectory);
+                });
                 if (state == AppState::State::NeedsSetup) {
-                    exerciseStateChanges(engine);
+                    runScenario("state changes", [&] { exerciseStateChanges(engine); });
                 }
                 if (state == AppState::State::NeedsLogin) {
-                    exerciseTileScrolling(engine);
-                    exerciseForcedPinChange(engine, screenshotDirectory);
+                    runScenario("tile scrolling", [&] { exerciseTileScrolling(engine); });
+                    runScenario("forced pin change",
+                                [&] { exerciseForcedPinChange(engine, screenshotDirectory); });
                 }
                 if (state == AppState::State::Ready) {
-                    exerciseSquad(engine, screenshotDirectory);
-                    exerciseCalendar(engine, *database, screenshotDirectory);
-                    exerciseDatabaseErrorView(engine, screenshotDirectory);
-                    viewCount = instantiateEveryView(engine);
-                    exerciseLoginOverSession(engine);
-                    exerciseLogoutOnUnreadableDatabase(engine, *database);
+                    runScenario("squad", [&] { exerciseSquad(engine, screenshotDirectory); });
+                    runScenario("calendar",
+                                [&] { exerciseCalendar(engine, *database, screenshotDirectory); });
+                    runScenario("database error view",
+                                [&] { exerciseDatabaseErrorView(engine, screenshotDirectory); });
+                    runScenario("every view", [&] { viewCount = instantiateEveryView(engine); });
+                    runScenario("help", [&] { exerciseHelp(engine, screenshotDirectory); });
+                    runScenario("login over session", [&] { exerciseLoginOverSession(engine); });
+                    runScenario("logout on unreadable database",
+                                [&] { exerciseLogoutOnUnreadableDatabase(engine, *database); });
                 }
             }
             settle();
@@ -7247,19 +7521,7 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseTraining(engine, screenshotDirectory);
-            }
-            settle();
-            ServiceRegistry::reset();
-        }
-        if (onlyLoad || onlyDashboard || onlyImport || onlyMetrics) {
-            // Not this one.
-        } else if (installRegistry(AppState::State::Ready) == nullptr) {
-            fail("cannot install the service registry");
-        } else {
-            {
-                QQmlApplicationEngine engine;
-                exercisePreMatch(engine, screenshotDirectory);
+                runScenario("training", [&] { exerciseTraining(engine, screenshotDirectory); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7272,7 +7534,34 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseMatchDay(engine, *database, screenshotDirectory);
+                runScenario("unavailable at startup",
+                            [&] { exerciseUnavailableAtStartup(engine, *database); });
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (onlyLoad || onlyDashboard || onlyImport || onlyMetrics) {
+            // Not this one.
+        } else if (installRegistry(AppState::State::Ready) == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                runScenario("pre match", [&] { exercisePreMatch(engine, screenshotDirectory); });
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (onlyOne) {
+            // Not this one.
+        } else if (fdss::data::DatabaseManager* database = installRegistry(AppState::State::Ready);
+                   database == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                runScenario("match day",
+                            [&] { exerciseMatchDay(engine, *database, screenshotDirectory); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7285,7 +7574,8 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseImport(engine, *database, screenshotDirectory);
+                runScenario("import",
+                            [&] { exerciseImport(engine, *database, screenshotDirectory); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7298,7 +7588,9 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseActivityImport(engine, *database, screenshotDirectory);
+                runScenario("activity import", [&] {
+                    exerciseActivityImport(engine, *database, screenshotDirectory);
+                });
             }
             settle();
             ServiceRegistry::reset();
@@ -7310,7 +7602,7 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseMetrics(engine, screenshotDirectory);
+                runScenario("metrics", [&] { exerciseMetrics(engine, screenshotDirectory); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7320,7 +7612,7 @@ int main(int argc, char* argv[]) {
         for (const CloseCase closeCase : {CloseCase::Clean, CloseCase::StayThenDiscard,
                                           CloseCase::Save, CloseCase::FailedSaveThenDiscard}) {
             if (!onlyOne) {
-                exerciseWindowClosing(closeCase);
+                runScenario("window closing", [&] { exerciseWindowClosing(closeCase); });
             }
         }
         QGuiApplication::setQuitOnLastWindowClosed(true);
@@ -7333,7 +7625,7 @@ int main(int argc, char* argv[]) {
                 QQmlApplicationEngine engine;
                 engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
                 settle();
-                exerciseUserMarkup(engine);
+                runScenario("user markup", [&] { exerciseUserMarkup(engine); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7345,7 +7637,7 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseDemoSetup(engine);
+                runScenario("demo setup", [&] { exerciseDemoSetup(engine); });
             }
             settle();
             ServiceRegistry::reset();
@@ -7358,13 +7650,15 @@ int main(int argc, char* argv[]) {
         } else {
             {
                 QQmlApplicationEngine engine;
-                exerciseFailedDemoSetup(engine, *database);
+                runScenario("failed demo setup",
+                            [&] { exerciseFailedDemoSetup(engine, *database); });
             }
             settle();
             ServiceRegistry::reset();
         }
         if (leftBehind) {
-            verifyPreferencesSurviveRestart(*leftBehind);
+            runScenario("verifyPreferencesSurviveRestart",
+                        [&] { verifyPreferencesSurviveRestart(*leftBehind); });
         }
         for (const bool demo : {false, true}) {
             if (onlyLoad || onlyPreMatch || onlyImport || onlyMetrics) {
@@ -7378,9 +7672,12 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 if (demo) {
-                    exerciseDashboardDemo(engine, *database, screenshotDirectory);
+                    runScenario("dashboard demo", [&] {
+                        exerciseDashboardDemo(engine, *database, screenshotDirectory);
+                    });
                 } else {
-                    exerciseDashboardEmptyClub(engine, screenshotDirectory);
+                    runScenario("dashboard empty club",
+                                [&] { exerciseDashboardEmptyClub(engine, screenshotDirectory); });
                 }
             }
             settle();
@@ -7401,9 +7698,13 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 if (demo) {
-                    exerciseLoadDemo(engine, loadLanguage, screenshotDirectory);
+                    runScenario("load demo", [&] {
+                        exerciseLoadDemo(engine, loadLanguage, screenshotDirectory);
+                    });
                 } else {
-                    exerciseLoadNewClub(engine, loadLanguage, screenshotDirectory);
+                    runScenario("load new club", [&] {
+                        exerciseLoadNewClub(engine, loadLanguage, screenshotDirectory);
+                    });
                 }
             }
             settle();

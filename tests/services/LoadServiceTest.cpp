@@ -2,6 +2,7 @@
 
 #include "ServiceFixture.hpp"
 #include "core/demo/DemoGenerator.hpp"
+#include "core/domain/Permissions.hpp"
 #include "data/repositories/AvailabilityRepository.hpp"
 #include "data/repositories/MatchRepository.hpp"
 #include "data/repositories/OpponentRepository.hpp"
@@ -290,4 +291,44 @@ TEST_F(LoadServiceTest, DemoDataShowsTheLoadSpike) {
         }
     }
     EXPECT_TRUE(spikeIsRed);
+}
+
+TEST_F(LoadServiceTest, OnlyManageSettingsChangesTheThresholds) {
+    LoadThresholds changed;
+    changed.ratioHigh = 1.8;
+    for (const Role role : allValues<Role>()) {
+        SCOPED_TRACE(toDbText(role));
+        logInAs(role);
+        const auto status = m_service->setThresholds(changed);
+        if (isAllowed(role, Permission::ManageSettings)) {
+            EXPECT_TRUE(status.has_value());
+            EXPECT_EQ(m_service->thresholds(), changed);
+        } else {
+            expectError(status, ErrorCode::PermissionDenied);
+        }
+        m_session.clear();
+    }
+}
+
+TEST_F(LoadServiceTest, BrokenThresholdsAreInvalidInputAndChangeNothing) {
+    logInAs(Role::Coach);
+    LoadThresholds broken;
+    broken.ratioElevated = 2.0; // above the high ratio
+    const auto status = m_service->setThresholds(broken);
+    ASSERT_FALSE(status.has_value());
+    EXPECT_EQ(status.error().code, ErrorCode::InvalidInput);
+    EXPECT_EQ(status.error().field, "ratio_high");
+    EXPECT_EQ(m_service->thresholds(), LoadThresholds{});
+}
+
+TEST_F(LoadServiceTest, StoredThresholdsAreUsedOnlyWhenValid) {
+    LoadThresholds stored;
+    stored.monotonyHigh = 2.5;
+    m_service->useStoredThresholds(stored);
+    EXPECT_EQ(m_service->thresholds(), stored);
+
+    LoadThresholds broken;
+    broken.ratioLow = -1.0;
+    m_service->useStoredThresholds(broken);
+    EXPECT_EQ(m_service->thresholds(), stored);
 }

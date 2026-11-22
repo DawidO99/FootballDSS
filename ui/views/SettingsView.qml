@@ -5,9 +5,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FootballDSS
 
-// The team, the match rules and the Staff section, for those who may manage settings and staff; the modules
-// preference of this computer and the custom metrics (P17) for every role (P15 decision 4). Other
-// settings arrive with later packets.
+// The team, the match rules, the load signals (P19) and the Staff section, for those who may manage
+// settings and staff; the modules preference of this computer and the custom metrics (P17) for
+// every role (P15 decision 4). Other settings arrive with later packets.
 Item {
     id: root
 
@@ -19,6 +19,7 @@ Item {
     readonly property Item staffSection: staffLoader.item as Item
     // Exposed for tests.
     readonly property alias teamDialog: teamDialog
+    readonly property alias loadDialog: loadDialog
     // Exposed for tests: the metrics card, in its tab or alone.
     readonly property Item metricsSection: (root.canManageStaff ? metricsTabLoader.item : metricsLoader.item) as Item
 
@@ -26,6 +27,12 @@ Item {
 
     TeamSettingsViewModel {
         id: teamSettings
+
+        onErrorOccurred: message => Toasts.error(message)
+    }
+
+    LoadSettingsViewModel {
+        id: loadSettings
 
         onErrorOccurred: message => Toasts.error(message)
     }
@@ -134,6 +141,68 @@ Item {
                         onValueModified: value => {
                             if (value !== null && !AppSettings.setYellowCardThreshold(value))
                                 yellowCardThresholdField.showValue();
+                        }
+                    }
+                }
+            }
+
+            // P19: the thresholds of the load signals (SPEC section 7.1), kept on this computer.
+            Card {
+                id: loadThresholdsCard
+
+                readonly property var labels: [qsTr("High ratio"), qsTr("Elevated ratio"), qsTr("Underload ratio"), qsTr("Monotony")]
+
+                objectName: "loadThresholdsCard"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredWidth: 1
+                visible: root.canManageSettings
+                title: qsTr("Load signals")
+
+                actions: SecondaryButton {
+                    objectName: "editLoadSignalsButton"
+                    visible: loadSettings.canEdit
+                    text: qsTr("Edit")
+                    onClicked: loadDialog.openForEditing()
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 2
+                    columnSpacing: Theme.spacing.m
+                    rowSpacing: Theme.spacing.s
+
+                    Repeater {
+                        model: loadThresholdsCard.labels
+
+                        delegate: Label {
+                            required property string modelData
+                            required property int index
+
+                            Layout.row: index
+                            Layout.column: 0
+                            Layout.fillWidth: true
+                            // Wrapped, never cut: the fonts of another machine may be wider (P19b
+                            // CI), and the four cards keep equal widths.
+                            text: modelData
+                            color: Theme.textMuted
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Repeater {
+                        model: [qsTr("> %1").arg(loadSettings.ratioHigh), qsTr("> %1").arg(loadSettings.ratioElevated), qsTr("< %1").arg(loadSettings.ratioLow), qsTr("> %1").arg(loadSettings.monotonyHigh)]
+
+                        delegate: Label {
+                            required property string modelData
+                            required property int index
+
+                            objectName: "loadSignalValue" + index
+                            Layout.row: index
+                            Layout.column: 1
+                            Layout.minimumWidth: implicitWidth
+                            text: modelData
+                            color: Theme.text
                         }
                     }
                 }
@@ -261,6 +330,136 @@ Item {
                 Layout.fillWidth: true
                 error: teamSettings.seasonError
                 Accessible.name: teamSeasonFormField.label
+            }
+        }
+    }
+
+    AppDialog {
+        id: loadDialog
+
+        function openForEditing() {
+            loadSettings.clearErrors();
+            ratioHighInput.text = loadSettings.ratioHigh;
+            ratioElevatedInput.text = loadSettings.ratioElevated;
+            ratioLowInput.text = loadSettings.ratioLow;
+            monotonyHighInput.text = loadSettings.monotonyHigh;
+            loadDialog.open();
+            ratioHighInput.forceActiveFocus(Qt.TabFocusReason);
+        }
+
+        function focusFirstError() {
+            if (loadSettings.ratioHighError.length > 0)
+                ratioHighInput.forceActiveFocus(Qt.TabFocusReason);
+            else if (loadSettings.ratioElevatedError.length > 0)
+                ratioElevatedInput.forceActiveFocus(Qt.TabFocusReason);
+            else if (loadSettings.ratioLowError.length > 0)
+                ratioLowInput.forceActiveFocus(Qt.TabFocusReason);
+            else if (loadSettings.monotonyHighError.length > 0)
+                monotonyHighInput.forceActiveFocus(Qt.TabFocusReason);
+        }
+
+        objectName: "loadDialog"
+        size: AppDialog.Small
+        title: qsTr("Edit load signals")
+        primaryText: qsTr("Save")
+        onPrimaryClicked: {
+            if (loadSettings.save(ratioHighInput.text, ratioElevatedInput.text, ratioLowInput.text, monotonyHighInput.text)) {
+                loadDialog.close();
+                Toasts.info(qsTr("The load signals were saved."));
+            } else {
+                loadDialog.focusFirstError();
+            }
+        }
+
+        Label {
+            Layout.fillWidth: true
+            text: qsTr("Ratio = acute load (7 days) / chronic load (28 days). A signal is a reason to talk to the player, not an injury prediction.")
+            textFormat: Text.PlainText
+            color: Theme.textMuted
+            wrapMode: Text.WordWrap
+        }
+
+        FormField {
+            id: ratioHighFormField
+
+            Layout.fillWidth: true
+            label: qsTr("High: ratio above")
+            mandatory: true
+            error: ratioHighInput.effectiveError
+
+            TextInputField {
+                id: ratioHighInput
+
+                objectName: "ratioHighInput"
+                Layout.fillWidth: true
+                error: loadSettings.ratioHighError
+                Accessible.name: ratioHighFormField.label
+            }
+        }
+
+        FormField {
+            id: ratioElevatedFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Elevated: ratio above")
+            mandatory: true
+            error: ratioElevatedInput.effectiveError
+
+            TextInputField {
+                id: ratioElevatedInput
+
+                objectName: "ratioElevatedInput"
+                Layout.fillWidth: true
+                error: loadSettings.ratioElevatedError
+                Accessible.name: ratioElevatedFormField.label
+            }
+        }
+
+        FormField {
+            id: ratioLowFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Underloaded: ratio below")
+            mandatory: true
+            error: ratioLowInput.effectiveError
+
+            TextInputField {
+                id: ratioLowInput
+
+                objectName: "ratioLowInput"
+                Layout.fillWidth: true
+                error: loadSettings.ratioLowError
+                Accessible.name: ratioLowFormField.label
+            }
+        }
+
+        FormField {
+            id: monotonyHighFormField
+
+            Layout.fillWidth: true
+            label: qsTr("Elevated: monotony above")
+            mandatory: true
+            error: monotonyHighInput.effectiveError
+
+            TextInputField {
+                id: monotonyHighInput
+
+                objectName: "monotonyHighInput"
+                Layout.fillWidth: true
+                error: loadSettings.monotonyHighError
+                Accessible.name: monotonyHighFormField.label
+            }
+        }
+
+        SecondaryButton {
+            objectName: "restoreLoadDefaultsButton"
+            enabled: !loadSettings.isDefault
+            text: qsTr("Restore defaults")
+            onClicked: {
+                if (loadSettings.restoreDefaults()) {
+                    loadDialog.close();
+                    Toasts.info(qsTr("The default load signals are in use again."));
+                }
             }
         }
     }

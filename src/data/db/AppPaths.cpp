@@ -44,4 +44,12 @@ core::Result<QString> backupDirectory() {
     return ensureDirectory(QDir(*directory).filePath(QStringLiteral("backups")));
 }
 
+core::Result<QString> logDirectory() {
+    const core::Result<QString> directory = appDataDirectory();
+    if (!directory) {
+        return directory;
+    }
+    return ensureDirectory(QDir(*directory).filePath(QStringLiteral("logs")));
+}
+
 } // namespace fdss::data::AppPaths

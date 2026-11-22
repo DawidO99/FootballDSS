@@ -78,6 +78,19 @@ TEST_F(AvailabilityRepositoryTest, CreatedEntryKeepsEveryField) {
     EXPECT_EQ(entry.description, "grypa");
 }
 
+TEST_F(AvailabilityRepositoryTest, GetReadsOneEntryAndAMissingOneIsNotFound) {
+    AvailabilityDraft full = draft(AvailabilityType::Illness);
+    full.description = "grypa";
+    const AvailabilityId id = create(full);
+
+    const auto entry = repository().get(id);
+    ASSERT_TRUE(entry.has_value()) << entry.error().detail;
+    EXPECT_EQ(*entry, stored());
+    const auto missing = repository().get(AvailabilityId{id.value + 1});
+    ASSERT_FALSE(missing.has_value());
+    EXPECT_EQ(missing.error().code, ErrorCode::NotFound);
+}
+
 TEST_F(AvailabilityRepositoryTest, OptionalFieldsStayEmpty) {
     create(draft());
     const Availability entry = stored();

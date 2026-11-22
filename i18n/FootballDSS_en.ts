@@ -2,6 +2,37 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en" sourcelanguage="en">
 <context>
+    <name>AlreadyRunningView</name>
+    <message>
+        <source>FootballDSS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FootballDSS is already running</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>FootballDSS cannot start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Switch to its window, for example from the taskbar. Only one FootballDSS can be open at a time, so that two windows never change the same data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The data folder cannot be written, so FootballDSS cannot make sure that only one copy runs. Check that the folder is not read-only and that the disk is not full, then start FootballDSS again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open data folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>AppDialog</name>
     <message>
         <source>Save</source>
@@ -70,6 +101,10 @@
     </message>
     <message>
         <source>Edit availability</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1113,6 +1148,38 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>DatabaseErrorPanel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample explanation of the error, with the next step.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample path of the database file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again pressed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open data folder pressed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Quit pressed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>HelpDialog</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open help</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Dashboard: DashboardCard, DashboardRow, LockedState</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1424,9 +1491,9 @@
     </message>
 </context>
 <context>
-    <name>DatabaseErrorView</name>
+    <name>DatabaseErrorPanel</name>
     <message>
-        <source>FootballDSS</source>
+        <source>The database could not be read</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1438,11 +1505,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Open data folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Quit</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>DatabaseErrorView</name>
+    <message>
+        <source>FootballDSS</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1532,6 +1610,173 @@
     </message>
     <message>
         <source>required</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>HelpDialog</name>
+    <message>
+        <source>Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The sidebar opens the sections; the top bar has the search, the next match, the language, the theme and your account.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Search for a player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This help</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dashboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The next match, unavailable players, load signals and recent form.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Players, their positions and availability. Enter or a double click opens the player card.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Back from the player card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Matches and training sessions; a played match opens its report.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add a match or a session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the match report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Attendance, RPE and minutes. In the sheet a digit enters the RPE, Enter moves to the next row and Esc takes a cell back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Pre-match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The lineup on the tactics board, with its warnings and the lineup assistant.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The live match: clock, events, substitutions, notes and changes of shape.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red card</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo the last event</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Full screen</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Cancel the current step</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Load signals of every player: reasons to talk to the player, not injury predictions.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metrics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Values of the custom metrics of your club.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Players, training sessions and matches from CSV or Excel files; every import can be undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The team, match rules, load signals, staff and custom metrics.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Help</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2477,6 +2722,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Rename…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New name of the opponent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The name changes in every match against this opponent.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>New opponent</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3303,6 +3564,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The availability entry was deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Available again from</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3858,7 +4127,71 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Load signals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elevated ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Underload ratio</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Monotony</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&gt; %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&lt; %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Custom metrics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit load signals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The load signals were saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ratio = acute load (7 days) / chronic load (28 days). A signal is a reason to talk to the player, not an injury prediction.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>High: ratio above</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elevated: ratio above</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Underloaded: ratio below</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Elevated: monotony above</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Restore defaults</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The default load signals are in use again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4212,70 +4545,6 @@
     </message>
 </context>
 <context>
-    <name>SpikeChartsView</name>
-    <message>
-        <source>Charts spike (Qt Graphs)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Hidden test view with sample data. Press Ctrl+Shift+G to close it.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Team load, last 14 days (AU)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>MM/dd</source>
-        <extracomment>Date format of the chart axis (Qt date format: d = day, M = month).</extracomment>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Team load</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>%1: %2 AU</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Average session load by position (AU)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Mon</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Tue</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Wed</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Thu</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Fri</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Defenders</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Midfielders</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Forwards</source>
-        <translation type="unfinished"></translation>
-    </message>
-</context>
-<context>
     <name>SquadView</name>
     <message>
         <source>← Pre-match</source>
@@ -4352,6 +4621,11 @@
     <message>
         <source>·</source>
         <extracomment>Between the codes of the secondary positions of a player.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>+%1</source>
+        <extracomment>More secondary positions than the squad table shows.</extracomment>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4456,6 +4730,10 @@
     </message>
     <message>
         <source>Next match: %1, %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Help (%1)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4598,6 +4876,13 @@
     </message>
     <message>
         <source>Analyst</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::AvailabilityViewModel</name>
+    <message>
+        <source>%1: the expected return (%2) has passed. Mark the return or change the date.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -5406,6 +5691,22 @@
     </message>
     <message>
         <source>The shape is the same as before. Move a player or choose another formation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a ratio above 0 and below the elevated ratio, with at most two decimals, for example 0.8.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the underload ratio and below the high ratio, with at most two decimals, for example 1.3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the elevated ratio, at most 5, with at most two decimals, for example 1.5.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a monotony above 1, at most 10, with at most two decimals, for example 2.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

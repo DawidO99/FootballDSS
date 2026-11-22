@@ -187,6 +187,8 @@ QtObject {
     readonly property int pinKeyWidth: 72
     readonly property int topBarHeight: 56
     readonly property int topBarSearchWidth: 360
+    // The key column of the help dialog (P19).
+    readonly property int helpKeyWidth: 80
     readonly property int sidebarWidth: 220
     readonly property int sidebarCollapsedWidth: 64
     // The bar beside the current section of the sidebar.

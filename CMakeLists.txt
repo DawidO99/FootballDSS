@@ -50,6 +50,7 @@ qt_add_qml_module(fdss_ui
         ui/components/DangerButton.qml
         ui/components/DashboardCard.qml
         ui/components/DashboardRow.qml
+        ui/components/DatabaseErrorPanel.qml
         ui/components/DataTable.qml
         ui/components/DataTableCell.qml
         ui/components/DateField.qml
@@ -57,6 +58,7 @@ qt_add_qml_module(fdss_ui
         ui/components/FieldBackground.qml
         ui/components/FocusFlickable.qml
         ui/components/FormField.qml
+        ui/components/HelpDialog.qml
         ui/components/Icon.qml
         ui/components/ImportMappingTable.qml
         ui/components/ImportReportTable.qml
@@ -118,6 +120,7 @@ qt_add_qml_module(fdss_ui
         ui/views/CalendarView.qml
         ui/views/ComponentGalleryView.qml
         ui/views/DashboardView.qml
+        ui/views/AlreadyRunningView.qml
         ui/views/DatabaseErrorView.qml
         ui/views/ForcedPinChangeView.qml
         ui/views/ImportView.qml
@@ -130,10 +133,11 @@ qt_add_qml_module(fdss_ui
         ui/views/ProfilePickerView.qml
         ui/views/SettingsView.qml
         ui/views/SetupWizardView.qml
-        ui/views/SpikeChartsView.qml
         ui/views/SquadView.qml
         ui/views/TrainingView.qml
     SOURCES
+        src/viewmodels/AppLog.hpp
+        src/viewmodels/AppLog.cpp
         src/viewmodels/AppSettings.hpp
         src/viewmodels/AppSettings.cpp
         src/viewmodels/AppState.hpp
@@ -181,6 +185,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/LoadTexts.cpp
         src/viewmodels/LoadViewModel.hpp
         src/viewmodels/LoadViewModel.cpp
+        src/viewmodels/LoadSettingsViewModel.hpp
+        src/viewmodels/LoadSettingsViewModel.cpp
         src/viewmodels/LockCountdown.hpp
         src/viewmodels/LockCountdown.cpp
         src/viewmodels/MatchDayModels.hpp

@@ -5,6 +5,10 @@
 #include <QStringList>
 #include <QVariantMap>
 
+#include <algorithm>
+#include <ranges>
+#include <vector>
+
 namespace fdss::viewmodels {
 
 QString SquadTexts::positionCode(core::Position position) {
@@ -129,13 +133,21 @@ QVariant SquadTexts::age(const std::optional<int>& birthYear, int currentYear) {
 
 QVariantList SquadTexts::secondaryPositionCodes(const core::Player& player,
                                                 std::optional<core::PositionGroup> activeGroup) {
+    std::vector<core::Position> positions = player.secondaryPositions;
+    std::ranges::stable_partition(positions, [&](core::Position position) {
+        return activeGroup == core::positionGroup(position);
+    });
     QVariantList codes;
-    for (const core::Position position : player.secondaryPositions) {
+    for (const core::Position position : positions | std::views::take(kShownSecondaryCodes)) {
         codes.append(QVariantMap{
             {QStringLiteral("code"), positionCode(position)},
             {QStringLiteral("highlighted"), activeGroup == core::positionGroup(position)}});
     }
     return codes;
+}
+
+int SquadTexts::hiddenSecondaryCount(const core::Player& player) {
+    return std::max(0, static_cast<int>(player.secondaryPositions.size()) - kShownSecondaryCodes);
 }
 
 QString SquadTexts::positionTooltip(const core::Player& player,

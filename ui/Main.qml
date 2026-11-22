@@ -20,9 +20,6 @@ ApplicationWindow {
     readonly property Item profilePicker: pickerLoader.item as Item
     // Lives here, not on the Sidebar, so it survives a logout.
     property bool sidebarCollapsed: false
-    // P03 spike: Ctrl+Shift+G shows the Qt Graphs spike view instead of the shell. Not part of
-    // NavigationModel; goes away together with SpikeChartsView.qml.
-    property bool spikeChartsOpen: false
     // P06b: Ctrl+Shift+K toggles the hidden UI kit component gallery.
     property bool componentGalleryOpen: false
     readonly property Item componentGallery: galleryLoader.item as Item
@@ -193,7 +190,7 @@ ApplicationWindow {
 
         anchors.fill: parent
         active: AppState.state === AppState.Ready
-        visible: !window.spikeChartsOpen && !window.componentGalleryOpen
+        visible: !window.componentGalleryOpen
         sourceComponent: shellComponent
         onLoaded: builtForSession = AppState.sessionSerial
     }
@@ -203,7 +200,7 @@ ApplicationWindow {
 
         anchors.fill: parent
         active: AppState.state === AppState.NeedsSetup
-        visible: !window.spikeChartsOpen && !window.componentGalleryOpen
+        visible: !window.componentGalleryOpen
         focus: active
         sourceComponent: setupWizardView
     }
@@ -214,7 +211,7 @@ ApplicationWindow {
 
         anchors.fill: parent
         active: AppState.state === AppState.NeedsLogin
-        visible: !window.spikeChartsOpen && !window.componentGalleryOpen
+        visible: !window.componentGalleryOpen
         focus: active
         sourceComponent: profilePickerView
     }
@@ -225,33 +222,31 @@ ApplicationWindow {
 
         anchors.fill: parent
         active: AppState.state === AppState.NeedsPinChange
-        visible: !window.spikeChartsOpen && !window.componentGalleryOpen
+        visible: !window.componentGalleryOpen
         focus: active
         sourceComponent: forcedPinChangeView
     }
 
-    Shortcut {
-        sequence: "Ctrl+Shift+G"
-        onActivated: {
-            window.spikeChartsOpen = !window.spikeChartsOpen;
-            if (window.spikeChartsOpen)
-                window.componentGalleryOpen = false;
+    // P19: the database opened but its first read failed; never the wizard, the club may exist.
+    Loader {
+        id: unavailableLoader
+
+        anchors.fill: parent
+        active: AppState.state === AppState.Unavailable
+        visible: !window.componentGalleryOpen
+        focus: active
+        sourceComponent: DatabaseErrorPanel {
+            message: AppState.unavailableMessage
+            canRetry: true
+            onRetryRequested: AppState.refresh()
+            onOpenFolderRequested: StartupViewModel.openDataFolder()
+            onQuitRequested: Qt.quit()
         }
     }
 
     Shortcut {
         sequence: "Ctrl+Shift+K"
-        onActivated: {
-            window.componentGalleryOpen = !window.componentGalleryOpen;
-            if (window.componentGalleryOpen)
-                window.spikeChartsOpen = false;
-        }
-    }
-
-    Loader {
-        anchors.fill: parent
-        active: window.spikeChartsOpen
-        sourceComponent: spikeChartsView
+        onActivated: window.componentGalleryOpen = !window.componentGalleryOpen
     }
 
     Loader {
@@ -496,12 +491,6 @@ ApplicationWindow {
         id: forcedPinChangeView
 
         ForcedPinChangeView {}
-    }
-
-    Component {
-        id: spikeChartsView
-
-        SpikeChartsView {}
     }
 
     Component {

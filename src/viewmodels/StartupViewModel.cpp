@@ -23,6 +23,22 @@ QString StartupViewModel::errorMessage() const {
 
 QString StartupViewModel::databasePath() const { return m_databasePath; }
 
+bool StartupViewModel::otherInstanceRunning() const { return m_otherInstanceRunning; }
+
+void StartupViewModel::setInstanceError(const core::Error& error, const QString& databasePath) {
+    m_otherInstanceRunning = error.code == core::ErrorCode::Conflict;
+    m_databasePath = databasePath;
+    emit errorChanged();
+}
+
+core::Result<std::unique_ptr<services::SingleInstance>>
+StartupViewModel::lockInstance(const core::Result<QString>& databasePath) {
+    if (!databasePath) {
+        return nullptr;
+    }
+    return services::SingleInstance::acquire(QFileInfo(*databasePath).absolutePath());
+}
+
 void StartupViewModel::openDataFolder() const {
     // The path is empty when the data folder itself could not be created.
     const QString folder = m_databasePath.isEmpty()

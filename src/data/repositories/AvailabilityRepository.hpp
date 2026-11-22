@@ -15,6 +15,8 @@ class AvailabilityRepository {
 public:
     explicit AvailabilityRepository(DatabaseManager& db) : m_db(db) {}
 
+    // NotFound when there is no such entry.
+    [[nodiscard]] core::Result<core::Availability> get(core::AvailabilityId id) const;
     // Newest first.
     [[nodiscard]] core::Result<std::vector<core::Availability>>
     listByPlayer(core::PlayerId player) const;

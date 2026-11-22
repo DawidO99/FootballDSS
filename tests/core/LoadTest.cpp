@@ -230,11 +230,16 @@ TEST(LoadTest, MatchLoadComesFromTheMinutesPlayed) {
 TEST(LoadTest, RatioBoundaries) {
     EXPECT_EQ(statusOf(withRatio(1.0)), LoadStatus::Normal);
     EXPECT_EQ(statusOf(withRatio(0.8)), LoadStatus::Normal);
-    EXPECT_EQ(statusOf(withRatio(std::nextafter(0.8, 0.0))), LoadStatus::Underloaded);
+    // The ratio counts as shown, with two decimals (P19 review): the first value past a threshold
+    // is the next hundredth; a value that only reads as the threshold is not past it.
+    EXPECT_EQ(statusOf(withRatio(0.79)), LoadStatus::Underloaded);
+    EXPECT_EQ(statusOf(withRatio(std::nextafter(0.8, 0.0))), LoadStatus::Normal);
     EXPECT_EQ(statusOf(withRatio(1.3)), LoadStatus::Normal);
-    EXPECT_EQ(statusOf(withRatio(std::nextafter(1.3, 2.0))), LoadStatus::Elevated);
+    EXPECT_EQ(statusOf(withRatio(1.31)), LoadStatus::Elevated);
+    EXPECT_EQ(statusOf(withRatio(std::nextafter(1.3, 2.0))), LoadStatus::Normal);
     EXPECT_EQ(statusOf(withRatio(1.5)), LoadStatus::Elevated);
-    EXPECT_EQ(statusOf(withRatio(std::nextafter(1.5, 2.0))), LoadStatus::High);
+    EXPECT_EQ(statusOf(withRatio(1.51)), LoadStatus::High);
+    EXPECT_EQ(statusOf(withRatio(std::nextafter(1.5, 2.0))), LoadStatus::Elevated);
 
     EXPECT_EQ(reasonsOf(withRatio(1.0)), std::vector{LoadReason::RatioInRange});
     EXPECT_EQ(reasonsOf(withRatio(0.5)), std::vector{LoadReason::RatioLow});
@@ -244,7 +249,8 @@ TEST(LoadTest, RatioBoundaries) {
 
 TEST(LoadTest, MonotonyBoundaryAndPrecedence) {
     EXPECT_EQ(statusOf(withRatio(1.0, 2.0)), LoadStatus::Normal);
-    EXPECT_EQ(statusOf(withRatio(1.0, std::nextafter(2.0, 3.0))), LoadStatus::Elevated);
+    EXPECT_EQ(statusOf(withRatio(1.0, 2.01)), LoadStatus::Elevated);
+    EXPECT_EQ(statusOf(withRatio(1.0, std::nextafter(2.0, 3.0))), LoadStatus::Normal);
     EXPECT_EQ(reasonsOf(withRatio(1.0, 2.5)), std::vector{LoadReason::MonotonyHigh});
 
     // Yellow beats underloaded and names both; red names the monotony too.
@@ -409,4 +415,73 @@ TEST(LoadTest, AHighRatioAfterABreakSaysSo) {
     const auto later = evaluateLoad(entries, onDay(129), LoadThresholds{});
     EXPECT_FALSE(later.assessment.indicators.breakDays.has_value());
     EXPECT_EQ(later.assessment.verdict.status, LoadStatus::Normal);
+}
+
+TEST(LoadTest, TheDefaultThresholdsAreValid) { EXPECT_TRUE(validate(LoadThresholds{}).empty()); }
+
+TEST(LoadTest, ThresholdsOutOfOrderOrRangeNameTheirField) {
+    const auto fields = [](const LoadThresholds& thresholds) {
+        std::vector<std::string> names;
+        for (const ValidationError& error : validate(thresholds)) {
+            names.push_back(error.field);
+        }
+        return names;
+    };
+    LoadThresholds thresholds;
+    thresholds.ratioLow = 0.0;
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"ratio_low"});
+
+    thresholds = {};
+    thresholds.ratioElevated = 0.8; // equal to the underload ratio
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"ratio_elevated"});
+
+    thresholds = {};
+    thresholds.ratioHigh = 1.3; // equal to the elevated ratio
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"ratio_high"});
+
+    thresholds = {};
+    thresholds.ratioHigh = kMaxRatio;
+    EXPECT_TRUE(fields(thresholds).empty());
+    thresholds.ratioHigh = kMaxRatio + 0.01;
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"ratio_high"});
+
+    thresholds = {};
+    thresholds.monotonyHigh = 1.0;
+    EXPECT_EQ(fields(thresholds), std::vector<std::string>{"monotony_high"});
+    thresholds.monotonyHigh = kMaxMonotony;
+    EXPECT_TRUE(fields(thresholds).empty());
+
+    thresholds = {};
+    thresholds.ratioLow = std::nan("");
+    thresholds.monotonyHigh = std::nan("");
+    EXPECT_EQ(fields(thresholds),
+              (std::vector<std::string>{"ratio_low", "ratio_elevated", "monotony_high"}));
+}
+
+// P19 review: at most two decimals, the precision the screens show.
+TEST(LoadTest, AThresholdWithMoreThanTwoDecimalsIsRefused) {
+    LoadThresholds thresholds;
+    thresholds.ratioHigh = 1.501;
+    ASSERT_EQ(validate(thresholds).size(), 1U);
+    EXPECT_EQ(validate(thresholds).front().field, "ratio_high");
+    thresholds.ratioHigh = 1.75;
+    EXPECT_TRUE(validate(thresholds).empty());
+    thresholds.monotonyHigh = 2.125;
+    ASSERT_EQ(validate(thresholds).size(), 1U);
+    EXPECT_EQ(validate(thresholds).front().field, "monotony_high");
+    EXPECT_TRUE(hasThresholdDecimals(0.07));
+    EXPECT_TRUE(hasThresholdDecimals(1.1));
+    EXPECT_FALSE(hasThresholdDecimals(0.005));
+}
+
+// P19 review: what is seen decides. 1.504 reads 1.50, which is not above a threshold of 1.50.
+TEST(LoadTest, TheRatioIsClassifiedAsShownWithTwoDecimals) {
+    LoadThresholds thresholds;
+    thresholds.ratioHigh = 1.50;
+    EXPECT_EQ(classifyLoad(withRatio(1.504), thresholds).status, LoadStatus::Elevated);
+    EXPECT_EQ(classifyLoad(withRatio(1.504), thresholds).reasons,
+              std::vector{LoadReason::RatioElevated});
+    EXPECT_EQ(classifyLoad(withRatio(1.506), thresholds).status, LoadStatus::High);
+    EXPECT_DOUBLE_EQ(shownPrecision(1.504), 1.50);
+    EXPECT_DOUBLE_EQ(shownPrecision(1.506), 1.51);
 }

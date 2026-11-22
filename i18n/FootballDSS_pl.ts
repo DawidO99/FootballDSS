@@ -2,6 +2,37 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="pl" sourcelanguage="en">
 <context>
+    <name>AlreadyRunningView</name>
+    <message>
+        <source>FootballDSS</source>
+        <translation>FootballDSS</translation>
+    </message>
+    <message>
+        <source>FootballDSS is already running</source>
+        <translation>FootballDSS już działa</translation>
+    </message>
+    <message>
+        <source>FootballDSS cannot start</source>
+        <translation>Nie można uruchomić FootballDSS</translation>
+    </message>
+    <message>
+        <source>Switch to its window, for example from the taskbar. Only one FootballDSS can be open at a time, so that two windows never change the same data.</source>
+        <translation>Przejdź do jego okna, na przykład z paska zadań. Naraz może być otwarty tylko jeden FootballDSS, aby dwa okna nigdy nie zmieniały tych samych danych.</translation>
+    </message>
+    <message>
+        <source>The data folder cannot be written, so FootballDSS cannot make sure that only one copy runs. Check that the folder is not read-only and that the disk is not full, then start FootballDSS again.</source>
+        <translation>Nie można zapisywać w folderze danych, więc FootballDSS nie może zapewnić, że działa tylko jedna kopia. Sprawdź, czy folder nie jest tylko do odczytu i czy dysk nie jest pełny, a potem uruchom FootballDSS ponownie.</translation>
+    </message>
+    <message>
+        <source>Open data folder</source>
+        <translation>Otwórz folder danych</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+</context>
+<context>
     <name>AppDialog</name>
     <message>
         <source>Save</source>
@@ -71,6 +102,10 @@
     <message>
         <source>Edit availability</source>
         <translation>Edytuj dostępność</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Usuń</translation>
     </message>
     <message>
         <source>Type</source>
@@ -1121,6 +1156,38 @@
         <translation>Dodaj trening</translation>
     </message>
     <message>
+        <source>DatabaseErrorPanel</source>
+        <translation>DatabaseErrorPanel</translation>
+    </message>
+    <message>
+        <source>Sample explanation of the error, with the next step.</source>
+        <translation>Przykładowe wyjaśnienie błędu z kolejnym krokiem.</translation>
+    </message>
+    <message>
+        <source>Sample path of the database file</source>
+        <translation>Przykładowa ścieżka pliku bazy danych</translation>
+    </message>
+    <message>
+        <source>Try again pressed</source>
+        <translation>Naciśnięto Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>Open data folder pressed</source>
+        <translation>Naciśnięto Otwórz folder danych</translation>
+    </message>
+    <message>
+        <source>Quit pressed</source>
+        <translation>Naciśnięto Zakończ</translation>
+    </message>
+    <message>
+        <source>HelpDialog</source>
+        <translation>HelpDialog</translation>
+    </message>
+    <message>
+        <source>Open help</source>
+        <translation>Otwórz pomoc</translation>
+    </message>
+    <message>
         <source>Dashboard: DashboardCard, DashboardRow, LockedState</source>
         <translation>Pulpit: DashboardCard, DashboardRow, LockedState</translation>
     </message>
@@ -1444,10 +1511,10 @@
     </message>
 </context>
 <context>
-    <name>DatabaseErrorView</name>
+    <name>DatabaseErrorPanel</name>
     <message>
-        <source>FootballDSS</source>
-        <translation>FootballDSS</translation>
+        <source>The database could not be read</source>
+        <translation>Nie można odczytać bazy danych</translation>
     </message>
     <message>
         <source>The database could not be opened</source>
@@ -1458,12 +1525,39 @@
         <translation>Plik bazy danych</translation>
     </message>
     <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
         <source>Open data folder</source>
         <translation>Otwórz folder danych</translation>
     </message>
     <message>
         <source>Quit</source>
         <translation>Zakończ</translation>
+    </message>
+</context>
+<context>
+    <name>DatabaseErrorView</name>
+    <message>
+        <source>FootballDSS</source>
+        <translation>FootballDSS</translation>
+    </message>
+    <message>
+        <source>The database could not be opened</source>
+        <translation type="vanished">Nie można otworzyć bazy danych</translation>
+    </message>
+    <message>
+        <source>Database file</source>
+        <translation type="vanished">Plik bazy danych</translation>
+    </message>
+    <message>
+        <source>Open data folder</source>
+        <translation type="vanished">Otwórz folder danych</translation>
+    </message>
+    <message>
+        <source>Quit</source>
+        <translation type="vanished">Zakończ</translation>
     </message>
 </context>
 <context>
@@ -1553,6 +1647,173 @@
     <message>
         <source>required</source>
         <translation>wymagane</translation>
+    </message>
+</context>
+<context>
+    <name>HelpDialog</name>
+    <message>
+        <source>Everywhere</source>
+        <translation>Wszędzie</translation>
+    </message>
+    <message>
+        <source>The sidebar opens the sections; the top bar has the search, the next match, the language, the theme and your account.</source>
+        <translation>Panel boczny otwiera sekcje; na górnym pasku są wyszukiwanie, najbliższy mecz, język, motyw i Twoje konto.</translation>
+    </message>
+    <message>
+        <source>Search for a player</source>
+        <translation>Szukaj zawodnika</translation>
+    </message>
+    <message>
+        <source>This help</source>
+        <translation>Ta pomoc</translation>
+    </message>
+    <message>
+        <source>Dashboard</source>
+        <translation>Pulpit</translation>
+    </message>
+    <message>
+        <source>The next match, unavailable players, load signals and recent form.</source>
+        <translation>Najbliższy mecz, niedostępni zawodnicy, sygnały obciążenia i ostatnia forma.</translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation>Kadra</translation>
+    </message>
+    <message>
+        <source>Players, their positions and availability. Enter or a double click opens the player card.</source>
+        <translation>Zawodnicy, ich pozycje i dostępność. Enter lub dwuklik otwiera kartę zawodnika.</translation>
+    </message>
+    <message>
+        <source>Add player</source>
+        <translation>Dodaj zawodnika</translation>
+    </message>
+    <message>
+        <source>Back from the player card</source>
+        <translation>Powrót z karty zawodnika</translation>
+    </message>
+    <message>
+        <source>Calendar</source>
+        <translation>Kalendarz</translation>
+    </message>
+    <message>
+        <source>Matches and training sessions; a played match opens its report.</source>
+        <translation>Mecze i treningi; rozegrany mecz otwiera swój raport.</translation>
+    </message>
+    <message>
+        <source>Add a match or a session</source>
+        <translation>Dodaj mecz lub trening</translation>
+    </message>
+    <message>
+        <source>Save the match report</source>
+        <translation>Zapisz raport meczowy</translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation>Trening</translation>
+    </message>
+    <message>
+        <source>Attendance, RPE and minutes. In the sheet a digit enters the RPE, Enter moves to the next row and Esc takes a cell back.</source>
+        <translation>Obecność, RPE i minuty. W arkuszu cyfra wpisuje RPE, Enter przechodzi do następnego wiersza, a Esc cofa zmianę komórki.</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>Pre-match</source>
+        <translation>Przed meczem</translation>
+    </message>
+    <message>
+        <source>The lineup on the tactics board, with its warnings and the lineup assistant.</source>
+        <translation>Skład na tablicy taktycznej, z ostrzeżeniami i asystentem składu.</translation>
+    </message>
+    <message>
+        <source>Match Day</source>
+        <translation>Tryb meczowy</translation>
+    </message>
+    <message>
+        <source>The live match: clock, events, substitutions, notes and changes of shape.</source>
+        <translation>Mecz na żywo: zegar, zdarzenia, zmiany, notatki i zmiany ustawienia.</translation>
+    </message>
+    <message>
+        <source>Goal</source>
+        <translation>Gol</translation>
+    </message>
+    <message>
+        <source>Opponent goal</source>
+        <translation>Gol rywala</translation>
+    </message>
+    <message>
+        <source>Yellow card</source>
+        <translation>Żółta kartka</translation>
+    </message>
+    <message>
+        <source>Red card</source>
+        <translation>Czerwona kartka</translation>
+    </message>
+    <message>
+        <source>Substitution</source>
+        <translation>Zmiana</translation>
+    </message>
+    <message>
+        <source>Note</source>
+        <translation>Notatka</translation>
+    </message>
+    <message>
+        <source>Undo the last event</source>
+        <translation>Cofnij ostatnie zdarzenie</translation>
+    </message>
+    <message>
+        <source>Full screen</source>
+        <translation>Pełny ekran</translation>
+    </message>
+    <message>
+        <source>Cancel the current step</source>
+        <translation>Anuluj bieżący krok</translation>
+    </message>
+    <message>
+        <source>Load</source>
+        <translation>Obciążenie</translation>
+    </message>
+    <message>
+        <source>Load signals of every player: reasons to talk to the player, not injury predictions.</source>
+        <translation>Sygnały obciążenia każdego zawodnika: powody do rozmowy z zawodnikiem, a nie przewidywanie kontuzji.</translation>
+    </message>
+    <message>
+        <source>Metrics</source>
+        <translation>Metryki</translation>
+    </message>
+    <message>
+        <source>Values of the custom metrics of your club.</source>
+        <translation>Wartości metryk własnych Twojego klubu.</translation>
+    </message>
+    <message>
+        <source>Import</source>
+        <translation>Import</translation>
+    </message>
+    <message>
+        <source>Players, training sessions and matches from CSV or Excel files; every import can be undone.</source>
+        <translation>Zawodnicy, treningi i mecze z plików CSV lub Excel; każdy import można cofnąć.</translation>
+    </message>
+    <message>
+        <source>Choose file</source>
+        <translation>Wybierz plik</translation>
+    </message>
+    <message>
+        <source>Settings</source>
+        <translation>Ustawienia</translation>
+    </message>
+    <message>
+        <source>The team, match rules, load signals, staff and custom metrics.</source>
+        <translation>Drużyna, zasady meczu, sygnały obciążenia, sztab i metryki własne.</translation>
+    </message>
+    <message>
+        <source>Help</source>
+        <translation>Pomoc</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Zamknij</translation>
     </message>
 </context>
 <context>
@@ -2561,6 +2822,22 @@
         <translation>Dodaj nowego przeciwnika…</translation>
     </message>
     <message>
+        <source>Rename…</source>
+        <translation>Zmień nazwę…</translation>
+    </message>
+    <message>
+        <source>New name of the opponent</source>
+        <translation>Nowa nazwa przeciwnika</translation>
+    </message>
+    <message>
+        <source>The name changes in every match against this opponent.</source>
+        <translation>Nazwa zmieni się we wszystkich meczach z tym przeciwnikiem.</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>Zmień nazwę</translation>
+    </message>
+    <message>
         <source>New opponent</source>
         <translation>Nowy przeciwnik</translation>
     </message>
@@ -3407,6 +3684,14 @@
         <translation>Tutaj pojawią się datowane notatki o tym zawodniku.</translation>
     </message>
     <message>
+        <source>The availability entry was deleted.</source>
+        <translation>Wpis dostępności został usunięty.</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>Cofnij</translation>
+    </message>
+    <message>
         <source>Available again from</source>
         <translation>Dostępny ponownie od</translation>
     </message>
@@ -3986,8 +4271,72 @@
         <translation>Spróbuj ponownie</translation>
     </message>
     <message>
+        <source>Load signals</source>
+        <translation>Obciążenie</translation>
+    </message>
+    <message>
+        <source>High ratio</source>
+        <translation>Stosunek wysoki</translation>
+    </message>
+    <message>
+        <source>Elevated ratio</source>
+        <translation>Stosunek podwyższony</translation>
+    </message>
+    <message>
+        <source>Underload ratio</source>
+        <translation>Niedociążenie</translation>
+    </message>
+    <message>
+        <source>Monotony</source>
+        <translation>Monotonia</translation>
+    </message>
+    <message>
+        <source>&gt; %1</source>
+        <translation>&gt; %1</translation>
+    </message>
+    <message>
+        <source>&lt; %1</source>
+        <translation>&lt; %1</translation>
+    </message>
+    <message>
         <source>Custom metrics</source>
         <translation>Metryki własne</translation>
+    </message>
+    <message>
+        <source>Edit load signals</source>
+        <translation>Edytuj sygnały obciążenia</translation>
+    </message>
+    <message>
+        <source>The load signals were saved.</source>
+        <translation>Sygnały obciążenia zostały zapisane.</translation>
+    </message>
+    <message>
+        <source>Ratio = acute load (7 days) / chronic load (28 days). A signal is a reason to talk to the player, not an injury prediction.</source>
+        <translation>Stosunek = obciążenie ostre (7 dni) / przewlekłe (28 dni). Sygnał to powód do rozmowy z zawodnikiem, a nie przewidywanie kontuzji.</translation>
+    </message>
+    <message>
+        <source>High: ratio above</source>
+        <translation>Wysokie: stosunek powyżej</translation>
+    </message>
+    <message>
+        <source>Elevated: ratio above</source>
+        <translation>Podwyższone: stosunek powyżej</translation>
+    </message>
+    <message>
+        <source>Underloaded: ratio below</source>
+        <translation>Niedociążenie: stosunek poniżej</translation>
+    </message>
+    <message>
+        <source>Elevated: monotony above</source>
+        <translation>Podwyższone: monotonia powyżej</translation>
+    </message>
+    <message>
+        <source>Restore defaults</source>
+        <translation>Przywróć domyślne</translation>
+    </message>
+    <message>
+        <source>The default load signals are in use again.</source>
+        <translation>Znów obowiązują domyślne sygnały obciążenia.</translation>
     </message>
     <message>
         <source>Add metric</source>
@@ -4351,64 +4700,64 @@
     <name>SpikeChartsView</name>
     <message>
         <source>Charts spike (Qt Graphs)</source>
-        <translation>Test wykresów (Qt Graphs)</translation>
+        <translation type="vanished">Test wykresów (Qt Graphs)</translation>
     </message>
     <message>
         <source>Hidden test view with sample data. Press Ctrl+Shift+G to close it.</source>
-        <translation>Ukryty widok testowy z przykładowymi danymi. Naciśnij Ctrl+Shift+G, aby go zamknąć.</translation>
+        <translation type="vanished">Ukryty widok testowy z przykładowymi danymi. Naciśnij Ctrl+Shift+G, aby go zamknąć.</translation>
     </message>
     <message>
         <source>Team load, last 14 days (AU)</source>
-        <translation>Obciążenie zespołu, ostatnie 14 dni (AU)</translation>
+        <translation type="vanished">Obciążenie zespołu, ostatnie 14 dni (AU)</translation>
     </message>
     <message>
         <source>MM/dd</source>
         <extracomment>Date format of the chart axis (Qt date format: d = day, M = month).</extracomment>
-        <translation>dd.MM</translation>
+        <translation type="vanished">dd.MM</translation>
     </message>
     <message>
         <source>Team load</source>
-        <translation>Obciążenie zespołu</translation>
+        <translation type="vanished">Obciążenie zespołu</translation>
     </message>
     <message>
         <source>%1: %2 AU</source>
-        <translation>%1: %2 AU</translation>
+        <translation type="vanished">%1: %2 AU</translation>
     </message>
     <message>
         <source>Average session load by position (AU)</source>
-        <translation>Średnie obciążenie treningowe wg formacji (AU)</translation>
+        <translation type="vanished">Średnie obciążenie treningowe wg formacji (AU)</translation>
     </message>
     <message>
         <source>Mon</source>
-        <translation>Pn</translation>
+        <translation type="vanished">Pn</translation>
     </message>
     <message>
         <source>Tue</source>
-        <translation>Wt</translation>
+        <translation type="vanished">Wt</translation>
     </message>
     <message>
         <source>Wed</source>
-        <translation>Śr</translation>
+        <translation type="vanished">Śr</translation>
     </message>
     <message>
         <source>Thu</source>
-        <translation>Cz</translation>
+        <translation type="vanished">Cz</translation>
     </message>
     <message>
         <source>Fri</source>
-        <translation>Pt</translation>
+        <translation type="vanished">Pt</translation>
     </message>
     <message>
         <source>Defenders</source>
-        <translation>Obrońcy</translation>
+        <translation type="vanished">Obrońcy</translation>
     </message>
     <message>
         <source>Midfielders</source>
-        <translation>Pomocnicy</translation>
+        <translation type="vanished">Pomocnicy</translation>
     </message>
     <message>
         <source>Forwards</source>
-        <translation>Napastnicy</translation>
+        <translation type="vanished">Napastnicy</translation>
     </message>
 </context>
 <context>
@@ -4489,6 +4838,11 @@
         <source>·</source>
         <extracomment>Between the codes of the secondary positions of a player.</extracomment>
         <translation>·</translation>
+    </message>
+    <message>
+        <source>+%1</source>
+        <extracomment>More secondary positions than the squad table shows.</extracomment>
+        <translation>+%1</translation>
     </message>
     <message>
         <source>The squad could not be read</source>
@@ -4593,6 +4947,10 @@
     <message>
         <source>Next match: %1, %2</source>
         <translation>Najbliższy mecz: %1, %2</translation>
+    </message>
+    <message>
+        <source>Help (%1)</source>
+        <translation>Pomoc (%1)</translation>
     </message>
     <message>
         <source>%1, %2</source>
@@ -4739,6 +5097,13 @@
     <message>
         <source>Analyst</source>
         <translation>Analityk</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::AvailabilityViewModel</name>
+    <message>
+        <source>%1: the expected return (%2) has passed. Mark the return or change the date.</source>
+        <translation>%1: przewidywany termin powrotu (%2) minął. Oznacz powrót albo zmień datę.</translation>
     </message>
 </context>
 <context>
@@ -5293,6 +5658,22 @@
         <translation type="vanished">Podaj sezon w postaci 2026/27.</translation>
     </message>
     <message>
+        <source>Enter a ratio above 0 and below the elevated ratio, with at most two decimals, for example 0.8.</source>
+        <translation>Wpisz stosunek większy od 0 i mniejszy od podwyższonego, z najwyżej dwoma miejscami po przecinku, na przykład 0,8.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the underload ratio and below the high ratio, with at most two decimals, for example 1.3.</source>
+        <translation>Wpisz stosunek większy od progu niedociążenia i mniejszy od wysokiego, z najwyżej dwoma miejscami po przecinku, na przykład 1,3.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the elevated ratio, at most 5, with at most two decimals, for example 1.5.</source>
+        <translation>Wpisz stosunek większy od podwyższonego, najwyżej 5, z najwyżej dwoma miejscami po przecinku, na przykład 1,5.</translation>
+    </message>
+    <message>
+        <source>Enter a monotony above 1, at most 10, with at most two decimals, for example 2.</source>
+        <translation>Wpisz monotonię większą od 1, najwyżej 10, z najwyżej dwoma miejscami po przecinku, na przykład 2.</translation>
+    </message>
+    <message>
         <source>Enter the first name, up to 50 characters.</source>
         <translation>Wpisz imię, maksymalnie 50 znaków.</translation>
     </message>
@@ -5571,6 +5952,22 @@
     <message>
         <source>The shape is the same as before. Move a player or choose another formation.</source>
         <translation>Ustawienie jest takie samo jak wcześniej. Przesuń zawodnika albo wybierz inne ustawienie.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above 0 and below the elevated ratio, for example 0.8.</source>
+        <translation type="vanished">Wpisz stosunek większy od 0 i mniejszy od podwyższonego, na przykład 0,8.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the underload ratio and below the high ratio, for example 1.3.</source>
+        <translation type="vanished">Wpisz stosunek większy od progu niedociążenia i mniejszy od wysokiego, na przykład 1,3.</translation>
+    </message>
+    <message>
+        <source>Enter a ratio above the elevated ratio, at most 5, for example 1.5.</source>
+        <translation type="vanished">Wpisz stosunek większy od podwyższonego, najwyżej 5, na przykład 1,5.</translation>
+    </message>
+    <message>
+        <source>Enter a monotony above 1, at most 10, for example 2.</source>
+        <translation type="vanished">Wpisz monotonię większą od 1, najwyżej 10, na przykład 2.</translation>
     </message>
     <message>
         <source>Enter the season as two consecutive years in the form 2026/27.</source>

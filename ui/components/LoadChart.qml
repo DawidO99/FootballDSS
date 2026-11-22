@@ -36,9 +36,9 @@ Item {
             "high": 1.5,
             "elevated": 1.3,
             "low": 0.8,
-            "highText": "1.5",
-            "elevatedText": "1.3",
-            "lowText": "0.8"
+            "highText": "1.50",
+            "elevatedText": "1.30",
+            "lowText": "0.80"
         })
     property bool baselineReady: true
     property string baselineText
