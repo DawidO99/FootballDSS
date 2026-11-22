@@ -33,10 +33,17 @@ jobs:
   package:
     name: Portable ZIP (windows-latest)
     runs-on: windows-latest
-    timeout-minutes: 25
+    # A release build from scratch takes longer than 25 minutes without a compiler cache.
+    timeout-minutes: 45
     env:
       CC: cl
       CXX: cl
+      # Compiler cache as in ci.yml: sccache keeps objects in the GitHub Actions cache; CMake reads
+      # the launcher from the environment when scripts/package-windows.ps1 configures. The release
+      # preset has no debug information (no /Zi), so no CMAKE_MSVC_DEBUG_INFORMATION_FORMAT is needed.
+      SCCACHE_GHA_ENABLED: 'true'
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
 
     steps:
       - name: Check out source
@@ -72,10 +79,17 @@ jobs:
           echo "Qt $installed_qt_version"
           test "$installed_qt_version" = "$QT_VERSION"
 
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+
       # Windows PowerShell 5.1, invoked the same way as on a developer machine (ADR-006).
       - name: Build and package
         shell: powershell
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1 -QtDir "$env:QT_ROOT_DIR"
+
+      - name: Show sccache statistics
+        if: ${{ !cancelled() }}
+        run: sccache --show-stats
 
       - name: Upload ZIP
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

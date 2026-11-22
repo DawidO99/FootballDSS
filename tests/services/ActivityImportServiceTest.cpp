@@ -689,6 +689,10 @@ TEST_F(ActivityImportServiceTest, AFailedUndoChangesNothing) {
 
 // SPEC section 8: the database file deleted while the app runs.
 TEST_F(ActivityImportServiceTest, ADeletedDatabaseFileStopsTheImport) {
+#ifdef Q_OS_WIN
+    // Windows does not let anyone delete a file SQLite holds open, so the case cannot happen there.
+    GTEST_SKIP() << "an open database file cannot be deleted on Windows";
+#else
     auto imported = importTraining(fixture("training.xlsx"));
     ASSERT_TRUE(imported.has_value());
     const Training checked = checkTraining(fixture("training-cp1250.csv"), {});
@@ -700,6 +704,7 @@ TEST_F(ActivityImportServiceTest, ADeletedDatabaseFileStopsTheImport) {
     // The open connection still sees the old file: nothing was written into it.
     EXPECT_EQ(count("SELECT count(*) FROM training_session"), 2);
     EXPECT_EQ(count("SELECT count(*) FROM import_log"), 1);
+#endif
 }
 
 } // namespace
