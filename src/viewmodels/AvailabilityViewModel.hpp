@@ -33,6 +33,9 @@ class AvailabilityViewModel : public QObject {
     Q_PROPERTY(bool canEdit READ canEdit CONSTANT FINAL)
     Q_PROPERTY(bool canViewDetails READ canViewDetails CONSTANT FINAL)
     Q_PROPERTY(QString today READ today NOTIFY entriesChanged FINAL)
+    // For the newest open injury or illness whose expected return has passed: what to do about
+    // it. Empty when there is none (P19).
+    Q_PROPERTY(QString overdueHint READ overdueHint NOTIFY overdueHintChanged FINAL)
     // Why the list could not be read. Empty: the list is fine.
     Q_PROPERTY(QString loadError READ loadError NOTIFY loadErrorChanged FINAL)
     Q_PROPERTY(QString fromDateError READ fromDateError NOTIFY errorsChanged FINAL)
@@ -49,6 +52,7 @@ public:
     [[nodiscard]] bool canEdit() const;
     [[nodiscard]] bool canViewDetails() const;
     [[nodiscard]] QString today() const;
+    [[nodiscard]] QString overdueHint() const;
     [[nodiscard]] QString loadError() const;
     [[nodiscard]] QString fromDateError() const;
     [[nodiscard]] QString expectedToError() const;
@@ -73,6 +77,7 @@ signals:
     void playerIdChanged();
     void optionsChanged();
     void entriesChanged();
+    void overdueHintChanged();
     void loadErrorChanged();
     void errorsChanged();
     // After every change. The view reads the card and the squad list anew.

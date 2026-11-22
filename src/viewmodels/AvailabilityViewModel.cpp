@@ -74,6 +74,16 @@ bool AvailabilityViewModel::canViewDetails() const {
 
 QString AvailabilityViewModel::today() const { return IsoDates::toIso(m_clock.today()); }
 
+QString AvailabilityViewModel::overdueHint() const {
+    const core::Availability* entry = m_entries->firstOverdue();
+    if (entry == nullptr) {
+        return {};
+    }
+    return tr("%1: the expected return (%2) has passed. Mark the return or change the date.")
+        .arg(SquadTexts::availabilityTypeName(entry->type),
+             IsoDates::displayText(entry->expectedTo));
+}
+
 QString AvailabilityViewModel::loadError() const {
     return m_loadFailure ? ErrorPresenter::message(*m_loadFailure) : QString{};
 }
@@ -88,16 +98,18 @@ QString AvailabilityViewModel::actualToError() const { return errorText(std::str
 
 void AvailabilityViewModel::reload() {
     m_loadFailure.reset();
+    const core::Date today = m_clock.today();
     if (m_playerId == 0 || !m_session.user()) {
-        m_entries->setEntries({});
+        m_entries->setEntries({}, today);
     } else if (auto entries = m_squad.listAvailability(core::PlayerId{m_playerId})) {
-        m_entries->setEntries(std::move(*entries));
+        m_entries->setEntries(std::move(*entries), today);
     } else {
         qCritical("AvailabilityViewModel: %s", entries.error().detail.c_str());
-        m_entries->setEntries({});
+        m_entries->setEntries({}, today);
         m_loadFailure = entries.error();
     }
     emit entriesChanged();
+    emit overdueHintChanged();
     emit loadErrorChanged();
 }
 
@@ -151,6 +163,7 @@ void AvailabilityViewModel::clearErrors() {
 bool AvailabilityViewModel::eventFilter(QObject* watched, QEvent* event) {
     if (watched == QCoreApplication::instance() && event->type() == QEvent::LanguageChange) {
         emit optionsChanged();
+        emit overdueHintChanged();
         emit loadErrorChanged();
         emit errorsChanged();
     }

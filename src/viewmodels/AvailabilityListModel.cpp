@@ -52,6 +52,8 @@ QVariant AvailabilityListModel::data(const QModelIndex& index, int role) const {
         return QString::fromStdString(entry.description.value_or(std::string{}));
     case OpenRole:
         return !entry.actualTo.has_value();
+    case ReturnOverdueRole:
+        return isReturnOverdue(entry, m_today);
     default:
         return {};
     }
@@ -68,13 +70,28 @@ QHash<int, QByteArray> AvailabilityListModel::roleNames() const {
             {ExpectedTextRole, "expectedText"},
             {ActualTextRole, "actualText"},
             {DescriptionRole, "description"},
-            {OpenRole, "open"}};
+            {OpenRole, "open"},
+            {ReturnOverdueRole, "returnOverdue"}};
 }
 
-void AvailabilityListModel::setEntries(std::vector<core::Availability> entries) {
+void AvailabilityListModel::setEntries(std::vector<core::Availability> entries, core::Date today) {
     beginResetModel();
     m_entries = std::move(entries);
+    m_today = today;
     endResetModel();
+}
+
+const core::Availability* AvailabilityListModel::firstOverdue() const {
+    const auto it = std::ranges::find_if(m_entries, [this](const core::Availability& entry) {
+        return isReturnOverdue(entry, m_today);
+    });
+    return it == m_entries.end() ? nullptr : &*it;
+}
+
+bool AvailabilityListModel::isReturnOverdue(const core::Availability& entry, core::Date today) {
+    const bool lastsUntilMarked = entry.type == core::AvailabilityType::Injury ||
+                                  entry.type == core::AvailabilityType::Illness;
+    return lastsUntilMarked && !entry.actualTo && entry.expectedTo && *entry.expectedTo < today;
 }
 
 const core::Availability* AvailabilityListModel::find(qint64 entryId) const {

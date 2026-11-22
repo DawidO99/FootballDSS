@@ -4812,6 +4812,13 @@
     </message>
 </context>
 <context>
+    <name>fdss::viewmodels::AvailabilityViewModel</name>
+    <message>
+        <source>%1: the expected return (%2) has passed. Mark the return or change the date.</source>
+        <translation>%1: przewidywany termin powrotu (%2) minął. Oznacz powrót albo zmień datę.</translation>
+    </message>
+</context>
+<context>
     <name>fdss::viewmodels::CalendarListModel</name>
     <message>
         <source>Upcoming</source>

@@ -4656,6 +4656,13 @@
     </message>
 </context>
 <context>
+    <name>fdss::viewmodels::AvailabilityViewModel</name>
+    <message>
+        <source>%1: the expected return (%2) has passed. Mark the return or change the date.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>fdss::viewmodels::CalendarListModel</name>
     <message>
         <source>Upcoming</source>

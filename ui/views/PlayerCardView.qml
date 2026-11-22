@@ -410,6 +410,31 @@ Item {
                         Layout.preferredWidth: 2
                         title: qsTr("Availability")
 
+                        // P19: an injury or illness past its expected return, still not marked.
+                        RowLayout {
+                            objectName: "overdueHint"
+                            Layout.fillWidth: true
+                            visible: availability.overdueHint.length > 0
+                            spacing: Theme.spacing.s
+
+                            Icon {
+                                Layout.alignment: Qt.AlignTop
+                                name: "warn"
+                                color: Theme.warn
+                                size: Theme.fontSize.body
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 0
+                                text: availability.overdueHint
+                                textFormat: Text.PlainText
+                                color: Theme.text
+                                font.pixelSize: Theme.fontSize.body
+                                wrapMode: Text.Wrap
+                            }
+                        }
+
                         DataTable {
                             id: entriesTable
 

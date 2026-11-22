@@ -33,7 +33,9 @@ public:
         // Empty when there is none, also for a role that may not read it.
         DescriptionRole,
         // The return is not marked yet.
-        OpenRole
+        OpenRole,
+        // An open injury or illness whose expected return is before today (P19).
+        ReturnOverdueRole
     };
 
     explicit AvailabilityListModel(QObject* parent = nullptr);
@@ -42,7 +44,11 @@ public:
     [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
-    void setEntries(std::vector<core::Availability> entries);
+    // `today` decides which entries are past their expected return.
+    void setEntries(std::vector<core::Availability> entries, core::Date today);
+    // The newest entry past its expected return; nullptr when there is none.
+    [[nodiscard]] const core::Availability* firstOverdue() const;
+    [[nodiscard]] static bool isReturnOverdue(const core::Availability& entry, core::Date today);
     // nullptr when the id is not in the list.
     [[nodiscard]] const core::Availability* find(qint64 entryId) const;
 
@@ -56,6 +62,7 @@ protected:
 
 private:
     std::vector<core::Availability> m_entries;
+    core::Date m_today{};
 };
 
 } // namespace fdss::viewmodels
