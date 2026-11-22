@@ -149,6 +149,33 @@ bool AvailabilityViewModel::markReturned(qint64 entryId, const QString& actualTo
         m_squad.markReturned(core::PlayerId{m_playerId}, core::AvailabilityId{entryId}, *date));
 }
 
+bool AvailabilityViewModel::remove(qint64 entryId) {
+    clearErrors();
+    if (!checkAllowed()) {
+        return false;
+    }
+    auto deleted = m_squad.deleteAvailability(core::AvailabilityId{entryId});
+    if (!deleted) {
+        report(deleted.error());
+        return false;
+    }
+    m_deleted = std::move(*deleted);
+    return finish({});
+}
+
+bool AvailabilityViewModel::undoRemove() {
+    if (!m_deleted || !checkAllowed()) {
+        return false;
+    }
+    const auto restored = m_squad.restoreAvailability(*m_deleted);
+    if (!restored) {
+        report(restored.error());
+        return false;
+    }
+    m_deleted.reset();
+    return finish({});
+}
+
 QString AvailabilityViewModel::defaultReturnDate(qint64 entryId) const {
     const core::Date today = m_clock.today();
     const core::Availability* entry = m_entries->find(entryId);

@@ -92,6 +92,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Type</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3354,6 +3358,14 @@
     </message>
     <message>
         <source>Dated notes about this player will appear here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The availability entry was deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

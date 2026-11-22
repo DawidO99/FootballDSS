@@ -685,6 +685,7 @@ Item {
         id: availabilityDialog
 
         viewModel: availability
+        onRemoved: Toasts.show(qsTr("The availability entry was deleted."), qsTr("Undo"), () => availability.undoRemove())
     }
 
     AppDialog {

@@ -92,6 +92,10 @@
         <translation>Edytuj dostępność</translation>
     </message>
     <message>
+        <source>Delete</source>
+        <translation>Usuń</translation>
+    </message>
+    <message>
         <source>Type</source>
         <translation>Typ</translation>
     </message>
@@ -3475,6 +3479,14 @@
     <message>
         <source>Dated notes about this player will appear here.</source>
         <translation>Tutaj pojawią się datowane notatki o tym zawodniku.</translation>
+    </message>
+    <message>
+        <source>The availability entry was deleted.</source>
+        <translation>Wpis dostępności został usunięty.</translation>
+    </message>
+    <message>
+        <source>Undo</source>
+        <translation>Cofnij</translation>
     </message>
     <message>
         <source>Available again from</source>

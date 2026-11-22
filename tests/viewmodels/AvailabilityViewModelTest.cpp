@@ -278,3 +278,38 @@ TEST_F(AvailabilityViewModelTest, AnOpenInjuryPastItsExpectedReturnGetsAHint) {
                      .toBool());
     EXPECT_TRUE(availability.overdueHint().isEmpty());
 }
+
+TEST_F(AvailabilityViewModelTest, AnAssistantDeletesAnEntryAndUndoKeepsTheDescription) {
+    AvailabilityViewModel coachView;
+    const qint64 entry = addSecretInjury(coachView);
+    logInAs(m_assistant);
+    AvailabilityViewModel availability;
+    availability.setPlayerId(m_player.value);
+    SignalCount changed(&availability, &AvailabilityViewModel::availabilityChanged);
+    EXPECT_FALSE(availability.undoRemove());
+
+    ASSERT_TRUE(availability.remove(entry));
+    EXPECT_EQ(availability.entries()->rowCount(), 0);
+    ASSERT_TRUE(availability.undoRemove());
+    EXPECT_EQ(availability.entries()->rowCount(), 1);
+    EXPECT_FALSE(availability.undoRemove());
+    EXPECT_EQ(changed.count(), 2);
+
+    logInAs(m_physio);
+    AvailabilityViewModel physioView;
+    physioView.setPlayerId(m_player.value);
+    EXPECT_EQ(firstRow(physioView).value(QStringLiteral("description")).toString(), kSecret);
+}
+
+TEST_F(AvailabilityViewModelTest, AnAnalystCannotDelete) {
+    AvailabilityViewModel coachView;
+    const qint64 entry = addSecretInjury(coachView);
+    logInAs(m_analyst);
+    AvailabilityViewModel availability;
+    availability.setPlayerId(m_player.value);
+    SignalCount errors(&availability, &AvailabilityViewModel::errorOccurred);
+
+    EXPECT_FALSE(availability.remove(entry));
+    EXPECT_EQ(errors.count(), 1);
+    EXPECT_EQ(availability.entries()->rowCount(), 1);
+}

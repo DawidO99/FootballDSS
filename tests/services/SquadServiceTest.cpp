@@ -315,3 +315,59 @@ TEST_F(SquadServiceTest, MarkReturnedOfAnEntryOfAnotherPlayerIsNotFound) {
 }
 
 } // namespace
+
+TEST_F(SquadServiceTest, AnAssistantDeletesAnEntryAndTheUndoBringsTheDescriptionBack) {
+    AvailabilityDraft full = injury(kSecret);
+    full.expectedTo = kToday;
+    const AvailabilityId id = addEntry(full);
+    logInAs(Role::Assistant);
+
+    const auto deleted = m_squad->deleteAvailability(id);
+    ASSERT_TRUE(deleted.has_value()) << deleted.error().detail;
+    EXPECT_EQ(deleted->player(), kPlayer);
+    EXPECT_TRUE(m_availability->listByPlayer(kPlayer)->empty());
+
+    const auto restored = m_squad->restoreAvailability(*deleted);
+    ASSERT_TRUE(restored.has_value()) << restored.error().detail;
+    const Availability entry = storedEntry(*restored);
+    EXPECT_EQ(entry.type, AvailabilityType::Injury);
+    EXPECT_EQ(entry.fromDate, kLastMonth);
+    EXPECT_EQ(entry.expectedTo, kToday);
+    EXPECT_EQ(entry.description, kSecret);
+}
+
+TEST_F(SquadServiceTest, DeletingAnEntryNeedsEditAvailability) {
+    for (const Role role : allValues<Role>()) {
+        SCOPED_TRACE(toDbText(role));
+        const AvailabilityId id = addEntry(injury());
+        logInAs(role);
+        const auto deleted = m_squad->deleteAvailability(id);
+        if (isAllowed(role, Permission::EditAvailability)) {
+            EXPECT_TRUE(deleted.has_value());
+        } else {
+            expectError(statusOf(deleted), ErrorCode::PermissionDenied);
+        }
+        m_session.clear();
+    }
+    expectError(statusOf(m_squad->deleteAvailability(AvailabilityId{1})),
+                ErrorCode::PermissionDenied);
+}
+
+TEST_F(SquadServiceTest, DeletingAMissingEntryIsNotFound) {
+    logInAs(Role::Coach);
+    const auto deleted = m_squad->deleteAvailability(AvailabilityId{999});
+    ASSERT_FALSE(deleted.has_value());
+    EXPECT_EQ(deleted.error().code, ErrorCode::NotFound);
+}
+
+TEST_F(SquadServiceTest, AnAnalystCannotUndoADelete) {
+    const AvailabilityId id = addEntry(injury(kSecret));
+    logInAs(Role::Coach);
+    const auto deleted = m_squad->deleteAvailability(id);
+    ASSERT_TRUE(deleted.has_value());
+    logInAs(Role::Analyst);
+
+    const auto restored = m_squad->restoreAvailability(*deleted);
+    ASSERT_FALSE(restored.has_value());
+    EXPECT_EQ(restored.error().code, ErrorCode::PermissionDenied);
+}

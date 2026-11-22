@@ -12,10 +12,11 @@
 #include <optional>
 #include <string>
 
+#include "services/SquadService.hpp"
+
 namespace fdss::services {
 class Clock;
 class Session;
-class SquadService;
 } // namespace fdss::services
 
 namespace fdss::viewmodels {
@@ -69,6 +70,11 @@ public:
                             const QString& description);
     // actualTo is the first available day.
     Q_INVOKABLE bool markReturned(qint64 entryId, const QString& actualTo);
+    // Deletes an entry made by mistake; undoRemove() brings the last one back, with the
+    // description also when this role cannot read it (P19).
+    Q_INVOKABLE bool remove(qint64 entryId);
+    // False when nothing was deleted since the last undo.
+    Q_INVOKABLE bool undoRemove();
     // What "Mark as returned" offers: today, but not before the start of the entry.
     Q_INVOKABLE QString defaultReturnDate(qint64 entryId) const;
     Q_INVOKABLE void clearErrors();
@@ -108,6 +114,7 @@ private:
     AvailabilityListModel* m_entries;
 
     qint64 m_playerId = 0;
+    std::optional<services::DeletedAvailability> m_deleted;
     std::optional<core::Error> m_loadFailure;
     // By column name. Kept as errors, not as text, so the messages follow the language.
     std::map<std::string, core::Error> m_errors;

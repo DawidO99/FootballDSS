@@ -20,6 +20,14 @@ core::Availability readAvailability(RowReader& row) {
 
 } // namespace
 
+core::Result<core::Availability> AvailabilityRepository::get(core::AvailabilityId id) const {
+    return selectOne(
+        m_db,
+        QStringLiteral("SELECT id, player_id, type, from_date, expected_to, actual_to, "
+                       "description FROM availability WHERE id = ?"),
+        {idValue(id)}, "get availability", readAvailability);
+}
+
 core::Result<std::vector<core::Availability>>
 AvailabilityRepository::listByPlayer(core::PlayerId player) const {
     return selectAll(
