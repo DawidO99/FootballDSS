@@ -24,6 +24,8 @@ struct LogState {
     std::unique_ptr<QFile> file;
     QtMessageHandler previous = nullptr;
     bool installed = false;
+    // A rotation that failed is not tried again until the next start, so the file only grows.
+    bool rotationFailed = false;
 };
 
 LogState& state() {
@@ -48,8 +50,19 @@ bool openFile(LogState& log, QIODevice::OpenModeFlag mode) {
     return true;
 }
 
-// Shifts FootballDSS.log to .1.log and so on, dropping the oldest, and opens a new file. Never
-// logs: a message from here would come back into the handler.
+// A line written straight to the file; the handler itself must not log.
+void writeLine(LogState& log, const char* type, const QString& message) {
+    const QString line = QStringLiteral("%1 [%2] default: %3\n")
+                             .arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs),
+                                  QLatin1StringView(type), message);
+    log.file->write(line.toUtf8());
+    log.file->flush();
+}
+
+// Shifts FootballDSS.log to .1.log and so on, dropping the oldest, and opens a new file. When
+// FootballDSS.log cannot be moved away (P19 review: in use, no rights), it is continued with
+// Append, never truncated, and the file says why. Never logs: a message from here would come back
+// into the handler.
 bool startNewFile(LogState& log) {
     if (log.file) {
         log.file->close();
@@ -61,6 +74,16 @@ bool startNewFile(LogState& log) {
         if (QFile::exists(from)) {
             QFile::rename(from, fileName(log.directory, index + 1));
         }
+    }
+    const QString current = fileName(log.directory, 0);
+    if (log.keepFiles > 1 && QFile::exists(current)) {
+        log.rotationFailed = true;
+        if (!openFile(log, QIODevice::Append)) {
+            return false;
+        }
+        writeLine(log, "warning",
+                  QStringLiteral("AppLog: cannot rotate %1; it is continued instead").arg(current));
+        return true;
     }
     return openFile(log, QIODevice::Truncate);
 }
@@ -87,7 +110,7 @@ void handler(QtMsgType type, const QMessageLogContext& context, const QString& m
     {
         const std::lock_guard lock(log.mutex);
         previous = log.previous;
-        if (log.file && log.file->size() >= log.maxBytes) {
+        if (log.file && !log.rotationFailed && log.file->size() >= log.maxBytes) {
             startNewFile(log);
         }
         if (log.file) {
@@ -119,6 +142,7 @@ core::Status AppLog::install(const QString& directory, int keepFiles, qint64 max
                 core::Error{core::ErrorCode::Internal, "the log is already installed", {}});
         }
         log.directory = directory;
+        log.rotationFailed = false;
         log.keepFiles = std::max(keepFiles, 1);
         log.maxBytes = std::max<qint64>(maxBytes, 1);
         const bool opened =

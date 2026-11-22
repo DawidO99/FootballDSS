@@ -118,3 +118,36 @@ TEST_F(AppLogTest, AppendKeepsTheFileAndRotatesNothing) {
     EXPECT_TRUE(text.contains(QStringLiteral("from the running instance")));
     EXPECT_TRUE(text.contains(QStringLiteral("start refused")));
 }
+
+// P19 review: a log that cannot be moved away is continued, never emptied, and says so.
+TEST_F(AppLogTest, AFailedRotationAppendsInsteadOfTruncating) {
+    ASSERT_TRUE(m_dir.isValid());
+    ASSERT_TRUE(AppLog::install(m_dir.path(), 2).has_value());
+    qInfo("written before the rotation");
+    AppLog::uninstall();
+    // A folder where the rotation wants to put the old file: neither remove() nor rename() works.
+    ASSERT_TRUE(QDir(m_dir.path()).mkdir(QStringLiteral("FootballDSS.1.log")));
+
+    ASSERT_TRUE(AppLog::install(m_dir.path(), 2).has_value());
+    qInfo("written after the failed rotation");
+
+    const QString text = read(QStringLiteral("FootballDSS.log"));
+    EXPECT_TRUE(text.contains(QStringLiteral("written before the rotation"))) << text.toStdString();
+    EXPECT_TRUE(text.contains(QStringLiteral("written after the failed rotation")));
+    EXPECT_TRUE(text.contains(QStringLiteral("[warning]")));
+    EXPECT_TRUE(text.contains(QStringLiteral("cannot rotate")));
+}
+
+TEST_F(AppLogTest, AFailedRotationWhileRunningKeepsEveryLine) {
+    ASSERT_TRUE(m_dir.isValid());
+    ASSERT_TRUE(QDir(m_dir.path()).mkdir(QStringLiteral("FootballDSS.1.log")));
+    ASSERT_TRUE(AppLog::install(m_dir.path(), 2, 100).has_value());
+    for (int line = 0; line < 10; ++line) {
+        qInfo("a line long enough to fill the small file quickly, number %d", line);
+    }
+
+    const QString text = read(QStringLiteral("FootballDSS.log"));
+    EXPECT_TRUE(text.contains(QStringLiteral("number 0\n"))) << text.toStdString();
+    EXPECT_TRUE(text.contains(QStringLiteral("number 9\n")));
+    EXPECT_EQ(text.count(QStringLiteral("cannot rotate")), 1);
+}
