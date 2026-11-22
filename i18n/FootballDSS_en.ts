@@ -841,6 +841,34 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>MetricValueGrid and MetricTrend (P17)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Out of range: expected 3–10 s.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample metric values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sprint 30 m [s]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Better</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Worse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Coach</source>
         <translation type="unfinished"></translation>
     </message>
@@ -2724,6 +2752,230 @@
     </message>
 </context>
 <context>
+    <name>MetricDefinitionDialog</name>
+    <message>
+        <source>Add metric</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit metric</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>One name is enough; the other language shows it too.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name in Polish</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name in English</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Entered for</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>For example s, cm or kg</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Over 28 days</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>What the player card shows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minimum</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Optional</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Maximum</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Higher is better</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This metric already has values, so its type and what it is entered for stay.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MetricValueGrid</name>
+    <message>
+        <source>Value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MetricValueGridRow</name>
+    <message>
+        <source>Value of %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear (Delete)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>MetricsView</name>
+    <message>
+        <source>Metrics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Saved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metric</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Day</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Values of the metric</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The metric values could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No custom metrics yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Define what your club measures in Settings, then enter the values here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the analyst to define one in Settings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No matches yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No sessions yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add one in Calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add one in Calendar.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No players yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add players in Squad to enter their values.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add players in Squad.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the changes?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Discard changes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The values of this metric have changes that are not saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>NumberField</name>
     <message>
         <source>Enter a number.</source>
@@ -2821,6 +3073,34 @@
     </message>
     <message>
         <source>Not set</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metrics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · last %2 · %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The metrics could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No metric values yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter values in the Metrics section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the analyst to enter them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open metrics</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3447,10 +3727,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Club details, custom metrics and backups will be configured here.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>%1 was deactivated.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3495,7 +3771,76 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Custom metrics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add metric</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metric %1 was deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <comment>custom metric</comment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Entered for</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The metrics could not be read</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No custom metrics yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Define what your club measures, such as a 30 m sprint or a jump, and enter it per session, match or day.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the analyst to define one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Over 28 days: %1 · %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Allowed: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Edit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This metric already has values, so it cannot be deleted: the values would be lost.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A metric with values cannot be deleted: its values would be lost.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3548,10 +3893,6 @@
     </message>
     <message>
         <source>4 to 8 digits. This also ends a lockout.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Back to the dashboard</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -4837,6 +5178,34 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>A metric name can have up to 50 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The name needs at least one Latin letter or digit.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The unit can have up to 20 characters.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a number such as 4,35, with the maximum not below the minimum. A whole-number metric needs whole limits; a yes/no metric has none.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A yes/no metric can be summed, averaged or show its last answer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This value does not fit the metric. Check its type and range.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This metric is entered for another kind of event. Choose the metric again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4954,6 +5323,18 @@
     </message>
     <message>
         <source>This session has metric values attached to it, so it cannot be deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>A metric with a similar name already exists. Choose another name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This metric already has values, so it cannot be deleted: the values would be lost. Clear its values in the Metrics section first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This metric already has values, so its type and what it is entered for cannot change. Create a new metric instead.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5972,6 +6353,174 @@
     </message>
 </context>
 <context>
+    <name>fdss::viewmodels::MetricDefinitionsViewModel</name>
+    <message>
+        <source>Enter a number, such as 4,35, or leave it empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MetricEntryViewModel</name>
+    <message>
+        <source>Not entered</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Allowed: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Unit: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Higher is better</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lower is better</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Some values are not valid. Correct the marked rows and save again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 · %2</source>
+        <extracomment>Match picker of the Metrics section: the date and the opponent.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MetricTexts</name>
+    <message>
+        <source>en</source>
+        <extracomment>Language code of this translation: &quot;pl&quot; in Polish. It picks the metric name to show.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 [%2]</source>
+        <extracomment>Metric picker: the name and the unit, e.g. &quot;Sprint 30 m [s]&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Whole number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Decimal number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yes / no</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sum</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lowest</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Highest</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Last value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Any day (test)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>.</source>
+        <extracomment>Decimal separator of the app language, used in custom metric values.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <extracomment>A metric value and its unit, e.g. &quot;4,35 s&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 %</source>
+        <extracomment>Share of &quot;yes&quot; answers of a yes/no metric.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n time(s) yes</source>
+        <extracomment>Count of &quot;yes&quot; answers of a yes/no metric.</extracomment>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 of %2 days: %3 (%4)</source>
+        <extracomment>Player card: the aggregation of a metric over 28 days, e.g. &quot;Average of 28 days: 4,41 s (3 values)&quot;. %1 the aggregation, %2 the days, %3 the value, %4 the count of values.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n value(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1–%2</source>
+        <extracomment>Allowed range of a metric, e.g. &quot;3–10 s&quot;.</extracomment>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>at least %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>at most %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Out of range: expected %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a whole number, such as 12.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter a number, such as 4,35 or 4.35.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Tick for yes, untick for no.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>fdss::viewmodels::NavigationModel</name>
     <message>
         <source>Dashboard</source>
@@ -5999,6 +6548,10 @@
     </message>
     <message>
         <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metrics</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6057,6 +6610,36 @@
     </message>
     <message>
         <source>Draw</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::PlayerMetricsViewModel</name>
+    <message numerus="yes">
+        <source>No value in the last %n day(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Better</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Worse</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Previous value: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No previous value</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

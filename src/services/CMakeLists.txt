@@ -27,6 +27,8 @@ add_library(fdss_services STATIC
     MatchRecompute.cpp
     MatchReportService.hpp
     MatchReportService.cpp
+    MetricService.hpp
+    MetricService.cpp
     LoadService.hpp
     LoadService.cpp
     SquadService.hpp

@@ -6,8 +6,8 @@ import QtQuick.Layouts
 import FootballDSS
 
 // The match rules and the Staff section, for those who may manage settings and staff; the modules
-// preference of this computer for every role (P15 decision 4). Other settings arrive with later
-// packets.
+// preference of this computer and the custom metrics (P17) for every role (P15 decision 4). Other
+// settings arrive with later packets.
 Item {
     id: root
 
@@ -17,6 +17,8 @@ Item {
     readonly property bool canManageSettings: AppState.can("ManageSettings")
     // Exposed for tests: null without ManageStaff.
     readonly property Item staffSection: staffLoader.item as Item
+    // Exposed for tests: the metrics card, in its tab or alone.
+    readonly property Item metricsSection: (root.canManageStaff ? metricsTabLoader.item : metricsLoader.item) as Item
 
     signal navigateRequested(string key, var args)
 
@@ -38,75 +40,300 @@ Item {
             title: qsTr("Settings")
         }
 
-        // P12 decision 3: one threshold for every competition, kept on this computer.
-        Card {
-            objectName: "matchRulesCard"
+        // Two short cards side by side, so Staff and the metrics below keep their rows at the minimum
+        // window (P17).
+        RowLayout {
             Layout.fillWidth: true
-            visible: root.canManageSettings
-            title: qsTr("Match rules")
+            spacing: Theme.spacing.l
 
-            FormField {
-                id: yellowCardsFormField
-
+            // P12 decision 3: one threshold for every competition, kept on this computer.
+            Card {
+                objectName: "matchRulesCard"
                 Layout.fillWidth: true
-                label: qsTr("Yellow cards before a suspension")
-                helpText: qsTr("Pre-match warns when a player is one yellow card away from a suspension in the competition of the match.")
+                Layout.fillHeight: true
+                Layout.preferredWidth: 1
+                visible: root.canManageSettings
+                title: qsTr("Match rules")
 
-                NumberField {
-                    id: yellowCardThresholdField
+                FormField {
+                    id: yellowCardsFormField
 
-                    objectName: "yellowCardThresholdField"
-                    from: AppSettings.minYellowCardThreshold
-                    to: AppSettings.maxYellowCardThreshold
-                    value: AppSettings.yellowCardThreshold
-                    Accessible.name: yellowCardsFormField.label
-                    // A refused change shows the stored value again.
-                    onValueModified: value => {
-                        if (value !== null && !AppSettings.setYellowCardThreshold(value))
-                            yellowCardThresholdField.showValue();
+                    Layout.fillWidth: true
+                    label: qsTr("Yellow cards before a suspension")
+                    helpText: qsTr("Pre-match warns when a player is one yellow card away from a suspension in the competition of the match.")
+
+                    NumberField {
+                        id: yellowCardThresholdField
+
+                        objectName: "yellowCardThresholdField"
+                        from: AppSettings.minYellowCardThreshold
+                        to: AppSettings.maxYellowCardThreshold
+                        value: AppSettings.yellowCardThreshold
+                        Accessible.name: yellowCardsFormField.label
+                        // A refused change shows the stored value again.
+                        onValueModified: value => {
+                            if (value !== null && !AppSettings.setYellowCardThreshold(value))
+                                yellowCardThresholdField.showValue();
+                        }
+                    }
+                }
+            }
+
+            // P15 decision 4: a preference of this computer, like the theme; every role may change it.
+            Card {
+                objectName: "modulesCard"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredWidth: 1
+                title: qsTr("Modules")
+
+                FormField {
+                    Layout.fillWidth: true
+                    label: qsTr("Advanced modules")
+                    helpText: qsTr("Pro analysis appears once event data is imported. On: it is listed on the dashboard before that, with what to import.")
+
+                    CheckBoxField {
+                        objectName: "showAdvancedModules"
+                        text: qsTr("Show advanced modules")
+                        checked: AppSettings.showAdvancedModules
+                        onToggled: AppSettings.showAdvancedModules = checked
                     }
                 }
             }
         }
 
-        // P15 decision 4: a preference of this computer, like the theme; every role may change it.
-        Card {
-            objectName: "modulesCard"
+        // P17: Staff and the custom metrics share the room below, each at the full width; a role
+        // without ManageStaff sees only the metrics, which every role reads.
+        AppTabs {
+            id: settingsTabs
+
+            objectName: "settingsTabs"
             Layout.fillWidth: true
-            title: qsTr("Modules")
+            Layout.fillHeight: true
+            visible: root.canManageStaff
+            titles: [qsTr("Staff"), qsTr("Custom metrics")]
 
-            FormField {
-                Layout.fillWidth: true
-                label: qsTr("Advanced modules")
-                helpText: qsTr("Pro analysis appears once event data is imported. On: it is listed on the dashboard before that, with what to import.")
+            Loader {
+                id: staffLoader
 
-                CheckBoxField {
-                    objectName: "showAdvancedModules"
-                    text: qsTr("Show advanced modules")
-                    checked: AppSettings.showAdvancedModules
-                    onToggled: AppSettings.showAdvancedModules = checked
-                }
+                active: root.canManageStaff
+                sourceComponent: staffComponent
+            }
+
+            Loader {
+                id: metricsTabLoader
+
+                active: root.canManageStaff
+                sourceComponent: metricsComponent
             }
         }
 
         Loader {
-            id: staffLoader
+            id: metricsLoader
 
             Layout.fillWidth: true
             Layout.fillHeight: true
-            active: root.canManageStaff
+            active: !root.canManageStaff
             visible: active
-            sourceComponent: staffComponent
+            sourceComponent: metricsComponent
         }
+    }
 
-        EmptyState {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            visible: !root.canManageStaff && !root.canManageSettings
-            iconName: "settings"
-            description: qsTr("Club details, custom metrics and backups will be configured here.")
-            actionText: qsTr("Back to the dashboard")
-            onActionTriggered: root.navigateRequested("dashboard", {})
+    Component {
+        id: metricsComponent
+
+        // P17: every role reads the custom metrics; ManageMetrics changes them.
+        Card {
+            id: metricsSection
+
+            // Exposed for tests.
+            readonly property MetricDefinitionsViewModel viewModel: metricDefinitions
+            readonly property alias table: metricsTable
+            readonly property alias dialog: metricDialog
+            property var selectedMetric: ({})
+            readonly property bool hasSelection: selectedMetric.metricId !== undefined
+            readonly property bool selectionHasValues: hasSelection && selectedMetric.valueCount > 0
+
+            function syncSelection() {
+                metricsSection.selectedMetric = metricDefinitions.definitions.rowAt(metricsTable.currentIndex);
+            }
+
+            // All views stay loaded, and the Metrics section may have added or cleared values since:
+            // the locks of Delete, type and scope come from them.
+            Connections {
+                target: root
+
+                function onVisibleChanged() {
+                    if (root.visible)
+                        metricsSection.reload();
+                }
+            }
+
+            // Reads the list again; the same metric stays selected.
+            function reload() {
+                const id = metricsSection.selectedMetric.metricId ?? 0;
+                metricDefinitions.reload();
+                metricsTable.currentIndex = metricDefinitions.definitions.rowOf(id);
+                metricsSection.syncSelection();
+            }
+
+            function editSelected() {
+                if (metricsSection.hasSelection && metricDefinitions.canManage)
+                    metricDialog.openForEditing(metricsSection.selectedMetric);
+            }
+
+            function deleteSelected() {
+                if (metricsSection.hasSelection)
+                    metricDefinitions.remove(metricsSection.selectedMetric.metricId);
+            }
+
+            objectName: "metricsCard"
+            title: qsTr("Custom metrics")
+            Component.onCompleted: metricsSection.syncSelection()
+
+            actions: PrimaryButton {
+                objectName: "addMetricButton"
+                visible: metricDefinitions.canManage
+                text: qsTr("Add metric")
+                onClicked: metricDialog.openForAdding("")
+            }
+
+            MetricDefinitionsViewModel {
+                id: metricDefinitions
+
+                onErrorOccurred: message => Toasts.error(message)
+                onRemoved: name => Toasts.show(qsTr("Metric %1 was deleted.").arg(name), qsTr("Undo"), () => metricDefinitions.undoRemove())
+                onDefinitionsChanged: {
+                    metricsTable.currentIndex = metricDefinitions.definitions.rowOf(metricsSection.selectedMetric.metricId ?? 0);
+                    metricsSection.syncSelection();
+                }
+            }
+
+            DataTable {
+                id: metricsTable
+
+                objectName: "metricsTable"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Accessible.name: qsTr("Custom metrics")
+                model: metricDefinitions.definitions
+                columns: [
+                    {
+                        "role": "name",
+                        "title": qsTr("Name", "custom metric"),
+                        "width": 0.34,
+                        "sortable": false
+                    },
+                    {
+                        "role": "valueTypeText",
+                        "title": qsTr("Type"),
+                        "width": 0.22,
+                        "sortable": false
+                    },
+                    {
+                        "role": "scopeText",
+                        "title": qsTr("Entered for"),
+                        "width": 0.26,
+                        "sortable": false
+                    },
+                    {
+                        "role": "valueCount",
+                        "title": qsTr("Values"),
+                        "width": 0.18,
+                        "align": Qt.AlignRight,
+                        "sortable": false
+                    }
+                ]
+                emptyState: metricsEmptyState
+                onCurrentIndexChanged: metricsSection.syncSelection()
+                onActivated: metricsSection.editSelected()
+            }
+
+            Component {
+                id: metricsEmptyState
+
+                EmptyState {
+                    objectName: "noMetricsState"
+                    iconName: "metrics"
+                    title: metricDefinitions.loadError.length > 0 ? qsTr("The metrics could not be read") : qsTr("No custom metrics yet")
+                    description: metricDefinitions.loadError.length > 0 ? metricDefinitions.loadError : metricDefinitions.canManage ? qsTr("Define what your club measures, such as a 30 m sprint or a jump, and enter it per session, match or day.") : qsTr("Ask the coach, the assistant or the analyst to define one.")
+                    actionText: metricDefinitions.loadError.length > 0 ? qsTr("Try again") : metricDefinitions.canManage ? qsTr("Add metric") : ""
+                    onActionTriggered: {
+                        if (metricDefinitions.loadError.length > 0)
+                            metricDefinitions.reload();
+                        else
+                            metricDialog.openForAdding("");
+                    }
+                }
+            }
+
+            Label {
+                objectName: "metricDetails"
+                Layout.fillWidth: true
+                visible: metricsSection.hasSelection
+                text: metricsSection.hasSelection ? qsTr("Over 28 days: %1 · %2").arg(metricsSection.selectedMetric.aggregationText).arg(metricsSection.selectedMetric.rangeText.length > 0 ? qsTr("Allowed: %1").arg(metricsSection.selectedMetric.rangeText) : qsTr("No range")) : ""
+                textFormat: Text.PlainText
+                color: Theme.textMuted
+                font.pixelSize: Theme.fontSize.caption
+                wrapMode: Text.Wrap
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: metricDefinitions.canManage
+                spacing: Theme.spacing.m
+
+                SecondaryButton {
+                    objectName: "editMetricButton"
+                    enabled: metricsSection.hasSelection
+                    text: qsTr("Edit")
+                    onClicked: metricsSection.editSelected()
+                }
+
+                // A disabled button gets no hover, so the wrapper shows why it is disabled.
+                Item {
+                    implicitWidth: deleteMetricButton.implicitWidth
+                    implicitHeight: deleteMetricButton.implicitHeight
+
+                    HoverHandler {
+                        id: deleteMetricHover
+                    }
+
+                    DangerButton {
+                        id: deleteMetricButton
+
+                        objectName: "deleteMetricButton"
+                        anchors.fill: parent
+                        enabled: metricsSection.hasSelection && !metricsSection.selectionHasValues
+                        text: qsTr("Delete")
+                        onClicked: metricsSection.deleteSelected()
+                    }
+
+                    ToolTip.visible: deleteMetricHover.hovered && metricsSection.selectionHasValues
+                    ToolTip.text: qsTr("This metric already has values, so it cannot be deleted: the values would be lost.")
+                    ToolTip.delay: Theme.tooltipDelay
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+            }
+
+            Label {
+                objectName: "metricDeleteHint"
+                Layout.fillWidth: true
+                visible: metricDefinitions.canManage && metricsSection.selectionHasValues
+                text: qsTr("A metric with values cannot be deleted: its values would be lost.")
+                color: Theme.textMuted
+                font.pixelSize: Theme.fontSize.caption
+                wrapMode: Text.Wrap
+            }
+
+            MetricDefinitionDialog {
+                id: metricDialog
+
+                viewModel: metricDefinitions
+            }
         }
     }
 

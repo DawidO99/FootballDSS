@@ -79,6 +79,7 @@ ApplicationWindow {
             "matchday": matchDayView,
             "matchreport": matchReportView,
             "load": loadView,
+            "metrics": metricsView,
             "import": importView,
             "settings": settingsView
         })
@@ -399,6 +400,19 @@ ApplicationWindow {
 
             onNavigateRequested: (key, args) => navigationModel.activate(key, args)
             onHasUnsavedChangesChanged: window.guardChanged(trainingViewItem, hasUnsavedChanges)
+            onLeaveAccepted: window.finishLeaving()
+            onLeaveCancelled: window.cancelLeaving()
+        }
+    }
+
+    Component {
+        id: metricsView
+
+        MetricsView {
+            id: metricsViewItem
+
+            onNavigateRequested: (key, args) => navigationModel.activate(key, args)
+            onHasUnsavedChangesChanged: window.guardChanged(metricsViewItem, hasUnsavedChanges)
             onLeaveAccepted: window.finishLeaving()
             onLeaveCancelled: window.cancelLeaving()
         }

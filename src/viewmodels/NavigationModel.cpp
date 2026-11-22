@@ -19,6 +19,7 @@ NavigationModel::NavigationModel(QObject* parent)
            QStringLiteral("squad")},
           {QStringLiteral("matchday"), QT_TR_NOOP("Match Day"), QStringLiteral("matchday")},
           {QStringLiteral("load"), QT_TR_NOOP("Load"), QStringLiteral("load")},
+          {QStringLiteral("metrics"), QT_TR_NOOP("Metrics"), QStringLiteral("metrics")},
           {QStringLiteral("import"), QT_TR_NOOP("Import"), QStringLiteral("import")},
           {QStringLiteral("settings"), QT_TR_NOOP("Settings"), QStringLiteral("settings")},
           // Opened from the Calendar, Match Day and the player card (packet P14).

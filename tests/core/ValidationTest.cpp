@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <limits>
 #include <optional>
 #include <string>
 
@@ -441,4 +442,120 @@ TEST(ValidationTest, RpeAndMinutesAreEmptyUnlessPresent) {
         draft.minutesOverride = 30;
         EXPECT_TRUE(hasField(validate(draft), "minutes_override"));
     }
+}
+
+namespace {
+
+MetricDefinitionDraft sprint() {
+    MetricDefinitionDraft draft;
+    draft.nameEn = "Sprint 30 m";
+    draft.unit = "s";
+    draft.valueType = MetricValueType::Decimal;
+    draft.higherIsBetter = false;
+    return draft;
+}
+
+} // namespace
+
+TEST(ValidationTest, MetricNeedsOneNameOfAtMostFiftyCharacters) {
+    MetricDefinitionDraft draft = sprint();
+    EXPECT_TRUE(validate(draft).empty());
+
+    draft.nameEn = "  ";
+    EXPECT_TRUE(hasField(validate(draft), "name"));
+
+    draft.namePl = polishName(50);
+    EXPECT_TRUE(validate(draft).empty()) << "the Polish name alone is enough";
+
+    draft.namePl = polishName(51);
+    EXPECT_TRUE(hasField(validate(draft), "name_pl"));
+
+    draft.namePl = "Sprint";
+    draft.nameEn = std::string(51, 'a');
+    EXPECT_TRUE(hasField(validate(draft), "name_en"));
+}
+
+TEST(ValidationTest, MetricNameMustGiveAKey) {
+    MetricDefinitionDraft draft = sprint();
+    draft.nameEn = "???";
+    EXPECT_TRUE(hasField(validate(draft), "key"));
+    EXPECT_FALSE(hasField(validate(draft), "name"));
+}
+
+TEST(ValidationTest, MetricUnitHasAtMostTwentyCharacters) {
+    MetricDefinitionDraft draft = sprint();
+    draft.unit = polishName(20);
+    EXPECT_TRUE(validate(draft).empty());
+    draft.unit = polishName(21);
+    EXPECT_TRUE(hasField(validate(draft), "unit"));
+}
+
+TEST(ValidationTest, MetricLimitsFollowTheValueType) {
+    MetricDefinitionDraft draft = sprint();
+    draft.min = 2.5;
+    draft.max = 9.75;
+    EXPECT_TRUE(validate(draft).empty());
+
+    draft.max = 2.0;
+    EXPECT_TRUE(hasField(validate(draft), "max")) << "max below min";
+
+    draft.max = 2.5;
+    EXPECT_TRUE(validate(draft).empty()) << "min equal to max is a fixed value";
+
+    draft.valueType = MetricValueType::Integer;
+    EXPECT_TRUE(hasField(validate(draft), "min")) << "integer limits are whole";
+    draft.min = 0.0;
+    draft.max = 300.0;
+    EXPECT_TRUE(validate(draft).empty());
+
+    draft.valueType = MetricValueType::Boolean;
+    draft.aggregation = MetricAggregation::Sum;
+    const ValidationErrors errors = validate(draft);
+    EXPECT_TRUE(hasField(errors, "min"));
+    EXPECT_TRUE(hasField(errors, "max"));
+    draft.min.reset();
+    draft.max.reset();
+    EXPECT_TRUE(validate(draft).empty());
+
+    draft.valueType = MetricValueType::Decimal;
+    draft.min = std::numeric_limits<double>::infinity();
+    EXPECT_TRUE(hasField(validate(draft), "min"));
+}
+
+TEST(ValidationTest, BooleanMetricAllowsSumAvgAndLast) {
+    MetricDefinitionDraft draft = sprint();
+    draft.unit.reset();
+    draft.valueType = MetricValueType::Boolean;
+    for (const MetricAggregation aggregation : allValues<MetricAggregation>()) {
+        draft.aggregation = aggregation;
+        const bool allowed = aggregation == MetricAggregation::Sum ||
+                             aggregation == MetricAggregation::Avg ||
+                             aggregation == MetricAggregation::Last;
+        EXPECT_EQ(hasField(validate(draft), "aggregation"), !allowed) << toDbText(aggregation);
+    }
+}
+
+TEST(ValidationTest, MetricValueOfEveryType) {
+    MetricDefinitionDraft draft = sprint();
+    draft.min = 3.0;
+    draft.max = 8.0;
+    EXPECT_TRUE(validateValue(draft, 4.35).empty());
+    EXPECT_TRUE(validateValue(draft, 3.0).empty()) << "min is included";
+    EXPECT_TRUE(validateValue(draft, 8.0).empty()) << "max is included";
+    EXPECT_TRUE(hasField(validateValue(draft, 2.99), "value_range"));
+    EXPECT_TRUE(hasField(validateValue(draft, 8.01), "value_range"));
+    EXPECT_TRUE(hasField(validateValue(draft, std::numeric_limits<double>::quiet_NaN()), "value"));
+
+    draft.min.reset();
+    EXPECT_TRUE(validateValue(draft, -100.0).empty()) << "no lower limit";
+
+    draft.valueType = MetricValueType::Integer;
+    EXPECT_TRUE(validateValue(draft, 7.0).empty());
+    EXPECT_TRUE(hasField(validateValue(draft, 7.5), "value"));
+
+    draft.valueType = MetricValueType::Boolean;
+    draft.max.reset();
+    EXPECT_TRUE(validateValue(draft, 0.0).empty());
+    EXPECT_TRUE(validateValue(draft, 1.0).empty());
+    EXPECT_TRUE(hasField(validateValue(draft, 2.0), "value"));
 }

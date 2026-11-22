@@ -6,6 +6,7 @@
 #include "core/domain/Club.hpp"
 #include "core/domain/Match.hpp"
 #include "core/domain/MatchEvent.hpp"
+#include "core/domain/Metric.hpp"
 #include "core/domain/Opponent.hpp"
 #include "core/domain/Player.hpp"
 #include "core/domain/StaffUser.hpp"
@@ -61,5 +62,12 @@ using ValidationErrors = std::vector<ValidationError>;
 [[nodiscard]] ValidationErrors validate(const MatchEventDraft& draft);
 [[nodiscard]] ValidationErrors validate(const TrainingSessionDraft& draft);
 [[nodiscard]] ValidationErrors validate(const AttendanceDraft& draft);
+// Fields: "name" (both names empty), "name_pl" / "name_en" (too long), "key" (no Latin letter or
+// digit in the name that gives the key), "unit", "min", "max" (not finite, not whole for an integer
+// metric, set for a boolean one; "max" also when below min), "aggregation" (see isAllowed()).
+[[nodiscard]] ValidationErrors validate(const MetricDefinitionDraft& draft);
+// One value of the metric. "value": not finite, not whole for an integer metric, not 0/1 for a
+// boolean one. "value_range": below min or above max.
+[[nodiscard]] ValidationErrors validateValue(const MetricDefinitionDraft& metric, double value);
 
 } // namespace fdss::core

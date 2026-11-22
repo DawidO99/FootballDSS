@@ -261,6 +261,29 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
     if (field == "minute_out_of_range" || field == "after_final_minute") {
         return tr("The minute of this event is outside the match. Check the clock and try again.");
     }
+    // Custom metrics (P17).
+    if (field == "name_pl" || field == "name_en") {
+        return tr("A metric name can have up to 50 characters.");
+    }
+    if (field == "key") {
+        return tr("The name needs at least one Latin letter or digit.");
+    }
+    if (field == "unit") {
+        return tr("The unit can have up to 20 characters.");
+    }
+    if (field == "min" || field == "max") {
+        return tr("Enter a number such as 4,35, with the maximum not below the minimum. A "
+                  "whole-number metric needs whole limits; a yes/no metric has none.");
+    }
+    if (field == "aggregation") {
+        return tr("A yes/no metric can be summed, averaged or show its last answer.");
+    }
+    if (field == "value" || field == "value_range") {
+        return tr("This value does not fit the metric. Check its type and range.");
+    }
+    if (field == "scope" || field == "team") {
+        return tr("This metric is entered for another kind of event. Choose the metric again.");
+    }
     return tr("One of the values is not valid. Check what you entered and try again.");
 }
 
@@ -358,6 +381,17 @@ QString ErrorPresenter::conflictMessage(const std::string& field) {
     }
     if (field == "session_in_use") {
         return tr("This session has metric values attached to it, so it cannot be deleted.");
+    }
+    if (field == "key" || field == "name_pl" || field == "name_en") {
+        return tr("A metric with a similar name already exists. Choose another name.");
+    }
+    if (field == "metric_in_use") {
+        return tr("This metric already has values, so it cannot be deleted: the values would be "
+                  "lost. Clear its values in the Metrics section first.");
+    }
+    if (field == "metric_locked") {
+        return tr("This metric already has values, so its type and what it is entered for cannot "
+                  "change. Create a new metric instead.");
     }
     return tr("This conflicts with data that already exists. Change the value and try again.");
 }

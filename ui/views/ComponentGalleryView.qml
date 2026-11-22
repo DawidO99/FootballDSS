@@ -1093,6 +1093,65 @@ Item {
 
                     Card {
                         Layout.fillWidth: true
+                        title: qsTr("MetricValueGrid and MetricTrend (P17)")
+
+                        ListModel {
+                            id: sampleMetricValues
+
+                            ListElement {
+                                shirtNumber: 7
+                                playerName: qsTr("Jan Kowalski")
+                                valueText: "4,35"
+                                checked: false
+                                hasValue: true
+                                stateText: ""
+                                rowError: ""
+                                hasError: false
+                            }
+                            ListElement {
+                                shirtNumber: 9
+                                playerName: qsTr("Adam Nowak")
+                                valueText: "12"
+                                checked: false
+                                hasValue: true
+                                stateText: ""
+                                rowError: qsTr("Out of range: expected 3–10 s.")
+                                hasError: true
+                            }
+                        }
+
+                        MetricValueGrid {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Theme.tableHeaderHeight + 3 * Theme.rowHeight
+                            Accessible.name: qsTr("Sample metric values")
+                            model: sampleMetricValues
+                            valueTitle: qsTr("Sprint 30 m [s]")
+                        }
+
+                        Row {
+                            spacing: Theme.spacing.l
+
+                            MetricTrend {
+                                trend: "down"
+                                improvement: true
+                                text: qsTr("Better")
+                            }
+
+                            MetricTrend {
+                                trend: "up"
+                                improvement: false
+                                text: qsTr("Worse")
+                            }
+
+                            MetricTrend {
+                                trend: "same"
+                                text: qsTr("No change")
+                            }
+                        }
+                    }
+
+                    Card {
+                        Layout.fillWidth: true
                         title: qsTr("ProfileTile")
 
                         Row {

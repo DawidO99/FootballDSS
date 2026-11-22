@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 
 namespace fdss::core {
 
@@ -70,6 +71,19 @@ bool isSeason(std::string_view season) noexcept {
         }
     }
     return true;
+}
+
+bool isWhole(double value) noexcept { return std::isfinite(value) && std::trunc(value) == value; }
+
+void checkLimit(ValidationErrors& errors, std::string_view field,
+                const std::optional<double>& limit, MetricValueType type) {
+    if (!limit) {
+        return;
+    }
+    if (type == MetricValueType::Boolean || !std::isfinite(*limit) ||
+        (type == MetricValueType::Integer && !isWhole(*limit))) {
+        add(errors, field);
+    }
 }
 
 bool hasDuplicates(std::vector<Position> positions) {
@@ -198,6 +212,51 @@ ValidationErrors validate(const AttendanceDraft& draft) {
         add(errors, "minutes_override");
     } else {
         checkRange(errors, "minutes_override", draft.minutesOverride, 0, kMaxAttendanceMinutes);
+    }
+    return errors;
+}
+
+ValidationErrors validate(const MetricDefinitionDraft& draft) {
+    ValidationErrors errors;
+    const std::size_t plLength = characterCount(trimmed(draft.namePl));
+    const std::size_t enLength = characterCount(trimmed(draft.nameEn));
+    if (plLength == 0 && enLength == 0) {
+        add(errors, "name");
+    }
+    if (plLength > kMaxMetricNameLength) {
+        add(errors, "name_pl");
+    }
+    if (enLength > kMaxMetricNameLength) {
+        add(errors, "name_en");
+    }
+    if ((plLength > 0 || enLength > 0) && metricKey(draft).empty()) {
+        add(errors, "key");
+    }
+    if (draft.unit && characterCount(trimmed(*draft.unit)) > kMaxMetricUnitLength) {
+        add(errors, "unit");
+    }
+    checkLimit(errors, "min", draft.min, draft.valueType);
+    checkLimit(errors, "max", draft.max, draft.valueType);
+    if (draft.min && draft.max && *draft.max < *draft.min &&
+        std::ranges::find(errors, std::string("max"), &ValidationError::field) == errors.end()) {
+        add(errors, "max");
+    }
+    if (!isAllowed(draft.valueType, draft.aggregation)) {
+        add(errors, "aggregation");
+    }
+    return errors;
+}
+
+ValidationErrors validateValue(const MetricDefinitionDraft& metric, double value) {
+    ValidationErrors errors;
+    const bool wrongKind =
+        !std::isfinite(value) ||
+        (metric.valueType == MetricValueType::Integer && !isWhole(value)) ||
+        (metric.valueType == MetricValueType::Boolean && value != 0.0 && value != 1.0);
+    if (wrongKind) {
+        add(errors, "value");
+    } else if ((metric.min && value < *metric.min) || (metric.max && value > *metric.max)) {
+        add(errors, "value_range");
     }
     return errors;
 }

@@ -29,6 +29,7 @@ add_executable(fdss_tests
     core/LiveShapeTest.cpp
     core/LoadDemoTest.cpp
     core/LoadTest.cpp
+    core/MetricTest.cpp
     core/MatchMinutesTest.cpp
     core/PermissionsTest.cpp
     core/SquadImportTest.cpp
@@ -47,6 +48,7 @@ add_executable(fdss_tests
     data/MatchNoteRepositoryTest.cpp
     data/MatchRepositoryTest.cpp
     data/MatchTacticRepositoryTest.cpp
+    data/MetricRepositoryTest.cpp
     data/MigrationsTest.cpp
     data/OpponentRepositoryTest.cpp
     data/PlayerRepositoryTest.cpp
@@ -72,6 +74,7 @@ add_executable(fdss_tests
     services/LoadServiceTest.cpp
     services/MatchDayServiceTest.cpp
     services/MatchReportServiceTest.cpp
+    services/MetricServiceTest.cpp
     services/ServiceFixture.hpp
     services/SessionTest.cpp
     services/SetupServiceTest.cpp
@@ -107,6 +110,7 @@ add_executable(fdss_vm_tests
     viewmodels/MatchDayViewModelTest.cpp
     viewmodels/MatchEditorViewModelTest.cpp
     viewmodels/MatchReportViewModelTest.cpp
+    viewmodels/MetricViewModelsTest.cpp
     viewmodels/NavigationModelTest.cpp
     viewmodels/PlayerCardViewModelTest.cpp
     viewmodels/PlayerEditorViewModelTest.cpp
