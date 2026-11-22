@@ -48,3 +48,25 @@ decimal comma parsing; permission per role.
 This is the "universal from B-klasa to pro" mechanism for data the app does not know in advance.
 
 ## Decisions (accepted plan)
+1. Files beyond the scope list: `ui/Main.qml` (section key → view), `src/viewmodels/ErrorPresenter.cpp`
+   (messages of the new fields), `ui/components/Icon.qml` (icons `metrics`, `arrow-up`, `arrow-down`),
+   `src/core/domain/Ids.hpp` (`MetricDefinitionId`, `MetricValueId`) and `src/core/domain/Metric.cpp`.
+2. Aggregation, trend and value parsing live in `core/domain/Metric.*` (not a DSS recommendation, so not
+   `core/algorithms/`); unit tests with hand-computed values.
+3. Key: an ASCII slug of the English name, or of the Polish one when English is empty (diacritics folded,
+   other characters → `_`). A slug that is taken is refused with `Conflict` (field `key`, "a metric with a
+   similar name already exists"); no `_2` suffix. The key never changes when the name is edited (P18 maps
+   import columns by key).
+4. Limits: name 1–50 characters after trimming (at least one of PL/EN), unit up to 20, `min ≤ max`;
+   integer metrics have whole `min`/`max`; boolean metrics have no `min`/`max`.
+5. A definition with values keeps its value type and scope (`Conflict`, field `metric_locked`); unit,
+   names, min/max, aggregation and "higher is better" may change; stored values stay as they are.
+6. Boolean metrics allow only `sum` (count of "yes"), `avg` (share) and `last`.
+7. The entry grid lists every non-archived player of the team (no attendance/appearance filter). An empty
+   cell means no value; saving it deletes the stored one. Players not in the grid keep their values.
+8. Player card window: today − 27 … today inclusive, by `metric_value.date`. "Previous value" is the
+   value before the latest one (by date, then id), also from before the window. No sparkline.
+9. The missing language of a name is stored as an empty string; display falls back to the other name.
+10. Deleting a definition (only without values) shows the 10 s Undo toast; undo recreates it with the
+    same key.
+11. Every role reads: the definitions card in Settings is visible read-only without `ManageMetrics`.

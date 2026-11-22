@@ -849,6 +849,34 @@
         <translation>Wiersz 14: numer na koszulce „abc”, oczekiwano liczby.</translation>
     </message>
     <message>
+        <source>MetricValueGrid and MetricTrend (P17)</source>
+        <translation>MetricValueGrid i MetricTrend (P17)</translation>
+    </message>
+    <message>
+        <source>Out of range: expected 3–10 s.</source>
+        <translation>Poza zakresem: oczekiwano 3–10 s.</translation>
+    </message>
+    <message>
+        <source>Sample metric values</source>
+        <translation>Przykładowe wartości metryki</translation>
+    </message>
+    <message>
+        <source>Sprint 30 m [s]</source>
+        <translation>Sprint 30 m [s]</translation>
+    </message>
+    <message>
+        <source>Better</source>
+        <translation>Lepiej</translation>
+    </message>
+    <message>
+        <source>Worse</source>
+        <translation>Gorzej</translation>
+    </message>
+    <message>
+        <source>No change</source>
+        <translation>Bez zmian</translation>
+    </message>
+    <message>
         <source>Coach</source>
         <translation>Trener</translation>
     </message>
@@ -2784,6 +2812,226 @@
     </message>
 </context>
 <context>
+    <name>MetricDefinitionDialog</name>
+    <message>
+        <source>Add metric</source>
+        <translation>Dodaj metrykę</translation>
+    </message>
+    <message>
+        <source>Edit metric</source>
+        <translation>Edytuj metrykę</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>One name is enough; the other language shows it too.</source>
+        <translation>Wystarczy jedna nazwa; w drugim języku pokaże się ta sama.</translation>
+    </message>
+    <message>
+        <source>Name in Polish</source>
+        <translation>Nazwa po polsku</translation>
+    </message>
+    <message>
+        <source>Name in English</source>
+        <translation>Nazwa po angielsku</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Typ</translation>
+    </message>
+    <message>
+        <source>Entered for</source>
+        <translation>Wpisywana dla</translation>
+    </message>
+    <message>
+        <source>Unit</source>
+        <translation>Jednostka</translation>
+    </message>
+    <message>
+        <source>For example s, cm or kg</source>
+        <translation>Na przykład s, cm lub kg</translation>
+    </message>
+    <message>
+        <source>Over 28 days</source>
+        <translation>Z 28 dni</translation>
+    </message>
+    <message>
+        <source>What the player card shows</source>
+        <translation>To pokazuje karta zawodnika</translation>
+    </message>
+    <message>
+        <source>Minimum</source>
+        <translation>Minimum</translation>
+    </message>
+    <message>
+        <source>Optional</source>
+        <translation>Opcjonalnie</translation>
+    </message>
+    <message>
+        <source>Maximum</source>
+        <translation>Maksimum</translation>
+    </message>
+    <message>
+        <source>Higher is better</source>
+        <translation>Więcej znaczy lepiej</translation>
+    </message>
+    <message>
+        <source>This metric already has values, so its type and what it is entered for stay.</source>
+        <translation>Ta metryka ma już wartości, więc jej typ i to, dla czego jest wpisywana, zostają bez zmian.</translation>
+    </message>
+</context>
+<context>
+    <name>MetricValueGrid</name>
+    <message>
+        <source>Value</source>
+        <translation>Wartość</translation>
+    </message>
+    <message>
+        <source>No.</source>
+        <translation>Nr</translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation>Zawodnik</translation>
+    </message>
+</context>
+<context>
+    <name>MetricValueGridRow</name>
+    <message>
+        <source>Value of %1</source>
+        <translation>Wartość: %1</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+</context>
+<context>
+    <name>MetricsView</name>
+    <message>
+        <source>Metrics</source>
+        <translation>Metryki</translation>
+    </message>
+    <message>
+        <source>Not saved</source>
+        <translation>Niezapisane</translation>
+    </message>
+    <message>
+        <source>Saved</source>
+        <translation>Zapisano</translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation>Zapisz</translation>
+    </message>
+    <message>
+        <source>Save (%1)</source>
+        <translation>Zapisz (%1)</translation>
+    </message>
+    <message>
+        <source>Metric</source>
+        <translation>Metryka</translation>
+    </message>
+    <message>
+        <source>Training session</source>
+        <translation>Sesja treningowa</translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation>Mecz</translation>
+    </message>
+    <message>
+        <source>Day</source>
+        <translation>Dzień</translation>
+    </message>
+    <message>
+        <source>Value</source>
+        <translation>Wartość</translation>
+    </message>
+    <message>
+        <source>Values of the metric</source>
+        <translation>Wartości metryki</translation>
+    </message>
+    <message>
+        <source>The metric values could not be read</source>
+        <translation>Nie udało się odczytać wartości metryki</translation>
+    </message>
+    <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>No custom metrics yet</source>
+        <translation>Nie ma jeszcze metryk własnych</translation>
+    </message>
+    <message>
+        <source>Define what your club measures in Settings, then enter the values here.</source>
+        <translation>Zdefiniuj w Ustawieniach, co mierzy Twój klub, a potem wpisuj tu wartości.</translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the analyst to define one in Settings.</source>
+        <translation>Poproś trenera, asystenta lub analityka o zdefiniowanie metryki w Ustawieniach.</translation>
+    </message>
+    <message>
+        <source>Open the settings</source>
+        <translation>Otwórz ustawienia</translation>
+    </message>
+    <message>
+        <source>No matches yet</source>
+        <translation>Brak meczów</translation>
+    </message>
+    <message>
+        <source>No sessions yet</source>
+        <translation>Nie ma jeszcze sesji</translation>
+    </message>
+    <message>
+        <source>Add one in Calendar.</source>
+        <translation>Dodaj w kalendarzu.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add one in Calendar.</source>
+        <translation>Poproś trenera lub asystenta o dodanie w kalendarzu.</translation>
+    </message>
+    <message>
+        <source>Open the calendar</source>
+        <translation>Otwórz kalendarz</translation>
+    </message>
+    <message>
+        <source>No players yet</source>
+        <translation>Nie ma jeszcze zawodników</translation>
+    </message>
+    <message>
+        <source>Add players in Squad to enter their values.</source>
+        <translation>Dodaj zawodników w kadrze, aby wpisać ich wartości.</translation>
+    </message>
+    <message>
+        <source>Ask the coach or the assistant to add players in Squad.</source>
+        <translation>Poproś trenera lub asystenta o dodanie zawodników w kadrze.</translation>
+    </message>
+    <message>
+        <source>Open the squad</source>
+        <translation>Otwórz kadrę</translation>
+    </message>
+    <message>
+        <source>Save the changes?</source>
+        <translation>Zapisać zmiany?</translation>
+    </message>
+    <message>
+        <source>Stay</source>
+        <translation>Zostań</translation>
+    </message>
+    <message>
+        <source>Discard changes</source>
+        <translation>Odrzuć zmiany</translation>
+    </message>
+    <message>
+        <source>The values of this metric have changes that are not saved.</source>
+        <translation>Wartości tej metryki mają niezapisane zmiany.</translation>
+    </message>
+</context>
+<context>
     <name>NumberField</name>
     <message>
         <source>Enter a number.</source>
@@ -2886,6 +3134,34 @@
     <message>
         <source>Not set</source>
         <translation>Nie podano</translation>
+    </message>
+    <message>
+        <source>Metrics</source>
+        <translation>Metryki</translation>
+    </message>
+    <message>
+        <source>%1 · last %2 · %3</source>
+        <translation>%1 · ostatnio %2 · %3</translation>
+    </message>
+    <message>
+        <source>The metrics could not be read</source>
+        <translation>Nie udało się odczytać metryk</translation>
+    </message>
+    <message>
+        <source>No metric values yet</source>
+        <translation>Nie ma jeszcze wartości metryk</translation>
+    </message>
+    <message>
+        <source>Enter values in the Metrics section.</source>
+        <translation>Wpisz wartości w sekcji Metryki.</translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the analyst to enter them.</source>
+        <translation>Poproś trenera, asystenta lub analityka o ich wpisanie.</translation>
+    </message>
+    <message>
+        <source>Open metrics</source>
+        <translation>Otwórz metryki</translation>
     </message>
     <message>
         <source>Availability</source>
@@ -3540,7 +3816,7 @@
     </message>
     <message>
         <source>Club details, custom metrics and backups will be configured here.</source>
-        <translation>Tutaj skonfigurujesz dane klubu, metryki własne i kopie zapasowe.</translation>
+        <translation type="vanished">Tutaj skonfigurujesz dane klubu, metryki własne i kopie zapasowe.</translation>
     </message>
     <message>
         <source>%1 was deactivated.</source>
@@ -3587,8 +3863,77 @@
         <translation>Spróbuj ponownie</translation>
     </message>
     <message>
+        <source>Custom metrics</source>
+        <translation>Metryki własne</translation>
+    </message>
+    <message>
+        <source>Add metric</source>
+        <translation>Dodaj metrykę</translation>
+    </message>
+    <message>
+        <source>Metric %1 was deleted.</source>
+        <translation>Usunięto metrykę %1.</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <comment>custom metric</comment>
+        <translation>Nazwa</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Typ</translation>
+    </message>
+    <message>
+        <source>Entered for</source>
+        <translation>Wpisywana dla</translation>
+    </message>
+    <message>
+        <source>Values</source>
+        <translation>Wartości</translation>
+    </message>
+    <message>
+        <source>The metrics could not be read</source>
+        <translation>Nie udało się odczytać metryk</translation>
+    </message>
+    <message>
+        <source>No custom metrics yet</source>
+        <translation>Nie ma jeszcze metryk własnych</translation>
+    </message>
+    <message>
+        <source>Define what your club measures, such as a 30 m sprint or a jump, and enter it per session, match or day.</source>
+        <translation>Zdefiniuj, co mierzy Twój klub, np. sprint na 30 m albo skok, i wpisuj to dla sesji, meczu lub dnia.</translation>
+    </message>
+    <message>
+        <source>Ask the coach, the assistant or the analyst to define one.</source>
+        <translation>Poproś trenera, asystenta lub analityka o zdefiniowanie metryki.</translation>
+    </message>
+    <message>
+        <source>Over 28 days: %1 · %2</source>
+        <translation>Z 28 dni: %1 · %2</translation>
+    </message>
+    <message>
+        <source>Allowed: %1</source>
+        <translation>Dozwolone: %1</translation>
+    </message>
+    <message>
+        <source>No range</source>
+        <translation>Bez zakresu</translation>
+    </message>
+    <message>
         <source>Edit</source>
         <translation>Edytuj</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Usuń</translation>
+    </message>
+    <message>
+        <source>This metric already has values, so it cannot be deleted: the values would be lost.</source>
+        <translation>Ta metryka ma już wartości, więc nie można jej usunąć: wartości przepadłyby.</translation>
+    </message>
+    <message>
+        <source>A metric with values cannot be deleted: its values would be lost.</source>
+        <translation>Metryki z wartościami nie można usunąć: jej wartości przepadłyby.</translation>
     </message>
     <message>
         <source>Reset PIN</source>
@@ -3644,7 +3989,7 @@
     </message>
     <message>
         <source>Back to the dashboard</source>
-        <translation>Wróć do pulpitu</translation>
+        <translation type="vanished">Wróć do pulpitu</translation>
     </message>
 </context>
 <context>
@@ -4937,6 +5282,34 @@
         <translation>Minuta tego zdarzenia wypada poza meczem. Sprawdź zegar i spróbuj ponownie.</translation>
     </message>
     <message>
+        <source>A metric name can have up to 50 characters.</source>
+        <translation>Nazwa metryki może mieć najwyżej 50 znaków.</translation>
+    </message>
+    <message>
+        <source>The name needs at least one Latin letter or digit.</source>
+        <translation>Nazwa musi zawierać co najmniej jedną literę łacińską lub cyfrę.</translation>
+    </message>
+    <message>
+        <source>The unit can have up to 20 characters.</source>
+        <translation>Jednostka może mieć najwyżej 20 znaków.</translation>
+    </message>
+    <message>
+        <source>Enter a number such as 4,35, with the maximum not below the minimum. A whole-number metric needs whole limits; a yes/no metric has none.</source>
+        <translation>Wpisz liczbę, np. 4,35; maksimum nie może być mniejsze od minimum. Metryka całkowita ma granice całkowite, metryka tak/nie nie ma ich wcale.</translation>
+    </message>
+    <message>
+        <source>A yes/no metric can be summed, averaged or show its last answer.</source>
+        <translation>Metrykę tak/nie można zsumować, uśrednić albo pokazać jej ostatnią odpowiedź.</translation>
+    </message>
+    <message>
+        <source>This value does not fit the metric. Check its type and range.</source>
+        <translation>Ta wartość nie pasuje do metryki. Sprawdź jej typ i zakres.</translation>
+    </message>
+    <message>
+        <source>This metric is entered for another kind of event. Choose the metric again.</source>
+        <translation>Ta metryka jest wpisywana dla innego rodzaju zdarzenia. Wybierz metrykę ponownie.</translation>
+    </message>
+    <message>
         <source>One of the values is not valid. Check what you entered and try again.</source>
         <translation>Jedna z wartości jest niepoprawna. Sprawdź, co zostało wpisane, i spróbuj ponownie.</translation>
     </message>
@@ -5059,6 +5432,18 @@
     <message>
         <source>This session has metric values attached to it, so it cannot be deleted.</source>
         <translation>Z tą sesją są powiązane wartości metryk, więc nie można jej usunąć.</translation>
+    </message>
+    <message>
+        <source>A metric with a similar name already exists. Choose another name.</source>
+        <translation>Metryka o podobnej nazwie już istnieje. Wybierz inną nazwę.</translation>
+    </message>
+    <message>
+        <source>This metric already has values, so it cannot be deleted: the values would be lost. Clear its values in the Metrics section first.</source>
+        <translation>Ta metryka ma już wartości, więc nie można jej usunąć: wartości przepadłyby. Najpierw wyczyść jej wartości w sekcji Metryki.</translation>
+    </message>
+    <message>
+        <source>This metric already has values, so its type and what it is entered for cannot change. Create a new metric instead.</source>
+        <translation>Ta metryka ma już wartości, więc jej typ i to, dla czego jest wpisywana, nie mogą się zmienić. Utwórz zamiast tego nową metrykę.</translation>
     </message>
     <message>
         <source>This conflicts with data that already exists. Change the value and try again.</source>
@@ -6092,6 +6477,176 @@
     </message>
 </context>
 <context>
+    <name>fdss::viewmodels::MetricDefinitionsViewModel</name>
+    <message>
+        <source>Enter a number, such as 4,35, or leave it empty.</source>
+        <translation>Wpisz liczbę, np. 4,35, albo zostaw puste.</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MetricEntryViewModel</name>
+    <message>
+        <source>Not entered</source>
+        <translation>Nie wpisano</translation>
+    </message>
+    <message>
+        <source>Allowed: %1</source>
+        <translation>Dozwolone: %1</translation>
+    </message>
+    <message>
+        <source>Unit: %1</source>
+        <translation>Jednostka: %1</translation>
+    </message>
+    <message>
+        <source>Higher is better</source>
+        <translation>Więcej znaczy lepiej</translation>
+    </message>
+    <message>
+        <source>Lower is better</source>
+        <translation>Mniej znaczy lepiej</translation>
+    </message>
+    <message>
+        <source>Some values are not valid. Correct the marked rows and save again.</source>
+        <translation>Niektóre wartości są nieprawidłowe. Popraw zaznaczone wiersze i zapisz ponownie.</translation>
+    </message>
+    <message>
+        <source>%1 · %2</source>
+        <extracomment>Match picker of the Metrics section: the date and the opponent.</extracomment>
+        <translation>%1 · %2</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::MetricTexts</name>
+    <message>
+        <source>en</source>
+        <extracomment>Language code of this translation: &quot;pl&quot; in Polish. It picks the metric name to show.</extracomment>
+        <translation>pl</translation>
+    </message>
+    <message>
+        <source>%1 [%2]</source>
+        <extracomment>Metric picker: the name and the unit, e.g. &quot;Sprint 30 m [s]&quot;.</extracomment>
+        <translation>%1 [%2]</translation>
+    </message>
+    <message>
+        <source>Whole number</source>
+        <translation>Liczba całkowita</translation>
+    </message>
+    <message>
+        <source>Decimal number</source>
+        <translation>Liczba dziesiętna</translation>
+    </message>
+    <message>
+        <source>Yes / no</source>
+        <translation>Tak / nie</translation>
+    </message>
+    <message>
+        <source>Sum</source>
+        <translation>Suma</translation>
+    </message>
+    <message>
+        <source>Average</source>
+        <translation>Średnia</translation>
+    </message>
+    <message>
+        <source>Lowest</source>
+        <translation>Najniższa</translation>
+    </message>
+    <message>
+        <source>Highest</source>
+        <translation>Najwyższa</translation>
+    </message>
+    <message>
+        <source>Last value</source>
+        <translation>Ostatnia wartość</translation>
+    </message>
+    <message>
+        <source>Match</source>
+        <translation>Mecz</translation>
+    </message>
+    <message>
+        <source>Training session</source>
+        <translation>Sesja treningowa</translation>
+    </message>
+    <message>
+        <source>Any day (test)</source>
+        <translation>Dowolny dzień (test)</translation>
+    </message>
+    <message>
+        <source>.</source>
+        <extracomment>Decimal separator of the app language, used in custom metric values.</extracomment>
+        <translation>,</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>Tak</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>Nie</translation>
+    </message>
+    <message>
+        <source>%1 %2</source>
+        <extracomment>A metric value and its unit, e.g. &quot;4,35 s&quot;.</extracomment>
+        <translation>%1 %2</translation>
+    </message>
+    <message>
+        <source>%1 %</source>
+        <extracomment>Share of &quot;yes&quot; answers of a yes/no metric.</extracomment>
+        <translation>%1%</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n time(s) yes</source>
+        <extracomment>Count of &quot;yes&quot; answers of a yes/no metric.</extracomment>
+        <translation>
+            <numerusform>%n raz „tak”</numerusform>
+            <numerusform>%n razy „tak”</numerusform>
+            <numerusform>%n razy „tak”</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1 of %2 days: %3 (%4)</source>
+        <extracomment>Player card: the aggregation of a metric over 28 days, e.g. &quot;Average of 28 days: 4,41 s (3 values)&quot;. %1 the aggregation, %2 the days, %3 the value, %4 the count of values.</extracomment>
+        <translation>%1 z %2 dni: %3 (%4)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n value(s)</source>
+        <translation>
+            <numerusform>%n wartość</numerusform>
+            <numerusform>%n wartości</numerusform>
+            <numerusform>%n wartości</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1–%2</source>
+        <extracomment>Allowed range of a metric, e.g. &quot;3–10 s&quot;.</extracomment>
+        <translation>%1–%2</translation>
+    </message>
+    <message>
+        <source>at least %1</source>
+        <translation>co najmniej %1</translation>
+    </message>
+    <message>
+        <source>at most %1</source>
+        <translation>najwyżej %1</translation>
+    </message>
+    <message>
+        <source>Out of range: expected %1.</source>
+        <translation>Poza zakresem: oczekiwano %1.</translation>
+    </message>
+    <message>
+        <source>Enter a whole number, such as 12.</source>
+        <translation>Wpisz liczbę całkowitą, np. 12.</translation>
+    </message>
+    <message>
+        <source>Enter a number, such as 4,35 or 4.35.</source>
+        <translation>Wpisz liczbę, np. 4,35 lub 4.35.</translation>
+    </message>
+    <message>
+        <source>Tick for yes, untick for no.</source>
+        <translation>Zaznacz dla „tak”, odznacz dla „nie”.</translation>
+    </message>
+</context>
+<context>
     <name>fdss::viewmodels::NavigationModel</name>
     <message>
         <source>Dashboard</source>
@@ -6120,6 +6675,10 @@
     <message>
         <source>Load</source>
         <translation>Obciążenie</translation>
+    </message>
+    <message>
+        <source>Metrics</source>
+        <translation>Metryki</translation>
     </message>
     <message>
         <source>Import</source>
@@ -6178,6 +6737,37 @@
     <message>
         <source>Draw</source>
         <translation>Remis</translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::PlayerMetricsViewModel</name>
+    <message numerus="yes">
+        <source>No value in the last %n day(s)</source>
+        <translation>
+            <numerusform>Brak wartości z ostatniego %n dnia</numerusform>
+            <numerusform>Brak wartości z ostatnich %n dni</numerusform>
+            <numerusform>Brak wartości z ostatnich %n dni</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Better</source>
+        <translation>Lepiej</translation>
+    </message>
+    <message>
+        <source>Worse</source>
+        <translation>Gorzej</translation>
+    </message>
+    <message>
+        <source>No change</source>
+        <translation>Bez zmian</translation>
+    </message>
+    <message>
+        <source>Previous value: %1</source>
+        <translation>Poprzednia wartość: %1</translation>
+    </message>
+    <message>
+        <source>No previous value</source>
+        <translation>Brak poprzedniej wartości</translation>
     </message>
 </context>
 <context>

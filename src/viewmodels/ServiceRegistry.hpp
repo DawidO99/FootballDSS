@@ -16,6 +16,7 @@ class MatchLiveRepository;
 class MatchNoteRepository;
 class MatchTacticRepository;
 class MatchRepository;
+class MetricRepository;
 class OpponentRepository;
 class PlayerRepository;
 class StaffRepository;
@@ -32,6 +33,7 @@ class LineupService;
 class LoadService;
 class MatchDayService;
 class MatchReportService;
+class MetricService;
 class Session;
 class SetupService;
 class SquadService;
@@ -94,6 +96,7 @@ public:
     [[nodiscard]] services::CapabilityService& capabilities();
     [[nodiscard]] services::DashboardService& dashboard();
     [[nodiscard]] services::ImportService& imports();
+    [[nodiscard]] services::MetricService& metrics();
 
 private:
     // Destroyed from the bottom up, the database last.
@@ -112,6 +115,7 @@ private:
     std::unique_ptr<data::MatchTacticRepository> m_matchTactics;
     std::unique_ptr<data::CapabilityRepository> m_capabilityCounts;
     std::unique_ptr<data::ImportLogRepository> m_importLog;
+    std::unique_ptr<data::MetricRepository> m_metricStore;
     std::unique_ptr<services::Session> m_session;
     std::unique_ptr<services::AuthService> m_auth;
     std::unique_ptr<services::SetupService> m_setup;
@@ -126,6 +130,7 @@ private:
     std::unique_ptr<services::CapabilityService> m_capabilities;
     std::unique_ptr<services::DashboardService> m_dashboard;
     std::unique_ptr<services::ImportService> m_imports;
+    std::unique_ptr<services::MetricService> m_metrics;
 };
 
 } // namespace fdss::viewmodels

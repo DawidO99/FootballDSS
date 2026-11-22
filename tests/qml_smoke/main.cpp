@@ -20,6 +20,7 @@
 #include "services/DemoDataService.hpp"
 #include "services/LineupService.hpp"
 #include "services/LoadService.hpp"
+#include "services/MetricService.hpp"
 #include "services/Session.hpp"
 #include "services/SetupService.hpp"
 #include "services/SquadService.hpp"
@@ -40,11 +41,14 @@
 #include "viewmodels/MatchDayViewModel.hpp"
 #include "viewmodels/MatchEditorViewModel.hpp"
 #include "viewmodels/MatchReportViewModel.hpp"
+#include "viewmodels/MetricDefinitionsViewModel.hpp"
+#include "viewmodels/MetricEntryViewModel.hpp"
 #include "viewmodels/NavigationModel.hpp"
 #include "viewmodels/PlayerCardViewModel.hpp"
 #include "viewmodels/PlayerEditorViewModel.hpp"
 #include "viewmodels/PlayerLoadViewModel.hpp"
 #include "viewmodels/PlayerMatchesModel.hpp"
+#include "viewmodels/PlayerMetricsViewModel.hpp"
 #include "viewmodels/PreMatchViewModel.hpp"
 #include "viewmodels/ProfilePickerViewModel.hpp"
 #include "viewmodels/ServiceRegistry.hpp"
@@ -116,11 +120,14 @@ using fdss::viewmodels::LoadViewModel;
 using fdss::viewmodels::MatchDayViewModel;
 using fdss::viewmodels::MatchEditorViewModel;
 using fdss::viewmodels::MatchReportViewModel;
+using fdss::viewmodels::MetricDefinitionsViewModel;
+using fdss::viewmodels::MetricEntryViewModel;
 using fdss::viewmodels::NavigationModel;
 using fdss::viewmodels::PlayerCardViewModel;
 using fdss::viewmodels::PlayerEditorViewModel;
 using fdss::viewmodels::PlayerLoadViewModel;
 using fdss::viewmodels::PlayerMatchesModel;
+using fdss::viewmodels::PlayerMetricsViewModel;
 using fdss::viewmodels::PreMatchViewModel;
 using fdss::viewmodels::ProfilePickerViewModel;
 using fdss::viewmodels::ServiceRegistry;
@@ -6493,6 +6500,268 @@ void exerciseImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& 
     settle();
 }
 
+// --- Custom metrics (P17) ---
+
+// The item lies inside the other one, both laid out on screen.
+bool liesInside(QQuickItem* inner, QQuickItem* outer) {
+    if (inner == nullptr || outer == nullptr) {
+        return false;
+    }
+    const QRectF innerRect = inner->mapRectToScene(QRectF(0, 0, inner->width(), inner->height()));
+    const QRectF outerRect = outer->mapRectToScene(QRectF(0, 0, outer->width(), outer->height()));
+    // Half a pixel: layouts place items at fractional positions.
+    return outerRect.adjusted(-0.5, -0.5, 0.5, 0.5).contains(innerRect);
+}
+
+// "Done when" of the packet, at the minimum window: define "Sprint 30 m [s], decimal, lower is
+// better, training" in Settings, enter values for a session from the keyboard, and see the latest
+// value, the 28-day average and the arrow on the player card. Then the leave guard and the
+// read-only Physio.
+void exerciseMetrics(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    settle();
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* navigation = window->property("navigation").value<NavigationModel*>();
+    constexpr int kMinimumWidth = 1280;
+    constexpr int kMinimumHeight = 720;
+    constexpr qreal kMinHit = 32;
+    const QSize originalSize = window->size();
+    window->resize(kMinimumWidth, kMinimumHeight);
+
+    // Players and two sessions, the last one today; a value of the week before for the arrow.
+    auto& registry = ServiceRegistry::instance();
+    const auto today = seedSheet(3);
+    if (!today) {
+        return;
+    }
+    fdss::core::TrainingSessionDraft earlier;
+    earlier.date =
+        fdss::core::Date{std::chrono::year{2026}, std::chrono::October, std::chrono::day{25}};
+    const auto earlierSession = registry.calendar().addSession(smokeTeam(), earlier);
+    if (!earlierSession) {
+        fail("the metrics test cannot add the earlier session");
+        return;
+    }
+
+    // Settings: the empty card offers the first metric.
+    navigation->activate(QStringLiteral("settings"));
+    settle();
+    auto* settings = findQmlItem(window->contentItem(), "SettingsView");
+    auto* card =
+        settings != nullptr ? settings->property("metricsSection").value<QQuickItem*>() : nullptr;
+    if (card == nullptr) {
+        fail("the metrics card is not in the settings");
+        return;
+    }
+    // The Coach has Staff and the metrics in tabs; the metrics are the second one.
+    auto* tabs = findByObjectName(settings, QStringLiteral("settingsTabs"));
+    if (tabs == nullptr || !tabs->isVisible()) {
+        fail("the settings of the Coach have no tabs");
+        return;
+    }
+    tabs->setProperty("currentIndex", 1);
+    settle();
+    auto* definitions = card->property("viewModel").value<MetricDefinitionsViewModel*>();
+    auto* dialog = card->property("dialog").value<QObject*>();
+    const auto inCard = [&](const char* name) {
+        return findByObjectName(card, QString::fromLatin1(name));
+    };
+    expectReachable(window, inCard("addMetricButton"), true, "Add metric is not usable");
+    if (!liesInside(inCard("addMetricButton"), card)) {
+        fail("Add metric is outside the metrics card at the minimum window");
+    }
+    clickPolished(window, inCard("addMetricButton"));
+    expectFlag(dialog, "visible", true, "Add metric did not open the dialog");
+    // The dialog opens on the Polish name, from the keyboard.
+    typeText(window, QStringLiteral("Sprint 30 m"));
+    pressKey(window, Qt::Key_Tab);
+    typeText(window, QStringLiteral("Sprint 30 m"));
+    auto* unit = findByObjectName(window->contentItem(), QStringLiteral("metricUnitInput"));
+    auto* higher = findByObjectName(window->contentItem(), QStringLiteral("metricHigherInput"));
+    if (unit == nullptr || higher == nullptr) {
+        fail("the metric dialog is not all there");
+        return;
+    }
+    auto* minimum = findByObjectName(window->contentItem(), QStringLiteral("metricMinInput"));
+    auto* maximum = findByObjectName(window->contentItem(), QStringLiteral("metricMaxInput"));
+    if (minimum == nullptr || maximum == nullptr) {
+        fail("the metric dialog has no range fields");
+        return;
+    }
+    unit->setProperty("text", QStringLiteral("s"));
+    minimum->setProperty("text", QStringLiteral("3"));
+    maximum->setProperty("text", QStringLiteral("10,0"));
+    higher->setProperty("checked", false);
+    expectReachable(window, maximum, true, "the maximum of the dialog is not in the window");
+    QMetaObject::invokeMethod(dialog, "triggerPrimary");
+    settle();
+    expectFlag(dialog, "visible", false, "the metric dialog did not save");
+    if (definitions->definitions()->count() != 1) {
+        fail("the metric was not added");
+        return;
+    }
+    const QVariantMap defined = definitions->definitions()->rowAt(0);
+    if (defined.value(QStringLiteral("scope")).toString() != QLatin1StringView("training") ||
+        defined.value(QStringLiteral("valueType")).toString() != QLatin1StringView("decimal") ||
+        defined.value(QStringLiteral("higherIsBetter")).toBool()) {
+        fail("the metric was not saved as a decimal training metric, lower is better");
+    }
+    const fdss::core::MetricDefinitionId metric{
+        defined.value(QStringLiteral("metricId")).toLongLong()};
+    grabOrSave(window, screenshotDirectory, QStringLiteral("metrics-settings.png"));
+
+    // The player of row 0 ran 4,50 a week ago.
+    const auto sheet = registry.metrics().sheet(metric, smokeTeam(), *earlierSession);
+    if (!sheet || sheet->rows.empty()) {
+        fail("the metrics test cannot read the earlier sheet");
+        return;
+    }
+    const fdss::core::PlayerId player = sheet->rows.front().player.id;
+    const std::vector<fdss::core::MetricValueDraft> older{{player, 4.5}};
+    if (!registry.metrics().saveValues(metric, smokeTeam(), *earlierSession, older)) {
+        fail("the metrics test cannot save the earlier value");
+        return;
+    }
+
+    // The Metrics section opens the session of today; the values go in from the keyboard.
+    navigation->activate(QStringLiteral("metrics"));
+    settle();
+    auto* view = findQmlItem(window->contentItem(), "MetricsView");
+    auto* entry =
+        view != nullptr ? view->property("viewModel").value<MetricEntryViewModel*>() : nullptr;
+    if (entry == nullptr) {
+        fail("the metrics view or its viewmodel is not there");
+        return;
+    }
+    const auto find = [view](const QString& name) { return findByObjectName(view, name); };
+    if (entry->targetId() != today->value || entry->count() != 3) {
+        fail("the metrics view did not open the session of today with three players");
+        return;
+    }
+    auto* firstCell = find(QStringLiteral("metricValueCell_0"));
+    auto* grid = find(QStringLiteral("metricValueGrid"));
+    renderFrame(window);
+    if (firstCell == nullptr || firstCell->height() < kMinHit || !liesInside(firstCell, grid)) {
+        fail("the value cell is too small or outside the grid");
+        return;
+    }
+    if (!liesInside(find(QStringLiteral("metricSaveButton")), view)) {
+        fail("Save of the metrics is outside the view at the minimum window");
+    }
+    firstCell->forceActiveFocus(Qt::TabFocusReason);
+    settle();
+    typeText(window, QStringLiteral("4,30"));
+    pressKey(window, Qt::Key_Return);
+    if (!find(QStringLiteral("metricValueCell_1"))->hasActiveFocus()) {
+        fail("Enter did not go to the next row");
+    }
+    typeText(window, QStringLiteral("99"));
+    settle();
+    if (!entry->index(1).data(MetricEntryViewModel::HasErrorRole).toBool() ||
+        !find(QStringLiteral("metricRowError_1"))->isVisible()) {
+        fail("a value out of range shows no error in its row");
+    }
+    expectWrapsInside(find(QStringLiteral("metricRowError_1")),
+                      "the range error does not wrap inside its row");
+    pressKey(window, Qt::Key_Backspace);
+    pressKey(window, Qt::Key_Backspace);
+    if (!entry->dirty() || !entry->canSave()) {
+        fail("the typed value does not make the grid savable");
+    }
+    grabOrSave(window, screenshotDirectory, QStringLiteral("metrics-entry.png"));
+    QKeyEvent savePress(QEvent::KeyPress, Qt::Key_S, Qt::ControlModifier);
+    QKeyEvent saveRelease(QEvent::KeyRelease, Qt::Key_S, Qt::ControlModifier);
+    QCoreApplication::sendEvent(window, &savePress);
+    QCoreApplication::sendEvent(window, &saveRelease);
+    settle();
+    if (entry->dirty()) {
+        fail("Ctrl+S did not save the metric values");
+    }
+
+    // The leave guard: a change asks before another section.
+    find(QStringLiteral("metricValueCell_2"))->forceActiveFocus(Qt::TabFocusReason);
+    settle();
+    typeText(window, QStringLiteral("5"));
+    navigation->activate(QStringLiteral("dashboard"));
+    settle();
+    auto* question = view->property("leaveDialog").value<QObject*>();
+    if (navigation->currentKey() != QLatin1StringView("metrics") ||
+        !question->property("visible").toBool()) {
+        fail("leaving the metrics with changes did not ask first");
+    }
+    QMetaObject::invokeMethod(question, "dangerClicked");
+    settle();
+    if (navigation->currentKey() != QLatin1StringView("dashboard") || entry->dirty()) {
+        fail("Discard changes did not leave the metrics");
+    }
+
+    // The player card: 4,30 s after 4,50 s is faster, so the arrow is down and green.
+    navigation->activate(QStringLiteral("squad"),
+                         QVariantMap{{QStringLiteral("playerId"), qint64{player.value}}});
+    settle();
+    auto* playerCard = findQmlItem(window->contentItem(), "PlayerCardView");
+    auto* metrics = playerCard != nullptr
+                        ? playerCard->property("metricsModel").value<PlayerMetricsViewModel*>()
+                        : nullptr;
+    if (metrics == nullptr || metrics->count() != 1) {
+        fail("the player card does not show the metric");
+    } else {
+        const QModelIndex row = metrics->index(0);
+        if (row.data(PlayerMetricsViewModel::TrendRole).toString() != QLatin1StringView("down") ||
+            !row.data(PlayerMetricsViewModel::ImprovementRole).toBool()) {
+            fail("the player card does not show a better sprint as down and better");
+        }
+        renderFrame(window);
+        auto* trend = findByObjectName(playerCard, QStringLiteral("playerMetricTrend_0"));
+        auto* trendWord =
+            trend != nullptr ? findByObjectName(trend, QStringLiteral("trendText")) : nullptr;
+        auto* metricsCard = findByObjectName(playerCard, QStringLiteral("playerMetricsCard"));
+        if (trend == nullptr || !trend->isVisible() || trendWord == nullptr ||
+            trendWord->property("text").toString().isEmpty()) {
+            fail("the arrow of the metric has no word next to it");
+        } else if (!liesInside(trend, metricsCard)) {
+            fail("the arrow of the metric is outside its card at the minimum window");
+        }
+        expectWrapsInside(findByObjectName(playerCard, QStringLiteral("playerMetricWindow_0")),
+                          "the 28-day line does not wrap inside the metrics card");
+        grabOrSave(window, screenshotDirectory, QStringLiteral("metrics-player-card.png"));
+    }
+
+    // The Physio reads the values and changes nothing.
+    const fdss::core::StaffUserId coach = registry.session().user()->id;
+    const auto physio = addSmokeStaff("Piotr Fizjo", fdss::core::Role::Physio);
+    if (!physio || !logInAgain(engine, *physio)) {
+        return;
+    }
+    navigation->activate(QStringLiteral("metrics"));
+    settle();
+    view = findQmlItem(window->contentItem(), "MetricsView");
+    entry = view != nullptr ? view->property("viewModel").value<MetricEntryViewModel*>() : nullptr;
+    if (entry == nullptr) {
+        fail("the metrics view is not there for the Physio");
+    } else {
+        expectFlag(entry, "readOnly", true, "the Physio may enter metric values");
+        expectFlag(findByObjectName(view, QStringLiteral("metricSaveButton")), "visible", false,
+                   "the Physio sees Save of the metrics");
+        expectFlag(findByObjectName(view, QStringLiteral("metricValueCell_0")), "enabled", false,
+                   "the Physio can type a metric value");
+    }
+    navigation->activate(QStringLiteral("settings"));
+    settle();
+    settings = findQmlItem(window->contentItem(), "SettingsView");
+    card =
+        settings != nullptr ? settings->property("metricsSection").value<QQuickItem*>() : nullptr;
+    if (card == nullptr) {
+        fail("the Physio does not see the metrics card");
+    } else {
+        expectFlag(findByObjectName(card, QStringLiteral("addMetricButton")), "visible", false,
+                   "the Physio sees Add metric");
+    }
+    logInAgain(engine, coach);
+    window->resize(originalSize);
+    settle();
+}
+
 int main(int argc, char* argv[]) {
     // As the app does; without it this run shows the CI failures of P12 under QV4_GC_TIMELIMIT=1.
     fdss::viewmodels::useNonIncrementalGarbageCollector();
@@ -6536,7 +6805,9 @@ int main(int argc, char* argv[]) {
         const bool onlyDashboard = arguments.contains(QStringLiteral("--only-dashboard"));
         // qml_smoke --only-import runs the import wizard alone (P16).
         const bool onlyImport = arguments.contains(QStringLiteral("--only-import"));
-        const bool onlyOne = onlyLoad || onlyPreMatch || onlyDashboard || onlyImport;
+        // qml_smoke --only-metrics runs the custom metrics alone (P17).
+        const bool onlyMetrics = arguments.contains(QStringLiteral("--only-metrics"));
+        const bool onlyOne = onlyLoad || onlyPreMatch || onlyDashboard || onlyImport || onlyMetrics;
 
         std::optional<UiPreferences> leftBehind;
         for (const AppState::State state :
@@ -6584,7 +6855,7 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (onlyLoad || onlyDashboard || onlyImport) {
+        if (onlyLoad || onlyDashboard || onlyImport || onlyMetrics) {
             // Not this one.
         } else if (installRegistry(AppState::State::Ready) == nullptr) {
             fail("cannot install the service registry");
@@ -6609,7 +6880,7 @@ int main(int argc, char* argv[]) {
             settle();
             ServiceRegistry::reset();
         }
-        if (onlyLoad || onlyPreMatch || onlyDashboard) {
+        if (onlyLoad || onlyPreMatch || onlyDashboard || onlyMetrics) {
             // Not this one.
         } else if (fdss::data::DatabaseManager* database = installRegistry(AppState::State::Ready);
                    database == nullptr) {
@@ -6618,6 +6889,18 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 exerciseImport(engine, *database, screenshotDirectory);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (onlyLoad || onlyPreMatch || onlyDashboard || onlyImport) {
+            // Not this one.
+        } else if (installRegistry(AppState::State::Ready) == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                exerciseMetrics(engine, screenshotDirectory);
             }
             settle();
             ServiceRegistry::reset();
@@ -6674,7 +6957,7 @@ int main(int argc, char* argv[]) {
             verifyPreferencesSurviveRestart(*leftBehind);
         }
         for (const bool demo : {false, true}) {
-            if (onlyLoad || onlyPreMatch || onlyImport) {
+            if (onlyLoad || onlyPreMatch || onlyImport || onlyMetrics) {
                 break;
             }
             auto* database = installRegistry(AppState::State::Ready);
@@ -6698,7 +6981,7 @@ int main(int argc, char* argv[]) {
         const std::optional<QString> loadLanguage =
             onlyLoad ? std::nullopt : std::optional(QStringLiteral("pl"));
         for (const bool demo : {false, true}) {
-            if (onlyPreMatch || onlyDashboard || onlyImport) {
+            if (onlyPreMatch || onlyDashboard || onlyImport || onlyMetrics) {
                 break;
             }
             if (installRegistry(AppState::State::Ready) == nullptr) {

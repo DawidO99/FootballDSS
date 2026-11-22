@@ -78,6 +78,11 @@ qt_add_qml_module(fdss_ui
         ui/components/MatchStartDialog.qml
         ui/components/MatchStatusBadge.qml
         ui/components/MatchTimeline.qml
+        ui/components/MetricDefinitionDialog.qml
+        ui/components/MetricTrend.qml
+        ui/components/MetricValueCell.qml
+        ui/components/MetricValueGrid.qml
+        ui/components/MetricValueGridRow.qml
         ui/components/MinutesCell.qml
         ui/components/MultiSelectField.qml
         ui/components/NumberField.qml
@@ -118,6 +123,7 @@ qt_add_qml_module(fdss_ui
         ui/views/LoadView.qml
         ui/views/MatchDayView.qml
         ui/views/MatchReportView.qml
+        ui/views/MetricsView.qml
         ui/views/PlayerCardView.qml
         ui/views/PreMatchView.qml
         ui/views/ProfilePickerView.qml
@@ -188,6 +194,14 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/MatchReportViewModel.cpp
         src/viewmodels/MatchTimelineRows.hpp
         src/viewmodels/MatchTimelineRows.cpp
+        src/viewmodels/MetricDefinitionListModel.hpp
+        src/viewmodels/MetricDefinitionListModel.cpp
+        src/viewmodels/MetricDefinitionsViewModel.hpp
+        src/viewmodels/MetricDefinitionsViewModel.cpp
+        src/viewmodels/MetricEntryViewModel.hpp
+        src/viewmodels/MetricEntryViewModel.cpp
+        src/viewmodels/MetricTexts.hpp
+        src/viewmodels/MetricTexts.cpp
         src/viewmodels/NavigationModel.hpp
         src/viewmodels/NavigationModel.cpp
         src/viewmodels/OpponentListModel.hpp
@@ -200,6 +214,8 @@ qt_add_qml_module(fdss_ui
         src/viewmodels/PlayerLoadViewModel.cpp
         src/viewmodels/PlayerMatchesModel.hpp
         src/viewmodels/PlayerMatchesModel.cpp
+        src/viewmodels/PlayerMetricsViewModel.hpp
+        src/viewmodels/PlayerMetricsViewModel.cpp
         src/viewmodels/QmlValues.hpp
         src/viewmodels/PreMatchViewModel.hpp
         src/viewmodels/PreMatchViewModel.cpp

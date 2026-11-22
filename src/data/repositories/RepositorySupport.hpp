@@ -97,6 +97,7 @@ template <class E> [[nodiscard]] QVariant optionalEnumValue(const std::optional<
     return value ? enumValue(*value) : QVariant{};
 }
 [[nodiscard]] QVariant optionalValue(const std::optional<int>& value);
+[[nodiscard]] QVariant optionalRealValue(const std::optional<double>& value);
 [[nodiscard]] QVariant dateValue(core::Date date);
 [[nodiscard]] QVariant optionalDateValue(const std::optional<core::Date>& date);
 [[nodiscard]] QVariant optionalTimeValue(const std::optional<core::TimeOfDay>& time);
@@ -115,6 +116,8 @@ public:
     [[nodiscard]] int integer();
     [[nodiscard]] std::optional<int> optionalInteger();
     [[nodiscard]] bool boolean();
+    [[nodiscard]] double real();
+    [[nodiscard]] std::optional<double> optionalReal();
     [[nodiscard]] std::vector<std::uint8_t> bytes();
     [[nodiscard]] core::Date date();
     [[nodiscard]] std::optional<core::Date> optionalDate();
@@ -141,6 +144,7 @@ private:
     void keepFirstError(const core::Error& error);
     // `value` is the column just read. One that does not fit an int is an error, never truncated.
     [[nodiscard]] int checkedInt(const QVariant& value);
+    [[nodiscard]] double checkedReal(const QVariant& value);
 
     template <class T> [[nodiscard]] T unwrap(core::Result<T> value) {
         if (value) {

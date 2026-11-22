@@ -26,6 +26,7 @@ Item {
     readonly property alias loadPanel: cardLoadPanel
     readonly property alias matchesModel: matches
     readonly property alias matchesView: matchesTable
+    readonly property alias metricsModel: playerMetrics
 
     signal backRequested
     signal editRequested(double playerId)
@@ -39,6 +40,7 @@ Item {
         availability.reload();
         cardLoadPanel.reload();
         matches.reload();
+        playerMetrics.reload();
     }
 
     function openMatchReport(matchId) {
@@ -96,6 +98,12 @@ Item {
 
     PlayerCardViewModel {
         id: card
+
+        playerId: root.playerId
+    }
+
+    PlayerMetricsViewModel {
+        id: playerMetrics
 
         playerId: root.playerId
     }
@@ -226,80 +234,172 @@ Item {
                     width: overviewPage.width
                     spacing: Theme.spacing.l
 
-                    Card {
+                    ColumnLayout {
                         Layout.alignment: Qt.AlignTop
                         Layout.preferredHeight: Math.max(overviewPage.height, implicitHeight)
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
-                        title: qsTr("Player data")
+                        spacing: Theme.spacing.l
 
-                        ColumnLayout {
+                        Card {
                             Layout.fillWidth: true
-                            spacing: Theme.spacing.s
+                            title: qsTr("Player data")
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacing.s
+
+                                Repeater {
+                                    model: [
+                                        {
+                                            "key": "position",
+                                            "label": qsTr("Position"),
+                                            "value": card.positionCode.length > 0 ? card.positionCode + " - " + card.positionName : ""
+                                        },
+                                        {
+                                            "key": "secondaryPositions",
+                                            "label": qsTr("Secondary positions"),
+                                            "value": card.secondaryPositions
+                                        },
+                                        {
+                                            "key": "birthYear",
+                                            "label": qsTr("Birth year"),
+                                            "value": String(card.birthYear ?? "")
+                                        },
+                                        {
+                                            "key": "foot",
+                                            "label": qsTr("Preferred foot"),
+                                            "value": card.footName
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "label": qsTr("Notes"),
+                                            "value": card.notes
+                                        }
+                                    ]
+
+                                    delegate: RowLayout {
+                                        id: dataRow
+
+                                        required property var modelData
+
+                                        Layout.fillWidth: true
+                                        spacing: Theme.spacing.m
+
+                                        Label {
+                                            Layout.preferredWidth: Theme.fieldWidth / 2
+                                            Layout.alignment: Qt.AlignTop
+                                            text: dataRow.modelData.label
+                                            color: Theme.textMuted
+                                            font.pixelSize: Theme.fontSize.body
+                                            wrapMode: Text.WordWrap
+                                        }
+
+                                        // Long notes wrap inside the card, in the middle of a long word too.
+                                        Label {
+                                            objectName: "playerData_" + dataRow.modelData.key
+                                            Layout.fillWidth: true
+                                            Layout.preferredWidth: 0
+                                            text: dataRow.modelData.value.length > 0 ? dataRow.modelData.value : qsTr("Not set")
+                                            textFormat: Text.PlainText
+                                            color: Theme.text
+                                            font.pixelSize: Theme.fontSize.body
+                                            wrapMode: Text.Wrap
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+
+                        // P17: the latest value and the 28 days of every custom metric of the player.
+                        Card {
+                            objectName: "playerMetricsCard"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            title: qsTr("Metrics")
 
                             Repeater {
-                                model: [
-                                    {
-                                        "key": "position",
-                                        "label": qsTr("Position"),
-                                        "value": card.positionCode.length > 0 ? card.positionCode + " - " + card.positionName : ""
-                                    },
-                                    {
-                                        "key": "secondaryPositions",
-                                        "label": qsTr("Secondary positions"),
-                                        "value": card.secondaryPositions
-                                    },
-                                    {
-                                        "key": "birthYear",
-                                        "label": qsTr("Birth year"),
-                                        "value": String(card.birthYear ?? "")
-                                    },
-                                    {
-                                        "key": "foot",
-                                        "label": qsTr("Preferred foot"),
-                                        "value": card.footName
-                                    },
-                                    {
-                                        "key": "notes",
-                                        "label": qsTr("Notes"),
-                                        "value": card.notes
-                                    }
-                                ]
+                                model: playerMetrics
 
-                                delegate: RowLayout {
-                                    id: dataRow
+                                delegate: ColumnLayout {
+                                    id: metricRow
 
-                                    required property var modelData
+                                    required property int index
+                                    required property string name
+                                    required property string latestText
+                                    required property string latestDateText
+                                    required property string windowText
+                                    required property string trend
+                                    required property bool improvement
+                                    required property string trendText
+                                    required property string previousText
 
+                                    objectName: "playerMetric_" + index
                                     Layout.fillWidth: true
-                                    spacing: Theme.spacing.m
+                                    spacing: Theme.spacing.xs
 
-                                    Label {
-                                        Layout.preferredWidth: Theme.fieldWidth / 2
-                                        Layout.alignment: Qt.AlignTop
-                                        text: dataRow.modelData.label
-                                        color: Theme.textMuted
-                                        font.pixelSize: Theme.fontSize.body
-                                        wrapMode: Text.WordWrap
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: Theme.spacing.s
+
+                                        Label {
+                                            Layout.fillWidth: true
+                                            text: metricRow.name
+                                            textFormat: Text.PlainText
+                                            color: Theme.text
+                                            font.pixelSize: Theme.fontSize.body
+                                            font.weight: Font.DemiBold
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Label {
+                                            objectName: "playerMetricLatest_" + metricRow.index
+                                            text: metricRow.latestText
+                                            textFormat: Text.PlainText
+                                            color: Theme.text
+                                            font.pixelSize: Theme.fontSize.body
+                                        }
+
+                                        MetricTrend {
+                                            objectName: "playerMetricTrend_" + metricRow.index
+                                            trend: metricRow.trend
+                                            improvement: metricRow.improvement
+                                            text: metricRow.trendText
+                                        }
                                     }
 
-                                    // Long notes wrap inside the card, in the middle of a long word too.
                                     Label {
-                                        objectName: "playerData_" + dataRow.modelData.key
+                                        objectName: "playerMetricWindow_" + metricRow.index
                                         Layout.fillWidth: true
-                                        Layout.preferredWidth: 0
-                                        text: dataRow.modelData.value.length > 0 ? dataRow.modelData.value : qsTr("Not set")
+                                        text: qsTr("%1 · last %2 · %3").arg(metricRow.windowText).arg(metricRow.latestDateText).arg(metricRow.previousText)
                                         textFormat: Text.PlainText
-                                        color: Theme.text
-                                        font.pixelSize: Theme.fontSize.body
+                                        color: Theme.textMuted
+                                        font.pixelSize: Theme.fontSize.caption
                                         wrapMode: Text.Wrap
                                     }
                                 }
                             }
-                        }
 
-                        Item {
-                            Layout.fillHeight: true
+                            EmptyState {
+                                objectName: "noPlayerMetricsState"
+                                Layout.fillWidth: true
+                                visible: playerMetrics.count === 0
+                                iconName: "metrics"
+                                title: playerMetrics.loadError.length > 0 ? qsTr("The metrics could not be read") : qsTr("No metric values yet")
+                                description: playerMetrics.loadError.length > 0 ? playerMetrics.loadError : playerMetrics.canManage ? qsTr("Enter values in the Metrics section.") : qsTr("Ask the coach, the assistant or the analyst to enter them.")
+                                actionText: playerMetrics.loadError.length > 0 ? qsTr("Try again") : playerMetrics.canManage ? qsTr("Open metrics") : ""
+                                onActionTriggered: {
+                                    if (playerMetrics.loadError.length > 0)
+                                        playerMetrics.reload();
+                                    else
+                                        root.navigateRequested("metrics", {});
+                                }
+                            }
+
+                            Item {
+                                Layout.fillHeight: true
+                            }
                         }
                     }
 

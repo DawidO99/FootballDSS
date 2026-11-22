@@ -77,6 +77,16 @@ struct LineupId {
     auto operator<=>(const LineupId&) const = default;
 };
 
+struct MetricDefinitionId {
+    std::int64_t value = 0;
+    auto operator<=>(const MetricDefinitionId&) const = default;
+};
+
+struct MetricValueId {
+    std::int64_t value = 0;
+    auto operator<=>(const MetricValueId&) const = default;
+};
+
 struct ImportId {
     std::int64_t value = 0;
     auto operator<=>(const ImportId&) const = default;

@@ -71,6 +71,8 @@ add_library(fdss_data STATIC
     repositories/MatchNoteRepository.cpp
     repositories/MatchTacticRepository.hpp
     repositories/MatchTacticRepository.cpp
+    repositories/MetricRepository.hpp
+    repositories/MetricRepository.cpp
     repositories/OpponentRepository.hpp
     repositories/OpponentRepository.cpp
     repositories/PlayerRepository.hpp

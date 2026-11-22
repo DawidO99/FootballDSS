@@ -23,6 +23,8 @@ add_library(fdss_core STATIC
     domain/Lineup.hpp
     domain/Lineup.cpp
     domain/Match.hpp
+    domain/Metric.hpp
+    domain/Metric.cpp
     domain/MatchEvent.hpp
     domain/MatchNote.hpp
     domain/Opponent.hpp

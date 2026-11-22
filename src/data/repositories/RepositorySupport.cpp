@@ -214,6 +214,10 @@ QVariant optionalValue(const std::optional<int>& value) {
     return value ? QVariant(*value) : QVariant{};
 }
 
+QVariant optionalRealValue(const std::optional<double>& value) {
+    return value ? QVariant(*value) : QVariant{};
+}
+
 QVariant dateValue(core::Date date) { return toIsoDate(date); }
 
 QVariant optionalDateValue(const std::optional<core::Date>& date) {
@@ -271,6 +275,27 @@ std::optional<int> RowReader::optionalInteger() {
 }
 
 bool RowReader::boolean() { return integer() != 0; }
+
+double RowReader::checkedReal(const QVariant& value) {
+    bool isNumber = false;
+    const double number = value.toDouble(&isNumber);
+    if (isNumber) {
+        return number;
+    }
+    keepFirstError(core::Error{core::ErrorCode::Database,
+                               std::format("column '{}': stored value '{}' is not a number",
+                                           m_query.record().fieldName(m_column - 1).toStdString(),
+                                           value.toString().toStdString()),
+                               {}});
+    return 0.0;
+}
+
+double RowReader::real() { return checkedReal(next()); }
+
+std::optional<double> RowReader::optionalReal() {
+    const QVariant value = next();
+    return value.isNull() ? std::nullopt : std::optional(checkedReal(value));
+}
 
 std::vector<std::uint8_t> RowReader::bytes() {
     const QByteArray value = next().toByteArray();
