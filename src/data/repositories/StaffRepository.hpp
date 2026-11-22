@@ -18,13 +18,15 @@ public:
     [[nodiscard]] core::Result<std::vector<core::StaffUser>> listActive() const;
     [[nodiscard]] core::Result<std::vector<core::StaffUser>> listAll() const;
     [[nodiscard]] core::Result<core::StaffUser> get(core::StaffUserId id) const;
-    [[nodiscard]] core::Result<core::StaffUserId> create(const core::StaffUserDraft& draft,
-                                                         const core::PinHash& pin);
+    // mustChangePin: the PIN was chosen by someone else, see StaffCredentials.
+    [[nodiscard]] core::Result<core::StaffUserId>
+    create(const core::StaffUserDraft& draft, const core::PinHash& pin, bool mustChangePin = false);
     // Name, role and active. Staff users are deactivated, never deleted.
     [[nodiscard]] core::Status update(core::StaffUserId id, const core::StaffUserDraft& draft);
 
     [[nodiscard]] core::Result<core::StaffCredentials> credentials(core::StaffUserId id) const;
-    [[nodiscard]] core::Status setPin(core::StaffUserId id, const core::PinHash& pin);
+    [[nodiscard]] core::Status setPin(core::StaffUserId id, const core::PinHash& pin,
+                                      bool mustChangePin);
     [[nodiscard]] core::Status setLoginState(core::StaffUserId id, int failedAttempts,
                                              std::optional<core::Timestamp> lockedUntil);
 

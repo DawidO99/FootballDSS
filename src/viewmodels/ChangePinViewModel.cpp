@@ -29,12 +29,7 @@ bool ChangePinViewModel::change(const QString& currentPin, const QString& newPin
     if (m_lock.locked()) {
         return false;
     }
-    const bool newPinValid = services::AuthService::isValidPin(newPin.toStdString());
-    if (!newPinValid || newPin != pinRepeat) {
-        m_newPinError = newPinValid ? QString{} : ErrorPresenter::invalidInputMessage("pin");
-        m_pinRepeatError =
-            newPin == pinRepeat ? QString{} : ErrorPresenter::invalidInputMessage("pin_repeat");
-        emit errorsChanged();
+    if (!checkNewPin(newPin, pinRepeat)) {
         return false;
     }
     if (newPin == currentPin) {
@@ -66,6 +61,37 @@ bool ChangePinViewModel::change(const QString& currentPin, const QString& newPin
         m_lock.start(check->lockedFor);
         break;
     }
+    return false;
+}
+
+bool ChangePinViewModel::setRequired(const QString& newPin, const QString& pinRepeat) {
+    clearErrors();
+    if (!checkNewPin(newPin, pinRepeat)) {
+        return false;
+    }
+    const auto stored = m_auth.setRequiredPin(newPin.toStdString());
+    if (!stored) {
+        if (stored.error().code == core::ErrorCode::InvalidInput) {
+            m_newPinError = ErrorPresenter::invalidInputMessage(stored.error().field);
+            emit errorsChanged();
+        } else {
+            qCritical("ChangePinViewModel: %s", stored.error().detail.c_str());
+            emit errorOccurred(ErrorPresenter::message(stored.error()));
+        }
+        return false;
+    }
+    return true;
+}
+
+bool ChangePinViewModel::checkNewPin(const QString& newPin, const QString& pinRepeat) {
+    const bool newPinValid = services::AuthService::isValidPin(newPin.toStdString());
+    if (newPinValid && newPin == pinRepeat) {
+        return true;
+    }
+    m_newPinError = newPinValid ? QString{} : ErrorPresenter::invalidInputMessage("pin");
+    m_pinRepeatError =
+        newPin == pinRepeat ? QString{} : ErrorPresenter::invalidInputMessage("pin_repeat");
+    emit errorsChanged();
     return false;
 }
 

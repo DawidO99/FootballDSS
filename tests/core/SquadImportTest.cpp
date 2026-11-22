@@ -87,15 +87,13 @@ TEST(SquadMappingTest, FullNameOrderComesFromTheHeader) {
 TEST(SquadMappingTest, NameIsTheOnlyRequiredField) {
     const SourceTable source = table("Nazwisko;Imię;Nr\nKowalski;Jan;7\n");
     SquadMapping mapping = autoMapSquad(source.headers);
-    // No position column: a default position is needed, nothing else.
+    // No position column: the default position applies, and "—" is one too (P19 decision 7).
     EXPECT_TRUE(needsDefaultPosition(mapping, source));
-    EXPECT_EQ(checkMapping(mapping, source),
-              (std::vector<MappingIssue>{MappingIssue::MissingDefaultPosition}));
+    EXPECT_TRUE(checkMapping(mapping).empty());
     mapping.defaultPosition = Position::Cm;
-    EXPECT_TRUE(checkMapping(mapping, source).empty());
+    EXPECT_TRUE(checkMapping(mapping).empty());
     mapping.columns[1].reset();
-    EXPECT_EQ(checkMapping(mapping, source),
-              (std::vector<MappingIssue>{MappingIssue::MissingName}));
+    EXPECT_EQ(checkMapping(mapping), (std::vector<MappingIssue>{MappingIssue::MissingName}));
 }
 
 TEST(SquadMappingTest, EmptyPositionCellNeedsTheDefault) {
@@ -111,7 +109,7 @@ TEST(SquadMappingTest, ConflictingColumns) {
     SquadMapping mapping = autoMapSquad(source.headers);
     mapping.defaultPosition = Position::Cm;
     mapping.columns[3] = SquadField::ShirtNumber;
-    const auto issues = checkMapping(mapping, source);
+    const auto issues = checkMapping(mapping);
     EXPECT_NE(std::ranges::find(issues, MappingIssue::DuplicateField), issues.end());
     EXPECT_NE(std::ranges::find(issues, MappingIssue::FullNameWithParts), issues.end());
 }
@@ -267,6 +265,18 @@ TEST(SquadRowsTest, EmptyPositionCellUsesTheDefault) {
     EXPECT_TRUE(hasIssue(rows[0], RowIssueKind::DefaultPosition, SquadField::PrimaryPosition));
     EXPECT_EQ(rows[1].status(), RowStatus::Ok);
     EXPECT_EQ(rows[1].draft.primaryPosition, Position::Gk);
+}
+
+// P19 decision 7: "—" as the default leaves the player without a position, with its own warning.
+TEST(SquadRowsTest, WithoutADefaultTheRowHasNoPositionAndAWarning) {
+    const auto rows = validate("Imię;Nazwisko;Pozycja\nJan;Kowalski;\nAdam;Nowak;BR\n");
+    ASSERT_EQ(rows.size(), 2U);
+    EXPECT_EQ(rows[0].status(), RowStatus::Warning);
+    EXPECT_FALSE(rows[0].draft.primaryPosition.has_value());
+    EXPECT_FALSE(rows[0].filled.primaryPosition);
+    EXPECT_TRUE(hasIssue(rows[0], RowIssueKind::PositionNotGiven, SquadField::PrimaryPosition));
+    EXPECT_FALSE(hasIssue(rows[0], RowIssueKind::DefaultPosition, SquadField::PrimaryPosition));
+    EXPECT_EQ(rows[1].status(), RowStatus::Ok);
 }
 
 TEST(SquadRowsTest, UnknownFootIsAWarning) {

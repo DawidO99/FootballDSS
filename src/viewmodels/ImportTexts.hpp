@@ -27,6 +27,9 @@ public:
 
     // One issue, e.g. "shirt number 'abc', expected a number".
     [[nodiscard]] static QString issue(const core::RowIssue& issue, int currentYear);
+    // The warning of a new player's position, in every import (P19 decision 7): set by the
+    // default, or not given ("—").
+    [[nodiscard]] static QString positionWarning(bool positionGiven);
     // All issues of a row, joined; empty for a row without any.
     [[nodiscard]] static QString details(const core::SquadRow& row, int currentYear);
     // "Row 14: shirt number 'abc', expected a number."; empty for a row without issues.

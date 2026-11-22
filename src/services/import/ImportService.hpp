@@ -221,8 +221,7 @@ public:
 
 private:
     [[nodiscard]] core::Status checkActivityCommit(const ActivityImportSummary& summary,
-                                                   const core::ActivityOptions& options,
-                                                   bool createsPlayers) const;
+                                                   const core::ActivityOptions& options) const;
     [[nodiscard]] core::Result<std::vector<core::PlayerId>>
     createPlayers(core::TeamId team, std::span<const core::NewPlayer> players,
                   core::ImportId importId);

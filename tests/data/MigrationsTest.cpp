@@ -225,3 +225,79 @@ TEST_F(MigrationsTest, TableWithoutVersionRowIsNotADatabase) {
     ASSERT_FALSE(db.has_value());
     EXPECT_EQ(db.error().code, ErrorCode::NotADatabase) << db.error().detail;
 }
+
+// --- Foreign keys during a migration (P19 decision 3) ---
+
+namespace {
+
+Migration parentAndChild() {
+    return {1, QStringLiteral("parent"),
+            QStringLiteral("CREATE TABLE schema_version (\n"
+                           "    id INTEGER PRIMARY KEY CHECK (id = 1),\n"
+                           "    version INTEGER NOT NULL\n"
+                           ");\n"
+                           "CREATE TABLE parent (id INTEGER PRIMARY KEY, name TEXT NOT NULL);\n"
+                           "CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL "
+                           "REFERENCES parent (id) ON DELETE RESTRICT);\n")};
+}
+
+} // namespace
+
+TEST_F(MigrationsTest, AMigrationMayRebuildATableThatRestrictedChildrenPointAt) {
+    {
+        const auto db = DatabaseManager::open(databasePath(), options({parentAndChild()}));
+        ASSERT_TRUE(db.has_value()) << db.error().detail;
+        ASSERT_TRUE(run((*db)->database(), QStringLiteral("INSERT INTO parent VALUES (1, 'a')")));
+        ASSERT_TRUE(run((*db)->database(), QStringLiteral("INSERT INTO child VALUES (1, 1)")));
+    }
+    const Migration rebuild{2, QStringLiteral("rebuild"),
+                            QStringLiteral("CREATE TABLE parent_new (id INTEGER PRIMARY KEY, "
+                                           "name TEXT);\n"
+                                           "INSERT INTO parent_new SELECT id, name FROM parent;\n"
+                                           "DROP TABLE parent;\n"
+                                           "ALTER TABLE parent_new RENAME TO parent;\n")};
+
+    const auto upgraded =
+        DatabaseManager::open(databasePath(), options({parentAndChild(), rebuild}));
+
+    ASSERT_TRUE(upgraded.has_value()) << upgraded.error().detail;
+    const QSqlDatabase db = (*upgraded)->database();
+    EXPECT_EQ(scalar(db, QStringLiteral("PRAGMA foreign_keys")).toInt(), 1);
+    EXPECT_TRUE(run(db, QStringLiteral("INSERT INTO parent (id) VALUES (2)")));
+    EXPECT_FALSE(run(db, QStringLiteral("DELETE FROM parent WHERE id = 1")));
+    EXPECT_FALSE(run(db, QStringLiteral("INSERT INTO child VALUES (2, 99)")));
+}
+
+TEST_F(MigrationsTest, AMigrationThatLeavesAnOrphanFailsAndKeepsForeignKeysOn) {
+    {
+        const auto db = DatabaseManager::open(databasePath(), options({parentAndChild()}));
+        ASSERT_TRUE(db.has_value()) << db.error().detail;
+        ASSERT_TRUE(run((*db)->database(), QStringLiteral("INSERT INTO parent VALUES (1, 'a')")));
+        ASSERT_TRUE(run((*db)->database(), QStringLiteral("INSERT INTO child VALUES (1, 1)")));
+    }
+    const Migration orphan{2, QStringLiteral("orphan"), QStringLiteral("DELETE FROM parent;\n")};
+
+    const auto failed = DatabaseManager::open(databasePath(), options({parentAndChild(), orphan}));
+
+    ASSERT_FALSE(failed.has_value());
+    EXPECT_EQ(failed.error().code, ErrorCode::Database);
+    EXPECT_NE(failed.error().detail.find("migration 2"), std::string::npos)
+        << failed.error().detail;
+    EXPECT_NE(failed.error().detail.find("child"), std::string::npos) << failed.error().detail;
+    const RawConnection raw(databasePath());
+    EXPECT_EQ(scalar(raw.database(), QStringLiteral("SELECT count(*) FROM parent")).toInt(), 1);
+    EXPECT_EQ(scalar(raw.database(), QStringLiteral("SELECT version FROM schema_version")).toInt(),
+              1);
+}
+
+TEST_F(MigrationsTest, ForeignKeysAreOnAgainAfterAFailingStatement) {
+    auto db = DatabaseManager::openInMemory(options({firstMigration()}));
+    ASSERT_TRUE(db.has_value()) << db.error().detail;
+
+    const Migration failing{2, QStringLiteral("failing"),
+                            QStringLiteral("SELECT * FROM nothing;\n")};
+    const Migration both[] = {firstMigration(), failing};
+    ASSERT_FALSE(applyMigrations(**db, both).has_value());
+
+    EXPECT_EQ(scalar((*db)->database(), QStringLiteral("PRAGMA foreign_keys")).toInt(), 1);
+}

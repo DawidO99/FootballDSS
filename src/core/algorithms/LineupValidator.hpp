@@ -23,7 +23,9 @@ inline constexpr int kMaxYellowCardThreshold = 15;
 // Sessions with saved attendance that the missed-sessions rule looks at.
 inline constexpr int kRecentSessions = 3;
 
-enum class LineupSeverity { Error, Warning };
+// Info: an explanation, not a problem; it changes neither the counts of errors and warnings nor
+// whether the lineup may be saved (P19 decision 6).
+enum class LineupSeverity { Error, Warning, Info };
 
 enum class LineupRule {
     // Errors
@@ -35,7 +37,9 @@ enum class LineupRule {
     HighLoad,
     OutOfPosition,
     MissedSessions,
-    YellowCards
+    YellowCards,
+    // Info
+    PositionNotGiven
 };
 
 struct LineupIssue {
@@ -47,13 +51,14 @@ struct LineupIssue {
     // StartingEleven: players in the XI; YellowCards: cards so far; MissedSessions: sessions.
     int count = 0;
     PlayerStatus status = PlayerStatus::Available; // Unavailable
-    std::optional<Position> slotPosition;          // OutOfPosition
+    std::optional<Position> slotPosition;          // OutOfPosition, PositionNotGiven
 
     friend bool operator==(const LineupIssue&, const LineupIssue&) = default;
 };
 
 struct LineupPlayerFacts {
-    Position primaryPosition = Position::Cm;
+    // Empty: not given; the position check does not apply then (PositionNotGiven, P19).
+    std::optional<Position> primaryPosition;
     std::vector<Position> secondaryPositions;
     PlayerStatus statusOnMatchDay = PlayerStatus::Available;
     // Empty while not known: the load is computed in the background (P11).

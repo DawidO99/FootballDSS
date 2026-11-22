@@ -1,9 +1,7 @@
 # Backlog
 
 ## W2 housekeeping (planned)
-- Season validation: years 1900–2100, second part = first + 1 (P07b L2)
 - Startup read error shows the wizard instead of an error screen (P07b L1)
-- After a PIN reset by a Coach, the user must set their own PIN at next login
 - Recovery code for the only Coach's PIN, shown once in the wizard (P07a)
 - Log file in AppData/logs; single-instance lock with QLockFile (P05)
 - "Expected return date has passed" hint on the player card (P06)
@@ -55,8 +53,6 @@
 - Match Day tactics: inserting a change of shape before a later stored one (refused today with
   `tactic_change_later`; it would need the draft based on the shape at its minute and the later changes
   rebased on it) (P13b decision 5)
-- Player primary position optional ("—", nie podano): migration 0005 (primary_position NULL), Squad
-  filter/sort, lineup validator, slot picker, tactics board, import default "—" (P16 manual test) (P19)
 
 ## Open questions for coach testing
 - Coach hierarchy: can a second Coach deactivate the founder? Options: (a) single Coach role,

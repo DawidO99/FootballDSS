@@ -71,6 +71,7 @@ core::Error malformedPin() {
 struct PreparedAttempt {
     std::vector<std::uint8_t> key;
     std::chrono::seconds lockedFor{0};
+    bool mustChangePin = false;
 };
 
 // Outside any transaction, so the write lock is not held for the length of a hash. Only the salt
@@ -86,10 +87,10 @@ core::Result<PreparedAttempt> prepareAttempt(const data::StaffRepository& staff,
         return std::unexpected(credentials.error());
     }
     if (const std::chrono::seconds left = lockLeft(*credentials, clock.now()); left.count() > 0) {
-        return PreparedAttempt{{}, left};
+        return PreparedAttempt{{}, left, credentials->mustChangePin};
     }
     return PreparedAttempt{deriveKey(pin, credentials->salt, credentials->iterations),
-                           std::chrono::seconds::zero()};
+                           std::chrono::seconds::zero(), credentials->mustChangePin};
 }
 
 // Inside the transaction of the caller, whose BEGIN IMMEDIATE serializes the attempts of all
@@ -201,12 +202,50 @@ core::Result<PinCheck> AuthService::login(core::StaffUserId id, std::string_view
         return std::unexpected(status.error());
     }
     if (check->status == PinCheckStatus::Accepted) {
-        m_session.start(std::move(*user));
+        m_session.start(std::move(*user), prepared->mustChangePin);
     }
     return check;
 }
 
 void AuthService::logout() { m_session.clear(); }
+
+core::Status AuthService::setRequiredPin(std::string_view newPin) {
+    if (!m_session.user() || !m_session.mustChangePin()) {
+        return std::unexpected(core::Error{
+            core::ErrorCode::PermissionDenied, "the session user need not change the PIN", {}});
+    }
+    if (!isValidPin(newPin)) {
+        return std::unexpected(malformedPin());
+    }
+    const core::StaffUserId id = m_session.user()->id;
+    // Both hashes before the transaction, as everywhere.
+    const auto credentials = m_staff.credentials(id);
+    if (!credentials) {
+        return std::unexpected(credentials.error());
+    }
+    if (equalInConstantTime(credentials->hash,
+                            deriveKey(newPin, credentials->salt, credentials->iterations))) {
+        return std::unexpected(core::Error{core::ErrorCode::InvalidInput,
+                                           "the new PIN equals the one chosen by the Coach",
+                                           "pin_same"});
+    }
+    const auto pin = hashPin(newPin);
+    if (!pin) {
+        return std::unexpected(pin.error());
+    }
+    auto transaction = data::Transaction::begin(m_db);
+    if (!transaction) {
+        return std::unexpected(transaction.error());
+    }
+    if (auto status = m_staff.setPin(id, *pin, false); !status) {
+        return status;
+    }
+    if (auto status = transaction->commit(); !status) {
+        return status;
+    }
+    m_session.pinChanged();
+    return {};
+}
 
 core::Result<PinCheck> AuthService::changeOwnPin(std::string_view currentPin,
                                                  std::string_view newPin) {
@@ -240,12 +279,15 @@ core::Result<PinCheck> AuthService::changeOwnPin(std::string_view currentPin,
         return check;
     }
     if (check->status == PinCheckStatus::Accepted) {
-        if (auto status = m_staff.setPin(id, *pin); !status) {
+        if (auto status = m_staff.setPin(id, *pin, false); !status) {
             return std::unexpected(status.error());
         }
     }
     if (auto status = transaction->commit(); !status) {
         return std::unexpected(status.error());
+    }
+    if (check->status == PinCheckStatus::Accepted) {
+        m_session.pinChanged();
     }
     return check;
 }
@@ -273,7 +315,7 @@ core::Result<core::StaffUserId> AuthService::addStaff(const core::StaffUserDraft
     if (!transaction) {
         return std::unexpected(transaction.error());
     }
-    const auto id = m_staff.create(draft, *hash);
+    const auto id = m_staff.create(draft, *hash, true);
     if (!id) {
         return id;
     }
@@ -305,7 +347,8 @@ core::Status AuthService::resetPin(core::StaffUserId id, std::string_view newPin
     if (!transaction) {
         return std::unexpected(transaction.error());
     }
-    if (auto status = m_staff.setPin(id, *pin); !status) {
+    const bool ownPin = m_session.user() && m_session.user()->id == id;
+    if (auto status = m_staff.setPin(id, *pin, !ownPin); !status) {
         return status;
     }
     if (auto status = m_staff.setLoginState(id, 0, std::nullopt); !status) {

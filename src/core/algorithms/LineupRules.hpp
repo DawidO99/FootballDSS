@@ -65,13 +65,24 @@ public:
 };
 
 // Warning: the position of the slot is neither the primary nor a secondary position of its player.
-// The XI only: the bench has no positions.
+// The XI only: the bench has no positions. A player without a primary position is not checked:
+// PositionNotGivenRule says so instead.
 class OutOfPositionRule final : public ILineupRule {
 public:
     [[nodiscard]] LineupRule rule() const noexcept override { return LineupRule::OutOfPosition; }
     [[nodiscard]] LineupSeverity severity() const noexcept override {
         return LineupSeverity::Warning;
     }
+    void check(const Lineup& lineup, const LineupContext& context,
+               std::vector<LineupIssue>& issues) const override;
+};
+
+// Info: a player of the XI has no primary position, so the position check does not apply (P19
+// decision 6).
+class PositionNotGivenRule final : public ILineupRule {
+public:
+    [[nodiscard]] LineupRule rule() const noexcept override { return LineupRule::PositionNotGiven; }
+    [[nodiscard]] LineupSeverity severity() const noexcept override { return LineupSeverity::Info; }
     void check(const Lineup& lineup, const LineupContext& context,
                std::vector<LineupIssue>& issues) const override;
 };

@@ -1297,6 +1297,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Damian Skała has no position given, so the position is not checked.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Filip Skrzydło has a high load. A signal to talk to the player.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1477,6 +1481,45 @@
     <name>EmptyState</name>
     <message>
         <source>Nothing here yet</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>ForcedPinChangeView</name>
+    <message>
+        <source>Your PIN was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set your own PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, your PIN was set by a coach. Choose a new PIN that only you know.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4 to 8 digits.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repeat the PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Log out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (Enter)</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1712,15 +1755,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Some players have no position in the file. They get this one with a warning; correct it later in Squad.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Every player has a position in the file; this one is not used.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Choose a position</source>
+        <source>Some players have no position in the file. They get this one, or none with &quot;—&quot;, and a warning; fill it in later in Squad.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -3880,6 +3919,34 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Team</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Season</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Edit team</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The team was saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Team name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Two consecutive years, for example 2026/27.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Delete</source>
         <translation type="unfinished"></translation>
     </message>
@@ -3920,7 +3987,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>4 to 8 digits. Tell it to this person, who can change it later.</source>
+        <source>4 to 8 digits. Tell it to this person, who sets their own PIN at the first login.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4 to 8 digits. This also ends a lockout. The person sets their own PIN at the next login.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5074,10 +5145,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Enter the season in the form 2026/27.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Enter the first name, up to 50 characters.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5338,11 +5405,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Choose the position of the new players.</source>
+        <source>The shape is the same as before. Move a player or choose another formation.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The shape is the same as before. Move a player or choose another formation.</source>
+        <source>Enter the season as two consecutive years in the form 2026/27.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5898,10 +5965,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Some players have no position in the file. Choose the default position.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>the first name is empty</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5951,6 +6014,10 @@
     </message>
     <message>
         <source>position set by default — correct it in Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>position not given — fill it in in Squad</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -6160,6 +6227,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Players in the starting XI: %1 of 11.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6189,6 +6260,10 @@
     </message>
     <message>
         <source>%1 has yellow cards: %2. One more means a suspension.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 has no position given, so the position is not checked.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -7231,6 +7306,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>No position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The bench is full: at most %1 players.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7272,6 +7351,10 @@
 </context>
 <context>
     <name>fdss::viewmodels::SquadTexts</name>
+    <message>
+        <source>Position not given</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message>
         <source>Goalkeeper</source>
         <translation type="unfinished"></translation>
@@ -7390,6 +7473,10 @@
     </message>
     <message>
         <source>%1. Secondary: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>— Not given</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

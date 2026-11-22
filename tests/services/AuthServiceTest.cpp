@@ -467,6 +467,79 @@ TEST_F(StaffManagementTest, ResetPinRefusesAMalformedPin) {
     EXPECT_EQ(credentials(id).hash, before.hash);
 }
 
+// --- Forced PIN change (P19 decision 5) ---
+
+TEST_F(StaffManagementTest, AnAddedUserMustSetTheirOwnPinBeforeAnythingIsAllowed) {
+    const auto id = m_auth->addStaff(draft("Ewa", Role::Physio), "5678");
+    ASSERT_TRUE(id.has_value()) << id.error().detail;
+    EXPECT_TRUE(credentials(*id).mustChangePin);
+
+    logIn(*id, "5678");
+
+    EXPECT_TRUE(m_session.mustChangePin());
+    EXPECT_FALSE(m_session.isAllowed(Permission::ViewAvailabilityDetails));
+    expectError(m_session.require(Permission::EditAvailability), ErrorCode::PermissionDenied);
+}
+
+TEST_F(StaffManagementTest, AResetPinMustBeChangedButOnlyForSomeoneElse) {
+    const StaffUserId id = addUser("Ewa", Role::Physio);
+
+    ASSERT_TRUE(m_auth->resetPin(id, "5678").has_value());
+    EXPECT_TRUE(credentials(id).mustChangePin);
+
+    ASSERT_TRUE(m_auth->resetPin(m_coach, "4321").has_value());
+    EXPECT_FALSE(credentials(m_coach).mustChangePin);
+    EXPECT_FALSE(m_session.mustChangePin());
+    EXPECT_TRUE(m_session.isAllowed(Permission::ManageStaff));
+}
+
+TEST_F(StaffManagementTest, SetRequiredPinStoresTheOwnPinAndOpensTheSession) {
+    const StaffUserId id = addUser("Ewa", Role::Physio);
+    ASSERT_TRUE(m_auth->resetPin(id, "5678").has_value());
+    logIn(id, "5678");
+    const int serial = m_session.serial();
+
+    ASSERT_TRUE(m_auth->setRequiredPin("2468").has_value());
+
+    EXPECT_FALSE(m_session.mustChangePin());
+    EXPECT_TRUE(m_session.isAllowed(Permission::ViewAvailabilityDetails));
+    EXPECT_EQ(m_session.serial(), serial + 1);
+    EXPECT_FALSE(credentials(id).mustChangePin);
+    m_auth->logout();
+    logIn(id, "2468");
+    EXPECT_FALSE(m_session.mustChangePin());
+}
+
+TEST_F(StaffManagementTest, SetRequiredPinRefusesTheCoachsPinAndAMalformedOne) {
+    const StaffUserId id = addUser("Ewa", Role::Physio);
+    ASSERT_TRUE(m_auth->resetPin(id, "5678").has_value());
+    logIn(id, "5678");
+
+    expectError(m_auth->setRequiredPin("5678"), ErrorCode::InvalidInput, "pin_same");
+    expectError(m_auth->setRequiredPin("12"), ErrorCode::InvalidInput, "pin");
+
+    EXPECT_TRUE(m_session.mustChangePin());
+    EXPECT_TRUE(credentials(id).mustChangePin);
+}
+
+TEST_F(StaffManagementTest, SetRequiredPinIsOnlyForAUserWhoMustChangeIt) {
+    expectError(m_auth->setRequiredPin("2468"), ErrorCode::PermissionDenied);
+    m_auth->logout();
+    expectError(m_auth->setRequiredPin("2468"), ErrorCode::PermissionDenied);
+}
+
+TEST_F(StaffManagementTest, ChangingTheOwnPinAlsoEndsTheMustChangeState) {
+    const StaffUserId id = addUser("Ewa", Role::Physio);
+    ASSERT_TRUE(m_auth->resetPin(id, "5678").has_value());
+    logIn(id, "5678");
+
+    const auto check = m_auth->changeOwnPin("5678", "2468");
+
+    ASSERT_TRUE(check.has_value()) << check.error().detail;
+    EXPECT_FALSE(m_session.mustChangePin());
+    EXPECT_FALSE(credentials(id).mustChangePin);
+}
+
 // --- Last active Coach ---
 
 TEST_F(StaffManagementTest, LastCoachCannotBeDeactivated) {

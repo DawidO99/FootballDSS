@@ -22,6 +22,9 @@ public:
     // International in every language: GK, RB… (P08 decision 9).
     [[nodiscard]] static QString positionCode(core::Position position);
     [[nodiscard]] static QString positionName(core::Position position);
+    // A primary position that is not given (P19): "—" in every language, and "Position not given".
+    [[nodiscard]] static QString positionCode(const std::optional<core::Position>& position);
+    [[nodiscard]] static QString positionName(const std::optional<core::Position>& position);
     // [{ code, highlighted }] of the secondary positions; highlighted: in the active group.
     [[nodiscard]] static QVariantList
     secondaryPositionCodes(const core::Player& player,
@@ -45,6 +48,8 @@ public:
 
     // [{ value, text }] for SelectField, the value being the database text.
     [[nodiscard]] static QVariantList positionOptions();
+    // positionOptions() after "—" (value "") for a primary position that may be not given.
+    [[nodiscard]] static QVariantList optionalPositionOptions();
     [[nodiscard]] static QVariantList footOptions();
     [[nodiscard]] static QVariantList availabilityTypeOptions();
 };

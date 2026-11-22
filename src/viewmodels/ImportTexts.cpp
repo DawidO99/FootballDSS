@@ -102,6 +102,11 @@ QString ImportTexts::delimiterName(char delimiter) {
     }
 }
 
+QString ImportTexts::positionWarning(bool positionGiven) {
+    return positionGiven ? tr("position set by default — correct it in Squad")
+                         : tr("position not given — fill it in in Squad");
+}
+
 QString ImportTexts::mappingIssue(core::MappingIssue issue) {
     switch (issue) {
     case core::MappingIssue::MissingName:
@@ -111,8 +116,6 @@ QString ImportTexts::mappingIssue(core::MappingIssue issue) {
                   "last-name columns, not both.");
     case core::MappingIssue::DuplicateField:
         return tr("Two columns have the same meaning. Set one of them to \"Ignore column\".");
-    case core::MappingIssue::MissingDefaultPosition:
-        return tr("Some players have no position in the file. Choose the default position.");
     }
     return {};
 }
@@ -155,7 +158,9 @@ QString ImportTexts::issue(const core::RowIssue& issue, int currentYear) {
         return tr("position '%1' is unknown, expected a code such as BR, ŚO, N or GK, CB, ST")
             .arg(value);
     case core::RowIssueKind::DefaultPosition:
-        return tr("position set by default — correct it in Squad");
+        return positionWarning(true);
+    case core::RowIssueKind::PositionNotGiven:
+        return positionWarning(false);
     case core::RowIssueKind::UnknownFoot:
         return tr("foot '%1' is unknown, saved as unknown").arg(value);
     case core::RowIssueKind::DuplicateInFile:

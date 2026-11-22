@@ -109,18 +109,24 @@ void PlayerEditorViewModel::setBirthYear(const QVariant& year) {
 }
 
 QString PlayerEditorViewModel::primaryPosition() const {
-    return QString::fromUtf8(core::toDbText(m_primaryPosition));
+    return m_primaryPosition ? QString::fromUtf8(core::toDbText(*m_primaryPosition)) : QString{};
 }
 
 void PlayerEditorViewModel::setPrimaryPosition(const QString& position) {
-    const auto parsed = core::fromDbText<core::Position>(position.toStdString());
-    if (!parsed) {
-        report(parsed.error());
-        return;
+    std::optional<core::Position> value;
+    if (!position.isEmpty()) {
+        const auto parsed = core::fromDbText<core::Position>(position.toStdString());
+        if (!parsed) {
+            report(parsed.error());
+            return;
+        }
+        value = *parsed;
     }
-    if (*parsed != m_primaryPosition) {
-        m_primaryPosition = *parsed;
-        std::erase(m_secondaryPositions, m_primaryPosition);
+    if (value != m_primaryPosition) {
+        m_primaryPosition = value;
+        if (m_primaryPosition) {
+            std::erase(m_secondaryPositions, *m_primaryPosition);
+        }
         clearError(std::string(kSecondaryPositions));
         emit fieldsChanged();
         emit secondaryOptionsChanged();
@@ -176,7 +182,7 @@ void PlayerEditorViewModel::setNotes(const QString& notes) {
 }
 
 QVariantList PlayerEditorViewModel::positionOptions() const {
-    return SquadTexts::positionOptions();
+    return SquadTexts::optionalPositionOptions();
 }
 
 QVariantList PlayerEditorViewModel::secondaryPositionOptions() const {

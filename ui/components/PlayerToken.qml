@@ -11,7 +11,7 @@ import QtQuick.Controls.Basic
 //   shirtNumber: var            a number, or nothing
 //   shortName: string           the surname; empty: a free slot
 //   fullName: string
-//   severity: string            error, warning or empty
+//   severity: string            error, warning, info or empty
 //   issueText: string           the issues, one per line
 //   selected: bool
 //   yellowCards: int            Match Day (P13b): a card icon on the token, the words in the tooltip
@@ -124,8 +124,8 @@ Item {
 
         Icon {
             anchors.centerIn: parent
-            name: root.severity === "error" ? "danger" : "warn"
-            color: root.severity === "error" ? Theme.danger : Theme.warn
+            name: root.severity === "error" ? "danger" : root.severity === "warning" ? "warn" : "info"
+            color: root.severity === "error" ? Theme.danger : root.severity === "warning" ? Theme.warn : Theme.info
             size: Theme.pitch.issueIconSize
         }
     }

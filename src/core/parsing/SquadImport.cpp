@@ -263,7 +263,8 @@ void readPositions(const RowContext& context, SquadRow& row) {
         addIssue(row, RowIssueKind::DefaultPosition, IssueSeverity::Warning,
                  SquadField::PrimaryPosition);
     } else {
-        addIssue(row, RowIssueKind::MissingValue, IssueSeverity::Error,
+        row.draft.primaryPosition = std::nullopt;
+        addIssue(row, RowIssueKind::PositionNotGiven, IssueSeverity::Warning,
                  SquadField::PrimaryPosition);
     }
 
@@ -494,7 +495,7 @@ bool needsDefaultPosition(const SquadMapping& mapping, const SourceTable& table)
         table.rows, [&](const SourceRow& row) { return trimmed(cellAt(row, *column)).empty(); });
 }
 
-std::vector<MappingIssue> checkMapping(const SquadMapping& mapping, const SourceTable& table) {
+std::vector<MappingIssue> checkMapping(const SquadMapping& mapping) {
     std::vector<MappingIssue> issues;
     std::array<int, kFieldCount> counts{};
     for (const auto& field : mapping.columns) {
@@ -512,9 +513,6 @@ std::vector<MappingIssue> checkMapping(const SquadMapping& mapping, const Source
         issues.push_back(MappingIssue::FullNameWithParts);
     } else if (!full && !(first && last)) {
         issues.push_back(MappingIssue::MissingName);
-    }
-    if (!mapping.defaultPosition && needsDefaultPosition(mapping, table)) {
-        issues.push_back(MappingIssue::MissingDefaultPosition);
     }
     return issues;
 }
@@ -699,7 +697,9 @@ PlayerDraft mergeUpdate(const Player& existing, const SquadRow& row) {
     if (row.filled.foot) {
         draft.foot = row.draft.foot;
     }
-    std::erase(draft.secondaryPositions, draft.primaryPosition);
+    if (draft.primaryPosition) {
+        std::erase(draft.secondaryPositions, *draft.primaryPosition);
+    }
     return draft;
 }
 

@@ -170,6 +170,35 @@ TEST(LineupValidatorTest, PrimaryAndSecondaryPositionsAreNominal) {
     EXPECT_EQ(issues[0].slotPosition, Position::Cb);
 }
 
+// P19 decision 6: a player without a primary position is not out of position; a note says so.
+TEST(LineupValidatorTest, APlayerWithoutAPositionGetsANoteInsteadOfTheCheck) {
+    Fixture f;
+    f.facts(4).primaryPosition = std::nullopt;
+    f.facts(4).secondaryPositions.clear();
+    f.addBench(21);
+    f.facts(21).primaryPosition = std::nullopt;
+
+    const auto issues = f.validate();
+
+    EXPECT_FALSE(hasErrors(issues));
+    ASSERT_EQ(issues.size(), 1U);
+    EXPECT_EQ(issues[0].rule, LineupRule::PositionNotGiven);
+    EXPECT_EQ(issues[0].severity, LineupSeverity::Info);
+    EXPECT_EQ(issues[0].player, PlayerId{4});
+    EXPECT_EQ(issues[0].slot, 3);
+    EXPECT_EQ(issues[0].slotPosition, Position::Cb);
+}
+
+// Notes come after the warnings.
+TEST(LineupValidatorTest, ANoteComesAfterTheWarnings) {
+    Fixture f;
+    f.facts(4).primaryPosition = std::nullopt;
+    f.facts(9).missedRecentSessions = true;
+
+    EXPECT_EQ(rulesOf(f.validate()),
+              (std::vector{LineupRule::MissedSessions, LineupRule::PositionNotGiven}));
+}
+
 TEST(LineupValidatorTest, MissedSessions) {
     Fixture f;
     f.facts(9).missedRecentSessions = true;

@@ -51,6 +51,7 @@ add_executable(fdss_tests
     data/MatchTacticRepositoryTest.cpp
     data/MetricRepositoryTest.cpp
     data/MigrationsTest.cpp
+    data/MigrationUpgradeTest.cpp
     data/OpponentRepositoryTest.cpp
     data/PlayerRepositoryTest.cpp
     data/RepositoryFixture.hpp
@@ -125,6 +126,7 @@ add_executable(fdss_vm_tests
     viewmodels/SquadViewModelTest.cpp
     viewmodels/StaffListModelTest.cpp
     viewmodels/StaffViewModelTest.cpp
+    viewmodels/TeamSettingsViewModelTest.cpp
     viewmodels/TrainingSessionViewModelTest.cpp
     viewmodels/ViewModelFixture.hpp
 )

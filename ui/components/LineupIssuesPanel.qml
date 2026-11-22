@@ -12,6 +12,7 @@ import QtQuick.Layouts
 //   model: LineupIssuesModel     severity, severityText, ruleKey, text, playerId, slotIndex, benchIndex
 //   summary: string              e.g. "Errors: 2 · Warnings: 1"
 //   errorCount: int
+//   warningCount: int            notes (severity info) count as neither
 //   loadPending: bool            the load statuses are still being calculated
 //   incompleteText: string       the check is incomplete (the load could not be read); empty: it is
 //                                complete. Shown with a warning icon and a Try again button.
@@ -23,6 +24,7 @@ Item {
     property var model
     property string summary
     property int errorCount: 0
+    property int warningCount: 0
     property bool loadPending: false
     property string incompleteText
     readonly property alias listView: list
@@ -50,8 +52,8 @@ Item {
                 spacing: Theme.spacing.s
 
                 Icon {
-                    name: root.errorCount > 0 ? "danger" : list.count > 0 || root.incompleteText.length > 0 ? "warn" : "ok"
-                    color: root.errorCount > 0 ? Theme.danger : list.count > 0 || root.incompleteText.length > 0 ? Theme.warn : Theme.ok
+                    name: root.errorCount > 0 ? "danger" : root.warningCount > 0 || root.incompleteText.length > 0 ? "warn" : "ok"
+                    color: root.errorCount > 0 ? Theme.danger : root.warningCount > 0 || root.incompleteText.length > 0 ? Theme.warn : Theme.ok
                     size: Theme.iconSize.m
                 }
 
@@ -145,7 +147,7 @@ Item {
 
                         StatusBadge {
                             Layout.alignment: Qt.AlignTop
-                            kind: issue.severity === "error" ? StatusBadge.Danger : StatusBadge.Warn
+                            kind: issue.severity === "error" ? StatusBadge.Danger : issue.severity === "warning" ? StatusBadge.Warn : StatusBadge.Info
                             text: issue.severityText
                         }
 

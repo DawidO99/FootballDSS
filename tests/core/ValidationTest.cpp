@@ -197,15 +197,17 @@ TEST(ValidationTest, EveryBrokenPlayerFieldIsReported) {
 
 // --- Team ---
 
-TEST(ValidationTest, SeasonFollowsTheSchemaFormat) {
+TEST(ValidationTest, SeasonIsTwoConsecutiveYearsFrom1900) {
     const auto hasError = [](const char* season) {
         TeamDraft draft = validTeam();
         draft.season = season;
         return hasField(validate(draft), "season");
     };
-    EXPECT_FALSE(hasError("2026/27"));
-    EXPECT_FALSE(hasError("1999/00"));
-    for (const char* bad : {"", "2026", "26/27", "2026-27", "2026/2027", "abcd/ef"}) {
+    for (const char* good : {"2026/27", "1999/00", "1900/01", "2099/00", "2009/10"}) {
+        EXPECT_FALSE(hasError(good)) << good;
+    }
+    for (const char* bad : {"", "2026", "26/27", "2026-27", "2026/2027", "abcd/ef", "2026/28",
+                            "2026/26", "2026/25", "1899/00", "2100/01", "0000/01", "9999/00"}) {
         EXPECT_TRUE(hasError(bad)) << bad;
     }
 }

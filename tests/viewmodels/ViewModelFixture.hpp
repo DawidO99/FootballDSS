@@ -12,6 +12,7 @@
 #include "viewmodels/ServiceRegistry.hpp"
 
 #include <QObject>
+#include <QSqlQuery>
 
 #include <gtest/gtest.h>
 
@@ -71,13 +72,21 @@ protected:
         return user.value_or(core::StaffUser{});
     }
 
-    // Needs a logged-in Coach.
-    static core::StaffUserId addStaff(const char* name, core::Role role) {
+    // Needs a logged-in Coach. mustChangePin false: the user may log in straight away, as most
+    // tests need, instead of setting their own PIN first (P19 decision 5).
+    core::StaffUserId addStaff(const char* name, core::Role role, bool mustChangePin = false) {
         core::StaffUserDraft draft;
         draft.name = name;
         draft.role = role;
         const auto id = registry().auth().addStaff(draft, kPin);
         EXPECT_TRUE(id.has_value()) << id.error().detail;
+        if (id && !mustChangePin) {
+            QSqlQuery query(m_db->database());
+            EXPECT_TRUE(query.prepare(
+                QStringLiteral("UPDATE staff_user SET must_change_pin = 0 WHERE id = ?")));
+            query.bindValue(0, QVariant::fromValue<qint64>(id->value));
+            EXPECT_TRUE(query.exec());
+        }
         return id.value_or(core::StaffUserId{});
     }
 

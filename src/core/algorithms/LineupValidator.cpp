@@ -29,6 +29,7 @@ LineupValidator::LineupValidator() {
     m_rules.push_back(std::make_unique<OutOfPositionRule>());
     m_rules.push_back(std::make_unique<MissedSessionsRule>());
     m_rules.push_back(std::make_unique<YellowCardsRule>());
+    m_rules.push_back(std::make_unique<PositionNotGivenRule>());
 }
 
 LineupValidator::LineupValidator(std::vector<std::unique_ptr<ILineupRule>> rules)

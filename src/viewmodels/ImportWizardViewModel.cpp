@@ -350,7 +350,7 @@ QString ImportWizardViewModel::defaultPosition() const {
 }
 
 QVariantList ImportWizardViewModel::positionOptions() const {
-    return SquadTexts::positionOptions();
+    return SquadTexts::optionalPositionOptions();
 }
 
 QStringList ImportWizardViewModel::mappingErrors() const {
@@ -367,7 +367,7 @@ QStringList ImportWizardViewModel::mappingErrors() const {
         }
         return errors;
     }
-    for (const core::MappingIssue issue : core::checkMapping(m_squadMapping, m_source->table)) {
+    for (const core::MappingIssue issue : core::checkMapping(m_squadMapping)) {
         errors.append(ImportTexts::mappingIssue(issue));
     }
     return errors;
@@ -497,10 +497,8 @@ void ImportWizardViewModel::setSkipInvalid(bool skip) {
 }
 
 bool ImportWizardViewModel::canCommit() const {
-    const bool position =
-        !activity() || newPlayerCount() == 0 || m_options.defaultPosition.has_value();
     return !m_busy && m_step == kReportStep && m_source && m_source->tableStatus && canImport() &&
-           createCount() + updateCount() > 0 && (errorCount() == 0 || m_skipInvalid) && position;
+           createCount() + updateCount() > 0 && (errorCount() == 0 || m_skipInvalid);
 }
 
 QString ImportWizardViewModel::unknownPlayers() const {
@@ -1166,8 +1164,7 @@ void ImportWizardViewModel::applySource(services::ImportSource source) {
     m_options = {};
     m_options.updateExisting = m_updateExisting;
     m_options.skipInvalid = m_skipInvalid;
-    // CM, as for the squad (P16 manual test).
-    m_options.defaultPosition = core::Position::Cm;
+    // "—", as for the squad (P19 decision 7): m_options starts without a default position.
     if (m_source->tableStatus && activity()) {
         if (auto metrics = m_imports.metricsFor(m_kind)) {
             m_metrics = std::move(*metrics);
@@ -1195,11 +1192,8 @@ void ImportWizardViewModel::applySource(services::ImportSource source) {
             qWarning("ImportWizardViewModel: %s", suggestion.error().detail.c_str());
             m_squadMapping = core::autoMapSquad(m_source->table.headers);
         }
-        // A default is always chosen: CM, the most common position, rather than the first of
-        // the list (GK) (P16 manual test). A remembered mapping keeps its own.
-        if (!m_squadMapping.defaultPosition) {
-            m_squadMapping.defaultPosition = core::Position::Cm;
-        }
+        // The default is "—", a player without a position (P19 decision 7), unless a remembered
+        // mapping keeps a position of its own.
     } else {
         // The file is fine, the sheet is not: the preview offers the other sheets.
         failWith(m_source->tableStatus.error());

@@ -346,8 +346,8 @@ Item {
 
                         Icon {
                             visible: row.severity.length > 0
-                            name: row.severity === "error" ? "danger" : "warn"
-                            color: row.severity === "error" ? Theme.danger : Theme.warn
+                            name: row.severity === "error" ? "danger" : row.severity === "warning" ? "warn" : "info"
+                            color: row.severity === "error" ? Theme.danger : row.severity === "warning" ? Theme.warn : Theme.info
                             size: Theme.iconSize.s
                         }
 

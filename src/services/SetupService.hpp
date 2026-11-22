@@ -39,6 +39,9 @@ public:
                                                               const core::TeamDraft& team,
                                                               std::string_view coachName,
                                                               std::string_view pin);
+    // Renames the team of clubContext() and changes its season; its category stays. Needs
+    // ManageSettings. InvalidInput names team_name or season in `field`.
+    [[nodiscard]] core::Status updateTeam(std::string_view name, std::string_view season);
 
 private:
     data::DatabaseManager& m_db;

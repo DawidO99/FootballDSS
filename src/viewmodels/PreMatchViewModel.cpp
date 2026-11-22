@@ -55,10 +55,13 @@ QString positionsText(const core::Player& player) {
 
 // The worse of two severities; empty is none.
 QString worse(const QString& a, const QString& b) {
-    if (a == QLatin1String("error") || b == QLatin1String("error")) {
-        return QStringLiteral("error");
-    }
-    return a.isEmpty() ? b : a;
+    const auto rank = [](const QString& severity) {
+        return severity == QLatin1String("error")     ? 3
+               : severity == QLatin1String("warning") ? 2
+               : severity == QLatin1String("info")    ? 1
+                                                      : 0;
+    };
+    return rank(b) > rank(a) ? b : a;
 }
 
 QVariant idOrZero(const std::optional<core::PlayerId>& player) {
@@ -280,8 +283,8 @@ QString PreMatchViewModel::issuesSummary() const {
     if (!m_data) {
         return {};
     }
-    // Never "ready" while the load is not checked (P12 review).
-    if (m_issueList.empty() && !m_loadPending && !m_loadCheckFailed) {
+    // Never "ready" while the load is not checked (P12 review). A note (P19) is no issue.
+    if (errorCount() == 0 && warningCount() == 0 && !m_loadPending && !m_loadCheckFailed) {
         return tr("No issues: the lineup is ready for Match Day.");
     }
     return tr("Errors: %1 · Warnings: %2").arg(errorCount()).arg(warningCount());
@@ -977,27 +980,20 @@ void PreMatchViewModel::rebuildPlayerRows(
             const auto load = m_loadStatuses.find(player.id);
             const auto& issues = byPlayer[player.id];
             playerRows.append(QVariantList{
-                QVariant(static_cast<qint64>(player.id.value)),
-                shirtNumberOf(player),
-                SquadTexts::displayName(player),
-                QString::fromStdString(player.lastName),
-                positionsText(player),
-                SquadTexts::positionCode(player.primaryPosition),
+                QVariant(static_cast<qint64>(player.id.value)), shirtNumberOf(player),
+                SquadTexts::displayName(player), QString::fromStdString(player.lastName),
+                positionsText(player), SquadTexts::positionCode(player.primaryPosition),
                 SquadTexts::statusKey(item.facts.statusOnMatchDay, false),
                 SquadTexts::statusName(item.facts.statusOnMatchDay, false),
                 load == m_loadStatuses.end() ? QString{} : LoadTexts::statusKey(load->second),
                 load == m_loadStatuses.end() ? QString{} : LoadTexts::statusShortName(load->second),
-                placement,
-                LineupTexts::placementName(placement),
-                issues.first,
-                issues.second.join(QLatin1Char('\n')),
-                playerDetails(item),
-                section,
-                sectionTexts[static_cast<std::size_t>(section)],
-                sectionOrder,
-                QString::fromStdString(player.lastName),
-                QString::fromStdString(player.firstName),
-                static_cast<int>(player.primaryPosition),
+                placement, LineupTexts::placementName(placement), issues.first,
+                issues.second.join(QLatin1Char('\n')), playerDetails(item), section,
+                sectionTexts[static_cast<std::size_t>(section)], sectionOrder,
+                QString::fromStdString(player.lastName), QString::fromStdString(player.firstName),
+                // Null without a position: the sort puts such players last.
+                player.primaryPosition ? QVariant(static_cast<int>(*player.primaryPosition))
+                                       : QVariant{},
                 static_cast<int>(item.facts.statusOnMatchDay),
                 load == m_loadStatuses.end() ? QVariant{} : loadRank(load->second)});
         }
@@ -1012,11 +1008,12 @@ void PreMatchViewModel::rebuildPicker() {
     }
     const core::LineupSlot& slot = m_lineup.pitchSlots[static_cast<std::size_t>(m_pickerSlot)];
     const QString code = SquadTexts::positionCode(slot.position);
-    const std::array<QString, 3> groupKeys{QStringLiteral("primary"), QStringLiteral("secondary"),
-                                           QStringLiteral("other")};
-    const std::array<QString, 3> groupTexts{tr("%1 as the main position").arg(code),
+    // P19: players without a primary position, unless a second one fits, come last.
+    const std::array<QString, 4> groupKeys{QStringLiteral("primary"), QStringLiteral("secondary"),
+                                           QStringLiteral("other"), QStringLiteral("none")};
+    const std::array<QString, 4> groupTexts{tr("%1 as the main position").arg(code),
                                             tr("%1 as a second position").arg(code),
-                                            tr("Other positions")};
+                                            tr("Other positions"), tr("No position")};
     struct Entry {
         const services::LineupCandidate* item;
         int group;
@@ -1029,7 +1026,8 @@ void PreMatchViewModel::rebuildPicker() {
                           : std::ranges::find(player.secondaryPositions, slot.position) !=
                                   player.secondaryPositions.end()
                               ? 1
-                              : 2;
+                          : player.primaryPosition ? 2
+                                                   : 3;
         entries.push_back(
             {&item, group, item.facts.statusOnMatchDay == core::PlayerStatus::Available});
     }

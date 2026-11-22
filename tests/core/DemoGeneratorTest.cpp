@@ -59,7 +59,7 @@ std::string canonical(const DemoDataset& data) {
         const PlayerDraft& draft = player.draft;
         out += std::format("P|{}|{}|{}|{}|{}|", draft.firstName, draft.lastName,
                            text(draft.shirtNumber), text(draft.birthYear),
-                           toDbText(draft.primaryPosition));
+                           toDbText(draft.primaryPosition.value()));
         for (const Position position : draft.secondaryPositions) {
             out += std::string(toDbText(position)) + ",";
         }

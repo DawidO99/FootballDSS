@@ -122,9 +122,6 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
         return tr("There is nothing to import: every row is skipped, already in the app or has "
                   "errors.");
     }
-    if (field == "default_position") {
-        return tr("Choose the position of the new players.");
-    }
     // Live tactics (P13b): MatchDayService::recordTacticChange().
     if (field == "tactic_shape") {
         return tr("This shape cannot be used: it needs 11 places on the pitch and at most one "
@@ -155,7 +152,7 @@ QString ErrorPresenter::invalidInputMessage(const std::string& field) {
         return tr("Enter a name, up to 50 characters.");
     }
     if (field == "season") {
-        return tr("Enter the season in the form 2026/27.");
+        return tr("Enter the season as two consecutive years in the form 2026/27.");
     }
     if (field == "first_name") {
         return tr("Enter the first name, up to 50 characters.");

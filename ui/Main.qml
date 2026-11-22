@@ -219,6 +219,17 @@ ApplicationWindow {
         sourceComponent: profilePickerView
     }
 
+    // P19 decision 5: a login with a PIN a Coach chose sets the user's own PIN first.
+    Loader {
+        id: pinChangeLoader
+
+        anchors.fill: parent
+        active: AppState.state === AppState.NeedsPinChange
+        visible: !window.spikeChartsOpen && !window.componentGalleryOpen
+        focus: active
+        sourceComponent: forcedPinChangeView
+    }
+
     Shortcut {
         sequence: "Ctrl+Shift+G"
         onActivated: {
@@ -479,6 +490,12 @@ ApplicationWindow {
         SettingsView {
             onNavigateRequested: (key, args) => navigationModel.activate(key, args)
         }
+    }
+
+    Component {
+        id: forcedPinChangeView
+
+        ForcedPinChangeView {}
     }
 
     Component {

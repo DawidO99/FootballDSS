@@ -164,6 +164,11 @@ const char* g_expectedCritical = nullptr;
 int g_expectedCriticalCount = 0;
 // Owned by the installed registry, so a lockout can end without waiting for it.
 fdss::tests::FakeClock* g_clock = nullptr;
+// The database of the installed registry, for the helpers that set up a state no screen offers.
+fdss::data::DatabaseManager* g_database = nullptr;
+
+// Defined with the training tests; a staff member who may log in straight away.
+std::optional<fdss::core::StaffUserId> addSmokeStaff(const char* name, fdss::core::Role role);
 
 void countingMessageHandler(QtMsgType type, const QMessageLogContext& context,
                             const QString& message) {
@@ -399,6 +404,7 @@ fdss::data::DatabaseManager* installRegistry(AppState::State state) {
         return nullptr;
     }
     fdss::data::DatabaseManager* const database = opened->get();
+    g_database = database;
     fdss::viewmodels::RegistryOptions options;
     options.pinIterations = kPinIterations;
     auto clock = std::make_unique<fdss::tests::FakeClock>();
@@ -668,6 +674,12 @@ void exerciseMinimumWindow(QQuickWindow* window, NavigationModel* navigation, QQ
     settle();
     editor->setShirtNumber(fdss::core::kMaxShirtNumber + 1);
     editor->setBirthYear(fdss::core::kMinBirthYear - 1);
+    // A new player starts without a primary position (P19 decision 8); one that is also secondary
+    // is an error.
+    if (!editor->primaryPosition().isEmpty()) {
+        fail("a new player does not start without a primary position");
+    }
+    editor->setPrimaryPosition(QStringLiteral("cm"));
     editor->setSecondaryPositions({editor->primaryPosition()});
     if (editor->save()) {
         fail("a form with every error was saved");
@@ -1393,10 +1405,7 @@ void exerciseCalendar(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     // A role without EditCalendar reads the calendar and reaches the training sheet.
     auto& auth = ServiceRegistry::instance().auth();
     const fdss::core::StaffUserId coach = ServiceRegistry::instance().session().user()->id;
-    fdss::core::StaffUserDraft physioDraft;
-    physioDraft.name = "Piotr Fizjo";
-    physioDraft.role = fdss::core::Role::Physio;
-    const auto physio = auth.addStaff(physioDraft, "1234");
+    const auto physio = addSmokeStaff("Piotr Fizjo", fdss::core::Role::Physio);
     if (!physio || !auth.login(*physio, "1234")) {
         fail("the physio cannot log in");
         return;
@@ -1949,6 +1958,83 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
 // With more tiles than fit, a tile that gets the focus by Tab scrolls into view, down and, when Tab
 // wraps around, up again. Expects a loaded Main.qml in the state NeedsLogin with the Coach of
 // installRegistry().
+// P19 decision 5: a user whose PIN a Coach chose sees only the PIN form; Log out goes back to the
+// picker, and the new PIN from the keyboard opens the app. Expects the picker of
+// exerciseTileScrolling(), whose added staff must all change their PIN.
+void exerciseForcedPinChange(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* picker = pickerOf(window);
+    if (picker == nullptr || picker->staff()->staff().size() < 2) {
+        fail("the picker has no added staff for the PIN change");
+        return;
+    }
+    const fdss::core::StaffUserId user = picker->staff()->staff().back().id;
+    auto& auth = ServiceRegistry::instance().auth();
+    const auto logIn = [&](const char* pin) {
+        const auto login = auth.login(user, pin);
+        if (!login || login->status != fdss::services::PinCheckStatus::Accepted) {
+            fail("the added user cannot log in with the PIN of the Coach");
+            return false;
+        }
+        appState->refresh();
+        settle();
+        return true;
+    };
+    const auto form = [&] { return findQmlItem(window->contentItem(), "ForcedPinChangeView"); };
+
+    if (!logIn("1234")) {
+        return;
+    }
+    if (appState->state() != AppState::State::NeedsPinChange || form() == nullptr ||
+        !form()->isVisible() || window->property("shell").value<QQuickItem*>() != nullptr) {
+        fail("a PIN chosen by the Coach does not ask for an own PIN first");
+        return;
+    }
+    grabOrSave(window, screenshotDirectory, QStringLiteral("forced-pin-change.png"));
+    auto* logout = findByObjectName(form(), QStringLiteral("requiredPinLogoutButton"));
+    if (logout == nullptr) {
+        fail("the PIN form has no Log out button");
+        return;
+    }
+    clickItem(window, logout);
+    settle();
+    if (appState->state() != AppState::State::NeedsLogin) {
+        fail("Log out on the PIN form does not go back to the picker");
+        return;
+    }
+
+    if (!logIn("1234")) {
+        return;
+    }
+    pressKey(window, Qt::Key_Return);
+    if (appState->state() != AppState::State::NeedsPinChange) {
+        fail("an empty PIN form opened the app");
+    }
+    findByObjectName(form(), QStringLiteral("requiredNewPinInput"))
+        ->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("2468"));
+    pressKey(window, Qt::Key_Tab);
+    typeText(window, QStringLiteral("2468"));
+    pressKey(window, Qt::Key_Return);
+    settle();
+    if (appState->state() != AppState::State::Ready ||
+        window->property("shell").value<QQuickItem*>() == nullptr) {
+        fail("the own PIN from the keyboard does not open the app");
+    }
+    appState->logout();
+    settle();
+    const auto again = auth.login(user, "2468");
+    if (!again || again->status != fdss::services::PinCheckStatus::Accepted ||
+        ServiceRegistry::instance().session().mustChangePin()) {
+        fail("the own PIN does not log in without another change");
+    }
+    auth.logout();
+    appState->refresh();
+    settle();
+}
+
 void exerciseTileScrolling(QQmlApplicationEngine& engine) {
     auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
     auto* picker = pickerOf(window);
@@ -2039,12 +2125,8 @@ void exerciseLoginOverSession(QQmlApplicationEngine& engine) {
     }
 
     auto& auth = ServiceRegistry::instance().auth();
-    fdss::core::StaffUserDraft draft;
-    draft.name = "Anna Analityk";
-    draft.role = fdss::core::Role::Analyst;
-    const auto analyst = auth.addStaff(draft, "1234");
+    const auto analyst = addSmokeStaff("Anna Analityk", fdss::core::Role::Analyst);
     if (!analyst) {
-        qWarning("qml_smoke: cannot add the analyst: %s", analyst.error().detail.c_str());
         return;
     }
     navigation->activate(QStringLiteral("settings"));
@@ -2361,6 +2443,30 @@ fdss::core::TeamId smokeTeam() {
     return ServiceRegistry::instance().setup().clubContext()->team.id;
 }
 
+// P19: the first central midfielder of the demo club loses the primary position ("—"), so the
+// screens below run with such a player in the squad and in the lineup.
+std::optional<fdss::core::PlayerId> clearOnePrimaryPosition() {
+    auto& squad = ServiceRegistry::instance().squad();
+    const auto players = squad.listPlayers(smokeTeam());
+    if (!players) {
+        fail("cannot read the squad to clear a position");
+        return std::nullopt;
+    }
+    for (const auto& entry : *players) {
+        if (entry.player.primaryPosition == fdss::core::Position::Cm) {
+            fdss::core::PlayerDraft draft = entry.player;
+            draft.primaryPosition = std::nullopt;
+            if (!squad.updatePlayer(entry.player.id, draft)) {
+                fail("cannot clear the primary position of a player");
+                return std::nullopt;
+            }
+            return entry.player.id;
+        }
+    }
+    fail("the demo club has no central midfielder");
+    return std::nullopt;
+}
+
 // A session on the day of the FakeClock, and players numbered from 1, in rows from 0. Row 2 is
 // injured and row 4 away on that day; row 6 is suspended, which keeps nobody from training.
 constexpr fdss::core::Date kSheetDay{std::chrono::year{2026}, std::chrono::November,
@@ -2466,6 +2572,17 @@ std::optional<fdss::core::StaffUserId> addSmokeStaff(const char* name, fdss::cor
     const auto user = ServiceRegistry::instance().auth().addStaff(draft, "1234");
     if (!user) {
         fail("the training test cannot add a staff member");
+        return std::nullopt;
+    }
+    // Logs in straight away, without setting an own PIN first (P19 decision 5).
+    QSqlQuery query(g_database->database());
+    if (!query.prepare(QStringLiteral("UPDATE staff_user SET must_change_pin = 0 WHERE id = ?"))) {
+        fail("cannot prepare the PIN change flag");
+        return std::nullopt;
+    }
+    query.bindValue(0, QVariant::fromValue<qint64>(user->value));
+    if (!query.exec()) {
+        fail("cannot clear the PIN change flag");
         return std::nullopt;
     }
     return *user;
@@ -3971,11 +4088,61 @@ void preMatchReadOnly(QQmlApplicationEngine& engine) {
 // Demo data -> next match -> 4-4-2 -> an injured player names an error, replacing him removes it;
 // 11 players by the keyboard alone; Ctrl+S; the lineup reads back the same; leaving asks; both
 // themes at the minimum window; another role sees the board read-only (packet P12, Done when).
+// P19 decision 6: the token of a player without a position carries the note, and the picker of
+// the slot lists the player last, under "No position".
+void preMatchPlayerWithoutPosition(QQmlApplicationEngine& engine, fdss::core::PlayerId player) {
+    const qint64 matchId = nextPreMatchMatch("player without a position");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    if (!screen->preMatch->assignToSlot(2, player.value)) {
+        fail("pre-match: the player without a position cannot take a slot");
+        return;
+    }
+    settle();
+    // The mark shows the worst issue of the slot; the note is among its texts.
+    QQuickItem* token = screen->token(2);
+    QQuickItem* mark =
+        token != nullptr ? findByObjectName(token, QStringLiteral("issueMark")) : nullptr;
+    bool noted = false;
+    const auto* issues = screen->preMatch->issues();
+    for (int row = 0; row < issues->rowCount(); ++row) {
+        noted = noted || (issues->value(row, "ruleKey").toString() ==
+                              QLatin1StringView("positionNotGiven") &&
+                          issues->value(row, "severity").toString() == QLatin1StringView("info") &&
+                          issues->value(row, "slotIndex").toInt() == 2);
+    }
+    if (!noted || mark == nullptr || !mark->isVisible() ||
+        screen->board(2, "issueText").toString().isEmpty()) {
+        fail("pre-match: the slot of a player without a position has no note");
+    }
+    if (!screen->preMatch->openPicker(2)) {
+        fail("pre-match: the picker of the slot does not open");
+        return;
+    }
+    settle();
+    const auto* picker = screen->preMatch->slotPicker();
+    // The model of the picker; the dialog opens from a tap on the token.
+    if (picker->rowCount() == 0 ||
+        picker->value(picker->rowCount() - 1, "group").toString() != QLatin1StringView("none") ||
+        picker->value(picker->rowCount() - 1, "playerId").toLongLong() != player.value) {
+        fail("pre-match: the picker does not list the player without a position last");
+    }
+    screen->preMatch->closePicker();
+    screen->preMatch->discardChanges();
+    settle();
+}
+
 void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
     if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
         fail("cannot load the demo club for pre-match");
         return;
     }
+    const auto withoutPosition = clearOnePrimaryPosition();
     engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty()) {
         fail("Main.qml did not load");
@@ -3989,6 +4156,9 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
     preMatchLeaveGuard(engine);
     preMatchPlayerCard(engine);
     preMatchMinimumWindow(engine, screenshotDirectory);
+    if (withoutPosition) {
+        preMatchPlayerWithoutPosition(engine, *withoutPosition);
+    }
     // Last: it logs in another user.
     preMatchReadOnly(engine);
 }
@@ -5330,6 +5500,7 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
         fail("cannot load the demo club for match day");
         return;
     }
+    clearOnePrimaryPosition();
     engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty()) {
         fail("Main.qml did not load");
@@ -6067,6 +6238,61 @@ void exerciseDashboardShortBaseline(const DashboardScreen& screen) {
     }
 }
 
+// P19 decision 2: the Coach changes the season from the keyboard; a season that is not two
+// consecutive years stays in the dialog with its error.
+void exerciseTeamCard(QQmlApplicationEngine& engine, const DashboardScreen& screen) {
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    screen.navigation->activate(QStringLiteral("settings"));
+    settle();
+    QQuickItem* root = screen.window->contentItem();
+    auto* edit = findByObjectName(root, QStringLiteral("editTeamButton"));
+    auto* settingsView = findQmlItem(root, "SettingsView");
+    auto* dialog =
+        settingsView != nullptr ? settingsView->property("teamDialog").value<QObject*>() : nullptr;
+    if (edit == nullptr || dialog == nullptr || !edit->isVisible()) {
+        fail("the Team card has no Edit button for the Coach");
+        return;
+    }
+    const QString teamName = appState->teamName();
+    const auto typeSeason = [&](const QString& season) {
+        clickItem(screen.window, edit);
+        settle();
+        auto* seasonInput = findByObjectName(root, QStringLiteral("teamSeasonInput"));
+        if (seasonInput == nullptr) {
+            return false;
+        }
+        pressKey(screen.window, Qt::Key_Tab);
+        seasonInput->setProperty("text", QString{});
+        typeText(screen.window, season);
+        pressKey(screen.window, Qt::Key_Return);
+        settle();
+        return true;
+    };
+    if (!typeSeason(QStringLiteral("2027/29"))) {
+        fail("the Team dialog has no season field");
+        return;
+    }
+    expectFlag(dialog, "visible", true, "a season of two years apart closed the Team dialog");
+    if (findByObjectName(root, QStringLiteral("teamSeasonInput"))
+            ->property("error")
+            .toString()
+            .isEmpty()) {
+        fail("a season of two years apart shows no error");
+    }
+    QMetaObject::invokeMethod(dialog, "close");
+    settle();
+    if (!typeSeason(QStringLiteral("2027/28"))) {
+        return;
+    }
+    expectFlag(dialog, "visible", false, "Enter did not save the team");
+    const auto* season = findByObjectName(root, QStringLiteral("teamSeasonValue"));
+    if (season == nullptr || season->property("text").toString() != QLatin1StringView("2027/28") ||
+        appState->teamName() != teamName) {
+        fail("the Team card does not show the saved season");
+    }
+}
+
 void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
                                            const DashboardScreen& screen) {
     const auto coach = ServiceRegistry::instance().session().user()->id;
@@ -6089,6 +6315,10 @@ void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
         for (const bool show : {true, false}) {
             screen.navigation->activate(QStringLiteral("settings"));
             settle();
+            if (countVisible(screen.window->contentItem(), QStringLiteral("teamCard")) !=
+                (user == coach ? 1 : 0)) {
+                fail("the Team card in Settings is not shown to the Coach alone");
+            }
             auto* toggle = findByObjectName(screen.window->contentItem(),
                                             QStringLiteral("showAdvancedModules"));
             if (toggle == nullptr || !toggle->isVisible() || !toggle->isEnabled()) {
@@ -6108,7 +6338,9 @@ void exerciseDashboardSettingsForEveryRole(QQmlApplicationEngine& engine,
             }
         }
     }
-    logInAgain(engine, coach);
+    if (logInAgain(engine, coach)) {
+        exerciseTeamCard(engine, screen);
+    }
 }
 
 // Empty club: the dashboard and the locked Pre-match explain what to enter; after eleven players
@@ -6478,7 +6710,8 @@ void exerciseImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& 
     }
     expectFlag(find("undoImportButton"), "visible", false, "Undo import is offered twice");
 
-    // Without a position column: the default position starts as CM and can be changed.
+    // Without a position column: the default position starts as "—" (P19 decision 7) and can be
+    // changed.
     clickPolished(window, find("importAgainButton"));
     clickPolished(window, find("importType_squad"));
     wizard->openPath(importFixture("no-position.csv"));
@@ -6489,8 +6722,9 @@ void exerciseImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& 
     settle();
     expectReachable(window, find("defaultPositionChoice"), true,
                     "the default position cannot be chosen");
-    if (find("defaultPositionChoice")->property("value").toString() != QLatin1StringView("cm")) {
-        fail("the default position does not start as CM");
+    if (!find("defaultPositionChoice")->property("value").toString().isEmpty() ||
+        !find("defaultPositionChoice")->property("currentText").toString().startsWith(u'\u2014')) {
+        fail("the default position does not start as \"—\"");
     }
     expectReachable(window, find("validateButton"), true,
                     "the rows cannot be checked with the default position");
@@ -6992,6 +7226,7 @@ int main(int argc, char* argv[]) {
                 }
                 if (state == AppState::State::NeedsLogin) {
                     exerciseTileScrolling(engine);
+                    exerciseForcedPinChange(engine, screenshotDirectory);
                 }
                 if (state == AppState::State::Ready) {
                     exerciseSquad(engine, screenshotDirectory);

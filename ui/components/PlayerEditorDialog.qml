@@ -166,7 +166,7 @@ AppDialog {
             Layout.preferredWidth: 1
             Layout.alignment: Qt.AlignTop
             label: qsTr("Primary position")
-            mandatory: true
+            // P19 decision 8: "—" when it is not known yet.
 
             SelectField {
                 Layout.fillWidth: true

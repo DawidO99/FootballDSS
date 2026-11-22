@@ -114,7 +114,7 @@ std::optional<PlayerDraft> newPlayerDraft(const RowPlayer& player, const Activit
     PlayerDraft draft;
     draft.firstName = std::move(name->firstName);
     draft.lastName = std::move(name->lastName);
-    draft.primaryPosition = options.defaultPosition.value_or(Position::Cm);
+    draft.primaryPosition = options.defaultPosition;
     const bool numberTaken =
         player.shirtNumber && std::ranges::any_of(existing, [&](const Player& other) {
             return other.shirtNumber == player.shirtNumber;
@@ -168,6 +168,10 @@ PlayerResolution resolvePlayer(const RowPlayer& player, int sourceRow,
         std::nullopt, static_cast<std::size_t>(std::distance(newPlayers.begin(), same))};
     resolution.issue = makeIssue(ActivityIssueKind::NewPlayer, IssueSeverity::Warning, "player",
                                  same->draft.firstName + ' ' + same->draft.lastName);
+    resolution.positionIssue =
+        makeIssue(same->draft.primaryPosition ? ActivityIssueKind::DefaultPosition
+                                              : ActivityIssueKind::PositionNotGiven,
+                  IssueSeverity::Warning, "player");
     return resolution;
 }
 

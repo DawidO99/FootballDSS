@@ -528,7 +528,7 @@ private:
                     }
                     outfield.push_back(player);
                     const PlayerDraft& draft = draftOf(player);
-                    if (slotAccepts(slot, draft.primaryPosition) ||
+                    if ((draft.primaryPosition && slotAccepts(slot, *draft.primaryPosition)) ||
                         std::ranges::any_of(draft.secondaryPositions, [slot](Position position) {
                             return slotAccepts(slot, position);
                         })) {

@@ -46,7 +46,10 @@ QString PlayerCardViewModel::name() const {
 }
 
 QString PlayerCardViewModel::positionCode() const {
-    return m_player ? SquadTexts::positionCode(m_player->player.primaryPosition) : QString{};
+    // Empty without a position: the card shows "Position not given" alone (P19).
+    return m_player && m_player->player.primaryPosition
+               ? SquadTexts::positionCode(*m_player->player.primaryPosition)
+               : QString{};
 }
 
 QString PlayerCardViewModel::positionName() const {

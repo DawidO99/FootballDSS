@@ -324,3 +324,36 @@ TEST_F(AppStateTest, LanguageChangeNotifiesTheRoleName) {
 
     EXPECT_EQ(changes, 1);
 }
+
+// P19 decision 5: a PIN the Coach chose keeps the shell away until the user sets their own.
+TEST_F(AppStateTest, APinChosenByTheCoachNeedsAPinChangeBeforeTheApp) {
+    completeSetup();
+    const StaffUserId physio = addStaff("Fizjo", Role::Physio, true);
+    registry().auth().logout();
+    const auto login = registry().auth().login(physio, kPin);
+    ASSERT_TRUE(login.has_value()) << login.error().detail;
+    AppState state;
+    ASSERT_EQ(state.state(), State::NeedsPinChange);
+    EXPECT_EQ(state.userName(), QStringLiteral("Fizjo"));
+    EXPECT_FALSE(state.can(QStringLiteral("ViewAvailabilityDetails")));
+    const int serial = state.sessionSerial();
+
+    ASSERT_TRUE(registry().auth().setRequiredPin("2468").has_value());
+    state.refresh();
+
+    EXPECT_EQ(state.state(), State::Ready);
+    EXPECT_TRUE(state.can(QStringLiteral("ViewAvailabilityDetails")));
+    EXPECT_NE(state.sessionSerial(), serial);
+}
+
+TEST_F(AppStateTest, LoggingOutDuringThePinChangeNeedsLogin) {
+    completeSetup();
+    const StaffUserId physio = addStaff("Fizjo", Role::Physio, true);
+    ASSERT_TRUE(registry().auth().login(physio, kPin).has_value());
+    AppState state;
+    ASSERT_EQ(state.state(), State::NeedsPinChange);
+
+    state.logout();
+
+    EXPECT_EQ(state.state(), State::NeedsLogin);
+}

@@ -103,7 +103,7 @@ void OutOfPositionRule::check(const Lineup& lineup, const LineupContext& context
                               std::vector<LineupIssue>& issues) const {
     forEachPlace(lineup, *this, Places::StartingEleven, [&](PlayerId player, LineupIssue issue) {
         const LineupPlayerFacts* facts = factsOf(context, player);
-        if (!facts) {
+        if (!facts || !facts->primaryPosition) {
             return;
         }
         const Position position = lineup.pitchSlots[static_cast<std::size_t>(*issue.slot)].position;
@@ -112,6 +112,17 @@ void OutOfPositionRule::check(const Lineup& lineup, const LineupContext& context
                                  facts->secondaryPositions.end();
         if (!nominal) {
             issue.slotPosition = position;
+            issues.push_back(issue);
+        }
+    });
+}
+
+void PositionNotGivenRule::check(const Lineup& lineup, const LineupContext& context,
+                                 std::vector<LineupIssue>& issues) const {
+    forEachPlace(lineup, *this, Places::StartingEleven, [&](PlayerId player, LineupIssue issue) {
+        const LineupPlayerFacts* facts = factsOf(context, player);
+        if (facts && !facts->primaryPosition) {
+            issue.slotPosition = lineup.pitchSlots[static_cast<std::size_t>(*issue.slot)].position;
             issues.push_back(issue);
         }
     });

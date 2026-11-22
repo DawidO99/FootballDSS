@@ -3,6 +3,7 @@
 #include "ViewModelFixture.hpp"
 #include "data/repositories/PlayerRepository.hpp"
 #include "services/Session.hpp"
+#include "services/SquadService.hpp"
 #include "viewmodels/ErrorPresenter.hpp"
 #include "viewmodels/RowsModel.hpp"
 
@@ -137,25 +138,40 @@ TEST_F(ImportWizardViewModelTest, WholeWizardWithThePolishExcelFile) {
     EXPECT_TRUE(wizard.summary().isEmpty());
 }
 
-// Packet P16 decision 8: without a position column the default position is asked for.
-// P16 manual test: the default position starts as CM (ŚP), not the first of the list (GK).
-TEST_F(ImportWizardViewModelTest, FileWithoutPositionAsksForTheDefault) {
+// Packet P16 decision 8: without a position column the default position applies. P19 decision 7:
+// it starts as "—", so the players get no position and every row a warning.
+TEST_F(ImportWizardViewModelTest, FileWithoutPositionDefaultsToNoPosition) {
     ImportWizardViewModel wizard;
     ASSERT_NO_FATAL_FAILURE(open(wizard, "no-position.csv"));
     wizard.goToMapping();
     EXPECT_TRUE(wizard.defaultPositionRequired());
-    EXPECT_EQ(wizard.defaultPosition(), QStringLiteral("cm"));
+    EXPECT_TRUE(wizard.defaultPosition().isEmpty());
+    EXPECT_TRUE(wizard.positionOptions()
+                    .constFirst()
+                    .toMap()
+                    .value(QStringLiteral("value"))
+                    .toString()
+                    .isEmpty());
     EXPECT_TRUE(wizard.mappingErrors().isEmpty());
     wizard.setDefaultPosition(QStringLiteral("st"));
     EXPECT_EQ(wizard.defaultPosition(), QStringLiteral("st"));
-    wizard.setDefaultPosition(QStringLiteral("cm"));
+    ASSERT_NO_FATAL_FAILURE(validate(wizard));
+    const QString chosenMessage = wizard.reportRow(0).value(QStringLiteral("message")).toString();
+    wizard.goToMapping();
+    wizard.setDefaultPosition(QString());
     ASSERT_NO_FATAL_FAILURE(validate(wizard));
     EXPECT_EQ(wizard.warningCount(), 3);
     EXPECT_EQ(wizard.reportRow(0).value(QStringLiteral("statusKey")).toString(),
               QStringLiteral("warning"));
-    EXPECT_FALSE(wizard.reportRow(0).value(QStringLiteral("message")).toString().isEmpty());
+    const QString notGivenMessage = wizard.reportRow(0).value(QStringLiteral("message")).toString();
+    EXPECT_FALSE(notGivenMessage.isEmpty());
+    EXPECT_NE(notGivenMessage, chosenMessage);
     wizard.commit();
     EXPECT_EQ(playerCount(), 3);
+    const auto players = registry().squad().listPlayers(fdss::core::TeamId{m_team});
+    ASSERT_TRUE(players.has_value());
+    EXPECT_TRUE(std::ranges::none_of(
+        *players, [](const auto& entry) { return entry.player.primaryPosition.has_value(); }));
 }
 
 // Packet P16 decision 9: the order switch of a full-name column, with the split preview.

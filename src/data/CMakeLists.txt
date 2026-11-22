@@ -93,6 +93,7 @@ qt_add_resources(fdss_data "fdss_migrations"
         migrations/0002_match_live.sql
         migrations/0003_match_tactics.sql
         migrations/0004_match_report.sql
+        migrations/0005_housekeeping.sql
 )
 
 target_link_libraries(fdss_data

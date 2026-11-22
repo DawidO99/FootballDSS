@@ -49,7 +49,48 @@ core::Error migrationError(const Migration& migration, core::ErrorCode code,
                        {}};
 }
 
-core::Status applyMigration(DatabaseManager& db, const Migration& migration) {
+// SQLite ignores PRAGMA foreign_keys inside a transaction, so this runs between them. Reads the
+// value back: a pragma that did nothing must not pass unnoticed.
+core::Status setForeignKeys(DatabaseManager& db, bool enabled) {
+    if (auto status = db.execSql(enabled ? QStringLiteral("PRAGMA foreign_keys = ON")
+                                         : QStringLiteral("PRAGMA foreign_keys = OFF"),
+                                 "switch foreign keys");
+        !status) {
+        return status;
+    }
+    QSqlQuery query(db.database());
+    if (!query.prepare(QStringLiteral("PRAGMA foreign_keys")) || !query.exec() || !query.next()) {
+        return std::unexpected(db.sqlError(query.lastError(), "read foreign_keys"));
+    }
+    if ((query.value(0).toInt() == 1) != enabled) {
+        return std::unexpected(
+            core::Error{core::ErrorCode::Database,
+                        std::format("foreign_keys did not switch {}", enabled ? "on" : "off"),
+                        {}});
+    }
+    return {};
+}
+
+// Inside the transaction of a migration that ran without foreign keys: any row that a migration
+// left without its parent fails the migration.
+core::Status checkForeignKeys(DatabaseManager& db, const Migration& migration) {
+    QSqlQuery query(db.database());
+    if (!query.prepare(QStringLiteral("PRAGMA foreign_key_check")) || !query.exec()) {
+        return std::unexpected(
+            migrationError(migration, core::ErrorCode::Database,
+                           db.sqlError(query.lastError(), "foreign_key_check").detail));
+    }
+    if (query.next()) {
+        return std::unexpected(migrationError(
+            migration, core::ErrorCode::Database,
+            std::format("row {} of {} has no parent in {}", query.value(1).toLongLong(),
+                        query.value(0).toString().toStdString(),
+                        query.value(2).toString().toStdString())));
+    }
+    return {};
+}
+
+core::Status applyInTransaction(DatabaseManager& db, const Migration& migration) {
     auto transaction = Transaction::begin(db);
     if (!transaction) {
         return std::unexpected(
@@ -64,6 +105,10 @@ core::Status applyMigration(DatabaseManager& db, const Migration& migration) {
                 migrationError(migration, core::ErrorCode::Database,
                                db.sqlError(query.lastError(), statement.toStdString()).detail));
         }
+    }
+
+    if (auto status = checkForeignKeys(db, migration); !status) {
+        return status;
     }
 
     QSqlQuery update(connection);
@@ -86,6 +131,25 @@ core::Status applyMigration(DatabaseManager& db, const Migration& migration) {
             migrationError(migration, committed.error().code, committed.error().detail));
     }
     return {};
+}
+
+// The procedure of https://www.sqlite.org/lang_altertable.html for changes ALTER TABLE cannot make
+// (P19 decision 3): foreign keys off around the transaction, so that a table its children point at
+// with ON DELETE RESTRICT can be rebuilt; foreign_key_check before the commit; foreign keys on
+// again also after a failure.
+core::Status applyMigration(DatabaseManager& db, const Migration& migration) {
+    if (auto status = setForeignKeys(db, false); !status) {
+        return std::unexpected(
+            migrationError(migration, status.error().code, status.error().detail));
+    }
+    const core::Status applied = applyInTransaction(db, migration);
+    if (auto status = setForeignKeys(db, true); !status) {
+        // The migration's own error says more; a connection without foreign keys must not go on.
+        return applied ? std::unexpected(
+                             migrationError(migration, status.error().code, status.error().detail))
+                       : applied;
+    }
+    return applied;
 }
 
 } // namespace
