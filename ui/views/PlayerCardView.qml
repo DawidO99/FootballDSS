@@ -254,7 +254,7 @@ Item {
                                         {
                                             "key": "position",
                                             "label": qsTr("Position"),
-                                            "value": card.positionCode.length > 0 ? card.positionCode + " - " + card.positionName : ""
+                                            "value": card.positionCode.length > 0 ? card.positionCode + " - " + card.positionName : card.positionName
                                         },
                                         {
                                             "key": "secondaryPositions",

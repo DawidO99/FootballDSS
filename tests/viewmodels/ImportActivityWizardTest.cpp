@@ -111,16 +111,14 @@ TEST_F(ImportActivityWizardTest, TrainingWithUnknownPlayersAndUndo) {
     EXPECT_FALSE(wizard.nameOrderVisible());
     EXPECT_TRUE(wizard.canCommit());
 
-    // Unknown players added to the squad: one, with CM by default.
+    // Unknown players added to the squad: one, without a position by default (P19 decision 7).
     wizard.setUnknownPlayers(QStringLiteral("create"));
     EXPECT_EQ(wizard.newPlayerCount(), 1);
     EXPECT_TRUE(wizard.nameOrderVisible());
     EXPECT_TRUE(wizard.defaultPositionRequired());
-    EXPECT_EQ(wizard.defaultPosition(), QStringLiteral("cm"));
+    EXPECT_TRUE(wizard.defaultPosition().isEmpty());
     EXPECT_EQ(wizard.createCount(), 37);
-    // Without a position nothing can be imported.
-    wizard.setDefaultPosition(QString());
-    EXPECT_FALSE(wizard.canCommit());
+    EXPECT_TRUE(wizard.canCommit());
     wizard.setDefaultPosition(QStringLiteral("st"));
     EXPECT_TRUE(wizard.canCommit());
 

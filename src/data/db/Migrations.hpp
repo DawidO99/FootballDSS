@@ -39,8 +39,10 @@ struct Migration {
 [[nodiscard]] core::Result<int> readSchemaVersion(const QSqlDatabase& db);
 
 // Applies every migration newer than the current version, each in its own Transaction together with
-// the schema_version update. A failing statement is a Database error with the migration number in
-// detail; the database stays at the last version that succeeded.
+// the schema_version update. Foreign keys are off while a migration runs, so it may rebuild a
+// table; PRAGMA foreign_key_check before the commit fails it when a row lost its parent. A failing
+// statement is a Database error with the migration number in detail; the database stays at the last
+// version that succeeded, with foreign keys on again.
 [[nodiscard]] core::Status applyMigrations(DatabaseManager& db,
                                            std::span<const Migration> migrations);
 

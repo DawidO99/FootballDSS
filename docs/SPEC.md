@@ -174,8 +174,8 @@ the import can be undone.
 | --- | --- | --- |
 | `club` | `name` TEXT | One file per club |
 | `team` | `club_id` INTEGER, `name` TEXT, `category` TEXT, `season` TEXT | Many teams per club. Season like `2026/27` |
-| `staff_user` | `name` TEXT, `role` TEXT, `pin_hash` BLOB, `salt` BLOB, `iterations` INTEGER, `failed_attempts` INTEGER (default 0), `locked_until` TEXT *null*, `active` INTEGER 0/1 (default 1) | |
-| `player` | `team_id` INTEGER, `first_name` TEXT, `last_name` TEXT, `shirt_number` INTEGER *null*, `birth_year` INTEGER *null*, `primary_position` TEXT, `secondary_positions` TEXT (comma list, default empty), `foot` TEXT (default `unknown`), `notes` TEXT *null*, `archived_at` TEXT *null*, `import_id` INTEGER | No PESEL, no contact data; "status" is derived from `availability`. Partial unique index on (`team_id`, `shirt_number`) among non-archived players |
+| `staff_user` | `name` TEXT, `role` TEXT, `pin_hash` BLOB, `salt` BLOB, `iterations` INTEGER, `failed_attempts` INTEGER (default 0), `locked_until` TEXT *null*, `active` INTEGER 0/1 (default 1), `must_change_pin` INTEGER 0/1 (default 0, since 0005) | `must_change_pin`: a Coach chose the PIN (new user or reset); the user sets their own at the next login (P19) |
+| `player` | `team_id` INTEGER, `first_name` TEXT, `last_name` TEXT, `shirt_number` INTEGER *null*, `birth_year` INTEGER *null*, `primary_position` TEXT *null* (since 0005; empty = not given, shown as "—"), `secondary_positions` TEXT (comma list, default empty), `foot` TEXT (default `unknown`), `notes` TEXT *null*, `archived_at` TEXT *null*, `import_id` INTEGER | No PESEL, no contact data; "status" is derived from `availability`. Partial unique index on (`team_id`, `shirt_number`) among non-archived players |
 | `availability` | `player_id` INTEGER, `type` TEXT, `from_date` TEXT, `expected_to` TEXT *null*, `actual_to` TEXT *null*, `description` TEXT *null* | Description: Coach + Physio only. End dates not before `from_date` |
 | `opponent` | `name` TEXT, `name_key` TEXT UNIQUE, `notes` TEXT *null* | `name_key` = `QString::toCaseFolded()`, because SQLite `NOCASE` folds ASCII only |
 | `match` | `team_id` INTEGER, `opponent_id` INTEGER, `date` TEXT, `kickoff_time` TEXT *null*, `venue` TEXT, `competition` TEXT *null*, `goals_for` INTEGER *null*, `goals_against` INTEGER *null*, `status` TEXT (default `planned`), `formation` TEXT *null*, `import_id` INTEGER, `report_note` TEXT *null* (1–2000 after trimming, since 0004) | `report_note`: the note of the match report, plain text |
@@ -313,6 +313,7 @@ Match report (P14):
 Strategy pattern: each rule is a class `ILineupRule` returning issues with severity.
 - Errors: starting XI ≠ 11, no goalkeeper, injured or suspended player, duplicate player.
 - Warnings: red load status, out of nominal position, absent from last 3 sessions, cards at suspension threshold (threshold per competition, setting).
+- Note (info, P19): a player of the XI without a primary position, for whom the position is not checked.
 
 ### 7.3 Lineup assistant (SHOULD)
 - Per position: matrix players × criteria from available data (coach attributes, form = mean rating last 5, attendance last 28 days, load status as cost criterion; custom metrics / event data when present).

@@ -674,6 +674,12 @@ void exerciseMinimumWindow(QQuickWindow* window, NavigationModel* navigation, QQ
     settle();
     editor->setShirtNumber(fdss::core::kMaxShirtNumber + 1);
     editor->setBirthYear(fdss::core::kMinBirthYear - 1);
+    // A new player starts without a primary position (P19 decision 8); one that is also secondary
+    // is an error.
+    if (!editor->primaryPosition().isEmpty()) {
+        fail("a new player does not start without a primary position");
+    }
+    editor->setPrimaryPosition(QStringLiteral("cm"));
     editor->setSecondaryPositions({editor->primaryPosition()});
     if (editor->save()) {
         fail("a form with every error was saved");
@@ -2437,6 +2443,30 @@ fdss::core::TeamId smokeTeam() {
     return ServiceRegistry::instance().setup().clubContext()->team.id;
 }
 
+// P19: the first central midfielder of the demo club loses the primary position ("—"), so the
+// screens below run with such a player in the squad and in the lineup.
+std::optional<fdss::core::PlayerId> clearOnePrimaryPosition() {
+    auto& squad = ServiceRegistry::instance().squad();
+    const auto players = squad.listPlayers(smokeTeam());
+    if (!players) {
+        fail("cannot read the squad to clear a position");
+        return std::nullopt;
+    }
+    for (const auto& entry : *players) {
+        if (entry.player.primaryPosition == fdss::core::Position::Cm) {
+            fdss::core::PlayerDraft draft = entry.player;
+            draft.primaryPosition = std::nullopt;
+            if (!squad.updatePlayer(entry.player.id, draft)) {
+                fail("cannot clear the primary position of a player");
+                return std::nullopt;
+            }
+            return entry.player.id;
+        }
+    }
+    fail("the demo club has no central midfielder");
+    return std::nullopt;
+}
+
 // A session on the day of the FakeClock, and players numbered from 1, in rows from 0. Row 2 is
 // injured and row 4 away on that day; row 6 is suspended, which keeps nobody from training.
 constexpr fdss::core::Date kSheetDay{std::chrono::year{2026}, std::chrono::November,
@@ -4058,11 +4088,61 @@ void preMatchReadOnly(QQmlApplicationEngine& engine) {
 // Demo data -> next match -> 4-4-2 -> an injured player names an error, replacing him removes it;
 // 11 players by the keyboard alone; Ctrl+S; the lineup reads back the same; leaving asks; both
 // themes at the minimum window; another role sees the board read-only (packet P12, Done when).
+// P19 decision 6: the token of a player without a position carries the note, and the picker of
+// the slot lists the player last, under "No position".
+void preMatchPlayerWithoutPosition(QQmlApplicationEngine& engine, fdss::core::PlayerId player) {
+    const qint64 matchId = nextPreMatchMatch("player without a position");
+    if (saveSmokeLineup(matchId).empty()) {
+        return;
+    }
+    auto screen = openPreMatchScreen(engine, matchId);
+    if (!screen) {
+        return;
+    }
+    if (!screen->preMatch->assignToSlot(2, player.value)) {
+        fail("pre-match: the player without a position cannot take a slot");
+        return;
+    }
+    settle();
+    // The mark shows the worst issue of the slot; the note is among its texts.
+    QQuickItem* token = screen->token(2);
+    QQuickItem* mark =
+        token != nullptr ? findByObjectName(token, QStringLiteral("issueMark")) : nullptr;
+    bool noted = false;
+    const auto* issues = screen->preMatch->issues();
+    for (int row = 0; row < issues->rowCount(); ++row) {
+        noted = noted || (issues->value(row, "ruleKey").toString() ==
+                              QLatin1StringView("positionNotGiven") &&
+                          issues->value(row, "severity").toString() == QLatin1StringView("info") &&
+                          issues->value(row, "slotIndex").toInt() == 2);
+    }
+    if (!noted || mark == nullptr || !mark->isVisible() ||
+        screen->board(2, "issueText").toString().isEmpty()) {
+        fail("pre-match: the slot of a player without a position has no note");
+    }
+    if (!screen->preMatch->openPicker(2)) {
+        fail("pre-match: the picker of the slot does not open");
+        return;
+    }
+    settle();
+    const auto* picker = screen->preMatch->slotPicker();
+    // The model of the picker; the dialog opens from a tap on the token.
+    if (picker->rowCount() == 0 ||
+        picker->value(picker->rowCount() - 1, "group").toString() != QLatin1StringView("none") ||
+        picker->value(picker->rowCount() - 1, "playerId").toLongLong() != player.value) {
+        fail("pre-match: the picker does not list the player without a position last");
+    }
+    screen->preMatch->closePicker();
+    screen->preMatch->discardChanges();
+    settle();
+}
+
 void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
     if (!ServiceRegistry::instance().demoData().load(smokeTeam())) {
         fail("cannot load the demo club for pre-match");
         return;
     }
+    const auto withoutPosition = clearOnePrimaryPosition();
     engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty()) {
         fail("Main.qml did not load");
@@ -4076,6 +4156,9 @@ void exercisePreMatch(QQmlApplicationEngine& engine, const QString& screenshotDi
     preMatchLeaveGuard(engine);
     preMatchPlayerCard(engine);
     preMatchMinimumWindow(engine, screenshotDirectory);
+    if (withoutPosition) {
+        preMatchPlayerWithoutPosition(engine, *withoutPosition);
+    }
     // Last: it logs in another user.
     preMatchReadOnly(engine);
 }
@@ -5417,6 +5500,7 @@ void exerciseMatchDay(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
         fail("cannot load the demo club for match day");
         return;
     }
+    clearOnePrimaryPosition();
     engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty()) {
         fail("Main.qml did not load");
@@ -6626,7 +6710,8 @@ void exerciseImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& 
     }
     expectFlag(find("undoImportButton"), "visible", false, "Undo import is offered twice");
 
-    // Without a position column: the default position starts as CM and can be changed.
+    // Without a position column: the default position starts as "—" (P19 decision 7) and can be
+    // changed.
     clickPolished(window, find("importAgainButton"));
     clickPolished(window, find("importType_squad"));
     wizard->openPath(importFixture("no-position.csv"));
@@ -6637,8 +6722,9 @@ void exerciseImport(QQmlApplicationEngine& engine, fdss::data::DatabaseManager& 
     settle();
     expectReachable(window, find("defaultPositionChoice"), true,
                     "the default position cannot be chosen");
-    if (find("defaultPositionChoice")->property("value").toString() != QLatin1StringView("cm")) {
-        fail("the default position does not start as CM");
+    if (!find("defaultPositionChoice")->property("value").toString().isEmpty() ||
+        !find("defaultPositionChoice")->property("currentText").toString().startsWith(u'\u2014')) {
+        fail("the default position does not start as \"—\"");
     }
     expectReachable(window, find("validateButton"), true,
                     "the rows cannot be checked with the default position");

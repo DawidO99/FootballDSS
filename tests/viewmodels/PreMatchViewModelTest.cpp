@@ -683,3 +683,28 @@ TEST_F(PreMatchViewModelTest, TheSquadListPutsTheLineupFirst) {
     EXPECT_EQ(list->value(kSquad, "shortName").toString(), "Abacki");
     EXPECT_EQ(list->rowOf(player(1)), 0);
 }
+
+// P19 decisions 6 and 20 of P12: a player without a position gets a note instead of the
+// out-of-position warning, and the picker lists them last, under "No position".
+TEST_F(PreMatchViewModelTest, APlayerWithoutAPositionGetsANoteAndTheLastPickerGroup) {
+    auto none = registry().squad().player(m_players[13]);
+    ASSERT_TRUE(none.has_value());
+    PlayerDraft draft = none->player;
+    draft.primaryPosition = std::nullopt;
+    draft.secondaryPositions.clear();
+    ASSERT_TRUE(registry().squad().updatePlayer(m_players[13], draft).has_value());
+    const auto vm = open();
+
+    ASSERT_TRUE(vm->assignToSlot(2, player(14)));
+
+    EXPECT_EQ(vm->board()->value(2, "severity").toString(), "info");
+    EXPECT_FALSE(vm->board()->value(2, "issueText").toString().isEmpty());
+    EXPECT_EQ(vm->warningCount(), 0);
+    ASSERT_TRUE(vm->openPicker(2));
+    const auto* picker = vm->slotPicker();
+    ASSERT_GT(picker->rowCount(), 0);
+    EXPECT_EQ(picker->value(picker->rowCount() - 1, "group").toString(), "none");
+    EXPECT_EQ(picker->value(picker->rowCount() - 1, "playerId").toLongLong(), player(14));
+    EXPECT_NE(picker->value(picker->rowCount() - 1, "groupText").toString(),
+              picker->value(0, "groupText").toString());
+}

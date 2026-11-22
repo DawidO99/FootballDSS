@@ -530,9 +530,8 @@ Item {
                             id: defaultPositionField
 
                             visible: root.squadType
-                            mandatory: wizard.defaultPositionRequired
                             label: qsTr("Default position")
-                            helpText: wizard.defaultPositionRequired ? qsTr("Some players have no position in the file. They get this one with a warning; correct it later in Squad.") : qsTr("Every player has a position in the file; this one is not used.")
+                            helpText: wizard.defaultPositionRequired ? qsTr("Some players have no position in the file. They get this one, or none with \"—\", and a warning; fill it in later in Squad.") : qsTr("Every player has a position in the file; this one is not used.")
 
                             SelectField {
                                 objectName: "defaultPositionChoice"
@@ -541,7 +540,6 @@ Item {
                                 textRole: "text"
                                 valueRole: "value"
                                 value: wizard.defaultPosition
-                                placeholderText: qsTr("Choose a position")
                                 enabled: wizard.defaultPositionRequired
                                 Accessible.name: defaultPositionField.label
                                 onValueActivated: chosen => wizard.setDefaultPosition(chosen)
@@ -682,7 +680,6 @@ Item {
                         id: newPositionField
 
                         visible: wizard.defaultPositionRequired
-                        mandatory: true
                         label: qsTr("Position of new players")
 
                         SelectField {
@@ -692,7 +689,6 @@ Item {
                             textRole: "text"
                             valueRole: "value"
                             value: wizard.defaultPosition
-                            placeholderText: qsTr("Choose a position")
                             Accessible.name: newPositionField.label
                             onValueActivated: chosen => wizard.setDefaultPosition(chosen)
                         }

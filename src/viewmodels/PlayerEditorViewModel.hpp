@@ -36,7 +36,7 @@ class PlayerEditorViewModel : public QObject {
     Q_PROPERTY(
         QVariant shirtNumber READ shirtNumber WRITE setShirtNumber NOTIFY shirtNumberChanged FINAL)
     Q_PROPERTY(QVariant birthYear READ birthYear WRITE setBirthYear NOTIFY birthYearChanged FINAL)
-    // The database text of a core Position.
+    // The database text of a core Position; empty: not given ("—", P19).
     Q_PROPERTY(QString primaryPosition READ primaryPosition WRITE setPrimaryPosition NOTIFY
                    fieldsChanged FINAL)
     // A new primary position drops out of these.
@@ -140,7 +140,7 @@ private:
     QString m_lastName;
     QVariant m_shirtNumber;
     QVariant m_birthYear;
-    core::Position m_primaryPosition = core::Position::Cm;
+    std::optional<core::Position> m_primaryPosition;
     std::vector<core::Position> m_secondaryPositions;
     core::PreferredFoot m_foot = core::PreferredFoot::Unknown;
     QString m_notes;

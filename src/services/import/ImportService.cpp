@@ -746,16 +746,12 @@ ImportService::planMatches(core::TeamId team, const core::MatchImport& import,
 }
 
 core::Status ImportService::checkActivityCommit(const ActivityImportSummary& summary,
-                                                const core::ActivityOptions& options,
-                                                bool createsPlayers) const {
+                                                const core::ActivityOptions& options) const {
     if (summary.invalid > 0 && !options.skipInvalid) {
         return std::unexpected(inputError("rows with errors", "import_has_errors"));
     }
     if (summary.created + summary.updated == 0) {
         return std::unexpected(inputError("no row to write", "import_nothing"));
-    }
-    if (createsPlayers && !options.defaultPosition) {
-        return std::unexpected(inputError("new players need a position", "default_position"));
     }
     return {};
 }
@@ -836,7 +832,7 @@ ImportService::commitTraining(core::TeamId team, const ImportSource& source,
     ActivityImportSummary summary;
     countActions(plan, summary);
     summary.playersCreated = static_cast<int>(plan.newPlayers.size());
-    if (auto allowed = checkActivityCommit(summary, options, !plan.newPlayers.empty()); !allowed) {
+    if (auto allowed = checkActivityCommit(summary, options); !allowed) {
         return std::unexpected(allowed.error());
     }
     if (auto saved = backup("import"); !saved) {
@@ -899,7 +895,7 @@ ImportService::commitMatches(core::TeamId team, const ImportSource& source,
     countActions(plan, summary);
     summary.playersCreated = static_cast<int>(plan.newPlayers.size());
     summary.notImported = core::notImportedEvents(import, plan);
-    if (auto allowed = checkActivityCommit(summary, options, !plan.newPlayers.empty()); !allowed) {
+    if (auto allowed = checkActivityCommit(summary, options); !allowed) {
         return std::unexpected(allowed.error());
     }
     if (auto saved = backup("import"); !saved) {

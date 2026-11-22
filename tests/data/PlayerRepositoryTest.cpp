@@ -93,6 +93,22 @@ TEST_F(PlayerRepositoryTest, OptionalFieldsStayEmpty) {
     EXPECT_EQ(player->notes, std::nullopt);
 }
 
+// P19: the primary position may be not given; NULL in the database.
+TEST_F(PlayerRepositoryTest, APrimaryPositionMayBeNotGiven) {
+    PlayerDraft withoutPosition = draft();
+    withoutPosition.primaryPosition = std::nullopt;
+    const auto id = repository().create(kTeam, withoutPosition);
+    ASSERT_TRUE(id.has_value()) << id.error().detail;
+    EXPECT_EQ(repository().get(*id)->primaryPosition, std::nullopt);
+
+    withoutPosition.primaryPosition = Position::St;
+    ASSERT_TRUE(repository().update(*id, withoutPosition).has_value());
+    EXPECT_EQ(repository().get(*id)->primaryPosition, Position::St);
+    withoutPosition.primaryPosition = std::nullopt;
+    ASSERT_TRUE(repository().update(*id, withoutPosition).has_value());
+    EXPECT_EQ(repository().get(*id)->primaryPosition, std::nullopt);
+}
+
 TEST_F(PlayerRepositoryTest, GetOfAMissingPlayerIsNotFound) {
     const auto player = repository().get(kNoPlayer);
     ASSERT_FALSE(player.has_value());

@@ -410,16 +410,28 @@ TEST_F(ActivityImportServiceTest, ThePlanMustBeTheOneTheUserSaw) {
     EXPECT_EQ(count("SELECT COUNT(*) FROM import_log"), 0);
 }
 
-TEST_F(ActivityImportServiceTest, InvalidRowsCanAbortAndNewPlayersNeedAPosition) {
+TEST_F(ActivityImportServiceTest, InvalidRowsCanAbort) {
     ActivityOptions abort;
     abort.skipInvalid = false;
     expectError(importTraining(fixture("training-cp1250.csv"), abort), ErrorCode::InvalidInput,
                 "import_has_errors");
+    EXPECT_EQ(count("SELECT COUNT(*) FROM training_session"), 0);
+}
+
+// P19 decision 7: without a default position the new players have none ("—").
+TEST_F(ActivityImportServiceTest, NewPlayersWithoutADefaultPositionHaveNone) {
+    const int before = count("SELECT COUNT(*) FROM player");
+    const int withoutBefore = count("SELECT COUNT(*) FROM player WHERE primary_position IS NULL");
     ActivityOptions create;
     create.unknownPlayers = UnknownPlayerPolicy::Create;
-    expectError(importTraining(fixture("training-cp1250.csv"), create), ErrorCode::InvalidInput,
-                "default_position");
-    EXPECT_EQ(count("SELECT COUNT(*) FROM training_session"), 0);
+
+    const auto imported = importTraining(fixture("training-cp1250.csv"), create);
+
+    ASSERT_TRUE(imported.has_value()) << imported.error().detail;
+    const int created = count("SELECT COUNT(*) FROM player") - before;
+    EXPECT_GT(created, 0);
+    EXPECT_EQ(count("SELECT COUNT(*) FROM player WHERE primary_position IS NULL") - withoutBefore,
+              created);
 }
 
 TEST_F(ActivityImportServiceTest, TrainingXlsxWithExcelDates) {

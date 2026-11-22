@@ -457,7 +457,7 @@ TEST_F(ImportServiceTest, CsvTemplateRoundTrips) {
     ASSERT_TRUE(writeFile(path, content));
     const ImportSource source = read(path);
     const SquadMapping mapping = suggested(source);
-    EXPECT_TRUE(checkMapping(mapping, source.table).empty());
+    EXPECT_TRUE(checkMapping(mapping).empty());
     EXPECT_TRUE(
         std::ranges::all_of(mapping.columns, [](const auto& field) { return field.has_value(); }));
     auto rows = validate(source, mapping);
@@ -489,7 +489,7 @@ TEST_F(ImportServiceTest, XlsxTemplateRoundTrips) {
     const ImportSource source = read(path);
     EXPECT_EQ(source.kind, ImportFileKind::Xlsx);
     const SquadMapping mapping = suggested(source);
-    EXPECT_TRUE(checkMapping(mapping, source.table).empty());
+    EXPECT_TRUE(checkMapping(mapping).empty());
     auto rows = validate(source, mapping);
     ASSERT_EQ(rows.size(), 2U);
     EXPECT_TRUE(rows[0].templateExample);

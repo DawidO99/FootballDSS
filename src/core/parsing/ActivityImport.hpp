@@ -160,7 +160,7 @@ struct ActivityOptions {
     UnknownPlayerPolicy unknownPlayers = UnknownPlayerPolicy::Skip;
     bool updateExisting = false;
     NameOrder nameOrder = NameOrder::FirstLast;
-    std::optional<Position> defaultPosition; // needed to create players
+    std::optional<Position> defaultPosition; // of created players; empty: "—" (P19 decision 7)
     bool skipInvalid = true;
 
     friend bool operator==(const ActivityOptions&, const ActivityOptions&) = default;

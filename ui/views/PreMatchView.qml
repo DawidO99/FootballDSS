@@ -555,6 +555,7 @@ Item {
                     model: preMatch.issues
                     summary: preMatch.issuesSummary
                     errorCount: preMatch.errorCount
+                    warningCount: preMatch.warningCount
                     loadPending: preMatch.loadPending
                     incompleteText: preMatch.loadCheckText
                     onIssueActivated: row => preMatch.activateIssue(row)

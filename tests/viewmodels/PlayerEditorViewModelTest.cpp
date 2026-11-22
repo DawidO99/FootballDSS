@@ -173,13 +173,42 @@ TEST_F(PlayerEditorViewModelTest, ThePrimaryPositionDropsOutOfTheSecondaryOnes) 
 
     EXPECT_EQ(editor.secondaryPositions(), QStringList{QStringLiteral("am")});
     EXPECT_EQ(options.count(), 1);
-    EXPECT_EQ(editor.positionOptions().size(), 14);
+    // The 14 positions after "—", not given (P19).
+    EXPECT_EQ(editor.positionOptions().size(), 15);
     const QVariantList secondary = editor.secondaryPositionOptions();
     EXPECT_EQ(secondary.size(), 13);
     for (const QVariant& option : secondary) {
         EXPECT_NE(option.toMap().value(QStringLiteral("value")).toString(), QStringLiteral("cb"));
     }
     EXPECT_TRUE(editor.save());
+}
+
+// P19 decision 8: a new player starts without a primary position, and "—" can be chosen again.
+TEST_F(PlayerEditorViewModelTest, ThePrimaryPositionMayBeNotGiven) {
+    PlayerEditorViewModel editor;
+    editor.startAdding();
+    EXPECT_TRUE(editor.primaryPosition().isEmpty());
+    EXPECT_TRUE(editor.positionOptions()
+                    .constFirst()
+                    .toMap()
+                    .value(QStringLiteral("value"))
+                    .toString()
+                    .isEmpty());
+    fillValid(editor);
+    editor.setPrimaryPosition(QStringLiteral("st"));
+    editor.setSecondaryPositions({QStringLiteral("rw")});
+
+    editor.setPrimaryPosition(QString{});
+
+    EXPECT_TRUE(editor.primaryPosition().isEmpty());
+    EXPECT_EQ(editor.secondaryPositions(), QStringList{QStringLiteral("rw")});
+    EXPECT_EQ(editor.secondaryPositionOptions().size(), 14);
+    ASSERT_TRUE(editor.save());
+    const auto players = registry().squad().listPlayers(m_team);
+    ASSERT_TRUE(players.has_value());
+    ASSERT_EQ(players->size(), 1U);
+    EXPECT_FALSE(players->front().player.primaryPosition.has_value());
+    EXPECT_EQ(players->front().player.secondaryPositions, std::vector{Position::Rw});
 }
 
 TEST_F(PlayerEditorViewModelTest, EachNumberHasASignalOfItsOwn) {

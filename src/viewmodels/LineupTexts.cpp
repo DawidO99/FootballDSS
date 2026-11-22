@@ -27,17 +27,34 @@ QString LineupTexts::ruleKey(core::LineupRule rule) {
         return QStringLiteral("missedSessions");
     case core::LineupRule::YellowCards:
         return QStringLiteral("yellowCards");
+    case core::LineupRule::PositionNotGiven:
+        return QStringLiteral("positionNotGiven");
     }
     return {};
 }
 
 QString LineupTexts::severityKey(core::LineupSeverity severity) {
-    return severity == core::LineupSeverity::Error ? QStringLiteral("error")
-                                                   : QStringLiteral("warning");
+    switch (severity) {
+    case core::LineupSeverity::Error:
+        return QStringLiteral("error");
+    case core::LineupSeverity::Warning:
+        return QStringLiteral("warning");
+    case core::LineupSeverity::Info:
+        return QStringLiteral("info");
+    }
+    return {};
 }
 
 QString LineupTexts::severityName(core::LineupSeverity severity) {
-    return severity == core::LineupSeverity::Error ? tr("Error") : tr("Warning");
+    switch (severity) {
+    case core::LineupSeverity::Error:
+        return tr("Error");
+    case core::LineupSeverity::Warning:
+        return tr("Warning");
+    case core::LineupSeverity::Info:
+        return tr("Note");
+    }
+    return {};
 }
 
 QString LineupTexts::issueText(const core::LineupIssue& issue, const QString& playerName) {
@@ -66,6 +83,8 @@ QString LineupTexts::issueText(const core::LineupIssue& issue, const QString& pl
         return tr("%1 has yellow cards: %2. One more means a suspension.")
             .arg(playerName)
             .arg(issue.count);
+    case core::LineupRule::PositionNotGiven:
+        return tr("%1 has no position given, so the position is not checked.").arg(playerName);
     }
     return {};
 }

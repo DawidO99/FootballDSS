@@ -18,7 +18,7 @@ core::Player readPlayer(RowReader& row) {
     player.lastName = row.text();
     player.shirtNumber = row.optionalInteger();
     player.birthYear = row.optionalInteger();
-    player.primaryPosition = row.enumeration<core::Position>();
+    player.primaryPosition = row.optionalEnumeration<core::Position>();
     player.secondaryPositions = row.positions();
     player.foot = row.enumeration<core::PreferredFoot>();
     player.notes = row.optionalText();
@@ -53,8 +53,9 @@ core::Result<core::PlayerId> PlayerRepository::create(core::TeamId team,
                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
         {idValue(team), nameValue(draft.firstName), nameValue(draft.lastName),
          optionalValue(draft.shirtNumber), optionalValue(draft.birthYear),
-         enumValue(draft.primaryPosition), textValue(positionsToDbText(draft.secondaryPositions)),
-         enumValue(draft.foot), optionalTextValue(draft.notes), optionalIdValue(importId)},
+         optionalEnumValue(draft.primaryPosition),
+         textValue(positionsToDbText(draft.secondaryPositions)), enumValue(draft.foot),
+         optionalTextValue(draft.notes), optionalIdValue(importId)},
         "create player");
     if (!id) {
         return std::unexpected(id.error());
@@ -69,7 +70,7 @@ core::Status PlayerRepository::update(core::PlayerId id, const core::PlayerDraft
                        "birth_year = ?, primary_position = ?, secondary_positions = ?, foot = ?, "
                        "notes = ? WHERE id = ?"),
         {nameValue(draft.firstName), nameValue(draft.lastName), optionalValue(draft.shirtNumber),
-         optionalValue(draft.birthYear), enumValue(draft.primaryPosition),
+         optionalValue(draft.birthYear), optionalEnumValue(draft.primaryPosition),
          textValue(positionsToDbText(draft.secondaryPositions)), enumValue(draft.foot),
          optionalTextValue(draft.notes), idValue(id)},
         "update player");

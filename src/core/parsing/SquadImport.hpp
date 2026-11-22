@@ -47,7 +47,8 @@ enum class NameOrder { FirstLast, LastFirst };
 struct SquadMapping {
     std::vector<std::optional<SquadField>> columns; // per column of the table; nullopt = ignored
     NameOrder nameOrder = NameOrder::FirstLast;
-    // For rows without a position: no position column, or an empty cell.
+    // For rows without a position: no position column, or an empty cell. Empty: "—", the rows get
+    // no primary position (P19 decision 7).
     std::optional<Position> defaultPosition;
 
     friend bool operator==(const SquadMapping&, const SquadMapping&) = default;
@@ -59,14 +60,13 @@ struct SquadMapping {
 [[nodiscard]] NameOrder detectNameOrder(std::string_view header);
 
 enum class MappingIssue {
-    MissingName,            // neither a full name nor both first and last name
-    FullNameWithParts,      // a full-name column together with a first- or last-name column
-    DuplicateField,         // one field on two columns
-    MissingDefaultPosition, // needsDefaultPosition() without a default
+    MissingName,       // neither a full name nor both first and last name
+    FullNameWithParts, // a full-name column together with a first- or last-name column
+    DuplicateField,    // one field on two columns
 };
-[[nodiscard]] std::vector<MappingIssue> checkMapping(const SquadMapping& mapping,
-                                                     const SourceTable& table);
-// No position column, or a row with an empty position cell.
+// A missing position needs no choice: "—" is a default too (P19 decision 7).
+[[nodiscard]] std::vector<MappingIssue> checkMapping(const SquadMapping& mapping);
+// No position column, or a row with an empty position cell: the default position applies.
 [[nodiscard]] bool needsDefaultPosition(const SquadMapping& mapping, const SourceTable& table);
 
 struct NameParts {
@@ -82,20 +82,21 @@ struct NameParts {
 enum class IssueSeverity { Warning, Error };
 
 enum class RowIssueKind {
-    MissingValue,    // error: an empty name
-    SingleWordName,  // error: a full name without a space
-    TooLong,         // error: a name above 50 characters
-    NotANumber,      // error: shirt number or birth year that is not a whole number or a date
-    OutOfRange,      // error: shirt number 1-99, birth year 1950 to the current year - 4
-    UnknownPosition, // error for the position, warning (left out) for a secondary position
-    DefaultPosition, // warning: the default position was used
-    UnknownFoot,     // warning: stored as unknown
-    DuplicateInFile, // error: same shirt number or same name as `otherRows`
-    AmbiguousMatch,  // warning: several players of the team fit, the row is skipped
-    NumberConflict,  // warning; an error under ExistingPolicy::Update (statusFor()): the new
-                     // number of the matched player belongs to another player
-    MatchChanged,    // warning: the squad changed since the check; the commit was refused
-    TemplateExample, // warning: the example row of the template, skipped
+    MissingValue,     // error: an empty name
+    SingleWordName,   // error: a full name without a space
+    TooLong,          // error: a name above 50 characters
+    NotANumber,       // error: shirt number or birth year that is not a whole number or a date
+    OutOfRange,       // error: shirt number 1-99, birth year 1950 to the current year - 4
+    UnknownPosition,  // error for the position, warning (left out) for a secondary position
+    DefaultPosition,  // warning: the default position was used
+    PositionNotGiven, // warning: no position and "—" as the default, so the player has none
+    UnknownFoot,      // warning: stored as unknown
+    DuplicateInFile,  // error: same shirt number or same name as `otherRows`
+    AmbiguousMatch,   // warning: several players of the team fit, the row is skipped
+    NumberConflict,   // warning; an error under ExistingPolicy::Update (statusFor()): the new
+                      // number of the matched player belongs to another player
+    MatchChanged,     // warning: the squad changed since the check; the commit was refused
+    TemplateExample,  // warning: the example row of the template, skipped
 };
 
 // A player of the team that a row could mean.

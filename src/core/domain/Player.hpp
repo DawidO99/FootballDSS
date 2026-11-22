@@ -15,7 +15,8 @@ struct PlayerDraft {
     std::string lastName;
     std::optional<int> shirtNumber;
     std::optional<int> birthYear;
-    Position primaryPosition = Position::Cm;
+    // Empty: not given ("—", P19). Such a player belongs to no position group.
+    std::optional<Position> primaryPosition;
     std::vector<Position> secondaryPositions;
     PreferredFoot foot = PreferredFoot::Unknown;
     std::optional<std::string> notes;

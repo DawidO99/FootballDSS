@@ -38,7 +38,8 @@ protected:
     }
 
     PlayerId addPlayer(const char* firstName, const char* lastName, std::optional<int> number,
-                       Position position, std::optional<int> birthYear = std::nullopt,
+                       std::optional<Position> position,
+                       std::optional<int> birthYear = std::nullopt,
                        std::vector<Position> secondary = {}) {
         PlayerDraft draft;
         draft.firstName = firstName;
@@ -232,6 +233,34 @@ TEST_F(SquadViewModelTest, ASecondaryPositionPassesTheGroupFilterBehindThePrimar
 
     squad.setPositionGroup(QStringLiteral("all"));
     EXPECT_EQ(lastNames(squad), names({"Kowalski", "Zając", "Łukasiewicz", "Żak", "Nowak", "Lis"}));
+}
+
+// P19: a player without a primary position shows "—", is in no group by it, and sorts last.
+TEST_F(SquadViewModelTest, APlayerWithoutAPositionIsInNoGroupAndSortsLast) {
+    seedSquad();
+    addPlayer("Ola", "Bez", 3, std::nullopt);
+    addPlayer("Ida", "Druga", 5, std::nullopt, std::nullopt, {Position::Cb});
+    SquadViewModel squad;
+    open(squad);
+
+    const int row = static_cast<int>(lastNames(squad).indexOf(QStringLiteral("Bez")));
+    ASSERT_GE(row, 0);
+    EXPECT_EQ(squad.rowAt(row).value(QStringLiteral("position")).toString(),
+              QStringLiteral("\u2014"));
+    EXPECT_FALSE(squad.rowAt(row).value(QStringLiteral("positionTooltip")).toString().isEmpty());
+
+    squad.sortBy(QStringLiteral("position"), true);
+    EXPECT_EQ(lastNames(squad).mid(4), names({"Bez", "Druga"}));
+    squad.sortBy(QStringLiteral("position"), false);
+    EXPECT_EQ(lastNames(squad).mid(4), names({"Bez", "Druga"}));
+
+    for (const char* group : {"goalkeeper", "midfielder", "forward"}) {
+        squad.setPositionGroup(QString::fromLatin1(group));
+        EXPECT_FALSE(lastNames(squad).contains(QStringLiteral("Bez"))) << group;
+    }
+    // A secondary position still counts.
+    squad.setPositionGroup(kDefenders);
+    EXPECT_EQ(lastNames(squad), names({"Łukasiewicz", "Druga"}));
 }
 
 TEST_F(SquadViewModelTest, OnlyTheDefaultOrderPutsSecondaryPositionsBehind) {

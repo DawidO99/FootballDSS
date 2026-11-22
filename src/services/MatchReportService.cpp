@@ -59,8 +59,10 @@ core::MatchSheet rebuiltSheet(const std::vector<core::Appearance>& appearances,
     std::set<core::PlayerId> listed;
     for (const core::Appearance& appearance : appearances) {
         const auto player = std::ranges::find(squad, appearance.playerId, &core::Player::id);
-        const core::Position fallback =
-            player != squad.end() ? player->primaryPosition : core::Position::Cm;
+        // A sheet needs a position for every starter; CM when the player has none either.
+        const core::Position fallback = player != squad.end()
+                                            ? player->primaryPosition.value_or(core::Position::Cm)
+                                            : core::Position::Cm;
         if (appearance.minuteOn == 0) {
             sheet.starters.push_back({appearance.playerId, appearance.position.value_or(fallback)});
         } else {

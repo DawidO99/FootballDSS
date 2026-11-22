@@ -102,6 +102,20 @@ QVariant SquadFilterModel::data(const QModelIndex& index, int role) const {
     return QSortFilterProxyModel::data(index, role);
 }
 
+namespace {
+
+// A player without a primary position has it in no group (P19).
+bool primaryIn(const core::Player& player, core::PositionGroup group) {
+    return player.primaryPosition && core::positionGroup(*player.primaryPosition) == group;
+}
+
+std::optional<int> positionRank(const core::Player& player) {
+    return player.primaryPosition ? std::optional(static_cast<int>(*player.primaryPosition))
+                                  : std::nullopt;
+}
+
+} // namespace
+
 bool SquadFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex&) const {
     const services::SquadPlayer& entry = source().playerAt(sourceRow);
     const core::Player& player = entry.player;
@@ -113,7 +127,7 @@ bool SquadFilterModel::filterAcceptsRow(int sourceRow, const QModelIndex&) const
             (m_statusGroup == StatusGroup::Available)) {
         return false;
     }
-    if (m_positionGroup && core::positionGroup(player.primaryPosition) != *m_positionGroup &&
+    if (m_positionGroup && !primaryIn(player, *m_positionGroup) &&
         !std::ranges::any_of(player.secondaryPositions, [this](core::Position position) {
             return core::positionGroup(position) == *m_positionGroup;
         })) {
@@ -142,8 +156,8 @@ bool SquadFilterModel::lessThan(const QModelIndex& left, const QModelIndex& righ
     switch (sortRole()) {
     case SquadListModel::NumberRole:
         if (m_positionGroup && sortOrder() == Qt::AscendingOrder) {
-            const bool aPrimary = core::positionGroup(a.player.primaryPosition) == *m_positionGroup;
-            const bool bPrimary = core::positionGroup(b.player.primaryPosition) == *m_positionGroup;
+            const bool aPrimary = primaryIn(a.player, *m_positionGroup);
+            const bool bPrimary = primaryIn(b.player, *m_positionGroup);
             if (aPrimary != bPrimary) {
                 return aPrimary;
             }
@@ -160,7 +174,8 @@ bool SquadFilterModel::lessThan(const QModelIndex& left, const QModelIndex& righ
                                                     QString::fromStdString(b.player.firstName)) < 0;
     }
     case SquadListModel::PositionRole:
-        return a.player.primaryPosition < b.player.primaryPosition;
+        // Players without a position last, in both directions.
+        return compareOptional(positionRank(a.player), positionRank(b.player), false);
     case SquadListModel::StatusRole:
         return statusRank(a) < statusRank(b);
     default:

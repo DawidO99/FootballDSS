@@ -1309,6 +1309,10 @@
         <translation>Cezary Mur nie może zagrać w dniu meczu (status: kontuzjowany).</translation>
     </message>
     <message>
+        <source>Damian Skała has no position given, so the position is not checked.</source>
+        <translation>Damian Skała nie ma podanej pozycji, więc pozycja nie jest sprawdzana.</translation>
+    </message>
+    <message>
         <source>Filip Skrzydło has a high load. A signal to talk to the player.</source>
         <translation>Filip Skrzydło ma wysokie obciążenie. Sygnał do rozmowy z zawodnikiem.</translation>
     </message>
@@ -1792,7 +1796,7 @@
     </message>
     <message>
         <source>Some players have no position in the file. They get this one with a warning; correct it later in Squad.</source>
-        <translation>Część zawodników nie ma pozycji w pliku. Dostaną tę pozycję z ostrzeżeniem; popraw ją później w Kadrze.</translation>
+        <translation type="vanished">Część zawodników nie ma pozycji w pliku. Dostaną tę pozycję z ostrzeżeniem; popraw ją później w Kadrze.</translation>
     </message>
     <message>
         <source>Every player has a position in the file; this one is not used.</source>
@@ -1800,7 +1804,11 @@
     </message>
     <message>
         <source>Choose a position</source>
-        <translation>Wybierz pozycję</translation>
+        <translation type="vanished">Wybierz pozycję</translation>
+    </message>
+    <message>
+        <source>Some players have no position in the file. They get this one, or none with &quot;—&quot;, and a warning; fill it in later in Squad.</source>
+        <translation>Niektórzy zawodnicy nie mają pozycji w pliku. Dostaną tę albo żadnej przy „—”, z ostrzeżeniem; uzupełnij ją później w Kadrze.</translation>
     </message>
     <message>
         <source>Checking the rows… %1%</source>
@@ -5558,7 +5566,7 @@
     </message>
     <message>
         <source>Choose the position of the new players.</source>
-        <translation>Wybierz pozycję nowych zawodników.</translation>
+        <translation type="vanished">Wybierz pozycję nowych zawodników.</translation>
     </message>
     <message>
         <source>The shape is the same as before. Move a player or choose another formation.</source>
@@ -6136,7 +6144,7 @@
     </message>
     <message>
         <source>Some players have no position in the file. Choose the default position.</source>
-        <translation>Część zawodników nie ma pozycji w pliku. Wybierz pozycję domyślną.</translation>
+        <translation type="vanished">Część zawodników nie ma pozycji w pliku. Wybierz pozycję domyślną.</translation>
     </message>
     <message>
         <source>the first name is empty</source>
@@ -6189,6 +6197,10 @@
     <message>
         <source>position set by default — correct it in Squad</source>
         <translation>pozycja ustawiona domyślnie — popraw w Kadrze</translation>
+    </message>
+    <message>
+        <source>position not given — fill it in in Squad</source>
+        <translation>pozycja nie podana — uzupełnij w Kadrze</translation>
     </message>
     <message>
         <source>foot &apos;%1&apos; is unknown, saved as unknown</source>
@@ -6401,6 +6413,10 @@
         <translation>Ostrzeżenie</translation>
     </message>
     <message>
+        <source>Note</source>
+        <translation>Informacja</translation>
+    </message>
+    <message>
         <source>Players in the starting XI: %1 of 11.</source>
         <translation>Zawodnicy w pierwszej jedenastce: %1 z 11.</translation>
     </message>
@@ -6431,6 +6447,10 @@
     <message>
         <source>%1 has yellow cards: %2. One more means a suspension.</source>
         <translation>%1 ma żółte kartki: %2. Kolejna oznacza pauzę.</translation>
+    </message>
+    <message>
+        <source>%1 has no position given, so the position is not checked.</source>
+        <translation>%1 nie ma podanej pozycji, więc pozycja nie jest sprawdzana.</translation>
     </message>
     <message>
         <source>%1 (custom)</source>
@@ -7487,6 +7507,10 @@
         <translation>Inne pozycje</translation>
     </message>
     <message>
+        <source>No position</source>
+        <translation>Bez pozycji</translation>
+    </message>
+    <message>
         <source>The bench is full: at most %1 players.</source>
         <translation>Ławka jest pełna: najwyżej %1 zawodników.</translation>
     </message>
@@ -7528,6 +7552,10 @@
 </context>
 <context>
     <name>fdss::viewmodels::SquadTexts</name>
+    <message>
+        <source>Position not given</source>
+        <translation>Pozycja nie podana</translation>
+    </message>
     <message>
         <source>Goalkeeper</source>
         <translation>Bramkarz</translation>
@@ -7647,6 +7675,10 @@
     <message>
         <source>%1. Secondary: %2</source>
         <translation>%1. Zapasowe: %2</translation>
+    </message>
+    <message>
+        <source>— Not given</source>
+        <translation>— Nie podano</translation>
     </message>
 </context>
 <context>

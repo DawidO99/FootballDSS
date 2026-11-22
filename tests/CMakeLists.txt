@@ -51,6 +51,7 @@ add_executable(fdss_tests
     data/MatchTacticRepositoryTest.cpp
     data/MetricRepositoryTest.cpp
     data/MigrationsTest.cpp
+    data/MigrationUpgradeTest.cpp
     data/OpponentRepositoryTest.cpp
     data/PlayerRepositoryTest.cpp
     data/RepositoryFixture.hpp

@@ -11,6 +11,14 @@ QString SquadTexts::positionCode(core::Position position) {
     return QString::fromUtf8(core::toDbText(position)).toUpper();
 }
 
+QString SquadTexts::positionCode(const std::optional<core::Position>& position) {
+    return position ? positionCode(*position) : QStringLiteral("\u2014");
+}
+
+QString SquadTexts::positionName(const std::optional<core::Position>& position) {
+    return position ? positionName(*position) : tr("Position not given");
+}
+
 QString SquadTexts::positionName(core::Position position) {
     switch (position) {
     case core::Position::Gk:
@@ -141,7 +149,10 @@ QString SquadTexts::positionTooltip(const core::Player& player,
         }
     }
     const QString separator = QStringLiteral(", ");
-    if (activeGroup != core::positionGroup(player.primaryPosition) && !activeNames.isEmpty()) {
+    const std::optional<core::PositionGroup> primaryGroup =
+        player.primaryPosition ? std::optional(core::positionGroup(*player.primaryPosition))
+                               : std::nullopt;
+    if (activeGroup != primaryGroup && !activeNames.isEmpty()) {
         return tr("Secondary position: %1").arg(activeNames.join(separator));
     }
     const QString primary = positionName(player.primaryPosition);
@@ -153,6 +164,13 @@ QVariantList SquadTexts::positionOptions() {
     return optionsOf<core::Position>([](core::Position position) {
         return QStringLiteral("%1 - %2").arg(positionCode(position), positionName(position));
     });
+}
+
+QVariantList SquadTexts::optionalPositionOptions() {
+    QVariantList options{QVariantMap{{QStringLiteral("value"), QString{}},
+                                     {QStringLiteral("text"), tr("— Not given")}}};
+    options.append(positionOptions());
+    return options;
 }
 
 QVariantList SquadTexts::footOptions() { return optionsOf<core::PreferredFoot>(footName); }

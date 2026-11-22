@@ -111,8 +111,6 @@ QString ImportTexts::mappingIssue(core::MappingIssue issue) {
                   "last-name columns, not both.");
     case core::MappingIssue::DuplicateField:
         return tr("Two columns have the same meaning. Set one of them to \"Ignore column\".");
-    case core::MappingIssue::MissingDefaultPosition:
-        return tr("Some players have no position in the file. Choose the default position.");
     }
     return {};
 }
@@ -156,6 +154,8 @@ QString ImportTexts::issue(const core::RowIssue& issue, int currentYear) {
             .arg(value);
     case core::RowIssueKind::DefaultPosition:
         return tr("position set by default — correct it in Squad");
+    case core::RowIssueKind::PositionNotGiven:
+        return tr("position not given — fill it in in Squad");
     case core::RowIssueKind::UnknownFoot:
         return tr("foot '%1' is unknown, saved as unknown").arg(value);
     case core::RowIssueKind::DuplicateInFile:
