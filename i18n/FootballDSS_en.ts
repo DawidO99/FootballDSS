@@ -12,7 +12,19 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>FootballDSS cannot start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Switch to its window, for example from the taskbar. Only one FootballDSS can be open at a time, so that two windows never change the same data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The data folder cannot be written, so FootballDSS cannot make sure that only one copy runs. Check that the folder is not read-only and that the disk is not full, then start FootballDSS again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open data folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

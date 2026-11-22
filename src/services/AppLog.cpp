@@ -38,6 +38,16 @@ QString fileName(const QString& directory, int index) {
     return QDir(directory).filePath(name);
 }
 
+// Opens FootballDSS.log for writing, with Truncate or Append.
+bool openFile(LogState& log, QIODevice::OpenModeFlag mode) {
+    auto file = std::make_unique<QFile>(fileName(log.directory, 0));
+    if (!file->open(QIODevice::WriteOnly | mode | QIODevice::Text)) {
+        return false;
+    }
+    log.file = std::move(file);
+    return true;
+}
+
 // Shifts FootballDSS.log to .1.log and so on, dropping the oldest, and opens a new file. Never
 // logs: a message from here would come back into the handler.
 bool startNewFile(LogState& log) {
@@ -52,12 +62,7 @@ bool startNewFile(LogState& log) {
             QFile::rename(from, fileName(log.directory, index + 1));
         }
     }
-    auto file = std::make_unique<QFile>(fileName(log.directory, 0));
-    if (!file->open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-        return false;
-    }
-    log.file = std::move(file);
-    return true;
+    return openFile(log, QIODevice::Truncate);
 }
 
 const char* typeName(QtMsgType type) {
@@ -104,7 +109,8 @@ void handler(QtMsgType type, const QMessageLogContext& context, const QString& m
 
 } // namespace
 
-core::Status AppLog::install(const QString& directory, int keepFiles, qint64 maxBytes) {
+core::Status AppLog::install(const QString& directory, int keepFiles, qint64 maxBytes,
+                             Start start) {
     LogState& log = state();
     {
         const std::lock_guard lock(log.mutex);
@@ -115,7 +121,9 @@ core::Status AppLog::install(const QString& directory, int keepFiles, qint64 max
         log.directory = directory;
         log.keepFiles = std::max(keepFiles, 1);
         log.maxBytes = std::max<qint64>(maxBytes, 1);
-        if (!startNewFile(log)) {
+        const bool opened =
+            start == Start::Append ? openFile(log, QIODevice::Append) : startNewFile(log);
+        if (!opened) {
             return std::unexpected(
                 core::Error{core::ErrorCode::Io,
                             std::format("cannot open the log file in {}", directory.toStdString()),

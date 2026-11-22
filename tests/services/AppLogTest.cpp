@@ -100,3 +100,21 @@ TEST_F(AppLogTest, AFolderThatCannotBeWrittenIsAnIoError) {
     EXPECT_EQ(installed.error().code, fdss::core::ErrorCode::Io);
     EXPECT_TRUE(AppLog::currentFile().isEmpty());
 }
+
+// P19 review: a refused start adds to the log of the running instance, without rotating it.
+TEST_F(AppLogTest, AppendKeepsTheFileAndRotatesNothing) {
+    ASSERT_TRUE(m_dir.isValid());
+    ASSERT_TRUE(AppLog::install(m_dir.path()).has_value());
+    qInfo("from the running instance");
+    AppLog::uninstall();
+
+    ASSERT_TRUE(
+        AppLog::install(m_dir.path(), AppLog::kKeepFiles, AppLog::kMaxBytes, AppLog::Start::Append)
+            .has_value());
+    qCritical("start refused");
+
+    EXPECT_EQ(logFiles(), QStringList{QStringLiteral("FootballDSS.log")});
+    const QString text = read(QStringLiteral("FootballDSS.log"));
+    EXPECT_TRUE(text.contains(QStringLiteral("from the running instance")));
+    EXPECT_TRUE(text.contains(QStringLiteral("start refused")));
+}

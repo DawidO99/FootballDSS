@@ -3,7 +3,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import FootballDSS
 
-// Loaded instead of Main when FootballDSS is already running (P19), so it opens its own window.
+// Loaded instead of Main when the start is refused (P19), so it opens its own window: another
+// FootballDSS is running, or the lock file in the data folder cannot be written, so nothing could
+// tell a second start.
 ApplicationWindow {
     id: window
 
@@ -26,14 +28,15 @@ ApplicationWindow {
             spacing: Theme.spacing.m
 
             Icon {
-                name: "info"
-                color: Theme.info
+                name: StartupViewModel.otherInstanceRunning ? "info" : "danger"
+                color: StartupViewModel.otherInstanceRunning ? Theme.info : Theme.danger
                 size: Theme.fontSize.h1
             }
 
             Label {
+                objectName: "refusalTitle"
                 Layout.fillWidth: true
-                text: qsTr("FootballDSS is already running")
+                text: StartupViewModel.otherInstanceRunning ? qsTr("FootballDSS is already running") : qsTr("FootballDSS cannot start")
                 textFormat: Text.PlainText
                 color: Theme.text
                 font.pixelSize: Theme.fontSize.h1
@@ -43,8 +46,9 @@ ApplicationWindow {
         }
 
         Label {
+            objectName: "refusalMessage"
             Layout.fillWidth: true
-            text: qsTr("Switch to its window, for example from the taskbar. Only one FootballDSS can be open at a time, so that two windows never change the same data.")
+            text: StartupViewModel.otherInstanceRunning ? qsTr("Switch to its window, for example from the taskbar. Only one FootballDSS can be open at a time, so that two windows never change the same data.") : qsTr("The data folder cannot be written, so FootballDSS cannot make sure that only one copy runs. Check that the folder is not read-only and that the disk is not full, then start FootballDSS again.")
             textFormat: Text.PlainText
             color: Theme.text
             wrapMode: Text.WordWrap
@@ -54,11 +58,21 @@ ApplicationWindow {
             Layout.fillHeight: true
         }
 
-        PrimaryButton {
+        RowLayout {
             Layout.alignment: Qt.AlignRight
-            focus: true
-            text: qsTr("OK")
-            onClicked: Qt.quit()
+            spacing: Theme.spacing.m
+
+            SecondaryButton {
+                visible: !StartupViewModel.otherInstanceRunning
+                text: qsTr("Open data folder")
+                onClicked: StartupViewModel.openDataFolder()
+            }
+
+            PrimaryButton {
+                focus: true
+                text: qsTr("OK")
+                onClicked: Qt.quit()
+            }
         }
     }
 }

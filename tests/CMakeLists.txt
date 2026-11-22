@@ -128,6 +128,7 @@ add_executable(fdss_vm_tests
     viewmodels/SetupWizardViewModelTest.cpp
     viewmodels/SquadViewModelTest.cpp
     viewmodels/StaffListModelTest.cpp
+    viewmodels/StartupViewModelTest.cpp
     viewmodels/StaffViewModelTest.cpp
     viewmodels/TeamSettingsViewModelTest.cpp
     viewmodels/TrainingSessionViewModelTest.cpp

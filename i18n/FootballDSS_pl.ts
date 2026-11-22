@@ -12,8 +12,20 @@
         <translation>FootballDSS już działa</translation>
     </message>
     <message>
+        <source>FootballDSS cannot start</source>
+        <translation>Nie można uruchomić FootballDSS</translation>
+    </message>
+    <message>
         <source>Switch to its window, for example from the taskbar. Only one FootballDSS can be open at a time, so that two windows never change the same data.</source>
         <translation>Przejdź do jego okna, na przykład z paska zadań. Naraz może być otwarty tylko jeden FootballDSS, aby dwa okna nigdy nie zmieniały tych samych danych.</translation>
+    </message>
+    <message>
+        <source>The data folder cannot be written, so FootballDSS cannot make sure that only one copy runs. Check that the folder is not read-only and that the disk is not full, then start FootballDSS again.</source>
+        <translation>Nie można zapisywać w folderze danych, więc FootballDSS nie może zapewnić, że działa tylko jedna kopia. Sprawdź, czy folder nie jest tylko do odczytu i czy dysk nie jest pełny, a potem uruchom FootballDSS ponownie.</translation>
+    </message>
+    <message>
+        <source>Open data folder</source>
+        <translation>Otwórz folder danych</translation>
     </message>
     <message>
         <source>OK</source>
