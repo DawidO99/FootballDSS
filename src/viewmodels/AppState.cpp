@@ -61,6 +61,8 @@ qint64 AppState::teamId() const { return m_teamId; }
 
 int AppState::sessionSerial() const { return m_sessionSerial; }
 
+QString AppState::unavailableMessage() const { return m_unavailableMessage; }
+
 bool AppState::can(const QString& permission) const {
     const auto parsed = core::permissionFromName(permission.toStdString());
     if (!parsed) {
@@ -86,8 +88,12 @@ void AppState::refresh() {
     } else if (m_state == State::Ready || m_state == State::NeedsPinChange) {
         state = user ? loggedIn : State::NeedsLogin;
     }
-    const bool stateDiffers = state != m_state;
+    const QString unavailableMessage = state == State::Unavailable && !club
+                                           ? ErrorPresenter::startupMessage(club.error().code)
+                                           : QString{};
+    const bool stateDiffers = state != m_state || unavailableMessage != m_unavailableMessage;
     m_state = state;
+    m_unavailableMessage = unavailableMessage;
 
     const QString userName = user ? QString::fromStdString(user->name) : QString{};
     const std::optional<core::Role> role =
@@ -127,7 +133,12 @@ void AppState::refresh() {
         }
     }
     if (!club) {
-        report(club.error());
+        if (m_state == State::Unavailable) {
+            // The screen of this state shows the message; a toast would repeat it.
+            qCritical("AppState: %s", club.error().detail.c_str());
+        } else {
+            report(club.error());
+        }
     }
 }
 

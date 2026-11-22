@@ -230,6 +230,23 @@ ApplicationWindow {
         sourceComponent: forcedPinChangeView
     }
 
+    // P19: the database opened but its first read failed; never the wizard, the club may exist.
+    Loader {
+        id: unavailableLoader
+
+        anchors.fill: parent
+        active: AppState.state === AppState.Unavailable
+        visible: !window.spikeChartsOpen && !window.componentGalleryOpen
+        focus: active
+        sourceComponent: DatabaseErrorPanel {
+            message: AppState.unavailableMessage
+            canRetry: true
+            onRetryRequested: AppState.refresh()
+            onOpenFolderRequested: StartupViewModel.openDataFolder()
+            onQuitRequested: Qt.quit()
+        }
+    }
+
     Shortcut {
         sequence: "Ctrl+Shift+G"
         onActivated: {

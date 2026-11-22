@@ -357,3 +357,33 @@ TEST_F(AppStateTest, LoggingOutDuringThePinChangeNeedsLogin) {
 
     EXPECT_EQ(state.state(), State::NeedsLogin);
 }
+
+TEST_F(AppStateTest, AFailedFirstReadIsUnavailableNotTheWizard) {
+    completeSetup();
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE team RENAME TO team_gone"), "break").has_value());
+
+    AppState state;
+    QString toast;
+    QObject::connect(&state, &AppState::errorOccurred, &state,
+                     [&](const QString& text) { toast = text; });
+    int stateChanges = 0;
+    QObject::connect(&state, &AppState::stateChanged, &state, [&] { ++stateChanges; });
+
+    EXPECT_EQ(state.state(), State::Unavailable);
+    EXPECT_FALSE(state.unavailableMessage().isEmpty());
+    EXPECT_FALSE(state.unavailableMessage().contains(QLatin1StringView("team")));
+
+    state.refresh();
+    EXPECT_EQ(state.state(), State::Unavailable);
+    EXPECT_TRUE(toast.isEmpty());
+    EXPECT_EQ(stateChanges, 0);
+
+    ASSERT_TRUE(
+        m_db->execSql(QStringLiteral("ALTER TABLE team_gone RENAME TO team"), "mend").has_value());
+    state.refresh();
+
+    EXPECT_EQ(state.state(), State::Ready);
+    EXPECT_TRUE(state.unavailableMessage().isEmpty());
+    EXPECT_EQ(stateChanges, 1);
+}

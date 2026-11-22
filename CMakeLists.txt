@@ -50,6 +50,7 @@ qt_add_qml_module(fdss_ui
         ui/components/DangerButton.qml
         ui/components/DashboardCard.qml
         ui/components/DashboardRow.qml
+        ui/components/DatabaseErrorPanel.qml
         ui/components/DataTable.qml
         ui/components/DataTableCell.qml
         ui/components/DateField.qml

@@ -1113,6 +1113,30 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>DatabaseErrorPanel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample explanation of the error, with the next step.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sample path of the database file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Try again pressed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Open data folder pressed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Quit pressed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Dashboard: DashboardCard, DashboardRow, LockedState</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1424,9 +1448,9 @@
     </message>
 </context>
 <context>
-    <name>DatabaseErrorView</name>
+    <name>DatabaseErrorPanel</name>
     <message>
-        <source>FootballDSS</source>
+        <source>The database could not be read</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1438,11 +1462,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Try again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Open data folder</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Quit</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>DatabaseErrorView</name>
+    <message>
+        <source>FootballDSS</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

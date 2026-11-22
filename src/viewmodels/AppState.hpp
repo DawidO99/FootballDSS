@@ -32,10 +32,14 @@ class AppState : public QObject {
     // Changes with every login and logout, also when one user logs in over another and the state
     // stays Ready. Main.qml builds the shell anew on it.
     Q_PROPERTY(int sessionSerial READ sessionSerial NOTIFY sessionSerialChanged FINAL)
+    // Why the database cannot be read; empty unless the state is Unavailable.
+    Q_PROPERTY(QString unavailableMessage READ unavailableMessage NOTIFY stateChanged FINAL)
 
 public:
+    // Unavailable: the database has not been read yet, because the first read failed; a failed
+    // read is no sign that there is no club, so it never leads to the wizard (P19).
     // NeedsPinChange: logged in with a PIN a Coach chose; the user sets their own first (P19).
-    enum class State { NeedsSetup, NeedsLogin, NeedsPinChange, Ready };
+    enum class State { Unavailable, NeedsSetup, NeedsLogin, NeedsPinChange, Ready };
     Q_ENUM(State)
 
     explicit AppState(QObject* parent = nullptr);
@@ -48,6 +52,7 @@ public:
     [[nodiscard]] QString teamName() const;
     [[nodiscard]] qint64 teamId() const;
     [[nodiscard]] int sessionSerial() const;
+    [[nodiscard]] QString unavailableMessage() const;
 
     // `permission` is the name of a core Permission. An unknown name is reported and gives false.
     // A binding on this does not update by itself. It holds in a section view because Main.qml
@@ -57,8 +62,9 @@ public:
     Q_INVOKABLE void logout();
     // Re-reads the state after setup, login or a change of staff. When the database cannot be read,
     // emits errorOccurred and keeps the state, since a failed read does not mean that there is no
-    // club; only Ready and NeedsPinChange go without a session, which lives in memory. All values
-    // are in place before the first signal.
+    // club; only Ready and NeedsPinChange go without a session, which lives in memory. In the
+    // state Unavailable a failed read sets unavailableMessage instead of emitting errorOccurred.
+    // All values are in place before the first signal.
     Q_INVOKABLE void refresh();
     // For a message that the next session change would dismiss with every other toast, as the
     // first login after the setup does: errorOccurred brings it right after sessionSerialChanged.
@@ -84,7 +90,8 @@ private:
     services::Session& m_session;
     services::SetupService& m_setup;
 
-    State m_state = State::NeedsSetup;
+    State m_state = State::Unavailable;
+    QString m_unavailableMessage;
     QString m_userName;
     std::optional<core::Role> m_role;
     QString m_clubName;

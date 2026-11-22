@@ -2216,6 +2216,66 @@ void exerciseLogoutOnUnreadableDatabase(QQmlApplicationEngine& engine,
     }
 }
 
+// P19 item 4: a database that opens but cannot be read at startup shows the error panel, not the
+// wizard; "Try again" goes on once it can be read.
+void exerciseUnavailableAtStartup(QQmlApplicationEngine& engine,
+                                  fdss::data::DatabaseManager& database) {
+    if (const auto broken = database.execSql(QStringLiteral("ALTER TABLE team RENAME TO team_gone"),
+                                             "break the database");
+        !broken) {
+        fail("cannot break the database");
+        return;
+    }
+    {
+        const std::lock_guard lock(g_messagesMutex);
+        g_expectedCritical = "no such table: team";
+        g_expectedCriticalCount = 0;
+    }
+    engine.loadFromModule(QStringLiteral("FootballDSS"), QStringLiteral("Main"));
+    settle();
+    {
+        const std::lock_guard lock(g_messagesMutex);
+        g_expectedCritical = nullptr;
+        if (g_expectedCriticalCount == 0) {
+            fail("the failed first read was not logged");
+        }
+    }
+    if (engine.rootObjects().isEmpty()) {
+        fail("Main.qml did not load");
+        return;
+    }
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    if (appState->state() != AppState::State::Unavailable) {
+        fail("a failed first read is not the state Unavailable");
+    }
+    if (window->property("setupWizard").value<QQuickItem*>() != nullptr) {
+        fail("a failed first read shows the setup wizard");
+    }
+    QQuickItem* panel = findQmlItem(window->contentItem(), "DatabaseErrorPanel");
+    if (panel == nullptr || !panel->isVisible()) {
+        fail("a failed first read does not show the error panel");
+        return;
+    }
+    if (panel->property("message").toString().isEmpty()) {
+        fail("the error panel has no message");
+    }
+
+    if (const auto mended = database.execSql(QStringLiteral("ALTER TABLE team_gone RENAME TO team"),
+                                             "mend the database");
+        !mended) {
+        fail("cannot mend the database");
+        return;
+    }
+    QMetaObject::invokeMethod(panel, "retryRequested");
+    settle();
+    if (appState->state() != AppState::State::Ready ||
+        window->property("shell").value<QQuickItem*>() == nullptr) {
+        fail("Try again after the database was mended does not open the app");
+    }
+}
+
 // A fresh engine creates fresh singletons, which must read the preferences back from QSettings.
 void verifyPreferencesSurviveRestart(const UiPreferences& expected) {
     QQmlEngine engine;
@@ -7248,6 +7308,19 @@ int main(int argc, char* argv[]) {
             {
                 QQmlApplicationEngine engine;
                 exerciseTraining(engine, screenshotDirectory);
+            }
+            settle();
+            ServiceRegistry::reset();
+        }
+        if (onlyOne) {
+            // Not this one.
+        } else if (fdss::data::DatabaseManager* database = installRegistry(AppState::State::Ready);
+                   database == nullptr) {
+            fail("cannot install the service registry");
+        } else {
+            {
+                QQmlApplicationEngine engine;
+                exerciseUnavailableAtStartup(engine, *database);
             }
             settle();
             ServiceRegistry::reset();

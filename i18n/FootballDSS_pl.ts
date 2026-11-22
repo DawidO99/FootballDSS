@@ -1121,6 +1121,30 @@
         <translation>Dodaj trening</translation>
     </message>
     <message>
+        <source>DatabaseErrorPanel</source>
+        <translation>DatabaseErrorPanel</translation>
+    </message>
+    <message>
+        <source>Sample explanation of the error, with the next step.</source>
+        <translation>Przykładowe wyjaśnienie błędu z kolejnym krokiem.</translation>
+    </message>
+    <message>
+        <source>Sample path of the database file</source>
+        <translation>Przykładowa ścieżka pliku bazy danych</translation>
+    </message>
+    <message>
+        <source>Try again pressed</source>
+        <translation>Naciśnięto Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>Open data folder pressed</source>
+        <translation>Naciśnięto Otwórz folder danych</translation>
+    </message>
+    <message>
+        <source>Quit pressed</source>
+        <translation>Naciśnięto Zakończ</translation>
+    </message>
+    <message>
         <source>Dashboard: DashboardCard, DashboardRow, LockedState</source>
         <translation>Pulpit: DashboardCard, DashboardRow, LockedState</translation>
     </message>
@@ -1444,10 +1468,10 @@
     </message>
 </context>
 <context>
-    <name>DatabaseErrorView</name>
+    <name>DatabaseErrorPanel</name>
     <message>
-        <source>FootballDSS</source>
-        <translation>FootballDSS</translation>
+        <source>The database could not be read</source>
+        <translation>Nie można odczytać bazy danych</translation>
     </message>
     <message>
         <source>The database could not be opened</source>
@@ -1458,12 +1482,39 @@
         <translation>Plik bazy danych</translation>
     </message>
     <message>
+        <source>Try again</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
         <source>Open data folder</source>
         <translation>Otwórz folder danych</translation>
     </message>
     <message>
         <source>Quit</source>
         <translation>Zakończ</translation>
+    </message>
+</context>
+<context>
+    <name>DatabaseErrorView</name>
+    <message>
+        <source>FootballDSS</source>
+        <translation>FootballDSS</translation>
+    </message>
+    <message>
+        <source>The database could not be opened</source>
+        <translation type="vanished">Nie można otworzyć bazy danych</translation>
+    </message>
+    <message>
+        <source>Database file</source>
+        <translation type="vanished">Plik bazy danych</translation>
+    </message>
+    <message>
+        <source>Open data folder</source>
+        <translation type="vanished">Otwórz folder danych</translation>
+    </message>
+    <message>
+        <source>Quit</source>
+        <translation type="vanished">Zakończ</translation>
     </message>
 </context>
 <context>

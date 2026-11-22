@@ -1677,6 +1677,24 @@ Item {
                     }
                 }
 
+                // P19: the read error at startup, as Main.qml shows it.
+                Card {
+                    Layout.fillWidth: true
+                    Layout.columnSpan: 2
+                    title: qsTr("DatabaseErrorPanel")
+
+                    DatabaseErrorPanel {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: implicitHeight
+                        message: qsTr("Sample explanation of the error, with the next step.")
+                        databasePath: qsTr("Sample path of the database file")
+                        canRetry: true
+                        onRetryRequested: Toasts.info(qsTr("Try again pressed"))
+                        onOpenFolderRequested: Toasts.info(qsTr("Open data folder pressed"))
+                        onQuitRequested: Toasts.info(qsTr("Quit pressed"))
+                    }
+                }
+
                 // Dashboard (P15): a card in its three states and the locked state of a section.
                 Card {
                     objectName: "galleryDashboard"
