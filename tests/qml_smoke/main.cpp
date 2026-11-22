@@ -6727,6 +6727,34 @@ void exerciseMetrics(QQmlApplicationEngine& engine, const QString& screenshotDir
         grabOrSave(window, screenshotDirectory, QStringLiteral("metrics-player-card.png"));
     }
 
+    // Settings -> Metrics -> Settings: the card reads the list again when it is shown, so clearing
+    // every value in Metrics unlocks Delete (review of P17).
+    navigation->activate(QStringLiteral("settings"));
+    settle();
+    auto* table = card->property("table").value<QQuickItem*>();
+    table->setProperty("currentIndex", 0);
+    settle();
+    expectFlag(inCard("deleteMetricButton"), "enabled", false,
+               "a metric with values can be deleted");
+    navigation->activate(QStringLiteral("metrics"));
+    settle();
+    for (const qint64 session : {qint64{earlierSession->value}, qint64{today->value}}) {
+        entry->openSession(session);
+        for (int row = 0; row < entry->count(); ++row) {
+            entry->clearValue(row);
+        }
+        if (entry->dirty() && !entry->save()) {
+            fail("the values of the metric could not be cleared");
+        }
+    }
+    navigation->activate(QStringLiteral("settings"));
+    settle();
+    if (card->property("selectionHasValues").toBool() || definitions->isLocked(metric.value)) {
+        fail("the settings still count the cleared values");
+    }
+    expectFlag(inCard("deleteMetricButton"), "enabled", true,
+               "Delete stays off after every value was cleared in Metrics");
+
     // The Physio reads the values and changes nothing.
     const fdss::core::StaffUserId coach = registry.session().user()->id;
     const auto physio = addSmokeStaff("Piotr Fizjo", fdss::core::Role::Physio);

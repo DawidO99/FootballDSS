@@ -112,6 +112,15 @@ Rectangle {
                     font.pixelSize: Theme.fontSize.caption
                     elide: Text.ElideRight
                 }
+
+                // Back to "not entered" with the mouse too; Delete is the shortcut on the box.
+                IconButton {
+                    objectName: "metricClearButton_" + root.index
+                    iconName: "close"
+                    text: qsTr("Clear (Delete)")
+                    enabled: root.hasValue && !root.grid.readOnly
+                    onClicked: root.grid.valueCleared(root.index)
+                }
             }
         }
 

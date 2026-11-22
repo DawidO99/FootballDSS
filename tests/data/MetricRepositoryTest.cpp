@@ -180,24 +180,43 @@ TEST_F(MetricRepositoryTest, FailedSaveChangesNothing) {
     EXPECT_EQ(missing.error().code, ErrorCode::NotFound);
 }
 
-TEST_F(MetricRepositoryTest, PlayerValuesAreOldestFirstWithTheDateOfTheirSession) {
+TEST_F(MetricRepositoryTest, PlayerValuesAreOldestFirst) {
     const MetricDefinitionId id = create(sprint(), "sprint_30_m");
     save(id, kDay, kDay, {{kPlayer, 4.2}});
     save(id, kSession, kSessionDate, {{kPlayer, 4.3}});
     save(id, kMatch, kMatchDate, {{kPlayer, 4.4}, {kOtherPlayer, 5.0}});
 
-    auto values = repository().listPlayerValues(kPlayer);
+    const auto values = repository().listPlayerValues(kPlayer);
     ASSERT_TRUE(values.has_value());
     ASSERT_EQ(values->size(), 3U);
     EXPECT_EQ(values->at(0).value, 4.4);
     EXPECT_EQ(values->at(1).value, 4.3);
     EXPECT_EQ(values->at(2).value, 4.2);
+}
+
+// P17 decision 8: a value of a session or a match is read with the current date of that session or
+// match, whatever date was stored with it; only a value of scope player keeps its own date.
+TEST_F(MetricRepositoryTest, ValueIsDatedByItsSessionOrMatchWhenRead) {
+    const MetricDefinitionId id = create(sprint(), "sprint_30_m");
+    save(id, kSession, kSessionDate, {{kPlayer, 4.3}});
+    save(id, kMatch, kMatchDate, {{kPlayer, 4.4}});
+    save(id, kDay, kDay, {{kPlayer, 4.2}});
 
     ASSERT_TRUE(sql("UPDATE training_session SET date = '2026-11-20' WHERE id = 1"));
-    values = repository().listPlayerValues(kPlayer);
+    ASSERT_TRUE(sql("UPDATE match SET date = '2026-11-21' WHERE id = 1"));
+    EXPECT_EQ(count("SELECT count(*) FROM metric_value WHERE date = '2026-11-02'"), 1)
+        << "the stored date stays as it was entered";
+
+    const auto values = repository().listPlayerValues(kPlayer);
     ASSERT_TRUE(values.has_value());
-    EXPECT_EQ(values->back().value, 4.3) << "the value moves with its session";
-    EXPECT_EQ(values->back().date, 2026y / November / 20d);
+    ASSERT_EQ(values->size(), 3U);
+    EXPECT_EQ(values->at(0).value, 4.2);
+    EXPECT_EQ(values->at(0).date, kDay) << "scope player keeps its own date";
+    EXPECT_EQ(values->at(1).value, 4.3);
+    EXPECT_EQ(values->at(1).date, 2026y / November / 20d) << "the date of the moved session";
+    EXPECT_EQ(values->at(2).value, 4.4);
+    EXPECT_EQ(values->at(2).date, 2026y / November / 21d) << "the date of the moved match";
+    EXPECT_EQ(repository().listValues(id, kSession)->front().date, 2026y / November / 20d);
 }
 
 } // namespace

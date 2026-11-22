@@ -329,11 +329,23 @@ bool MetricEntryViewModel::save() {
             tr("Some values are not valid. Correct the marked rows and save again."));
         return false;
     }
-    m_dirty = false;
+    // What the database holds now. updateDirty() emits dirtyChanged, so the badge, Save and the
+    // leave guard follow at once, also when reading the grid again fails below.
+    for (Row& row : m_rows) {
+        bool ok = true;
+        row.stored = parsed(row, ok);
+    }
+    updateDirty();
+    // The cell that has the focus keeps Esc: it now goes back to the saved text.
+    const std::optional<int> rememberedRow =
+        m_remembered ? std::optional(m_remembered->first) : std::nullopt;
     core::Error failure;
     if (!loadSheet(*m_target, failure)) {
         // Saved, but the grid cannot show it: the view offers to read again.
         setLoadFailure(failure);
+    }
+    if (rememberedRow && *rememberedRow < rowCount()) {
+        rememberCell(*rememberedRow);
     }
     // The value counts of the definitions changed.
     refreshLists();

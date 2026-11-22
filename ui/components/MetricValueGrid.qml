@@ -27,7 +27,8 @@ FocusScope {
     property bool readOnly: false
     readonly property int count: rows.count
     readonly property int numberWidth: Theme.controlHeight
-    readonly property int valueWidth: 4 * Theme.controlHeight
+    // A yes/no cell holds the box, its word and the clear button.
+    readonly property int valueWidth: (root.boolean ? 6 : 4) * Theme.controlHeight
 
     signal valueEdited(int row, string text)
     signal checkToggled(int row, bool checked)

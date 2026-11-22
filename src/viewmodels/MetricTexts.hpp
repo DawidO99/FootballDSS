@@ -31,9 +31,10 @@ public:
     // Only those core::isAllowed() for the type.
     [[nodiscard]] static QVariantList aggregationOptions(core::MetricValueType type);
 
-    // With the decimal separator of the app language and at most `maxDecimals` decimals, without
-    // trailing zeros: 4,35 and 12.
-    [[nodiscard]] static QString number(double value, int maxDecimals = kValueDecimals);
+    // With the decimal separator of the app language, without trailing zeros: 4,35 and 12. By
+    // default the shortest text that reads back as the same double (4,1234567 stays so), otherwise
+    // rounded to at most `maxDecimals` decimals.
+    [[nodiscard]] static QString number(double value, int maxDecimals = kShortest);
     // One stored value, without the unit: a number, or Yes / No.
     [[nodiscard]] static QString value(const core::MetricDefinitionDraft& metric, double value);
     // What the entry cell holds for a stored value: the number as it would be typed, "1" / "0".
@@ -55,7 +56,8 @@ public:
     // The limit as the dialog shows it; empty for no limit.
     [[nodiscard]] static QString limitText(const std::optional<double>& limit);
 
-    static constexpr int kValueDecimals = 6;
+    // number(): the shortest text that reads back exactly.
+    static constexpr int kShortest = -1;
     static constexpr int kAggregateDecimals = 2;
 };
 

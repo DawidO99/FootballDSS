@@ -2,6 +2,7 @@
 
 #include "viewmodels/QmlValues.hpp"
 
+#include <QLocale>
 #include <QVariantMap>
 
 #include <cmath>
@@ -88,7 +89,8 @@ QVariantList MetricTexts::aggregationOptions(core::MetricValueType type) {
 }
 
 QString MetricTexts::number(double value, int maxDecimals) {
-    QString text = QString::number(value, 'f', maxDecimals);
+    QString text = QString::number(
+        value, 'f', maxDecimals == kShortest ? QLocale::FloatingPointShortest : maxDecimals);
     if (text.contains(u'.')) {
         while (text.endsWith(u'0')) {
             text.chop(1);

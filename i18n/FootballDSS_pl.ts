@@ -2907,6 +2907,10 @@
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
+    <message>
+        <source>Clear (Delete)</source>
+        <translation>Wyczyść (Delete)</translation>
+    </message>
 </context>
 <context>
     <name>MetricsView</name>

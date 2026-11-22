@@ -411,10 +411,86 @@ TEST_F(MetricViewModelsTest, PlayerCardShowsLatestWindowAndTrend) {
     EXPECT_EQ(other.count(), 0);
 }
 
+TEST_F(MetricViewModelsTest, ValueKeepsItsPrecisionThroughSaveAndReadAgain) {
+    const MetricDefinitionId metric = addSprint();
+    const PlayerId player = addPlayer("Jan", "Kowalski", 7);
+    const TrainingSessionId session = addSession(kToday);
+    auto entry = makeEntry();
+    entry->setValueText(0, QStringLiteral("4,1234567"));
+    ASSERT_TRUE(entry->save());
+    EXPECT_FALSE(entry->dirty()) << "the saved text reads back as the same value";
+    EXPECT_FALSE(entry->canSave());
+    const QString shown = value(*entry, 0, MetricEntryViewModel::ValueTextRole).toString();
+    EXPECT_EQ(shown, MetricTexts::number(4.1234567));
+    EXPECT_TRUE(shown.endsWith(QStringLiteral("1234567")));
+
+    // Read again in a new grid, and saved again without a change: the value stays.
+    auto again = makeEntry();
+    EXPECT_FALSE(again->dirty());
+    ASSERT_TRUE(again->save() || !again->canSave());
+    const auto stored = registry().metrics().sheet(metric, m_team, session);
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_EQ(stored->rows.front().player.id, player);
+    EXPECT_EQ(stored->rows.front().value, 4.1234567);
+}
+
+TEST_F(MetricViewModelsTest, LimitsKeepTheirPrecisionThroughTheDialog) {
+    MetricDefinitionsViewModel definitions;
+    QVariantMap form = sprintForm();
+    form.insert(QStringLiteral("minText"), QStringLiteral("3,1234567"));
+    form.insert(QStringLiteral("maxText"), QStringLiteral("10,7654321"));
+    ASSERT_TRUE(definitions.add(form));
+    QVariantMap row = definitions.definitions()->rowAt(0);
+    const qint64 id = row.value(QStringLiteral("metricId")).toLongLong();
+
+    // The dialog fills the form from the row; saving it unchanged keeps the limits exactly.
+    form.insert(QStringLiteral("minText"), row.value(QStringLiteral("minText")));
+    form.insert(QStringLiteral("maxText"), row.value(QStringLiteral("maxText")));
+    ASSERT_TRUE(definitions.update(id, form));
+    const auto stored = registry().metrics().definition(MetricDefinitionId{id});
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_EQ(stored->min, 3.1234567);
+    EXPECT_EQ(stored->max, 10.7654321);
+}
+
+TEST_F(MetricViewModelsTest, SaveTellsTheViewThatNothingIsLeftToSave) {
+    addSprint();
+    addPlayer("Jan", "Kowalski", 7);
+    addSession(kToday);
+    auto entry = makeEntry();
+    entry->setValueText(0, QStringLiteral("4,3"));
+    ASSERT_TRUE(entry->dirty());
+    const SignalCount dirtyChanged(entry.get(), &MetricEntryViewModel::dirtyChanged);
+    ASSERT_TRUE(entry->save());
+    EXPECT_GE(dirtyChanged.count(), 1) << "the badge, Save and the leave guard read dirty";
+    EXPECT_FALSE(entry->dirty());
+    EXPECT_FALSE(entry->canSave());
+}
+
+TEST_F(MetricViewModelsTest, EscWorksAfterASaveInTheSameCell) {
+    addSprint();
+    addPlayer("Jan", "Kowalski", 7);
+    addSession(kToday);
+    auto entry = makeEntry();
+    entry->rememberCell(0);
+    entry->setValueText(0, QStringLiteral("4,3"));
+    ASSERT_TRUE(entry->save());
+    const QString saved = value(*entry, 0, MetricEntryViewModel::ValueTextRole).toString();
+
+    // The focus stayed in the cell: no rememberCell() again.
+    entry->setValueText(0, QStringLiteral("5"));
+    ASSERT_TRUE(entry->dirty());
+    entry->revertCell(0);
+    EXPECT_EQ(value(*entry, 0, MetricEntryViewModel::ValueTextRole).toString(), saved);
+    EXPECT_FALSE(entry->dirty()) << "Esc goes back to the saved value";
+}
+
 TEST_F(MetricViewModelsTest, NumbersHaveNoTrailingZeros) {
     EXPECT_EQ(MetricTexts::number(12.0), QStringLiteral("12"));
     EXPECT_EQ(MetricTexts::number(-0.0), QStringLiteral("0"));
     EXPECT_EQ(MetricTexts::number(4.40, 2), MetricTexts::number(4.4));
+    EXPECT_EQ(MetricTexts::number(0.1), MetricTexts::number(0.1, 1));
+    EXPECT_EQ(MetricTexts::number(123456789012345.0), QStringLiteral("123456789012345"));
     EXPECT_EQ(MetricTexts::number(4.4444, 2), MetricTexts::number(4.44));
 }
 

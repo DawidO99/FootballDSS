@@ -64,9 +64,18 @@ This is the "universal from B-klasa to pro" mechanism for data the app does not 
 6. Boolean metrics allow only `sum` (count of "yes"), `avg` (share) and `last`.
 7. The entry grid lists every non-archived player of the team (no attendance/appearance filter). An empty
    cell means no value; saving it deletes the stored one. Players not in the grid keep their values.
-8. Player card window: today − 27 … today inclusive, by `metric_value.date`. "Previous value" is the
-   value before the latest one (by date, then id), also from before the window. No sparkline.
+8. Player card window: today − 27 … today inclusive. The date of a value is read as the current date of
+   its session or match (`metric_value.date` only for scope player): moving a session in the calendar
+   corrects the date of its measurements, and a session moved into the future drops out of the
+   summary until its day. "Previous value" is the value before the latest one (by date, then id),
+   also from before the window. No sparkline. (Updated after the review.)
 9. The missing language of a name is stored as an empty string; display falls back to the other name.
 10. Deleting a definition (only without values) shows the 10 s Undo toast; undo recreates it with the
     same key.
 11. Every role reads: the definitions card in Settings is visible read-only without `ManageMetrics`.
+12. Scope extension (review): `src/data/repositories/RepositorySupport.*` gets `RowReader::real()` /
+    `optionalReal()` and `optionalRealValue()`: the first REAL columns read by a repository
+    (`metric_value.value`, `metric_definition.min/max`).
+13. Values and limits are shown in the shortest text that reads back as the same number
+    (`QLocale::FloatingPointShortest`), with the decimal separator of the app language: reading and
+    saving again never changes a value.

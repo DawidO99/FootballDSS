@@ -320,4 +320,21 @@ TEST_F(MetricServiceTest, SummaryWithoutValuesInTheWindow) {
     EXPECT_EQ(summary->front().windowCount, 0);
 }
 
+// P17 decision 8: moving a session into the future takes its value out of the summary until its
+// day.
+TEST_F(MetricServiceTest, SessionMovedIntoTheFutureLeavesTheSummary) {
+    logInAs(Role::Coach);
+    const MetricDefinitionId id = add(sprint());
+    moveTodayTo(kSessionDay);
+    save(id, kSession, {{kPlayer, 4.3}});
+    ASSERT_EQ(m_service->playerSummary(kPlayer)->size(), 1U);
+
+    ASSERT_TRUE(sql("UPDATE training_session SET date = '2026-11-09' WHERE id = 1"));
+    EXPECT_TRUE(m_service->playerSummary(kPlayer)->empty());
+    moveTodayTo(2026y / November / 9d);
+    const auto summary = m_service->playerSummary(kPlayer);
+    ASSERT_EQ(summary->size(), 1U);
+    EXPECT_EQ(summary->front().latestDate, 2026y / November / 9d);
+}
+
 } // namespace

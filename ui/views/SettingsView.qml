@@ -158,6 +158,25 @@ Item {
                 metricsSection.selectedMetric = metricDefinitions.definitions.rowAt(metricsTable.currentIndex);
             }
 
+            // All views stay loaded, and the Metrics section may have added or cleared values since:
+            // the locks of Delete, type and scope come from them.
+            Connections {
+                target: root
+
+                function onVisibleChanged() {
+                    if (root.visible)
+                        metricsSection.reload();
+                }
+            }
+
+            // Reads the list again; the same metric stays selected.
+            function reload() {
+                const id = metricsSection.selectedMetric.metricId ?? 0;
+                metricDefinitions.reload();
+                metricsTable.currentIndex = metricDefinitions.definitions.rowOf(id);
+                metricsSection.syncSelection();
+            }
+
             function editSelected() {
                 if (metricsSection.hasSelection && metricDefinitions.canManage)
                     metricDialog.openForEditing(metricsSection.selectedMetric);
