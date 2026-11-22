@@ -51,6 +51,7 @@ clang-format-18 --dry-run --Werror $(git ls-files 'src/*.cpp' 'src/*.hpp' 'tests
 On the human's machine use the gitignored preset `dev-local` instead of `dev` (it sets the Qt
 path and GCC 14; build directory is still `build/dev`).
 From P13b on, also run `ctest --preset dev-local-ci` (QML tests offscreen, GC stress, C locale as on CI).
+After a QML layout change, also run `qml_smoke` with `FONTCONFIG_FILE=$PWD/tests/fonts/wide-fonts.conf` (a wider font, as on the CI runner; the path must be absolute).
 Tests never compare user-visible text with an English literal: use keys/roles from the viewmodel or
 `QCoreApplication::translate()`; the `dev-local-ci` preset runs with the C locale like CI.
 
