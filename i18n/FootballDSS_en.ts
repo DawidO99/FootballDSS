@@ -1592,23 +1592,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Training sessions and matches will be imported here too in a later version.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>Templates</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Start from a template if you have no file yet: it has every column the import recognises. Positions may be written as BR, ŚO, N or as GK, CB, ST.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Save the squad template (XLSX)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Save the squad template (CSV)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1652,11 +1636,43 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Choose the sheet with the players.</source>
+        <source>XLSX template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CSV template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the %1 template (XLSX)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save the %1 template (CSV)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start from a template if you have no file yet: it has every column the import recognises and a sheet with instructions. Positions may be written as BR, ŚO, N or as GK, CB, ST.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Matches</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Choose another file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the sheet with the data.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1669,6 +1685,10 @@
     </message>
     <message>
         <source>The columns are set as in your last import of a file with these headers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Columns not recognised can go to a custom metric of the club, or to a new one: choose &quot;Create metric…&quot;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1724,7 +1744,31 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Players not in the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Skip their rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add them to the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Position of new players</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New players: %1. Correct their positions later in Squad.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Update players already in the squad</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Overwrite values already in the app</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1776,6 +1820,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Open Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Import another file</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1788,7 +1836,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Save the squad template</source>
+        <source>Save the template</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4926,6 +4974,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The database file is gone: it was deleted or moved while the app was running. Nothing was saved. Close the app and open it again; restore a backup if the data is missing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The template cannot be saved there. Choose another folder.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4947,10 +4999,6 @@
     </message>
     <message>
         <source>This file type is not supported. Accepted: .csv, .txt, .tsv, .xlsx. Choose another file.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>The file does not look like a table: no column is recognised and the rows have different numbers of columns. Choose the file with the list of players or fill in the template.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -4995,10 +5043,6 @@
     </message>
     <message>
         <source>Some rows have errors. Fix them in the file, or choose to skip them.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>There is nothing to import: every row is skipped or has errors.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5218,10 +5262,6 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>The squad changed since the rows were checked, so nothing was imported. The marked rows show what the import would do now; check them and import again.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
         <source>This import has already been undone.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5286,7 +5326,27 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>The file does not look like a table: no column is recognised and the rows have different numbers of columns. Choose the file with the data or fill in the template.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The file has one column per date. The import needs one row per player and session: save the training template, copy the data into it and import that file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>There is nothing to import: every row is skipped, already in the app or has errors.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the position of the new players.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>The shape is the same as before. Move a player or choose another formation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The data in the app changed since the rows were checked, so nothing was imported. The report shows what the import would do now; check it and import again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -5363,6 +5423,387 @@
     </message>
     <message>
         <source>The database could not be opened because of an unexpected error. Start the app again. If this repeats, close the app, replace the file with a copy from the backups folder and delete the files next to it that end in -wal and -shm.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>fdss::viewmodels::ImportActivityTexts</name>
+    <message>
+        <source>session %1 (in the app)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>session %1 (new)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>match %1 against %2 (in the app)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>match %1 against %2 (new)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Row %1: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Opponent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Venue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Competition</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Score</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goals for</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goals against</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Player</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Shirt number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Started</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Minutes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Goals (not imported)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Assists (not imported)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow cards (not imported)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Red cards (not imported)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rating</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RPE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Start time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Session type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Attendance</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ignore column</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metric: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create metric…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the column with the date.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the column with the player (a name or a shirt number).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose the column with the opponent.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Choose at least one column to import, such as attendance, RPE, minutes or a metric.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Two columns have the same meaning. Set one of them to &quot;Ignore column&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Two columns go to the same metric. Set one of them to &quot;Ignore column&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the player is empty, expected a name or a shirt number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 is empty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a date such as 05.01.2026, 2026-01-05 or 05/01/2026</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a time such as 18:00</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a value of the metric</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected goals for and against such as 2:1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos; is not a number and was left out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a whole number from %3 to %4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos; is outside the limits of the metric</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected a number from %3 to %4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected present, absent, excused or injured</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected home, away or neutral</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;, expected yes or no</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos; is unknown, saved as training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos; is longer than 100 characters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the same player is in row %1 of this match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the same player is in row %1 of this session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 differs from row %2 of the same match</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 differs from row %2 of the same session</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>rating and RPE left out: the player did not play</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>RPE and minutes left out: the player was not present</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>no attendance, RPE, minutes or metric value, skipped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>skipped the example row of the template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>started without minutes, expected the minutes played</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>not imported: %1 goal(s), %2 assist(s), %3 card(s) — no minute; enter them in the match report</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>no venue for the match, saved as home</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; is not in the squad, skipped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; is not in the squad and is added to it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; is not in the squad; a new player needs the first and the last name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; does not fit %2, skipped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>fits several players (%1), skipped</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>the app has %n session(s) on this day; add a start time column</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>the app has %n match(es) against %1 on this day</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>the match against %1 was entered in Match Day; it is not changed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the match against %1 is still planned; finish it in Match Day without the clock or delete it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the match in the app has no score; it stays so</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the score in the app (%1) stays</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>the app holds other values; kept (turn on updating to overwrite them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&apos;%1&apos; fits another player than at the check (the squad changed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 &apos;%2&apos;: the metric was changed or deleted since the check — check the rows again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Metric</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Update</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Keep the app&apos;s values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Skip</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not imported</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not imported: %1 goal(s), %2 assist(s), %3 card(s) — no minute; enter them in the match report.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Yellow cards from the import do not count toward a suspension.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n note(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n match event(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n metric value(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n other entry(ies)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Undo also deletes %1 added or changed after the import. Continue?</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -5613,6 +6054,22 @@
         <source>Players with their names, shirt numbers, birth years, positions and foot.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Training</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Attendance, RPE and minutes of every player per session, and custom metrics: the history for load monitoring.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Matches</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Results with the minutes, ratings and RPE of every player per match, and custom metrics.</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
         <source>XLSX · %n row(s)</source>
         <translation type="unfinished">
@@ -5632,6 +6089,34 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Matches added: %1. Opponents added: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sessions added: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rows added: %1. Updated: %2. Skipped or already in the app: %3. Not imported because of errors: %4.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Players added to the squad: %1. Metric values saved: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo import removes the matches, appearances, opponents, players and metric values this import added, and puts values it overwrote back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Undo import removes the sessions, attendance, players and metric values this import added, and puts values it overwrote back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Removed: %1 session(s), %2 match(es), %3 row(s) in sessions or matches that stay, %4 player(s). Values put back: %5. Not changed back, because they were edited after the import: %6.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>No team is selected. Set up the team first.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -5645,6 +6130,10 @@
     </message>
     <message>
         <source>This file was already imported on %1; that import was undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This file was already imported on %1. Check the report: rows already in the app show &quot;No change&quot; and are not added twice.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

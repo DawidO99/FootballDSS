@@ -4,6 +4,7 @@
 #include "core/domain/Metric.hpp"
 #include "core/util/Error.hpp"
 
+#include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -37,8 +38,8 @@ public:
     listValues(core::MetricDefinitionId id, const core::MetricTarget& target) const;
     // One transaction; on any error nothing changes. Per player of `values`: a row with the same
     // single stored value stays as it is (its import_id too); otherwise the stored rows of the
-    // player for this entry go and the value, if any, is inserted with `date`. Players not in
-    // `values` keep their rows.
+    // player for this entry go and the value, if any, is inserted with `date`, keeping the
+    // import_id of the replaced row (P17 decision 14). Players not in `values` keep their rows.
     [[nodiscard]] core::Status saveValues(core::MetricDefinitionId id,
                                           const core::MetricTarget& target, core::Date date,
                                           std::span<const core::MetricValueDraft> values);
@@ -46,6 +47,21 @@ public:
     // the date of that session or match, also when it was moved after the value was entered.
     [[nodiscard]] core::Result<std::vector<core::MetricValue>>
     listPlayerValues(core::PlayerId player) const;
+
+    // --- Import (packet P18). Each joins the transaction of the caller. ---
+    [[nodiscard]] core::Result<std::optional<core::MetricValue>>
+    findValue(core::MetricDefinitionId id, const core::MetricTarget& target,
+              core::PlayerId player) const;
+    [[nodiscard]] core::Status insertValue(core::MetricDefinitionId id,
+                                           const core::MetricTarget& target, core::Date date,
+                                           core::PlayerId player, double value,
+                                           std::optional<core::ImportId> importId);
+    // Its import_id stays. None: NotFound.
+    [[nodiscard]] core::Status updateValue(core::MetricValueId id, double value);
+    // Values in the sessions and matches of the import that the import did not write.
+    [[nodiscard]] core::Result<int> countAddedLater(core::ImportId importId) const;
+    // Deletes the values the import wrote and every value of its sessions and matches.
+    [[nodiscard]] core::Result<int> removeByImport(core::ImportId importId);
 
 private:
     DatabaseManager& m_db;

@@ -5,8 +5,13 @@
 #include "core/domain/StaffUser.hpp"
 #include "data/db/DatabaseManager.hpp"
 #include "data/repositories/ImportLogRepository.hpp"
+#include "data/repositories/MatchLiveRepository.hpp"
+#include "data/repositories/MatchRepository.hpp"
+#include "data/repositories/MetricRepository.hpp"
+#include "data/repositories/OpponentRepository.hpp"
 #include "data/repositories/PlayerRepository.hpp"
 #include "data/repositories/StaffRepository.hpp"
+#include "data/repositories/TrainingRepository.hpp"
 #include "services/AuthService.hpp"
 #include "services/Session.hpp"
 #include "xlsxdocument.h"
@@ -63,7 +68,16 @@ protected:
         m_auth = std::make_unique<AuthService>(*m_db, *m_staff, m_session, m_clock, 4);
         m_log = std::make_unique<data::ImportLogRepository>(*m_db);
         m_players = std::make_unique<data::PlayerRepository>(*m_db);
-        m_service = std::make_unique<ImportService>(*m_db, *m_log, *m_players, m_session, m_clock);
+        m_training = std::make_unique<data::TrainingRepository>(*m_db);
+        m_matches = std::make_unique<data::MatchRepository>(*m_db);
+        m_matchLive = std::make_unique<data::MatchLiveRepository>(*m_db);
+        m_metrics = std::make_unique<data::MetricRepository>(*m_db);
+        m_opponents = std::make_unique<data::OpponentRepository>(*m_db);
+        m_service = std::make_unique<ImportService>(
+            *m_db,
+            ImportRepositories{*m_log, *m_players, *m_training, *m_matches, *m_matchLive,
+                               *m_metrics, *m_opponents},
+            m_session, m_clock);
         logInAs(Role::Coach);
     }
 
@@ -150,6 +164,11 @@ protected:
     std::unique_ptr<AuthService> m_auth;
     std::unique_ptr<data::ImportLogRepository> m_log;
     std::unique_ptr<data::PlayerRepository> m_players;
+    std::unique_ptr<data::TrainingRepository> m_training;
+    std::unique_ptr<data::MatchRepository> m_matches;
+    std::unique_ptr<data::MatchLiveRepository> m_matchLive;
+    std::unique_ptr<data::MetricRepository> m_metrics;
+    std::unique_ptr<data::OpponentRepository> m_opponents;
     std::unique_ptr<ImportService> m_service;
 };
 

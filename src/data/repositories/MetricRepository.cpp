@@ -3,6 +3,7 @@
 #include "data/db/Transaction.hpp"
 #include "data/repositories/RepositorySupport.hpp"
 
+#include <utility>
 #include <variant>
 
 namespace fdss::data {
@@ -168,18 +169,27 @@ core::Status MetricRepository::saveValues(core::MetricDefinitionId id,
     }
     const TargetFilter filter = filterOf(target);
     for (const core::MetricValueDraft& draft : values) {
-        const auto stored =
-            selectAll(m_db,
-                      QStringLiteral("SELECT v.value FROM metric_value AS v "
-                                     "WHERE v.metric_id = ? AND v.player_id = ? AND ") +
-                          filter.condition,
-                      {idValue(id), idValue(draft.playerId), filter.value}, kContext,
-                      [](RowReader& row) { return row.real(); });
+        const auto stored = selectAll(
+            m_db,
+            QStringLiteral("SELECT v.value, v.import_id FROM metric_value AS v "
+                           "WHERE v.metric_id = ? AND v.player_id = ? AND ") +
+                filter.condition,
+            {idValue(id), idValue(draft.playerId), filter.value}, kContext, [](RowReader& row) {
+                const double value = row.real();
+                return std::pair{value, row.optionalId<core::ImportId>()};
+            });
         if (!stored) {
             return std::unexpected(stored.error());
         }
-        if (draft.value && stored->size() == 1 && stored->front() == *draft.value) {
+        if (draft.value && stored->size() == 1 && stored->front().first == *draft.value) {
             continue;
+        }
+        // A corrected imported value still goes with the undo of its import (P17 decision 14).
+        std::optional<core::ImportId> importId;
+        for (const auto& row : *stored) {
+            if (!importId) {
+                importId = row.second;
+            }
         }
         if (!draft.value && stored->empty()) {
             continue;
@@ -196,15 +206,9 @@ core::Status MetricRepository::saveValues(core::MetricDefinitionId id,
         if (!draft.value) {
             continue;
         }
-        const auto inserted =
-            insertRow(m_db,
-                      QStringLiteral("INSERT INTO metric_value (metric_id, player_id, match_id, "
-                                     "session_id, date, value) VALUES (?, ?, ?, ?, ?, ?)"),
-                      {idValue(id), idValue(draft.playerId), optionalIdValue(matchOf(target)),
-                       optionalIdValue(sessionOf(target)), dateValue(date), *draft.value},
-                      kContext);
-        if (!inserted) {
-            return std::unexpected(inserted.error());
+        if (auto inserted = insertValue(id, target, date, draft.playerId, *draft.value, importId);
+            !inserted) {
+            return inserted;
         }
     }
     return transaction->commit();
@@ -215,6 +219,73 @@ MetricRepository::listPlayerValues(core::PlayerId player) const {
     return selectAll(
         m_db, kSelectValue + QStringLiteral("WHERE v.player_id = ? ORDER BY value_date, v.id"),
         {idValue(player)}, "list metric values of a player", readValue);
+}
+
+core::Result<std::optional<core::MetricValue>>
+MetricRepository::findValue(core::MetricDefinitionId id, const core::MetricTarget& target,
+                            core::PlayerId player) const {
+    const TargetFilter filter = filterOf(target);
+    auto rows =
+        selectAll(m_db,
+                  kSelectValue + QStringLiteral("WHERE v.metric_id = ? AND v.player_id = ? AND ") +
+                      filter.condition + QStringLiteral(" ORDER BY v.id"),
+                  {idValue(id), idValue(player), filter.value}, "find metric value", readValue);
+    if (!rows) {
+        return std::unexpected(rows.error());
+    }
+    if (rows->empty()) {
+        return std::optional<core::MetricValue>{};
+    }
+    return std::optional(rows->front());
+}
+
+core::Status MetricRepository::insertValue(core::MetricDefinitionId id,
+                                           const core::MetricTarget& target, core::Date date,
+                                           core::PlayerId player, double value,
+                                           std::optional<core::ImportId> importId) {
+    const auto inserted = insertRow(
+        m_db,
+        QStringLiteral("INSERT INTO metric_value (metric_id, player_id, match_id, "
+                       "session_id, date, value, import_id) "
+                       "VALUES (?, ?, ?, ?, ?, ?, ?)"),
+        {idValue(id), idValue(player), optionalIdValue(matchOf(target)),
+         optionalIdValue(sessionOf(target)), dateValue(date), value, optionalIdValue(importId)},
+        "insert metric value");
+    if (!inserted) {
+        return std::unexpected(inserted.error());
+    }
+    return {};
+}
+
+core::Status MetricRepository::updateValue(core::MetricValueId id, double value) {
+    return changeRow(m_db, QStringLiteral("UPDATE metric_value SET value = ? WHERE id = ?"),
+                     {value, idValue(id)}, "update metric value");
+}
+
+core::Result<int> MetricRepository::countAddedLater(core::ImportId importId) const {
+    return selectOne(m_db,
+                     QStringLiteral("SELECT COUNT(*) FROM metric_value AS v "
+                                    "LEFT JOIN training_session AS s ON s.id = v.session_id "
+                                    "LEFT JOIN match AS m ON m.id = v.match_id "
+                                    "WHERE (s.import_id = ? OR m.import_id = ?) "
+                                    "AND (v.import_id IS NULL OR v.import_id <> ?)"),
+                     {idValue(importId), idValue(importId), idValue(importId)},
+                     "count metric values added later",
+                     [](RowReader& row) { return row.integer(); });
+}
+
+core::Result<int> MetricRepository::removeByImport(core::ImportId importId) {
+    auto query = runSql(
+        m_db,
+        QStringLiteral("DELETE FROM metric_value WHERE import_id = ? "
+                       "OR session_id IN (SELECT id FROM training_session WHERE import_id = ?) "
+                       "OR match_id IN (SELECT id FROM match WHERE import_id = ?)"),
+        {idValue(importId), idValue(importId), idValue(importId)},
+        "delete metric values of an import");
+    if (!query) {
+        return std::unexpected(query.error());
+    }
+    return query->numRowsAffected();
 }
 
 } // namespace fdss::data

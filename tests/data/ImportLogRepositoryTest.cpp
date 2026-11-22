@@ -112,3 +112,34 @@ TEST_F(ImportLogRepositoryTest, MissingReportIsEmpty) {
 }
 
 } // namespace
+
+// Packet P18: the rows of a training or match import survive the JSON.
+TEST_F(ImportLogRepositoryTest, ImportedRowsRoundTrip) {
+    ImportLogDraft value = draft();
+    value.type = "matches";
+    AttendanceDraft before;
+    before.playerId = PlayerId{3};
+    before.status = AttendanceStatus::Excused;
+    AttendanceDraft after = before;
+    after.status = AttendanceStatus::Present;
+    after.rpe = 7;
+    after.minutesOverride = 60;
+    value.report.attendance = {ImportedAttendance{TrainingSessionId{4}, after, before},
+                               ImportedAttendance{TrainingSessionId{5}, after, std::nullopt}};
+    AppearanceDraft appearance;
+    appearance.playerId = PlayerId{3};
+    appearance.started = true;
+    appearance.minuteOn = 0;
+    appearance.minuteOff = 75;
+    appearance.position = Position::Cb;
+    appearance.rating = 7;
+    value.report.appearances = {ImportedAppearance{MatchId{2}, appearance, std::nullopt}};
+    value.report.metricValues = {ImportedMetricValue{MetricDefinitionId{1}, std::nullopt,
+                                                     MatchId{2}, PlayerId{3}, 4.35, 4.5}};
+    value.report.createdOpponents = {OpponentId{8}};
+    value.report.counts = {{"goals_not_imported", 2}};
+    const ImportId id = create(value);
+    const auto stored = repository().get(id);
+    ASSERT_TRUE(stored.has_value()) << stored.error().detail;
+    EXPECT_EQ(stored->report, value.report);
+}

@@ -162,7 +162,9 @@ TEST_F(MetricRepositoryTest, SaveReplacesChangesAndKeepsOthers) {
     ASSERT_TRUE(values.has_value());
     ASSERT_EQ(values->size(), 2U);
     EXPECT_EQ(values->at(0).value, 4.1);
-    EXPECT_EQ(count("SELECT count(*) FROM metric_value WHERE import_id = 1"), 0);
+    // P17 decision 14 (review of P18): a corrected imported value keeps its import, so the undo
+    // of that import still removes it.
+    EXPECT_EQ(count("SELECT count(*) FROM metric_value WHERE import_id = 1"), 1);
 }
 
 TEST_F(MetricRepositoryTest, FailedSaveChangesNothing) {

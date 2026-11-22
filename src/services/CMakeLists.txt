@@ -15,10 +15,16 @@ add_library(fdss_services STATIC
     SetupService.cpp
     DemoDataService.hpp
     DemoDataService.cpp
+    import/ActivityUndo.hpp
+    import/ActivityUndo.cpp
     import/ImportFile.hpp
     import/ImportFile.cpp
     import/ImportService.hpp
     import/ImportService.cpp
+    import/MatchImportWriter.hpp
+    import/MatchImportWriter.cpp
+    import/TrainingImportWriter.hpp
+    import/TrainingImportWriter.cpp
     LineupService.hpp
     LineupService.cpp
     MatchDayService.hpp

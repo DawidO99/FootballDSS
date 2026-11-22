@@ -17,6 +17,7 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(fdss_tests
     test_main.cpp
+    core/ActivityImportTest.cpp
     core/AvailabilityTest.cpp
     core/CapabilitiesTest.cpp
     core/DemoGeneratorTest.cpp
@@ -69,6 +70,7 @@ add_executable(fdss_tests
     services/DashboardServiceTest.cpp
     services/DemoDataServiceTest.cpp
     services/FakeClock.hpp
+    services/ActivityImportServiceTest.cpp
     services/ImportServiceTest.cpp
     services/LineupServiceTest.cpp
     services/LoadServiceTest.cpp
@@ -100,6 +102,7 @@ add_executable(fdss_vm_tests
     test_main.cpp
     services/FakeClock.hpp
     viewmodels/AppStateTest.cpp
+    viewmodels/ImportActivityWizardTest.cpp
     viewmodels/AvailabilityViewModelTest.cpp
     viewmodels/CalendarViewModelTest.cpp
     viewmodels/ChangePinViewModelTest.cpp
