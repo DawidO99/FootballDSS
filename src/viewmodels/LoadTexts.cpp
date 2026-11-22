@@ -161,11 +161,13 @@ QString LoadTexts::explanation(const core::LoadAssessment& assessment,
     const QString ratio = decimal(indicators.ratio.value_or(0.0), 2);
     if (has(verdict, LoadReason::RatioHigh)) {
         sentences << tr("Acute load %1 is %2 × the chronic load %3, above %4.")
-                         .arg(acute, ratio, chronic, decimal(thresholds.ratioHigh, 1));
+                         .arg(acute, ratio, chronic,
+                              decimal(thresholds.ratioHigh, core::kThresholdDecimals));
     }
     if (has(verdict, LoadReason::RatioElevated)) {
         sentences << tr("Acute load %1 is %2 × the chronic load %3, above %4.")
-                         .arg(acute, ratio, chronic, decimal(thresholds.ratioElevated, 1));
+                         .arg(acute, ratio, chronic,
+                              decimal(thresholds.ratioElevated, core::kThresholdDecimals));
     }
     if (has(verdict, LoadReason::AfterBreak)) {
         sentences << tr("The chronic load is low after a break (days without load: %1).")
@@ -174,18 +176,20 @@ QString LoadTexts::explanation(const core::LoadAssessment& assessment,
     if (has(verdict, LoadReason::MonotonyHigh)) {
         sentences << tr("Monotony %1 is above %2: the days of the last week were much alike.")
                          .arg(decimal(indicators.monotony.value_or(0.0), 2),
-                              decimal(thresholds.monotonyHigh, 1));
+                              decimal(thresholds.monotonyHigh, core::kThresholdDecimals));
     }
     if (has(verdict, LoadReason::RatioLow)) {
         sentences << tr("Acute load %1 is %2 × the chronic load %3, below %4: less than the "
                         "player is used to.")
-                         .arg(acute, ratio, chronic, decimal(thresholds.ratioLow, 1));
+                         .arg(acute, ratio, chronic,
+                              decimal(thresholds.ratioLow, core::kThresholdDecimals));
     }
     if (has(verdict, LoadReason::RatioInRange)) {
         sentences << tr("Acute load %1 is %2 × the chronic load %3, between %4 and %5: in line "
                         "with what the player is used to.")
-                         .arg(acute, ratio, chronic, decimal(thresholds.ratioLow, 1),
-                              decimal(thresholds.ratioElevated, 1));
+                         .arg(acute, ratio, chronic,
+                              decimal(thresholds.ratioLow, core::kThresholdDecimals),
+                              decimal(thresholds.ratioElevated, core::kThresholdDecimals));
     }
     if (verdict.status == core::LoadStatus::High || verdict.status == core::LoadStatus::Elevated) {
         sentences << tr("A signal to talk to the player.");

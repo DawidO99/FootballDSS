@@ -29,17 +29,8 @@ constexpr auto kRatioElevatedField = "ratio_elevated";
 constexpr auto kRatioLowField = "ratio_low";
 constexpr auto kMonotonyHighField = "monotony_high";
 
-// Two decimals at most, without trailing zeros: 1.5, 2, 0.75.
-QString shown(double value) {
-    QString text = LoadTexts::decimal(value, 2);
-    while (text.size() > 1 && text.back() == u'0') {
-        text.chop(1);
-    }
-    if (!text.isEmpty() && !text.back().isDigit()) {
-        text.chop(1);
-    }
-    return text;
-}
+// With the two decimals of every load screen: 1.50, 2.00 (P19 review).
+QString shown(double value) { return LoadTexts::decimal(value, core::kThresholdDecimals); }
 
 std::optional<double> parsed(const QString& text) {
     QString normalized = text.trimmed();

@@ -182,9 +182,11 @@ QVariantMap PlayerLoadViewModel::thresholds() const {
         {QStringLiteral("high"), values.ratioHigh},
         {QStringLiteral("elevated"), values.ratioElevated},
         {QStringLiteral("low"), values.ratioLow},
-        {QStringLiteral("highText"), LoadTexts::decimal(values.ratioHigh, 1)},
-        {QStringLiteral("elevatedText"), LoadTexts::decimal(values.ratioElevated, 1)},
-        {QStringLiteral("lowText"), LoadTexts::decimal(values.ratioLow, 1)}};
+        {QStringLiteral("highText"),
+         LoadTexts::decimal(values.ratioHigh, core::kThresholdDecimals)},
+        {QStringLiteral("elevatedText"),
+         LoadTexts::decimal(values.ratioElevated, core::kThresholdDecimals)},
+        {QStringLiteral("lowText"), LoadTexts::decimal(values.ratioLow, core::kThresholdDecimals)}};
 }
 
 QString PlayerLoadViewModel::loadError() const {

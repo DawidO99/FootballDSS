@@ -46,10 +46,10 @@ TEST_F(LoadSettingsViewModelTest, ShowsTheDefaultsAndStoresAChangeWithADecimalCo
     LoadSettingsViewModel load;
     EXPECT_TRUE(load.canEdit());
     EXPECT_TRUE(load.isDefault());
-    EXPECT_EQ(load.ratioHigh(), QStringLiteral("1.5"));
-    EXPECT_EQ(load.ratioElevated(), QStringLiteral("1.3"));
-    EXPECT_EQ(load.ratioLow(), QStringLiteral("0.8"));
-    EXPECT_EQ(load.monotonyHigh(), QStringLiteral("2"));
+    EXPECT_EQ(load.ratioHigh(), QStringLiteral("1.50"));
+    EXPECT_EQ(load.ratioElevated(), QStringLiteral("1.30"));
+    EXPECT_EQ(load.ratioLow(), QStringLiteral("0.80"));
+    EXPECT_EQ(load.monotonyHigh(), QStringLiteral("2.00"));
     const SignalCount changed(&load, &LoadSettingsViewModel::thresholdsChanged);
 
     ASSERT_TRUE(load.save(QStringLiteral("1,75"), QStringLiteral(" 1.4 "), QStringLiteral("0,7"),

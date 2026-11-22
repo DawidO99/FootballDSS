@@ -230,11 +230,16 @@ TEST(LoadTest, MatchLoadComesFromTheMinutesPlayed) {
 TEST(LoadTest, RatioBoundaries) {
     EXPECT_EQ(statusOf(withRatio(1.0)), LoadStatus::Normal);
     EXPECT_EQ(statusOf(withRatio(0.8)), LoadStatus::Normal);
-    EXPECT_EQ(statusOf(withRatio(std::nextafter(0.8, 0.0))), LoadStatus::Underloaded);
+    // The ratio counts as shown, with two decimals (P19 review): the first value past a threshold
+    // is the next hundredth; a value that only reads as the threshold is not past it.
+    EXPECT_EQ(statusOf(withRatio(0.79)), LoadStatus::Underloaded);
+    EXPECT_EQ(statusOf(withRatio(std::nextafter(0.8, 0.0))), LoadStatus::Normal);
     EXPECT_EQ(statusOf(withRatio(1.3)), LoadStatus::Normal);
-    EXPECT_EQ(statusOf(withRatio(std::nextafter(1.3, 2.0))), LoadStatus::Elevated);
+    EXPECT_EQ(statusOf(withRatio(1.31)), LoadStatus::Elevated);
+    EXPECT_EQ(statusOf(withRatio(std::nextafter(1.3, 2.0))), LoadStatus::Normal);
     EXPECT_EQ(statusOf(withRatio(1.5)), LoadStatus::Elevated);
-    EXPECT_EQ(statusOf(withRatio(std::nextafter(1.5, 2.0))), LoadStatus::High);
+    EXPECT_EQ(statusOf(withRatio(1.51)), LoadStatus::High);
+    EXPECT_EQ(statusOf(withRatio(std::nextafter(1.5, 2.0))), LoadStatus::Elevated);
 
     EXPECT_EQ(reasonsOf(withRatio(1.0)), std::vector{LoadReason::RatioInRange});
     EXPECT_EQ(reasonsOf(withRatio(0.5)), std::vector{LoadReason::RatioLow});
@@ -244,7 +249,8 @@ TEST(LoadTest, RatioBoundaries) {
 
 TEST(LoadTest, MonotonyBoundaryAndPrecedence) {
     EXPECT_EQ(statusOf(withRatio(1.0, 2.0)), LoadStatus::Normal);
-    EXPECT_EQ(statusOf(withRatio(1.0, std::nextafter(2.0, 3.0))), LoadStatus::Elevated);
+    EXPECT_EQ(statusOf(withRatio(1.0, 2.01)), LoadStatus::Elevated);
+    EXPECT_EQ(statusOf(withRatio(1.0, std::nextafter(2.0, 3.0))), LoadStatus::Normal);
     EXPECT_EQ(reasonsOf(withRatio(1.0, 2.5)), std::vector{LoadReason::MonotonyHigh});
 
     // Yellow beats underloaded and names both; red names the monotony too.
@@ -466,4 +472,16 @@ TEST(LoadTest, AThresholdWithMoreThanTwoDecimalsIsRefused) {
     EXPECT_TRUE(hasThresholdDecimals(0.07));
     EXPECT_TRUE(hasThresholdDecimals(1.1));
     EXPECT_FALSE(hasThresholdDecimals(0.005));
+}
+
+// P19 review: what is seen decides. 1.504 reads 1.50, which is not above a threshold of 1.50.
+TEST(LoadTest, TheRatioIsClassifiedAsShownWithTwoDecimals) {
+    LoadThresholds thresholds;
+    thresholds.ratioHigh = 1.50;
+    EXPECT_EQ(classifyLoad(withRatio(1.504), thresholds).status, LoadStatus::Elevated);
+    EXPECT_EQ(classifyLoad(withRatio(1.504), thresholds).reasons,
+              std::vector{LoadReason::RatioElevated});
+    EXPECT_EQ(classifyLoad(withRatio(1.506), thresholds).status, LoadStatus::High);
+    EXPECT_DOUBLE_EQ(shownPrecision(1.504), 1.50);
+    EXPECT_DOUBLE_EQ(shownPrecision(1.506), 1.51);
 }

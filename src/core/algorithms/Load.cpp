@@ -147,6 +147,12 @@ bool hasThresholdDecimals(double value) {
     return std::isfinite(hundredths) && std::abs(hundredths - std::round(hundredths)) < 1e-6;
 }
 
+double shownPrecision(double value) {
+    constexpr double kScale = 100.0; // 10^kThresholdDecimals
+    static_assert(kThresholdDecimals == 2);
+    return std::round(value * kScale) / kScale;
+}
+
 ValidationErrors validate(const LoadThresholds& thresholds) {
     ValidationErrors errors;
     const auto invalid = [&](const char* field) { errors.push_back(ValidationError{field}); };
@@ -190,8 +196,11 @@ LoadVerdict classifyLoad(const LoadIndicators& indicators, const LoadThresholds&
         return verdict;
     }
 
-    const double ratio = *indicators.ratio;
-    const bool monotonyHigh = indicators.monotony && *indicators.monotony > thresholds.monotonyHigh;
+    // As shown, with two decimals: a ratio of 1.504 reads 1.50 and is not above a threshold
+    // of 1.50.
+    const double ratio = shownPrecision(*indicators.ratio);
+    const bool monotonyHigh =
+        indicators.monotony && shownPrecision(*indicators.monotony) > thresholds.monotonyHigh;
     const bool afterBreak = indicators.breakDays.has_value();
     auto& reasons = verdict.reasons;
     if (ratio > thresholds.ratioHigh) {

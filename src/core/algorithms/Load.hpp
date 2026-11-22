@@ -63,6 +63,9 @@ inline constexpr double kMaxMonotony = 10.0;
 [[nodiscard]] ValidationErrors validate(const LoadThresholds& thresholds);
 // True for a finite value with at most kThresholdDecimals decimals (1.5, 1.75; not 1.501).
 [[nodiscard]] bool hasThresholdDecimals(double value);
+// The value as the screens show it, with kThresholdDecimals decimals (1.504 → 1.5). classifyLoad()
+// compares this, so what is seen decides (P19 review).
+[[nodiscard]] double shownPrecision(double value);
 
 // λ = 2 / (N + 1).
 [[nodiscard]] constexpr double ewmaLambda(int days) noexcept { return 2.0 / (days + 1); }
