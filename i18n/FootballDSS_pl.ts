@@ -4688,64 +4688,64 @@
     <name>SpikeChartsView</name>
     <message>
         <source>Charts spike (Qt Graphs)</source>
-        <translation>Test wykresów (Qt Graphs)</translation>
+        <translation type="vanished">Test wykresów (Qt Graphs)</translation>
     </message>
     <message>
         <source>Hidden test view with sample data. Press Ctrl+Shift+G to close it.</source>
-        <translation>Ukryty widok testowy z przykładowymi danymi. Naciśnij Ctrl+Shift+G, aby go zamknąć.</translation>
+        <translation type="vanished">Ukryty widok testowy z przykładowymi danymi. Naciśnij Ctrl+Shift+G, aby go zamknąć.</translation>
     </message>
     <message>
         <source>Team load, last 14 days (AU)</source>
-        <translation>Obciążenie zespołu, ostatnie 14 dni (AU)</translation>
+        <translation type="vanished">Obciążenie zespołu, ostatnie 14 dni (AU)</translation>
     </message>
     <message>
         <source>MM/dd</source>
         <extracomment>Date format of the chart axis (Qt date format: d = day, M = month).</extracomment>
-        <translation>dd.MM</translation>
+        <translation type="vanished">dd.MM</translation>
     </message>
     <message>
         <source>Team load</source>
-        <translation>Obciążenie zespołu</translation>
+        <translation type="vanished">Obciążenie zespołu</translation>
     </message>
     <message>
         <source>%1: %2 AU</source>
-        <translation>%1: %2 AU</translation>
+        <translation type="vanished">%1: %2 AU</translation>
     </message>
     <message>
         <source>Average session load by position (AU)</source>
-        <translation>Średnie obciążenie treningowe wg formacji (AU)</translation>
+        <translation type="vanished">Średnie obciążenie treningowe wg formacji (AU)</translation>
     </message>
     <message>
         <source>Mon</source>
-        <translation>Pn</translation>
+        <translation type="vanished">Pn</translation>
     </message>
     <message>
         <source>Tue</source>
-        <translation>Wt</translation>
+        <translation type="vanished">Wt</translation>
     </message>
     <message>
         <source>Wed</source>
-        <translation>Śr</translation>
+        <translation type="vanished">Śr</translation>
     </message>
     <message>
         <source>Thu</source>
-        <translation>Cz</translation>
+        <translation type="vanished">Cz</translation>
     </message>
     <message>
         <source>Fri</source>
-        <translation>Pt</translation>
+        <translation type="vanished">Pt</translation>
     </message>
     <message>
         <source>Defenders</source>
-        <translation>Obrońcy</translation>
+        <translation type="vanished">Obrońcy</translation>
     </message>
     <message>
         <source>Midfielders</source>
-        <translation>Pomocnicy</translation>
+        <translation type="vanished">Pomocnicy</translation>
     </message>
     <message>
         <source>Forwards</source>
-        <translation>Napastnicy</translation>
+        <translation type="vanished">Napastnicy</translation>
     </message>
 </context>
 <context>

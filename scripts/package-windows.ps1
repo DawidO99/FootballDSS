@@ -225,7 +225,8 @@ try {
     Write-Host ''
     Write-Host "Package: $zip ($sizeMb MB)" -ForegroundColor Green
     Write-Host 'Next: copy the ZIP to a Windows machine without Qt, unzip, run FootballDSS.exe,'
-    Write-Host 'press Ctrl+Shift+G for the charts and fill in the checklist in ADR-006.'
+    Write-Host 'press Ctrl+Shift+K for the component gallery with the load chart and fill in the'
+    Write-Host 'checklist in ADR-006.'
 }
 finally {
     Pop-Location

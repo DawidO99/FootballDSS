@@ -133,7 +133,6 @@ qt_add_qml_module(fdss_ui
         ui/views/ProfilePickerView.qml
         ui/views/SettingsView.qml
         ui/views/SetupWizardView.qml
-        ui/views/SpikeChartsView.qml
         ui/views/SquadView.qml
         ui/views/TrainingView.qml
     SOURCES
