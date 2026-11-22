@@ -113,6 +113,16 @@ TEST(CsvTest, QuotesKeepDelimitersLineBreaksAndQuotes) {
     EXPECT_EQ(rows[1].cells, (Cells{"next", "x", "y"}));
 }
 
+TEST(CsvTest, LineBreaksInsideQuotedFieldBecomeLineFeeds) {
+    // Excel on Windows writes CRLF inside a field; old Mac files a lone CR.
+    const auto rows = parsedRows("a;\"one\r\ntwo\rthree\nfour\"\r\nnext;x\r\n", ';');
+    ASSERT_EQ(rows.size(), 2U);
+    EXPECT_EQ(rows[0].cells, (Cells{"a", "one\ntwo\nthree\nfour"}));
+    // Each break counts as one line, CRLF included.
+    EXPECT_EQ(rows[1].number, 5);
+    EXPECT_EQ(rows[1].cells, (Cells{"next", "x"}));
+}
+
 TEST(CsvTest, CommaInsideQuotedFieldWithCommaDelimiter) {
     const auto rows = parsedRows("name,nr\n\"Nowak, Adam\",9\n", ',');
     EXPECT_EQ(rows[1].cells, (Cells{"Nowak, Adam", "9"}));
