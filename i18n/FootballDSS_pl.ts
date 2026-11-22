@@ -1501,6 +1501,45 @@
     </message>
 </context>
 <context>
+    <name>ForcedPinChangeView</name>
+    <message>
+        <source>Your PIN was changed.</source>
+        <translation>Twój PIN został zmieniony.</translation>
+    </message>
+    <message>
+        <source>Set your own PIN</source>
+        <translation>Ustaw własny PIN</translation>
+    </message>
+    <message>
+        <source>%1, your PIN was set by a coach. Choose a new PIN that only you know.</source>
+        <translation>%1, Twój PIN ustawił trener. Wybierz nowy PIN, który znasz tylko Ty.</translation>
+    </message>
+    <message>
+        <source>New PIN</source>
+        <translation>Nowy PIN</translation>
+    </message>
+    <message>
+        <source>4 to 8 digits.</source>
+        <translation>Od 4 do 8 cyfr.</translation>
+    </message>
+    <message>
+        <source>Repeat the PIN</source>
+        <translation>Powtórz PIN</translation>
+    </message>
+    <message>
+        <source>Log out</source>
+        <translation>Wyloguj</translation>
+    </message>
+    <message>
+        <source>Save PIN</source>
+        <translation>Zapisz PIN</translation>
+    </message>
+    <message>
+        <source>%1 (Enter)</source>
+        <translation>%1 (Enter)</translation>
+    </message>
+</context>
+<context>
     <name>FormField</name>
     <message>
         <source>*</source>
@@ -4068,8 +4107,16 @@
         <translation>PIN</translation>
     </message>
     <message>
+        <source>4 to 8 digits. Tell it to this person, who sets their own PIN at the first login.</source>
+        <translation>Od 4 do 8 cyfr. Przekaż go tej osobie; przy pierwszym logowaniu ustawi własny PIN.</translation>
+    </message>
+    <message>
+        <source>4 to 8 digits. This also ends a lockout. The person sets their own PIN at the next login.</source>
+        <translation>Od 4 do 8 cyfr. To także kończy blokadę. Przy następnym logowaniu ta osoba ustawi własny PIN.</translation>
+    </message>
+    <message>
         <source>4 to 8 digits. Tell it to this person, who can change it later.</source>
-        <translation>Od 4 do 8 cyfr. Przekaż PIN tej osobie; później może go zmienić.</translation>
+        <translation type="vanished">Od 4 do 8 cyfr. Przekaż PIN tej osobie; później może go zmienić.</translation>
     </message>
     <message>
         <source>Repeat the PIN</source>

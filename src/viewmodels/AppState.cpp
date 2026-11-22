@@ -79,11 +79,12 @@ void AppState::refresh() {
     const auto club = readClub(m_setup);
     const auto& user = m_session.user();
 
+    const State loggedIn = m_session.mustChangePin() ? State::NeedsPinChange : State::Ready;
     State state = m_state;
     if (club) {
-        state = !*club ? State::NeedsSetup : user ? State::Ready : State::NeedsLogin;
-    } else if (m_state == State::Ready && !user) {
-        state = State::NeedsLogin;
+        state = !*club ? State::NeedsSetup : user ? loggedIn : State::NeedsLogin;
+    } else if (m_state == State::Ready || m_state == State::NeedsPinChange) {
+        state = user ? loggedIn : State::NeedsLogin;
     }
     const bool stateDiffers = state != m_state;
     m_state = state;

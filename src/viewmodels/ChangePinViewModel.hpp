@@ -13,7 +13,8 @@ class AuthService;
 
 namespace fdss::viewmodels {
 
-// A logged-in user changes their own PIN. Needs no permission, so it works for every role.
+// A logged-in user changes their own PIN. Needs no permission, so it works for every role. Also
+// the PIN that a user logged in with a PIN a Coach chose must set first (P19 decision 5).
 class ChangePinViewModel : public QObject {
     Q_OBJECT
     QML_ELEMENT
@@ -35,6 +36,9 @@ public:
     // During a lockout, and when the new PIN equals the current one, the service is not called.
     Q_INVOKABLE bool change(const QString& currentPin, const QString& newPin,
                             const QString& pinRepeat);
+    // After a login with a PIN a Coach chose: no current PIN, the login has just checked it. True
+    // when stored; the view then calls AppState.refresh(), which opens the app.
+    Q_INVOKABLE bool setRequired(const QString& newPin, const QString& pinRepeat);
     // A lockout stays: it does not end with the dialog.
     Q_INVOKABLE void clearErrors();
 
@@ -48,6 +52,9 @@ signals:
     void errorOccurred(const QString& message);
 
 private:
+    // The checks of the new PIN and its repetition that need no service.
+    bool checkNewPin(const QString& newPin, const QString& pinRepeat);
+
     services::AuthService& m_auth;
     LockCountdown m_lock;
 

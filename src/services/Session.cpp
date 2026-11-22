@@ -5,14 +5,25 @@
 
 namespace fdss::services {
 
-void Session::start(core::StaffUser user) {
+void Session::start(core::StaffUser user, bool mustChangePin) {
     m_user = std::move(user);
+    m_mustChangePin = mustChangePin;
     ++m_serial;
 }
 
 void Session::clear() {
     if (m_user) {
         m_user.reset();
+        m_mustChangePin = false;
+        ++m_serial;
+    }
+}
+
+bool Session::mustChangePin() const { return m_mustChangePin; }
+
+void Session::pinChanged() {
+    if (m_user && m_mustChangePin) {
+        m_mustChangePin = false;
         ++m_serial;
     }
 }
@@ -28,7 +39,7 @@ const std::optional<core::StaffUser>& Session::user() const { return m_user; }
 int Session::serial() const { return m_serial; }
 
 bool Session::isAllowed(core::Permission permission) const {
-    return m_user && core::isAllowed(m_user->role, permission);
+    return m_user && !m_mustChangePin && core::isAllowed(m_user->role, permission);
 }
 
 core::Status Session::require(core::Permission permission) const {

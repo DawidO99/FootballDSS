@@ -164,6 +164,11 @@ const char* g_expectedCritical = nullptr;
 int g_expectedCriticalCount = 0;
 // Owned by the installed registry, so a lockout can end without waiting for it.
 fdss::tests::FakeClock* g_clock = nullptr;
+// The database of the installed registry, for the helpers that set up a state no screen offers.
+fdss::data::DatabaseManager* g_database = nullptr;
+
+// Defined with the training tests; a staff member who may log in straight away.
+std::optional<fdss::core::StaffUserId> addSmokeStaff(const char* name, fdss::core::Role role);
 
 void countingMessageHandler(QtMsgType type, const QMessageLogContext& context,
                             const QString& message) {
@@ -399,6 +404,7 @@ fdss::data::DatabaseManager* installRegistry(AppState::State state) {
         return nullptr;
     }
     fdss::data::DatabaseManager* const database = opened->get();
+    g_database = database;
     fdss::viewmodels::RegistryOptions options;
     options.pinIterations = kPinIterations;
     auto clock = std::make_unique<fdss::tests::FakeClock>();
@@ -1393,10 +1399,7 @@ void exerciseCalendar(QQmlApplicationEngine& engine, fdss::data::DatabaseManager
     // A role without EditCalendar reads the calendar and reaches the training sheet.
     auto& auth = ServiceRegistry::instance().auth();
     const fdss::core::StaffUserId coach = ServiceRegistry::instance().session().user()->id;
-    fdss::core::StaffUserDraft physioDraft;
-    physioDraft.name = "Piotr Fizjo";
-    physioDraft.role = fdss::core::Role::Physio;
-    const auto physio = auth.addStaff(physioDraft, "1234");
+    const auto physio = addSmokeStaff("Piotr Fizjo", fdss::core::Role::Physio);
     if (!physio || !auth.login(*physio, "1234")) {
         fail("the physio cannot log in");
         return;
@@ -1949,6 +1952,83 @@ void exerciseStateChanges(QQmlApplicationEngine& engine) {
 // With more tiles than fit, a tile that gets the focus by Tab scrolls into view, down and, when Tab
 // wraps around, up again. Expects a loaded Main.qml in the state NeedsLogin with the Coach of
 // installRegistry().
+// P19 decision 5: a user whose PIN a Coach chose sees only the PIN form; Log out goes back to the
+// picker, and the new PIN from the keyboard opens the app. Expects the picker of
+// exerciseTileScrolling(), whose added staff must all change their PIN.
+void exerciseForcedPinChange(QQmlApplicationEngine& engine, const QString& screenshotDirectory) {
+    auto* appState = engine.singletonInstance<AppState*>(QStringLiteral("FootballDSS"),
+                                                         QStringLiteral("AppState"));
+    auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    auto* picker = pickerOf(window);
+    if (picker == nullptr || picker->staff()->staff().size() < 2) {
+        fail("the picker has no added staff for the PIN change");
+        return;
+    }
+    const fdss::core::StaffUserId user = picker->staff()->staff().back().id;
+    auto& auth = ServiceRegistry::instance().auth();
+    const auto logIn = [&](const char* pin) {
+        const auto login = auth.login(user, pin);
+        if (!login || login->status != fdss::services::PinCheckStatus::Accepted) {
+            fail("the added user cannot log in with the PIN of the Coach");
+            return false;
+        }
+        appState->refresh();
+        settle();
+        return true;
+    };
+    const auto form = [&] { return findQmlItem(window->contentItem(), "ForcedPinChangeView"); };
+
+    if (!logIn("1234")) {
+        return;
+    }
+    if (appState->state() != AppState::State::NeedsPinChange || form() == nullptr ||
+        !form()->isVisible() || window->property("shell").value<QQuickItem*>() != nullptr) {
+        fail("a PIN chosen by the Coach does not ask for an own PIN first");
+        return;
+    }
+    grabOrSave(window, screenshotDirectory, QStringLiteral("forced-pin-change.png"));
+    auto* logout = findByObjectName(form(), QStringLiteral("requiredPinLogoutButton"));
+    if (logout == nullptr) {
+        fail("the PIN form has no Log out button");
+        return;
+    }
+    clickItem(window, logout);
+    settle();
+    if (appState->state() != AppState::State::NeedsLogin) {
+        fail("Log out on the PIN form does not go back to the picker");
+        return;
+    }
+
+    if (!logIn("1234")) {
+        return;
+    }
+    pressKey(window, Qt::Key_Return);
+    if (appState->state() != AppState::State::NeedsPinChange) {
+        fail("an empty PIN form opened the app");
+    }
+    findByObjectName(form(), QStringLiteral("requiredNewPinInput"))
+        ->forceActiveFocus(Qt::TabFocusReason);
+    typeText(window, QStringLiteral("2468"));
+    pressKey(window, Qt::Key_Tab);
+    typeText(window, QStringLiteral("2468"));
+    pressKey(window, Qt::Key_Return);
+    settle();
+    if (appState->state() != AppState::State::Ready ||
+        window->property("shell").value<QQuickItem*>() == nullptr) {
+        fail("the own PIN from the keyboard does not open the app");
+    }
+    appState->logout();
+    settle();
+    const auto again = auth.login(user, "2468");
+    if (!again || again->status != fdss::services::PinCheckStatus::Accepted ||
+        ServiceRegistry::instance().session().mustChangePin()) {
+        fail("the own PIN does not log in without another change");
+    }
+    auth.logout();
+    appState->refresh();
+    settle();
+}
+
 void exerciseTileScrolling(QQmlApplicationEngine& engine) {
     auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
     auto* picker = pickerOf(window);
@@ -2039,12 +2119,8 @@ void exerciseLoginOverSession(QQmlApplicationEngine& engine) {
     }
 
     auto& auth = ServiceRegistry::instance().auth();
-    fdss::core::StaffUserDraft draft;
-    draft.name = "Anna Analityk";
-    draft.role = fdss::core::Role::Analyst;
-    const auto analyst = auth.addStaff(draft, "1234");
+    const auto analyst = addSmokeStaff("Anna Analityk", fdss::core::Role::Analyst);
     if (!analyst) {
-        qWarning("qml_smoke: cannot add the analyst: %s", analyst.error().detail.c_str());
         return;
     }
     navigation->activate(QStringLiteral("settings"));
@@ -2466,6 +2542,17 @@ std::optional<fdss::core::StaffUserId> addSmokeStaff(const char* name, fdss::cor
     const auto user = ServiceRegistry::instance().auth().addStaff(draft, "1234");
     if (!user) {
         fail("the training test cannot add a staff member");
+        return std::nullopt;
+    }
+    // Logs in straight away, without setting an own PIN first (P19 decision 5).
+    QSqlQuery query(g_database->database());
+    if (!query.prepare(QStringLiteral("UPDATE staff_user SET must_change_pin = 0 WHERE id = ?"))) {
+        fail("cannot prepare the PIN change flag");
+        return std::nullopt;
+    }
+    query.bindValue(0, QVariant::fromValue<qint64>(user->value));
+    if (!query.exec()) {
+        fail("cannot clear the PIN change flag");
         return std::nullopt;
     }
     return *user;
@@ -7053,6 +7140,7 @@ int main(int argc, char* argv[]) {
                 }
                 if (state == AppState::State::NeedsLogin) {
                     exerciseTileScrolling(engine);
+                    exerciseForcedPinChange(engine, screenshotDirectory);
                 }
                 if (state == AppState::State::Ready) {
                     exerciseSquad(engine, screenshotDirectory);

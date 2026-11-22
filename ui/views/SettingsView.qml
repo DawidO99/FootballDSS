@@ -705,7 +705,7 @@ Item {
                     visible: editDialog.adding
                     label: qsTr("PIN")
                     mandatory: true
-                    helpText: qsTr("4 to 8 digits. Tell it to this person, who can change it later.")
+                    helpText: qsTr("4 to 8 digits. Tell it to this person, who sets their own PIN at the first login.")
                     error: newPinInput.effectiveError
 
                     PinField {
@@ -768,7 +768,7 @@ Item {
                     Layout.fillWidth: true
                     label: qsTr("New PIN")
                     mandatory: true
-                    helpText: qsTr("4 to 8 digits. This also ends a lockout.")
+                    helpText: section.ownRowSelected ? qsTr("4 to 8 digits. This also ends a lockout.") : qsTr("4 to 8 digits. This also ends a lockout. The person sets their own PIN at the next login.")
                     error: resetPinInput.effectiveError
 
                     PinField {

@@ -1481,6 +1481,45 @@
     </message>
 </context>
 <context>
+    <name>ForcedPinChangeView</name>
+    <message>
+        <source>Your PIN was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set your own PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1, your PIN was set by a coach. Choose a new PIN that only you know.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4 to 8 digits.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Repeat the PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Log out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save PIN</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>%1 (Enter)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>FormField</name>
     <message>
         <source>*</source>
@@ -3948,7 +3987,11 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>4 to 8 digits. Tell it to this person, who can change it later.</source>
+        <source>4 to 8 digits. Tell it to this person, who sets their own PIN at the first login.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>4 to 8 digits. This also ends a lockout. The person sets their own PIN at the next login.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

@@ -55,12 +55,19 @@ public:
     [[nodiscard]] core::Result<PinCheck> login(core::StaffUserId id, std::string_view pin);
     void logout();
 
+    // The PIN of a user who logged in with one a Coach chose (Session::mustChangePin()); the login
+    // has just checked the current one. Otherwise PermissionDenied. Malformed: InvalidInput with
+    // field "pin"; the same PIN as before: InvalidInput with field "pin_same". Ends the
+    // must-change state of the session.
+    [[nodiscard]] core::Status setRequiredPin(std::string_view newPin);
+
     // Needs a logged-in user, no permission. A wrong current PIN counts towards the lockout, so
     // this is no way around the limit of attempts.
     [[nodiscard]] core::Result<PinCheck> changeOwnPin(std::string_view currentPin,
                                                       std::string_view newPin);
 
-    // The methods below need ManageStaff of the session user, otherwise PermissionDenied.
+    // The methods below need ManageStaff of the session user, otherwise PermissionDenied. A user
+    // added, or whose PIN was reset by someone else, must change the PIN at the next login.
     //
     // Taking the last active Coach away gives Conflict with field "last_coach". Changing the role
     // or deactivating the session user ends the session, so nothing keeps running on old rights;
@@ -69,7 +76,8 @@ public:
     [[nodiscard]] core::Result<core::StaffUserId> addStaff(const core::StaffUserDraft& draft,
                                                            std::string_view pin);
     [[nodiscard]] core::Status updateStaff(core::StaffUserId id, const core::StaffUserDraft& draft);
-    // Also clears the attempt counter and the lockout.
+    // Also clears the attempt counter and the lockout. Resetting one's own PIN is no reason to
+    // change it again.
     [[nodiscard]] core::Status resetPin(core::StaffUserId id, std::string_view newPin);
     [[nodiscard]] core::Status deactivate(core::StaffUserId id);
     [[nodiscard]] core::Status reactivate(core::StaffUserId id);

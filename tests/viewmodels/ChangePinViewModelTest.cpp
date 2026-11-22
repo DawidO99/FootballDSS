@@ -213,3 +213,32 @@ TEST_F(ChangePinViewModelTest, ClearErrorsClearsThemAll) {
 
     EXPECT_TRUE(change.currentPinError().isEmpty());
 }
+
+// P19 decision 5.
+TEST_F(ChangePinViewModelTest, TheRequiredPinNeedsNoCurrentPinAndDiffersFromTheCoachs) {
+    const auto physio = addStaff("Piotr Fizjo", Role::Physio, true);
+    ASSERT_TRUE(registry().auth().login(physio, kPin).has_value());
+    ChangePinViewModel change;
+
+    EXPECT_FALSE(change.setRequired(kCurrent, kCurrent));
+    EXPECT_FALSE(change.newPinError().isEmpty());
+    EXPECT_FALSE(change.setRequired(kNewPin, kWrongPin));
+    EXPECT_FALSE(change.pinRepeatError().isEmpty());
+    EXPECT_TRUE(registry().session().mustChangePin());
+
+    EXPECT_TRUE(change.setRequired(kNewPin, kNewPin));
+    EXPECT_TRUE(change.newPinError().isEmpty());
+    EXPECT_FALSE(registry().session().mustChangePin());
+    registry().auth().logout();
+    EXPECT_EQ(registry().auth().login(physio, kNewPin.toStdString())->status,
+              PinCheckStatus::Accepted);
+}
+
+TEST_F(ChangePinViewModelTest, TheRequiredPinIsRefusedWithoutTheNeedToChangeIt) {
+    ChangePinViewModel change;
+    const SignalCount errors(&change, &ChangePinViewModel::errorOccurred);
+
+    EXPECT_FALSE(change.setRequired(kNewPin, kNewPin));
+
+    EXPECT_EQ(errors.count(), 1);
+}

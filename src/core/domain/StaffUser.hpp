@@ -38,6 +38,8 @@ struct PinHash {
 struct StaffCredentials : PinHash {
     int failedAttempts = 0;
     std::optional<Timestamp> lockedUntil;
+    // A Coach chose the PIN; the user sets their own at the next login (P19).
+    bool mustChangePin = false;
 
     friend bool operator==(const StaffCredentials&, const StaffCredentials&) = default;
 };

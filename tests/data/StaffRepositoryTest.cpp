@@ -137,6 +137,7 @@ TEST_F(StaffRepositoryTest, CredentialsAreStoredAsBytes) {
     EXPECT_EQ(credentials->iterations, 120000);
     EXPECT_EQ(credentials->failedAttempts, 0);
     EXPECT_EQ(credentials->lockedUntil, std::nullopt);
+    EXPECT_FALSE(credentials->mustChangePin);
 
     EXPECT_EQ(scalar(m_db->database(),
                      QStringLiteral("SELECT typeof(pin_hash) FROM staff_user WHERE id = ?"),
@@ -158,7 +159,7 @@ TEST_F(StaffRepositoryTest, SetPinReplacesHashSaltAndIterations) {
     changed.salt = {4, 5};
     changed.iterations = 200000;
     ASSERT_TRUE(repository().setLoginState(id, 3, std::nullopt).has_value());
-    ASSERT_TRUE(repository().setPin(id, changed).has_value());
+    ASSERT_TRUE(repository().setPin(id, changed, true).has_value());
 
     const auto credentials = repository().credentials(id);
     ASSERT_TRUE(credentials.has_value());
@@ -166,10 +167,21 @@ TEST_F(StaffRepositoryTest, SetPinReplacesHashSaltAndIterations) {
     EXPECT_EQ(credentials->salt, changed.salt);
     EXPECT_EQ(credentials->iterations, 200000);
     EXPECT_EQ(credentials->failedAttempts, 3);
+    EXPECT_TRUE(credentials->mustChangePin);
+
+    ASSERT_TRUE(repository().setPin(id, changed, false).has_value());
+    EXPECT_FALSE(repository().credentials(id)->mustChangePin);
+}
+
+TEST_F(StaffRepositoryTest, CreateStoresWhetherThePinMustBeChanged) {
+    const auto id = repository().create(draft("Ewa", Role::Physio, true), pin(), true);
+    ASSERT_TRUE(id.has_value()) << id.error().detail;
+
+    EXPECT_TRUE(repository().credentials(*id)->mustChangePin);
 }
 
 TEST_F(StaffRepositoryTest, SetPinOfAMissingUserIsNotFound) {
-    const auto status = repository().setPin(kNoUser, pin());
+    const auto status = repository().setPin(kNoUser, pin(), false);
     ASSERT_FALSE(status.has_value());
     EXPECT_EQ(status.error().code, ErrorCode::NotFound);
 }

@@ -34,7 +34,8 @@ class AppState : public QObject {
     Q_PROPERTY(int sessionSerial READ sessionSerial NOTIFY sessionSerialChanged FINAL)
 
 public:
-    enum class State { NeedsSetup, NeedsLogin, Ready };
+    // NeedsPinChange: logged in with a PIN a Coach chose; the user sets their own first (P19).
+    enum class State { NeedsSetup, NeedsLogin, NeedsPinChange, Ready };
     Q_ENUM(State)
 
     explicit AppState(QObject* parent = nullptr);
@@ -56,8 +57,8 @@ public:
     Q_INVOKABLE void logout();
     // Re-reads the state after setup, login or a change of staff. When the database cannot be read,
     // emits errorOccurred and keeps the state, since a failed read does not mean that there is no
-    // club; only Ready goes without a session, which lives in memory. All values are in place
-    // before the first signal.
+    // club; only Ready and NeedsPinChange go without a session, which lives in memory. All values
+    // are in place before the first signal.
     Q_INVOKABLE void refresh();
     // For a message that the next session change would dismiss with every other toast, as the
     // first login after the setup does: errorOccurred brings it right after sessionSerialChanged.
