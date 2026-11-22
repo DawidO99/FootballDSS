@@ -22,6 +22,9 @@ namespace {
 
 constexpr std::string_view kOpponent = "opponent_id";
 constexpr std::string_view kNewOpponent = "opponent_name";
+// Not a field of the service: its errors arrive as opponent_name and are kept here apart from
+// those of a new opponent.
+constexpr std::string_view kRenameOpponent = "opponent_rename";
 constexpr std::string_view kDate = "date";
 constexpr std::string_view kKickoffTime = "kickoff_time";
 
@@ -145,6 +148,14 @@ QString MatchEditorViewModel::newOpponentError() const {
     return errorText(std::string(kNewOpponent));
 }
 
+bool MatchEditorViewModel::canRenameOpponent() const {
+    return m_opponentId > 0 && m_session.isAllowed(core::Permission::EditCalendar);
+}
+
+QString MatchEditorViewModel::renameOpponentError() const {
+    return errorText(std::string(kRenameOpponent));
+}
+
 QString MatchEditorViewModel::dateError() const { return errorText(std::string(kDate)); }
 
 QString MatchEditorViewModel::kickoffTimeError() const {
@@ -210,6 +221,33 @@ bool MatchEditorViewModel::addOpponent(const QString& name) {
 }
 
 void MatchEditorViewModel::clearNewOpponentError() { clearError(std::string(kNewOpponent)); }
+
+bool MatchEditorViewModel::renameOpponent(const QString& name) {
+    if (!m_session.isAllowed(core::Permission::EditCalendar)) {
+        report(core::Error{core::ErrorCode::PermissionDenied,
+                           "refused by the viewmodel: EditCalendar is needed",
+                           {}});
+        return false;
+    }
+    const auto renamed =
+        m_calendar.renameOpponent(core::OpponentId{m_opponentId}, name.toStdString());
+    if (!renamed) {
+        if (renamed.error().field == kNewOpponent) {
+            m_errors.insert_or_assign(std::string(kRenameOpponent), renamed.error());
+            emit errorsChanged();
+        } else {
+            report(renamed.error());
+        }
+        return false;
+    }
+    clearError(std::string(kRenameOpponent));
+    refreshChoices();
+    emit fieldsChanged();
+    emit opponentRenamed();
+    return true;
+}
+
+void MatchEditorViewModel::clearRenameOpponentError() { clearError(std::string(kRenameOpponent)); }
 
 bool MatchEditorViewModel::save() {
     if (!m_session.isAllowed(core::Permission::EditCalendar)) {

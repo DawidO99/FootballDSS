@@ -11,6 +11,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace fdss::data {
@@ -70,6 +71,9 @@ public:
     // The methods below need EditCalendar.
     // A bad or duplicate name: InvalidInput or Conflict with field "opponent_name".
     [[nodiscard]] core::Result<core::OpponentId> addOpponent(const core::OpponentDraft& draft);
+    // Corrects the name in every match against this opponent; the notes stay (P19). The errors of
+    // addOpponent(), and NotFound for an unknown id.
+    [[nodiscard]] core::Status renameOpponent(core::OpponentId id, std::string_view name);
     // No opponent chosen: InvalidInput with field "opponent_id".
     [[nodiscard]] core::Result<core::MatchId> addMatch(core::TeamId team,
                                                        const core::MatchDraft& draft);

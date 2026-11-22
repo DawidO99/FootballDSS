@@ -275,6 +275,33 @@ TEST_F(MatchEditorViewModelTest, AMatchThatIsNotPlannedIsReadOnly) {
     EXPECT_EQ(errors.count(), 1);
 }
 
+TEST_F(MatchEditorViewModelTest, TheOpponentOfAPlayedMatchCanBeRenamed) {
+    const OpponentId opponent = addOpponent("Wisla");
+    addOpponent("Łódź");
+    const MatchId match = addMatch(opponent);
+    ASSERT_TRUE(fdss::data::MatchRepository(*m_db)
+                    .setResult(match, 2, 1, MatchStatus::Finished)
+                    .has_value());
+    MatchEditorViewModel editor;
+    ASSERT_TRUE(editor.startEditing(match.value));
+    EXPECT_TRUE(editor.readOnly());
+    EXPECT_TRUE(editor.canRenameOpponent());
+    SignalCount renamed(&editor, &MatchEditorViewModel::opponentRenamed);
+    SignalCount errors(&editor, &MatchEditorViewModel::errorOccurred);
+
+    EXPECT_FALSE(editor.renameOpponent(QStringLiteral("łódź")));
+    EXPECT_EQ(editor.renameOpponentError(),
+              ErrorPresenter::message(Error{ErrorCode::Conflict, {}, "opponent_name"}));
+    EXPECT_TRUE(editor.newOpponentError().isEmpty());
+    EXPECT_EQ(errors.count(), 0);
+
+    ASSERT_TRUE(editor.renameOpponent(QStringLiteral("Wisła")));
+    EXPECT_TRUE(editor.renameOpponentError().isEmpty());
+    EXPECT_EQ(editor.opponentName(), QStringLiteral("Wisła"));
+    EXPECT_EQ(editor.opponentId(), opponent.value);
+    EXPECT_EQ(renamed.count(), 1);
+}
+
 TEST_F(MatchEditorViewModelTest, ARoleWithoutEditCalendarSeesAndCannotChange) {
     const OpponentId opponent = addOpponent("Rywal");
     const MatchId match = addMatch(opponent);
@@ -288,7 +315,9 @@ TEST_F(MatchEditorViewModelTest, ARoleWithoutEditCalendarSeesAndCannotChange) {
 
     EXPECT_FALSE(editor.save());
     EXPECT_FALSE(editor.addOpponent(QStringLiteral("Nowy")));
-    EXPECT_EQ(errors.count(), 2);
+    EXPECT_FALSE(editor.canRenameOpponent());
+    EXPECT_FALSE(editor.renameOpponent(QStringLiteral("Nowy")));
+    EXPECT_EQ(errors.count(), 3);
     EXPECT_TRUE(registry().calendar().listOpponents()->size() == 1);
 }
 

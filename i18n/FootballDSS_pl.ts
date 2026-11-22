@@ -2810,6 +2810,22 @@
         <translation>Dodaj nowego przeciwnika…</translation>
     </message>
     <message>
+        <source>Rename…</source>
+        <translation>Zmień nazwę…</translation>
+    </message>
+    <message>
+        <source>New name of the opponent</source>
+        <translation>Nowa nazwa przeciwnika</translation>
+    </message>
+    <message>
+        <source>The name changes in every match against this opponent.</source>
+        <translation>Nazwa zmieni się we wszystkich meczach z tym przeciwnikiem.</translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation>Zmień nazwę</translation>
+    </message>
+    <message>
         <source>New opponent</source>
         <translation>Nowy przeciwnik</translation>
     </message>

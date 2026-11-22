@@ -398,6 +398,7 @@ Item {
         objectName: "matchEditor"
         onSaved: (matchId, date) => root.showSaved("match", matchId, date)
         onDeleteRequested: (matchId, opponentName) => root.requestMatchDelete(matchId, opponentName)
+        onOpponentRenamed: calendar.reload()
         onMatchDayRequested: matchId => {
             matchDialog.close();
             root.navigateRequested("matchday", {

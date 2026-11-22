@@ -274,6 +274,44 @@ TEST_F(CalendarServiceTest, OpponentNameErrorsAreOnTheirOwnField) {
     EXPECT_TRUE(m_calendar->addOpponent(opponentDraft(std::string(100, 'x').c_str())).has_value());
 }
 
+TEST_F(CalendarServiceTest, RenamingAnOpponentKeepsTheNotesAndTheUniqueness) {
+    logInAs(Role::Coach);
+    OpponentDraft draft = opponentDraft("Wisla");
+    draft.notes = "gra długą piłką";
+    const auto wisla = m_calendar->addOpponent(draft);
+    ASSERT_TRUE(wisla.has_value());
+    ASSERT_TRUE(m_calendar->addOpponent(opponentDraft("Łódź")).has_value());
+
+    ASSERT_TRUE(m_calendar->renameOpponent(*wisla, "  Wisła ").has_value());
+    const auto renamed = m_opponents->get(*wisla);
+    ASSERT_TRUE(renamed.has_value());
+    EXPECT_EQ(renamed->name, "Wisła");
+    EXPECT_EQ(renamed->notes, "gra długą piłką");
+
+    expectError(m_calendar->renameOpponent(*wisla, "ŁÓDŹ"), ErrorCode::Conflict, "opponent_name");
+    expectError(m_calendar->renameOpponent(*wisla, "  "), ErrorCode::InvalidInput, "opponent_name");
+    expectError(m_calendar->renameOpponent(OpponentId{999}, "Nowa"), ErrorCode::NotFound);
+    // The same name in another case is the same opponent: allowed.
+    EXPECT_TRUE(m_calendar->renameOpponent(*wisla, "WISŁA").has_value());
+}
+
+TEST_F(CalendarServiceTest, RenamingAnOpponentNeedsEditCalendar) {
+    logInAs(Role::Coach);
+    const auto opponent = m_calendar->addOpponent(opponentDraft("Rywal z Ligi"));
+    ASSERT_TRUE(opponent.has_value());
+    for (const Role role : allValues<Role>()) {
+        SCOPED_TRACE(toDbText(role));
+        logInAs(role);
+        const auto status = m_calendar->renameOpponent(*opponent, "Rywal z Ligi");
+        if (isAllowed(role, Permission::EditCalendar)) {
+            EXPECT_TRUE(status.has_value());
+        } else {
+            expectError(status, ErrorCode::PermissionDenied);
+        }
+        m_session.clear();
+    }
+}
+
 TEST_F(CalendarServiceTest, MatchNeedsAnOpponent) {
     logInAs(Role::Coach);
     MatchDraft draft = matchDraft();

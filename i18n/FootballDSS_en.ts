@@ -2710,6 +2710,22 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Rename…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New name of the opponent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>The name changes in every match against this opponent.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rename</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>New opponent</source>
         <translation type="unfinished"></translation>
     </message>
